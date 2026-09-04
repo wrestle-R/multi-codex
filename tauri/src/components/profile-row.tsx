@@ -27,6 +27,13 @@ export function ProfileRow({ profile, onLaunch, onEdit, onDelete }: ProfileRowPr
           <span className={`status status-${profile.status}`}>{profile.status}</span>
         </div>
         <p>{profile.authMode} account</p>
+        {profile.requestsRemaining != null || profile.resetDate || profile.notes ? (
+          <div className="profile-details">
+            {profile.requestsRemaining != null ? <span><strong>{profile.requestsRemaining}</strong>{" requests left"}</span> : null}
+            {profile.resetDate ? <span>Resets {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${profile.resetDate}T00:00:00Z`))}</span> : null}
+            {profile.notes ? <span className="profile-note" title={profile.notes}>{profile.notes}</span> : null}
+          </div>
+        ) : null}
         {profile.error ? <p className="inline-error">{profile.error}</p> : null}
       </div>
       <div className="profile-time">
@@ -66,4 +73,3 @@ export function ProfileRow({ profile, onLaunch, onEdit, onDelete }: ProfileRowPr
     </article>
   )
 }
-

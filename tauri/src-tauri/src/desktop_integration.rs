@@ -67,9 +67,14 @@ impl DesktopIntegration {
             .source_appimage
             .as_ref()
             .is_some_and(|path| path.is_file());
+        let desktop_entry_path = self.applications_dir.join(DESKTOP_FILE_NAME);
         let installed = self.install_bin.is_file()
-            && self.applications_dir.join(DESKTOP_FILE_NAME).is_file()
+            && desktop_entry_path.is_file()
             && ICONS.iter().all(|(size, _)| self.icon_path(size).is_file());
+        let installed = installed
+            && fs::read_to_string(desktop_entry_path).is_ok_and(|entry| {
+                entry.contains(&format!("X-MultiCodex-Version={}\n", self.version))
+            });
 
         DesktopIntegrationStatus {
             available,
@@ -99,7 +104,7 @@ impl DesktopIntegration {
             atomic_write(&self.icon_path(size), bytes, 0o644)?;
         }
 
-        let desktop_entry = desktop_entry(&self.install_bin)?;
+        let desktop_entry = desktop_entry(&self.install_bin, &self.version)?;
         atomic_write(
             &self.applications_dir.join(DESKTOP_FILE_NAME),
             desktop_entry.as_bytes(),
@@ -130,7 +135,7 @@ impl DesktopIntegration {
     }
 }
 
-fn desktop_entry(executable: &Path) -> Result<String, String> {
+fn desktop_entry(executable: &Path, version: &str) -> Result<String, String> {
     let executable = executable
         .to_str()
         .ok_or_else(|| "The AppImage install path is not valid UTF-8".to_string())?;
@@ -140,7 +145,7 @@ fn desktop_entry(executable: &Path) -> Result<String, String> {
         .replace('`', "\\`")
         .replace('$', "\\$");
     Ok(format!(
-        "[Desktop Entry]\nType=Application\nName=Multi Codex\nComment=Launch isolated Codex accounts\nExec=\"{escaped}\"\nIcon={APP_ID}\nTerminal=false\nCategories=Utility;Development;\nStartupWMClass={APP_ID}\n"
+        "[Desktop Entry]\nType=Application\nName=Multi Codex\nComment=Launch isolated Codex accounts\nExec=\"{escaped}\"\nIcon={APP_ID}\nTerminal=false\nCategories=Utility;Development;\nStartupWMClass={APP_ID}\nX-MultiCodex-Version={version}\n"
     ))
 }
 
@@ -279,9 +284,28 @@ mod tests {
 
     #[test]
     fn desktop_entry_escapes_exec_metacharacters() {
-        let entry = desktop_entry(Path::new("/tmp/a $b/with`tick\\and\"quote.AppImage")).unwrap();
+        let entry = desktop_entry(
+            Path::new("/tmp/a $b/with`tick\\and\"quote.AppImage"),
+            "2.1.0",
+        )
+        .unwrap();
         assert!(entry.contains("\\$b"));
         assert!(entry.contains("\\`tick"));
         assert!(entry.contains("\\\\and\\\"quote"));
+        assert!(entry.contains("X-MultiCodex-Version=2.1.0"));
+    }
+
+    #[test]
+    fn older_installed_appimage_is_offered_an_update() {
+        let root = tempfile::tempdir().unwrap();
+        let integration = fixture(root.path(), true);
+        integration.install(true).unwrap();
+        let entry_path = integration.applications_dir.join(DESKTOP_FILE_NAME);
+        let entry = fs::read_to_string(&entry_path)
+            .unwrap()
+            .replace("X-MultiCodex-Version=0.2.0", "X-MultiCodex-Version=0.1.0");
+        fs::write(entry_path, entry).unwrap();
+        assert!(!integration.status().installed);
+        assert!(integration.status().available);
     }
 }

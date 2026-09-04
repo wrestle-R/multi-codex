@@ -69,6 +69,15 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("button", { name: "Launch" })).toBeEnabled()
   })
 
+  it("shows saved request tracking details on the account row", async () => {
+    api.listProfiles.mockResolvedValue([{ ...profile, requestsRemaining: 75, resetDate: "2026-09-30", notes: "Use for personal work" }])
+    render(<App />)
+    const row = await screen.findByTestId(`profile-${profile.id}`)
+    expect(row).toHaveTextContent("75 requests left")
+    expect(row).toHaveTextContent("Use for personal work")
+    expect(row).toHaveTextContent(/Resets/)
+  })
+
   it("requires both a profile name and pasted JSON", async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -105,7 +114,32 @@ describe("Multi Codex", () => {
     await user.type(screen.getByLabelText("Profile name"), "Current")
     expect(screen.queryByLabelText("Auth JSON")).not.toBeInTheDocument()
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Add account" }))
-    await waitFor(() => expect(api.importCurrentProfile).toHaveBeenCalledWith("Current"))
+    await waitFor(() => expect(api.importCurrentProfile).toHaveBeenCalledWith("Current", {
+      requestsRemaining: undefined,
+      resetDate: undefined,
+      notes: undefined,
+    }))
+  })
+
+  it("saves optional request tracking details", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole("heading", { name: "Personal" })
+    await user.click(screen.getByRole("button", { name: "Edit Personal" }))
+    await user.type(screen.getByLabelText(/Requests remaining/), "75")
+    fireEvent.change(screen.getByLabelText(/Reset date/), { target: { value: "2026-09-30" } })
+    await user.type(screen.getByLabelText(/Notes/), "Use for personal work")
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save changes" }))
+    await waitFor(() => expect(api.updateProfile).toHaveBeenCalledWith(
+      profile.id,
+      "Personal",
+      undefined,
+      {
+        requestsRemaining: 75,
+        resetDate: "2026-09-30",
+        notes: "Use for personal work",
+      },
+    ))
   })
 
   it("requires explicit confirmation before deletion", async () => {
