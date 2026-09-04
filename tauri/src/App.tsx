@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   Add01Icon,
   ComputerIcon,
+  DownloadSquare01Icon,
   Moon02Icon,
   ShieldKeyIcon,
   Sun03Icon,
@@ -10,17 +11,20 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import "./App.css"
 import { BrandMark } from "./components/brand-mark"
 import { ConfirmDialog } from "./components/confirm-dialog"
+import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
 import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
 import {
   addProfile,
   deleteProfile,
+  getDesktopIntegrationStatus,
   importCurrentProfile,
+  installDesktopIntegration,
   launchProfile,
   listProfiles,
   updateProfile,
 } from "./lib/desktop-api"
-import type { Profile } from "./lib/types"
+import type { DesktopIntegrationStatus, Profile } from "./lib/types"
 
 type Theme = "system" | "light" | "dark"
 
@@ -41,6 +45,10 @@ export default function App() {
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [theme, setTheme] = useState<Theme>(initialTheme)
+  const [integrationStatus, setIntegrationStatus] = useState<DesktopIntegrationStatus | null>(null)
+  const [showIntegration, setShowIntegration] = useState(false)
+  const [integrationBusy, setIntegrationBusy] = useState(false)
+  const [integrationError, setIntegrationError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -59,6 +67,16 @@ export default function App() {
     const interval = window.setInterval(() => void refresh(), 2000)
     return () => window.clearInterval(interval)
   }, [refresh])
+
+  useEffect(() => {
+    void getDesktopIntegrationStatus().then((status) => {
+      setIntegrationStatus(status)
+      const dismissedVersion = localStorage.getItem("multi-codex-desktop-dismissed")
+      if (status.available && !status.installed && dismissedVersion !== status.version) {
+        setShowIntegration(true)
+      }
+    }).catch(() => undefined)
+  }, [])
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)")
@@ -134,69 +152,107 @@ export default function App() {
     setDialogProfile(null)
   }
 
+  function dismissIntegration() {
+    if (integrationStatus) {
+      localStorage.setItem("multi-codex-desktop-dismissed", integrationStatus.version)
+    }
+    setIntegrationError(null)
+    setShowIntegration(false)
+  }
+
+  async function handleInstallIntegration(createDesktopShortcut: boolean) {
+    setIntegrationBusy(true)
+    setIntegrationError(null)
+    try {
+      const status = await installDesktopIntegration(createDesktopShortcut)
+      setIntegrationStatus(status)
+      localStorage.removeItem("multi-codex-desktop-dismissed")
+      setShowIntegration(false)
+    } catch (error) {
+      setIntegrationError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setIntegrationBusy(false)
+    }
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand-block">
-          <BrandMark />
-          <div>
-            <strong>Multi Codex</strong>
-            <span>Isolated account launcher</span>
+        <div className="topbar-inner">
+          <div className="brand-block">
+            <BrandMark />
+            <div>
+              <strong>Multi Codex</strong>
+              <span>Isolated account launcher</span>
+            </div>
           </div>
-        </div>
-        <div className="topbar-actions">
-          <button
-            className="icon-button"
-            type="button"
-            title={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
-            aria-label={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
-            onClick={() => setTheme((current) => nextTheme[current])}
-          >
-            <HugeiconsIcon icon={theme === "system" ? ComputerIcon : theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
-          </button>
-          <button className="button primary header-button" type="button" onClick={openAdd}>
-            <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
-            Add account
-          </button>
+          <div className="topbar-actions">
+            {integrationStatus?.available && !integrationStatus.installed ? (
+              <button
+                className="icon-button integration-button"
+                type="button"
+                title="Install desktop integration"
+                aria-label="Install desktop integration"
+                onClick={() => { setIntegrationError(null); setShowIntegration(true) }}
+              >
+                <HugeiconsIcon icon={DownloadSquare01Icon} size={20} strokeWidth={1.8} />
+              </button>
+            ) : null}
+            <button
+              className="icon-button"
+              type="button"
+              title={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
+              aria-label={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
+              onClick={() => setTheme((current) => nextTheme[current])}
+            >
+              <HugeiconsIcon icon={theme === "system" ? ComputerIcon : theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
+            </button>
+            <button className="button primary header-button" type="button" onClick={openAdd}>
+              <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
+              Add account
+            </button>
+          </div>
         </div>
       </header>
 
       <section className="content-area">
-        <div className="intro-panel">
-          <div>
-            <span className="eyebrow">Codex profiles</span>
-            <h1>One account per workspace.</h1>
-            <p>Open separate VS Code windows without changing your main Codex login.</p>
+        <div className="content-inner">
+          <div className="intro-panel">
+            <div>
+              <span className="eyebrow">Codex profiles</span>
+              <h1>One account per workspace.</h1>
+              <p>Open separate VS Code windows without changing your main Codex login.</p>
+            </div>
+            <div className="runtime-summary">
+              <HugeiconsIcon icon={ShieldKeyIcon} size={22} strokeWidth={1.7} />
+              <div><span>Protected locally</span><strong>{runningCount} running</strong></div>
+            </div>
           </div>
-          <div className="runtime-summary">
-            <HugeiconsIcon icon={ShieldKeyIcon} size={24} strokeWidth={1.7} />
-            <div><span>Protected locally</span><strong>{runningCount} running</strong></div>
-          </div>
+
+          {loading ? (
+            <div className="profile-list" aria-label="Loading accounts">
+              {[0, 1].map((item) => <div className="profile-row skeleton-row" key={item} />)}
+            </div>
+          ) : pageError ? (
+            <div className="state-panel error-state" role="alert"><h2>Could not load accounts</h2><p>{pageError}</p><button className="button secondary" type="button" onClick={() => void refresh()}>Try again</button></div>
+          ) : profiles.length === 0 ? (
+            <div className="state-panel empty-state"><BrandMark /><h2>No accounts yet</h2><p>Add an auth JSON or import your current Codex account.</p><button className="button primary" type="button" onClick={openAdd}>Add your first account</button></div>
+          ) : (
+            <div className="profile-list">
+              {profiles.map((profile) => (
+                <ProfileRow
+                  key={profile.id}
+                  profile={profile}
+                  onLaunch={handleLaunch}
+                  onEdit={(selected) => { setDialogError(null); setDialogProfile(selected) }}
+                  onDelete={(selected) => { setDialogError(null); setDeleteTarget(selected) }}
+                />
+              ))}
+            </div>
+          )}
+
+          <footer>Credentials stay in your system keyring. Multi Codex never edits your default auth file.</footer>
         </div>
-
-        {loading ? (
-          <div className="profile-list" aria-label="Loading accounts">
-            {[0, 1].map((item) => <div className="profile-row skeleton-row" key={item} />)}
-          </div>
-        ) : pageError ? (
-          <div className="state-panel error-state" role="alert"><h2>Could not load accounts</h2><p>{pageError}</p><button className="button secondary" type="button" onClick={() => void refresh()}>Try again</button></div>
-        ) : profiles.length === 0 ? (
-          <div className="state-panel empty-state"><BrandMark /><h2>No accounts yet</h2><p>Add an auth JSON or import your current Codex account.</p><button className="button primary" type="button" onClick={openAdd}>Add your first account</button></div>
-        ) : (
-          <div className="profile-list">
-            {profiles.map((profile) => (
-              <ProfileRow
-                key={profile.id}
-                profile={profile}
-                onLaunch={handleLaunch}
-                onEdit={(selected) => { setDialogError(null); setDialogProfile(selected) }}
-                onDelete={(selected) => { setDialogError(null); setDeleteTarget(selected) }}
-              />
-            ))}
-          </div>
-        )}
-
-        <footer>Credentials stay in your system keyring. Multi Codex never edits your default auth file.</footer>
       </section>
 
       {dialogProfile !== undefined ? (
@@ -216,6 +272,14 @@ export default function App() {
           error={dialogError}
           onCancel={() => setDeleteTarget(null)}
           onConfirm={() => void handleDelete()}
+        />
+      ) : null}
+      {showIntegration ? (
+        <DesktopIntegrationDialog
+          busy={integrationBusy}
+          error={integrationError}
+          onDismiss={dismissIntegration}
+          onInstall={handleInstallIntegration}
         />
       ) : null}
     </main>
