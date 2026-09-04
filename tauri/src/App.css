@@ -1,0 +1,156 @@
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.2101 0.0318 264.6645);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.6716 0.1368 48.513);
+  --primary-foreground: oklch(1 0 0);
+  --muted: oklch(0.967 0.0029 264.5419);
+  --muted-foreground: oklch(0.551 0.0234 264.3637);
+  --border: oklch(0.9276 0.0058 264.5313);
+  --ring: oklch(0.6716 0.1368 48.513);
+  --signal: oklch(0.594 0.0443 196.0233);
+  --signal-soft: color-mix(in oklab, var(--signal) 13%, transparent);
+  --danger: oklch(0.62 0.19 25);
+  --radius: 16px;
+  --shadow: 0 18px 48px rgb(15 23 42 / 0.07);
+  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  color: var(--foreground);
+  background: var(--background);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+:root.dark {
+  --background: oklch(0.1797 0.0043 308.1928);
+  --foreground: oklch(0.8109 0 0);
+  --card: oklch(0.1822 0 0);
+  --primary: oklch(0.7214 0.1337 49.9802);
+  --primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --muted: oklch(0.252 0 0);
+  --muted-foreground: oklch(0.6268 0 0);
+  --border: oklch(0.252 0 0);
+  --ring: oklch(0.7214 0.1337 49.9802);
+  --signal: oklch(0.69 0.09 196);
+  --signal-soft: color-mix(in oklab, var(--signal) 14%, transparent);
+  --danger: oklch(0.7 0.17 25);
+  --shadow: 0 20px 60px rgb(0 0 0 / 0.32);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; min-width: 320px; height: 100%; margin: 0; overflow: hidden; }
+body {
+  color: var(--foreground);
+  background:
+    linear-gradient(color-mix(in oklab, var(--foreground) 3.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--foreground) 3.5%, transparent) 1px, transparent 1px),
+    var(--background);
+  background-size: 32px 32px;
+}
+button, input, textarea { font: inherit; }
+button { border: 0; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent); outline-offset: 2px; }
+
+.app-shell { width: 100%; height: 100%; display: flex; flex-direction: column; }
+.topbar { min-height: 76px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.8rem 1.4rem; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--background) 88%, transparent); backdrop-filter: blur(24px); z-index: 20; }
+.brand-block, .topbar-actions, .profile-heading, .profile-actions, .runtime-summary, .dialog-header, .dialog-actions, .header-button { display: flex; align-items: center; }
+.brand-block { gap: 0.78rem; }
+.brand-block strong, h1, h2 { font-family: "Bricolage Grotesque", "Outfit", sans-serif; letter-spacing: 0; }
+.brand-block strong { display: block; font-size: 1.27rem; }
+.brand-block span:not(.brand-mark) { display: block; color: var(--muted-foreground); font-size: 0.76rem; }
+.brand-mark { position: relative; width: 45px; height: 45px; display: inline-grid; place-items: center; flex: 0 0 auto; }
+.brand-mark > span { position: absolute; width: 27px; height: 27px; border: 2px solid var(--foreground); border-radius: 8px; }
+.brand-mark > span:first-child { transform: translate(-5px, -5px); opacity: 0.34; }
+.brand-mark > span:nth-child(2) { transform: translate(5px, 5px); border-color: var(--primary); }
+.brand-mark i { position: relative; z-index: 1; font: 700 0.78rem/1 "Bricolage Grotesque", sans-serif; font-style: normal; }
+.topbar-actions { gap: 0.65rem; }
+.button, .icon-button, .segmented-control button { cursor: pointer; transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease; }
+.button:active:not(:disabled), .icon-button:active:not(:disabled) { transform: scale(0.97); }
+.button:disabled, .icon-button:disabled { cursor: not-allowed; opacity: 0.5; }
+.button { min-height: 42px; padding: 0.65rem 1rem; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.button.primary { color: var(--primary-foreground); background: var(--primary); }
+.button.secondary, .icon-button { background: color-mix(in oklab, var(--card) 94%, transparent); box-shadow: inset 0 0 0 1px var(--border); }
+.button.destructive { color: white; background: var(--danger); }
+.header-button, .launch-button { justify-content: center; gap: 0.45rem; }
+.icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; border-radius: 999px; }
+.danger-button:hover:not(:disabled) { color: var(--danger); }
+
+.content-area { flex: 1; min-height: 0; overflow: auto; padding: 1.4rem; scrollbar-width: none; }
+.content-area::-webkit-scrollbar { width: 0; }
+.intro-panel, .profile-row, .state-panel, .dialog { color: var(--foreground); background: color-mix(in oklab, var(--card) 92%, transparent); border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); box-shadow: var(--shadow); }
+.intro-panel { min-height: 180px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.6rem; }
+.eyebrow { display: block; margin-bottom: 0.35rem; color: var(--muted-foreground); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0; }
+.intro-panel h1 { margin: 0; max-width: 680px; font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; }
+.intro-panel p, .state-panel p, .confirm-dialog p { margin: 0.65rem 0 0; color: var(--muted-foreground); }
+.runtime-summary { min-width: 188px; gap: 0.7rem; padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: 1rem; background: color-mix(in oklab, var(--muted) 72%, transparent); }
+.runtime-summary span, .runtime-summary strong { display: block; }
+.runtime-summary span { color: var(--muted-foreground); font-size: 0.76rem; }
+.runtime-summary strong { margin-top: 0.12rem; }
+
+.profile-list { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
+.profile-row { min-height: 102px; display: grid; grid-template-columns: 52px minmax(180px, 1fr) minmax(120px, auto) auto; align-items: center; gap: 1rem; padding: 1rem; }
+.profile-avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, var(--card)); font: 700 1.05rem/1 "Bricolage Grotesque", sans-serif; }
+.profile-main { min-width: 0; }
+.profile-heading { gap: 0.6rem; }
+.profile-heading h2 { overflow: hidden; margin: 0; font-size: 1.12rem; text-overflow: ellipsis; white-space: nowrap; }
+.profile-main p { margin: 0.22rem 0 0; color: var(--muted-foreground); font-size: 0.82rem; }
+.status { padding: 0.2rem 0.5rem; border-radius: 999px; color: var(--muted-foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; text-transform: capitalize; }
+.status-running { color: var(--signal); background: var(--signal-soft); }
+.status-launching { color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); }
+.status-error, .inline-error { color: var(--danger) !important; }
+.profile-time span, .profile-time strong { display: block; text-align: right; }
+.profile-time span { color: var(--muted-foreground); font-size: 0.72rem; }
+.profile-time strong { margin-top: 0.15rem; font-size: 0.82rem; }
+.profile-actions { justify-content: flex-end; gap: 0.5rem; }
+.launch-button { min-width: 104px; }
+
+.state-panel { min-height: 280px; margin-top: 0.75rem; display: grid; place-items: center; align-content: center; gap: 0.3rem; padding: 2rem; text-align: center; }
+.state-panel h2 { margin: 0.5rem 0 0; }
+.state-panel .button { margin-top: 1rem; }
+.skeleton-row { min-height: 102px; background: linear-gradient(100deg, color-mix(in oklab, var(--muted) 88%, transparent) 20%, color-mix(in oklab, var(--foreground) 8%, var(--muted)) 45%, color-mix(in oklab, var(--muted) 88%, transparent) 70%); background-size: 220% 100%; animation: shimmer 1.4s ease-in-out infinite; }
+footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.76rem; text-align: center; }
+
+.dialog-layer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: color-mix(in oklab, var(--background) 62%, transparent); backdrop-filter: blur(14px); }
+.dialog { width: min(540px, 100%); max-height: calc(100dvh - 2rem); overflow: auto; padding: 1.35rem; }
+.dialog-header { justify-content: space-between; gap: 1rem; }
+.dialog h2 { margin: 0; font-size: 1.55rem; }
+.dialog-close { width: 40px; height: 40px; display: inline-grid; place-items: center; border-radius: 999px; background: var(--muted); cursor: pointer; }
+.segmented-control { display: inline-grid; grid-auto-flow: column; gap: 0.3rem; margin-top: 1.1rem; padding: 0.25rem; border: 1px solid var(--border); border-radius: 999px; background: var(--muted); }
+.segmented-control button { padding: 0.5rem 0.82rem; border-radius: 999px; background: transparent; }
+.segmented-control button.active { background: var(--card); box-shadow: inset 0 0 0 1px var(--border); }
+.dialog form { display: grid; gap: 1rem; margin-top: 1rem; }
+.dialog label { display: grid; gap: 0.42rem; font-size: 0.82rem; font-weight: 600; }
+.dialog input, .dialog textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; color: var(--foreground); background: color-mix(in oklab, var(--card) 96%, transparent); }
+.dialog input { height: 44px; padding: 0 0.8rem; }
+.dialog textarea { min-height: 170px; padding: 0.75rem; resize: vertical; font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.notice, .form-error { padding: 0.85rem; border-radius: 10px; font-size: 0.82rem; }
+.notice { color: var(--muted-foreground); background: var(--muted); }
+.form-error { color: var(--danger); border: 1px solid color-mix(in oklab, var(--danger) 35%, var(--border)); background: color-mix(in oklab, var(--danger) 8%, transparent); }
+.dialog-actions { justify-content: flex-end; gap: 0.6rem; margin-top: 0.2rem; }
+.confirm-dialog { width: min(460px, 100%); }
+.confirm-dialog .dialog-actions { margin-top: 1.2rem; }
+.danger-copy { color: var(--danger); }
+
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
+@media (max-width: 760px) {
+  .topbar { min-height: 68px; padding: 0.65rem 0.85rem; }
+  .brand-block span:not(.brand-mark) { display: none; }
+  .content-area { padding: 0.8rem; }
+  .intro-panel { min-height: 0; align-items: flex-start; flex-direction: column; gap: 1.1rem; padding: 1.2rem; }
+  .intro-panel h1 { font-size: 2rem; }
+  .runtime-summary { width: 100%; }
+  .profile-row { grid-template-columns: 48px minmax(0, 1fr); }
+  .profile-time { display: none; }
+  .profile-actions { grid-column: 1 / -1; }
+  .launch-button { flex: 1; }
+}
+@media (max-width: 430px) {
+  .brand-block strong { font-size: 1.05rem; }
+  .brand-mark { width: 38px; height: 38px; }
+  .header-button { width: 42px; padding: 0; font-size: 0; }
+  .header-button svg { width: 20px; height: 20px; }
+  .profile-actions .icon-button { width: 40px; height: 40px; }
+}
