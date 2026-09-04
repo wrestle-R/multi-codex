@@ -3,7 +3,7 @@
   --foreground: oklch(0.2101 0.0318 264.6645);
   --card: oklch(1 0 0);
   --primary: oklch(0.6716 0.1368 48.513);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.2101 0.0318 264.6645);
   --muted: oklch(0.967 0.0029 264.5419);
   --muted-foreground: oklch(0.551 0.0234 264.3637);
   --border: oklch(0.9276 0.0058 264.5313);
@@ -91,12 +91,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 
 .profile-list { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
 .profile-row { min-height: 102px; display: grid; grid-template-columns: 52px minmax(180px, 1fr) minmax(120px, auto) auto; align-items: center; gap: 1rem; padding: 1rem; }
-.profile-avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, var(--card)); font: 700 1.05rem/1 "Bricolage Grotesque", sans-serif; }
+.profile-avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--foreground); background: color-mix(in oklab, var(--primary) 14%, var(--card)); font: 700 1.05rem/1 "Bricolage Grotesque", sans-serif; }
 .profile-main { min-width: 0; }
 .profile-heading { gap: 0.6rem; }
 .profile-heading h2 { overflow: hidden; margin: 0; font-size: 1.12rem; text-overflow: ellipsis; white-space: nowrap; }
 .profile-main p { margin: 0.22rem 0 0; color: var(--muted-foreground); font-size: 0.82rem; }
-.status { padding: 0.2rem 0.5rem; border-radius: 999px; color: var(--muted-foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; text-transform: capitalize; }
+.status { padding: 0.2rem 0.5rem; border-radius: 999px; color: var(--foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; text-transform: capitalize; }
 .status-running { color: var(--signal); background: var(--signal-soft); }
 .status-launching { color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); }
 .status-error, .inline-error { color: var(--danger) !important; }
