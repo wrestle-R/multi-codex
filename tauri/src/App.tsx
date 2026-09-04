@@ -24,7 +24,7 @@ import {
   listProfiles,
   updateProfile,
 } from "./lib/desktop-api"
-import type { DesktopIntegrationStatus, Profile } from "./lib/types"
+import type { DesktopIntegrationStatus, Profile, ProfileDetails } from "./lib/types"
 
 type Theme = "system" | "light" | "dark"
 
@@ -92,12 +92,12 @@ export default function App() {
     [profiles],
   )
 
-  async function handleSave(name: string, authJson?: string) {
+  async function handleSave(name: string, authJson: string | undefined, details: ProfileDetails) {
     setBusy(true)
     setDialogError(null)
     try {
-      if (dialogProfile) await updateProfile(dialogProfile.id, name, authJson)
-      else if (authJson) await addProfile({ name, authJson })
+      if (dialogProfile) await updateProfile(dialogProfile.id, name, authJson, details)
+      else if (authJson) await addProfile({ name, authJson, ...details })
       await refresh()
       setDialogProfile(undefined)
     } catch (error) {
@@ -107,11 +107,11 @@ export default function App() {
     }
   }
 
-  async function handleImport(name: string) {
+  async function handleImport(name: string, details: ProfileDetails) {
     setBusy(true)
     setDialogError(null)
     try {
-      await importCurrentProfile(name)
+      await importCurrentProfile(name, details)
       await refresh()
       setDialogProfile(undefined)
     } catch (error) {

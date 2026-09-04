@@ -2,7 +2,7 @@ import { Cancel01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { useId, useState } from "react"
 import type { FormEvent } from "react"
-import type { Profile } from "../lib/types"
+import type { Profile, ProfileDetails } from "../lib/types"
 import { useDialogFocus } from "./use-dialog-focus"
 
 interface ProfileDialogProps {
@@ -10,8 +10,8 @@ interface ProfileDialogProps {
   busy: boolean
   error: string | null
   onClose: () => void
-  onSave: (name: string, authJson?: string) => Promise<void>
-  onImportCurrent: (name: string) => Promise<void>
+  onSave: (name: string, authJson: string | undefined, details: ProfileDetails) => Promise<void>
+  onImportCurrent: (name: string, details: ProfileDetails) => Promise<void>
 }
 
 export function ProfileDialog({
@@ -26,14 +26,22 @@ export function ProfileDialog({
   const [mode, setMode] = useState<"paste" | "current">("paste")
   const [name, setName] = useState(profile?.name ?? "")
   const [authJson, setAuthJson] = useState("")
+  const [requestsRemaining, setRequestsRemaining] = useState(profile?.requestsRemaining?.toString() ?? "")
+  const [resetDate, setResetDate] = useState(profile?.resetDate ?? "")
+  const [notes, setNotes] = useState(profile?.notes ?? "")
   const dialogRef = useDialogFocus(onClose, busy)
 
   const canSubmit = name.trim().length > 0 && (Boolean(profile) || mode === "current" || authJson.trim().length > 0)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (profile || mode === "paste") await onSave(name, authJson.trim() || undefined)
-    else await onImportCurrent(name)
+    const details: ProfileDetails = {
+      requestsRemaining: requestsRemaining === "" ? undefined : Number(requestsRemaining),
+      resetDate: resetDate || undefined,
+      notes: notes.trim() || undefined,
+    }
+    if (profile || mode === "paste") await onSave(name, authJson.trim() || undefined, details)
+    else await onImportCurrent(name, details)
   }
 
   return (
@@ -75,6 +83,37 @@ export function ProfileDialog({
           ) : (
             <div className="notice">Reads your current Codex login and saves a protected copy. The original file is never changed.</div>
           )}
+
+          <div className="optional-fields">
+            <label>
+              <span>Requests remaining <small>Optional</small></span>
+              <input
+                type="number"
+                min="0"
+                max="1000000"
+                step="1"
+                inputMode="numeric"
+                value={requestsRemaining}
+                placeholder="250"
+                onChange={(event) => setRequestsRemaining(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              <span>Reset date <small>Optional</small></span>
+              <input type="date" value={resetDate} onChange={(event) => setResetDate(event.currentTarget.value)} />
+            </label>
+          </div>
+
+          <label>
+            <span>Notes <small>Optional</small></span>
+            <textarea
+              className="notes-input"
+              value={notes}
+              maxLength={500}
+              placeholder="Anything useful about this account"
+              onChange={(event) => setNotes(event.currentTarget.value)}
+            />
+          </label>
 
           {error ? <div className="form-error" role="alert">{error}</div> : null}
 

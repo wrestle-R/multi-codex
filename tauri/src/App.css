@@ -100,6 +100,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .profile-heading { gap: 0.6rem; }
 .profile-heading h2 { overflow: hidden; margin: 0; font-size: 1.12rem; text-overflow: ellipsis; white-space: nowrap; }
 .profile-main p { margin: 0.22rem 0 0; color: var(--muted-foreground); font-size: 0.82rem; }
+.profile-details { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.7rem; margin-top: 0.45rem; color: var(--muted-foreground); font-size: 0.75rem; }
+.profile-details span { display: inline-flex; min-width: 0; align-items: center; }
+.profile-details span + span::before { width: 3px; height: 3px; margin-right: 0.7rem; border-radius: 50%; background: var(--muted-foreground); content: ""; flex: 0 0 auto; }
+.profile-details strong { margin-right: 0.18rem; color: var(--foreground); font-size: inherit; }
+.profile-note { max-width: 28rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .status { padding: 0.22rem 0.52rem; border-radius: 999px; color: var(--foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; line-height: 1.15; text-transform: capitalize; }
 .status-running { color: var(--signal); background: var(--signal-soft); }
 .status-launching { color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); }
@@ -129,6 +134,9 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .dialog input, .dialog textarea { width: 100%; border: 1px solid var(--border); border-radius: 10px; color: var(--foreground); background: color-mix(in oklab, var(--card) 96%, transparent); }
 .dialog input { height: 44px; padding: 0 0.8rem; }
 .dialog textarea { min-height: 170px; padding: 0.75rem; resize: vertical; font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.dialog label span small { margin-left: 0.35rem; color: var(--muted-foreground); font-size: 0.68rem; font-weight: 500; }
+.optional-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.dialog textarea.notes-input { min-height: 82px; font: inherit; }
 .notice, .form-error { padding: 0.85rem; border-radius: 10px; font-size: 0.82rem; }
 .notice { color: var(--muted-foreground); background: var(--muted); }
 .form-error { color: var(--danger); border: 1px solid color-mix(in oklab, var(--danger) 35%, var(--border)); background: color-mix(in oklab, var(--danger) 8%, transparent); }
@@ -162,6 +170,7 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
   .launch-button { flex: 1; }
 }
 @media (max-width: 430px) {
+  .optional-fields { grid-template-columns: 1fr; }
   .brand-block strong { font-size: 1.05rem; }
   .brand-mark { width: 38px; height: 38px; }
   .header-button { width: 42px; padding: 0; font-size: 0; }

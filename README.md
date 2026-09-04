@@ -6,4 +6,4 @@ Launch multiple Codex accounts in isolated VS Code windows without changing your
 
 ![Multi Codex dark](tauri/public/dark_screenshot.png)
 
-[Download Multi Codex v0.2.0 AppImage](https://github.com/wrestle-R/multi-codex/releases/download/v0.2.0/Multi.Codex_0.2.0_amd64.AppImage)
+[Download Multi Codex v1.0.0 AppImage](https://github.com/wrestle-R/multi-codex/releases/download/v1.0.0/Multi.Codex_1.0.0_amd64.AppImage)
