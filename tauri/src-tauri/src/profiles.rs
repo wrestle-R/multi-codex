@@ -167,7 +167,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     pub fn list_profiles(&self) -> Result<Vec<ProfileView>> {
         self.clean_stale_credentials()?;
         let mut profiles = self.load_metadata()?;
-        profiles.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+        profiles.sort_by_key(|profile| std::cmp::Reverse(profile.updated_at));
         let runtime = self
             .runtime
             .lock()
@@ -466,13 +466,13 @@ pub fn default_service() -> Result<ProfileService<KeyringSecretStore, CodexCliRe
         .ok_or_else(|| "Data directory is unavailable".to_string())?
         .join("multi-codex");
     let codex_home = home.join(".codex");
-    Ok(ProfileService::new(
+    ProfileService::new(
         data_root,
         codex_home,
         home.join(".vscode/extensions"),
         KeyringSecretStore,
         CodexCliRecognizer,
-    )?)
+    )
 }
 
 pub fn validate_auth_structure(auth_json: &str) -> Result<String> {

@@ -1,8 +1,9 @@
 import { Cancel01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { useEffect, useId, useState } from "react"
+import { useId, useState } from "react"
 import type { FormEvent } from "react"
 import type { Profile } from "../lib/types"
+import { useDialogFocus } from "./use-dialog-focus"
 
 interface ProfileDialogProps {
   profile?: Profile | null
@@ -25,14 +26,7 @@ export function ProfileDialog({
   const [mode, setMode] = useState<"paste" | "current">("paste")
   const [name, setName] = useState(profile?.name ?? "")
   const [authJson, setAuthJson] = useState("")
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onClose()
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [busy, onClose])
+  const dialogRef = useDialogFocus(onClose, busy)
 
   const canSubmit = name.trim().length > 0 && (Boolean(profile) || mode === "current" || authJson.trim().length > 0)
 
@@ -44,7 +38,7 @@ export function ProfileDialog({
 
   return (
     <div className="dialog-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
-      <section className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="dialog-header">
           <div>
             <span className="eyebrow">Account profile</span>
