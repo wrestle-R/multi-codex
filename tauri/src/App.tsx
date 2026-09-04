@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   Add01Icon,
+  ComputerIcon,
   Moon02Icon,
   ShieldKeyIcon,
   Sun03Icon,
@@ -21,13 +22,15 @@ import {
 } from "./lib/desktop-api"
 import type { Profile } from "./lib/types"
 
-type Theme = "light" | "dark"
+type Theme = "system" | "light" | "dark"
 
 function initialTheme(): Theme {
   const saved = localStorage.getItem("multi-codex-theme")
-  if (saved === "light" || saved === "dark") return saved
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+  if (saved === "system" || saved === "light" || saved === "dark") return saved
+  return "system"
 }
+
+const nextTheme: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" }
 
 export default function App() {
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -58,8 +61,12 @@ export default function App() {
   }, [refresh])
 
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark")
+    const media = window.matchMedia("(prefers-color-scheme: dark)")
+    const apply = () => document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && media.matches))
+    apply()
     localStorage.setItem("multi-codex-theme", theme)
+    media.addEventListener("change", apply)
+    return () => media.removeEventListener("change", apply)
   }, [theme])
 
   const runningCount = useMemo(
@@ -141,11 +148,11 @@ export default function App() {
           <button
             className="icon-button"
             type="button"
-            title={`Use ${theme === "dark" ? "light" : "dark"} theme`}
-            aria-label={`Use ${theme === "dark" ? "light" : "dark"} theme`}
-            onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
+            title={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
+            aria-label={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
+            onClick={() => setTheme((current) => nextTheme[current])}
           >
-            <HugeiconsIcon icon={theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
+            <HugeiconsIcon icon={theme === "system" ? ComputerIcon : theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
           </button>
           <button className="button primary header-button" type="button" onClick={openAdd}>
             <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
@@ -172,7 +179,7 @@ export default function App() {
             {[0, 1].map((item) => <div className="profile-row skeleton-row" key={item} />)}
           </div>
         ) : pageError ? (
-          <div className="state-panel error-state"><h2>Could not load accounts</h2><p>{pageError}</p><button className="button secondary" type="button" onClick={() => void refresh()}>Try again</button></div>
+          <div className="state-panel error-state" role="alert"><h2>Could not load accounts</h2><p>{pageError}</p><button className="button secondary" type="button" onClick={() => void refresh()}>Try again</button></div>
         ) : profiles.length === 0 ? (
           <div className="state-panel empty-state"><BrandMark /><h2>No accounts yet</h2><p>Add an auth JSON or import your current Codex account.</p><button className="button primary" type="button" onClick={openAdd}>Add your first account</button></div>
         ) : (
@@ -214,4 +221,3 @@ export default function App() {
     </main>
   )
 }
-
