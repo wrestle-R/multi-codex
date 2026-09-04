@@ -95,8 +95,11 @@ mapfile -t generated < <(find "$appimage_dir" -maxdepth 1 -type f -name '*.AppIm
 [[ "${#generated[@]}" -eq 1 ]] || { echo "Expected exactly one generated AppImage" >&2; exit 1; }
 mv "${generated[0]}" "$appimage_dir/$artifact_name"
 
-find "$bundle_dir" -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0 \
-  | sort -z | xargs -0 sha256sum > "$ROOT_DIR/SHA256SUMS"
+while IFS= read -r -d '' artifact; do
+  checksum="$(sha256sum "$artifact" | cut -d' ' -f1)"
+  printf '%s  %s\n' "$checksum" "$(basename "$artifact")"
+done < <(find "$bundle_dir" -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0 | sort -z) \
+  > "$ROOT_DIR/SHA256SUMS"
 
 echo "Linux release artifacts:"
 find "$bundle_dir" -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print | sort
