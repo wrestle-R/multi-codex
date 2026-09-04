@@ -1,5 +1,6 @@
-import { useEffect, useId } from "react"
+import { useId } from "react"
 import type { Profile } from "../lib/types"
+import { useDialogFocus } from "./use-dialog-focus"
 
 interface ConfirmDialogProps {
   profile: Profile
@@ -11,18 +12,11 @@ interface ConfirmDialogProps {
 
 export function ConfirmDialog({ profile, busy, error, onCancel, onConfirm }: ConfirmDialogProps) {
   const titleId = useId()
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !busy) onCancel()
-    }
-    window.addEventListener("keydown", onKeyDown)
-    return () => window.removeEventListener("keydown", onKeyDown)
-  }, [busy, onCancel])
+  const dialogRef = useDialogFocus(onCancel, busy)
 
   return (
     <div className="dialog-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onCancel()}>
-      <section className="dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
+      <section ref={dialogRef} className="dialog confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby={titleId}>
         <span className="eyebrow danger-copy">Permanent action</span>
         <h2 id={titleId}>Delete {profile.name}?</h2>
         <p>This removes the saved credential and this profile's isolated Codex and VS Code data.</p>
@@ -35,4 +29,3 @@ export function ConfirmDialog({ profile, busy, error, onCancel, onConfirm }: Con
     </div>
   )
 }
-
