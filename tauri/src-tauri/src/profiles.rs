@@ -2,6 +2,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -88,21 +89,23 @@ impl SecretStore for KeyringSecretStore {
     fn set(&self, id: &str, secret: &str) -> Result<()> {
         keyring::Entry::new(KEYRING_SERVICE, id)
             .and_then(|entry| entry.set_password(secret))
-            .map_err(|_| "Linux Secret Service could not save this credential".to_string())
+            .map_err(|_| "The system credential store could not save this credential".to_string())
     }
 
     fn get(&self, id: &str) -> Result<String> {
         keyring::Entry::new(KEYRING_SERVICE, id)
             .and_then(|entry| entry.get_password())
-            .map_err(|_| "Linux Secret Service could not read this credential".to_string())
+            .map_err(|_| "The system credential store could not read this credential".to_string())
     }
 
     fn delete(&self, id: &str) -> Result<()> {
         let entry = keyring::Entry::new(KEYRING_SERVICE, id)
-            .map_err(|_| "Linux Secret Service is unavailable".to_string())?;
+            .map_err(|_| "The system credential store is unavailable".to_string())?;
         match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => Err("Linux Secret Service could not delete this credential".to_string()),
+            Err(_) => {
+                Err("The system credential store could not delete this credential".to_string())
+            }
         }
     }
 }
@@ -122,7 +125,7 @@ impl AuthRecognizer for CodexCliRecognizer {
         set_owner_only_dir(temp.path())?;
         write_private_file(&temp.path().join("auth.json"), auth_json.as_bytes())?;
 
-        let output = Command::new("codex")
+        let output = Command::new(resolve_command("codex"))
             .args(["login", "status"])
             .env("CODEX_HOME", temp.path())
             .output()
@@ -730,7 +733,7 @@ fn remove_managed_tree(root: &Path, path: &Path) -> Result<()> {
 }
 
 fn build_vscode_command(codex_home: &Path, vscode_home: &Path, extensions_dir: &Path) -> Command {
-    let mut command = Command::new("code");
+    let mut command = Command::new(resolve_command("code"));
     command
         .arg("--new-window")
         .arg("--wait")
@@ -742,6 +745,41 @@ fn build_vscode_command(codex_home: &Path, vscode_home: &Path, extensions_dir: &
     command
 }
 
+fn resolve_command(name: &str) -> PathBuf {
+    if let Some(path) = env::var_os("PATH").and_then(|paths| {
+        env::split_paths(&paths)
+            .map(|directory| directory.join(name))
+            .find(|candidate| candidate.is_file())
+    }) {
+        return path;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let home = dirs::home_dir().unwrap_or_default();
+        let candidates = match name {
+            "code" => vec![
+                PathBuf::from(
+                    "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+                ),
+                home.join("Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
+            ],
+            "codex" => vec![
+                home.join(".local/bin/codex"),
+                PathBuf::from("/opt/homebrew/bin/codex"),
+                PathBuf::from("/usr/local/bin/codex"),
+            ],
+            _ => Vec::new(),
+        };
+        if let Some(path) = candidates.into_iter().find(|candidate| candidate.is_file()) {
+            return path;
+        }
+    }
+
+    PathBuf::from(name)
+}
+
+#[cfg(target_os = "linux")]
 fn profile_process_running(vscode_home: &Path) -> bool {
     let expected = vscode_home.as_os_str().as_encoded_bytes();
     let Ok(entries) = fs::read_dir("/proc") else {
@@ -763,6 +801,17 @@ fn profile_process_running(vscode_home: &Path) -> bool {
             .split(|byte| *byte == 0)
             .any(|argument| argument == expected)
     })
+}
+
+#[cfg(target_os = "macos")]
+fn profile_process_running(vscode_home: &Path) -> bool {
+    let Ok(output) = Command::new("ps").args(["-axo", "command="]).output() else {
+        return false;
+    };
+    let expected = vscode_home.to_string_lossy();
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .any(|command| command.contains(expected.as_ref()))
 }
 
 #[cfg(test)]
