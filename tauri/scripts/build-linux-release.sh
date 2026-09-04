@@ -52,12 +52,32 @@ prepare_appimage_runtime() {
   export LDAI_RUNTIME_FILE="$APPIMAGE_RUNTIME_CACHE"
 }
 
-if [[ "${1:-}" == "--patch-appdir" ]]; then
-  [[ $# -eq 2 ]] || { echo "Expected an AppDir path" >&2; exit 1; }
-  patch_appdir "$2"
-  exit 0
-fi
-[[ $# -eq 0 ]] || { echo "Unexpected arguments" >&2; exit 1; }
+normalize_release_artifact_names() {
+  local artifact basename normalized target
+  while IFS= read -r -d '' artifact; do
+    basename="$(basename "$artifact")"
+    normalized="${basename// /.}"
+    [[ "$basename" == "$normalized" ]] && continue
+    target="$(dirname "$artifact")/$normalized"
+    [[ ! -e "$target" ]] || { echo "Release artifact already exists: $target" >&2; exit 1; }
+    mv "$artifact" "$target"
+  done < <(find "$1" -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0)
+}
+
+case "${1:-}" in
+  --patch-appdir)
+    [[ $# -eq 2 ]] || { echo "Expected an AppDir path" >&2; exit 1; }
+    patch_appdir "$2"
+    exit 0
+    ;;
+  --normalize-artifacts)
+    [[ $# -eq 2 && -d "$2" ]] || { echo "Expected an artifact directory" >&2; exit 1; }
+    normalize_release_artifact_names "$2"
+    exit 0
+    ;;
+  "") ;;
+  *) echo "Unexpected arguments" >&2; exit 1 ;;
+esac
 
 cd "$ROOT_DIR"
 version="$(node -e 'const fs=require("fs"); console.log(JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json","utf8")).version)')"
@@ -94,6 +114,7 @@ rm -f "$appimage_dir"/*.AppImage
 mapfile -t generated < <(find "$appimage_dir" -maxdepth 1 -type f -name '*.AppImage' | sort)
 [[ "${#generated[@]}" -eq 1 ]] || { echo "Expected exactly one generated AppImage" >&2; exit 1; }
 mv "${generated[0]}" "$appimage_dir/$artifact_name"
+normalize_release_artifact_names "$bundle_dir"
 
 while IFS= read -r -d '' artifact; do
   checksum="$(sha256sum "$artifact" | cut -d' ' -f1)"

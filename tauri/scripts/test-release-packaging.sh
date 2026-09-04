@@ -57,4 +57,14 @@ fi
 "$APPDIR/AppRun" --version >/dev/null
 test -f "$APPDIR/multi-codex-desktop.png"
 
+ARTIFACT_DIR="$TMP_DIR/artifacts"
+mkdir -p "$ARTIFACT_DIR/deb" "$ARTIFACT_DIR/rpm"
+touch "$ARTIFACT_DIR/deb/Multi Codex_${VERSION}_amd64.deb"
+touch "$ARTIFACT_DIR/rpm/Multi Codex-${VERSION}-1.x86_64.rpm"
+"$ROOT_DIR/scripts/build-linux-release.sh" --normalize-artifacts "$ARTIFACT_DIR"
+test -f "$ARTIFACT_DIR/deb/Multi.Codex_${VERSION}_amd64.deb"
+test -f "$ARTIFACT_DIR/rpm/Multi.Codex-${VERSION}-1.x86_64.rpm"
+test ! -e "$ARTIFACT_DIR/deb/Multi Codex_${VERSION}_amd64.deb"
+test ! -e "$ARTIFACT_DIR/rpm/Multi Codex-${VERSION}-1.x86_64.rpm"
+
 echo "Release packaging checks passed"
