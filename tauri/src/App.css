@@ -72,7 +72,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .button { min-height: 42px; padding: 0.65rem 1rem; border-radius: 999px; font-weight: 600; white-space: nowrap; }
 .button.primary { color: var(--primary-foreground); background: var(--primary); }
 .button.secondary, .icon-button { background: color-mix(in oklab, var(--card) 94%, transparent); box-shadow: inset 0 0 0 1px var(--border); }
-.button.destructive { color: white; background: var(--danger); }
+.button.destructive { color: white; background: oklch(0.5 0.18 25); }
 .header-button, .launch-button { justify-content: center; gap: 0.45rem; }
 .icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; border-radius: 999px; }
 .danger-button:hover:not(:disabled) { color: var(--danger); }
