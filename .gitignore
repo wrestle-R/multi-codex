@@ -17,6 +17,7 @@ tauri/dist/
 tauri/coverage/
 tauri/test-results/
 tauri/playwright-report/
+tauri/SHA256SUMS
 tauri/src-tauri/target/
 tauri/src-tauri/gen/schemas/
 .DS_Store
