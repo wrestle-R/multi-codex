@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+auth.json
+**/auth.json
+profiles.json
+*.token
+*.secret
+tauri/node_modules/
+tauri/dist/
+tauri/test-results/
+tauri/src-tauri/target/
+tauri/src-tauri/gen/schemas/
+.DS_Store
+*.log
+
