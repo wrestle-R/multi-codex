@@ -45,6 +45,7 @@ Type=Application
 Categories=Utility;
 DESKTOP
 printf 'png' > "$APPDIR/usr/share/icons/hicolor/128x128/apps/multi-codex-desktop.png"
+ln -s "usr/share/applications/Multi Codex.desktop" "$APPDIR/Multi Codex.desktop"
 
 "$ROOT_DIR/scripts/build-linux-release.sh" --patch-appdir "$APPDIR"
 

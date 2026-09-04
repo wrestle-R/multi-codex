@@ -9,7 +9,7 @@ APPIMAGE_RUNTIME_SOURCE="${APPIMAGE_RUNTIME_SOURCE:-$HOME/.local/bin/multi-codex
 patch_appdir() {
   local appdir="$1"
   local app_bin="$appdir/usr/bin/multi-codex-desktop"
-  local desktop_file icon_name icon_path
+  local desktop_file root_desktop icon_name icon_path
   [[ -d "$appdir" ]] || { echo "AppDir not found: $appdir" >&2; exit 1; }
   [[ -x "$app_bin" ]] || { echo "Multi Codex binary not found: $app_bin" >&2; exit 1; }
 
@@ -25,7 +25,10 @@ APP_RUN
 
   desktop_file="$(find "$appdir/usr/share/applications" -maxdepth 1 -type f -name '*.desktop' | sort | head -n 1)"
   if [[ -n "$desktop_file" ]]; then
-    cp -f "$desktop_file" "$appdir/$(basename "$desktop_file")"
+    root_desktop="$appdir/$(basename "$desktop_file")"
+    if [[ "$(readlink -f "$desktop_file")" != "$(readlink -f "$root_desktop" 2>/dev/null || true)" ]]; then
+      cp -f "$desktop_file" "$root_desktop"
+    fi
     icon_name="$(awk -F= '$1 == "Icon" { print $2; exit }' "$desktop_file")"
     if [[ -n "$icon_name" && "$icon_name" != /* ]]; then
       icon_path="$(find "$appdir/usr/share/icons" -type f \( -name "$icon_name.png" -o -name "$icon_name.svg" -o -name "$icon_name.xpm" \) | sort | head -n 1)"
