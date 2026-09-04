@@ -9,29 +9,23 @@ permissions:
   contents: write
 
 jobs:
-  publish:
+  linux:
     runs-on: ubuntu-22.04
     defaults:
       run:
         working-directory: tauri
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: tauri/package-lock.json
-
       - name: Validate and apply tag version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          if [[ ! "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            echo "Expected a semantic version tag such as v0.1.0"
-            exit 1
-          fi
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           VERSION="${RELEASE_TAG#v}"
           VERSION="$VERSION" node -e '
             const fs = require("fs");
@@ -48,42 +42,104 @@ jobs:
           '
           sed -i "0,/^version = \".*\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
           sed -i "/^name = \"multi-codex-desktop\"$/,/^dependencies = \[/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
-
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            rpm
-
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm
       - uses: dtolnay/rust-toolchain@stable
-
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
-
       - run: npm ci
       - run: npm run check:secrets
       - run: npm run test:release
       - run: npm run release:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-packages
+          path: |
+            tauri/src-tauri/target/release/bundle/appimage/*.AppImage
+            tauri/src-tauri/target/release/bundle/deb/*.deb
+            tauri/src-tauri/target/release/bundle/rpm/*.rpm
+          if-no-files-found: error
 
-      - name: Create draft release
+  macos:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri/package-lock.json
+      - name: Validate tag and apply version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          VERSION="${RELEASE_TAG#v}"
+          VERSION="$VERSION" node -e '
+            const fs = require("fs");
+            for (const path of ["package.json", "package-lock.json"]) {
+              const doc = JSON.parse(fs.readFileSync(path, "utf8"));
+              doc.version = process.env.VERSION;
+              if (doc.packages && doc.packages[""]) doc.packages[""].version = process.env.VERSION;
+              fs.writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
+            }
+            const path = "src-tauri/tauri.conf.json";
+            const doc = JSON.parse(fs.readFileSync(path, "utf8"));
+            doc.version = process.env.VERSION;
+            fs.writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
+          '
+          sed -i '' "1,/^version = \".*\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
+          sed -i '' "/^name = \"multi-codex-desktop\"$/,/^dependencies = \[/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - run: npm run tauri -- build --bundles dmg --target universal-apple-darwin
+      - name: Normalize DMG name
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -type f -name '*.dmg' -print -quit)
+          test -n "$DMG"
+          mv "$DMG" "Multi.Codex_${VERSION}_universal.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-package
+          path: tauri/Multi.Codex_*_universal.dmg
+          if-no-files-found: error
+
+  publish:
+    needs: [linux, macos]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets
+          merge-multiple: true
+      - name: Verify and publish assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mapfile -d '' ASSETS < <(find src-tauri/target/release/bundle \
-            -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) \
-            -print0 | sort -z)
+          mkdir release-assets
+          find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' \) -exec cp {} release-assets/ \;
+          cd release-assets
+          mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
+          ((${#ASSETS[@]} == 4))
+          sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
-          gh release create "$GITHUB_REF_NAME" "${ASSETS[@]}" \
-            --draft \
-            --title "Multi Codex $GITHUB_REF_NAME" \
-            --notes "Multi Codex for x86_64 Linux."
-
-      - name: Publish release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+          gh release create "$GITHUB_REF_NAME" "${ASSETS[@]}" --draft --title "Multi Codex $GITHUB_REF_NAME" --notes "Multi Codex for Arch Linux and macOS."
+          gh release edit "$GITHUB_REF_NAME" --draft=false

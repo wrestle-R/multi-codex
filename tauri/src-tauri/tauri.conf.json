@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Multi Codex",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "identifier": "com.multicodex.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -29,14 +29,15 @@
     "targets": ["appimage", "deb", "rpm"],
     "category": "Utility",
     "shortDescription": "Launch isolated Codex accounts",
-    "longDescription": "Store Codex account credentials in Linux Secret Service and open isolated VS Code sessions without changing the default Codex login.",
+    "longDescription": "Store Codex account credentials in the system credential store and open isolated VS Code sessions without changing the default Codex login.",
     "copyright": "Copyright (c) 2026 Russell Daniel Paul",
     "licenseFile": "../../LICENSE",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
-      "icons/icon.png"
+      "icons/icon.png",
+      "icons/icon.icns"
     ]
   }
 }

@@ -6,10 +6,31 @@ Launch multiple Codex accounts in isolated VS Code windows without changing your
 
 ![Multi Codex dark](tauri/public/dark_screenshot.png)
 
-[Download Multi Codex v2.1.0 AppImage](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.0/Multi.Codex_2.1.0_amd64.AppImage)
+## Arch Linux
 
-Update an AppImage installation:
+Install and launch:
 
 ```bash
-bash scripts/update-appimage.sh
+curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
+bash /tmp/install-multi-codex.sh
+```
+
+[Download for Arch Linux](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.1/Multi.Codex_2.1.1_amd64.AppImage)
+
+## macOS
+
+Install and launch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
+bash /tmp/install-multi-codex.sh
+```
+
+[Download for macOS](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.1/Multi.Codex_2.1.1_universal.dmg)
+
+## Update
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
+bash /tmp/update-multi-codex.sh
 ```
