@@ -9,6 +9,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
+    "check:secrets": "bash scripts/check-secrets.sh",
     "test:release": "bash scripts/test-release-packaging.sh",
     "release:linux": "bash scripts/build-linux-release.sh"
   },
@@ -35,4 +36,3 @@
     "vitest": "^4.1.8"
   }
 }
-
