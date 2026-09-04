@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { Profile, SaveProfileInput } from "./types"
+import type { DesktopIntegrationStatus, Profile, SaveProfileInput } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -79,3 +79,30 @@ export async function deleteProfile(id: string): Promise<void> {
   demoProfiles = demoProfiles.filter((profile) => profile.id !== id)
 }
 
+export async function getDesktopIntegrationStatus(): Promise<DesktopIntegrationStatus> {
+  if (isTauri) return invoke<DesktopIntegrationStatus>("get_desktop_integration_status")
+  return {
+    available: false,
+    installed: true,
+    desktopShortcut: false,
+    version: "development",
+    source: "package",
+  }
+}
+
+export async function installDesktopIntegration(
+  createDesktopShortcut: boolean,
+): Promise<DesktopIntegrationStatus> {
+  if (isTauri) {
+    return invoke<DesktopIntegrationStatus>("install_desktop_integration", {
+      createDesktopShortcut,
+    })
+  }
+  return {
+    available: true,
+    installed: true,
+    desktopShortcut: createDesktopShortcut,
+    version: "development",
+    source: "appimage",
+  }
+}

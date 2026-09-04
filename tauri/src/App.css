@@ -54,7 +54,8 @@ button { border: 0; color: inherit; }
 button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid color-mix(in oklab, var(--ring) 45%, transparent); outline-offset: 2px; }
 
 .app-shell { width: 100%; height: 100%; display: flex; flex-direction: column; }
-.topbar { min-height: 76px; flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.8rem 1.4rem; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--background) 88%, transparent); backdrop-filter: blur(24px); z-index: 20; }
+.topbar { min-height: 76px; flex: 0 0 auto; padding: 0 1.4rem; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--background) 88%, transparent); backdrop-filter: blur(24px); z-index: 20; }
+.topbar-inner { width: 100%; max-width: 64rem; min-height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .brand-block, .topbar-actions, .profile-heading, .profile-actions, .runtime-summary, .dialog-header, .dialog-actions, .header-button { display: flex; align-items: center; }
 .brand-block { gap: 0.78rem; }
 .brand-block strong, h1, h2 { font-family: "Bricolage Grotesque", "Outfit", sans-serif; letter-spacing: 0; }
@@ -75,28 +76,31 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .button.destructive { color: white; background: oklch(0.5 0.18 25); }
 .header-button, .launch-button { justify-content: center; gap: 0.45rem; }
 .icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; border-radius: 999px; }
+.integration-button { color: var(--primary); }
 .danger-button:hover:not(:disabled) { color: var(--danger); }
 
 .content-area { flex: 1; min-height: 0; overflow: auto; padding: 1.4rem; scrollbar-width: none; }
 .content-area::-webkit-scrollbar { width: 0; }
-.intro-panel, .profile-row, .state-panel, .dialog { color: var(--foreground); background: color-mix(in oklab, var(--card) 92%, transparent); border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); box-shadow: var(--shadow); }
-.intro-panel { min-height: 180px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1.6rem; }
+.content-inner { width: 100%; max-width: 64rem; margin: 0 auto; }
+.profile-row, .state-panel, .dialog { color: var(--foreground); background: color-mix(in oklab, var(--card) 94%, transparent); border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); box-shadow: var(--shadow); }
+.intro-panel { min-height: 166px; display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1rem 0.2rem 1.3rem; border-bottom: 1px solid var(--border); }
 .eyebrow { display: block; margin-bottom: 0.35rem; color: var(--muted-foreground); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0; }
-.intro-panel h1 { margin: 0; max-width: 680px; font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; }
+.intro-panel h1 { margin: 0; max-width: 680px; font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.08; }
 .intro-panel p, .state-panel p, .confirm-dialog p { margin: 0.65rem 0 0; color: var(--muted-foreground); }
-.runtime-summary { min-width: 188px; gap: 0.7rem; padding: 0.9rem 1rem; border: 1px solid var(--border); border-radius: 1rem; background: color-mix(in oklab, var(--muted) 72%, transparent); }
+.runtime-summary { min-width: 176px; gap: 0.7rem; padding: 0.78rem 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in oklab, var(--muted) 72%, transparent); }
 .runtime-summary span, .runtime-summary strong { display: block; }
 .runtime-summary span { color: var(--muted-foreground); font-size: 0.76rem; }
 .runtime-summary strong { margin-top: 0.12rem; }
 
-.profile-list { display: grid; gap: 0.75rem; margin-top: 0.75rem; }
-.profile-row { min-height: 102px; display: grid; grid-template-columns: 52px minmax(180px, 1fr) minmax(120px, auto) auto; align-items: center; gap: 1rem; padding: 1rem; }
+.profile-list { display: grid; gap: 0.7rem; margin-top: 0.85rem; }
+.profile-row { min-height: 98px; display: grid; grid-template-columns: 52px minmax(180px, 1fr) minmax(120px, auto) auto; align-items: center; gap: 1rem; padding: 0.95rem 1rem; transition: border-color 150ms ease, background 150ms ease, transform 150ms ease; }
+.profile-row:hover { border-color: color-mix(in oklab, var(--primary) 25%, var(--border)); background: color-mix(in oklab, var(--card) 97%, var(--primary) 3%); transform: translateY(-1px); }
 .profile-avatar { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--foreground); background: color-mix(in oklab, var(--primary) 14%, var(--card)); font: 700 1.05rem/1 "Bricolage Grotesque", sans-serif; }
 .profile-main { min-width: 0; }
 .profile-heading { gap: 0.6rem; }
 .profile-heading h2 { overflow: hidden; margin: 0; font-size: 1.12rem; text-overflow: ellipsis; white-space: nowrap; }
 .profile-main p { margin: 0.22rem 0 0; color: var(--muted-foreground); font-size: 0.82rem; }
-.status { padding: 0.2rem 0.5rem; border-radius: 999px; color: var(--foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; text-transform: capitalize; }
+.status { padding: 0.22rem 0.52rem; border-radius: 999px; color: var(--foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; line-height: 1.15; text-transform: capitalize; }
 .status-running { color: var(--signal); background: var(--signal-soft); }
 .status-launching { color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); }
 .status-error, .inline-error { color: var(--danger) !important; }
@@ -106,7 +110,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .profile-actions { justify-content: flex-end; gap: 0.5rem; }
 .launch-button { min-width: 104px; }
 
-.state-panel { min-height: 280px; margin-top: 0.75rem; display: grid; place-items: center; align-content: center; gap: 0.3rem; padding: 2rem; text-align: center; }
+.state-panel { min-height: 280px; margin-top: 0.85rem; display: grid; place-items: center; align-content: center; gap: 0.3rem; padding: 2rem; text-align: center; }
 .state-panel h2 { margin: 0.5rem 0 0; }
 .state-panel .button { margin-top: 1rem; }
 .skeleton-row { min-height: 102px; background: linear-gradient(100deg, color-mix(in oklab, var(--muted) 88%, transparent) 20%, color-mix(in oklab, var(--foreground) 8%, var(--muted)) 45%, color-mix(in oklab, var(--muted) 88%, transparent) 70%); background-size: 220% 100%; animation: shimmer 1.4s ease-in-out infinite; }
@@ -132,14 +136,24 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .confirm-dialog { width: min(460px, 100%); }
 .confirm-dialog .dialog-actions { margin-top: 1.2rem; }
 .danger-copy { color: var(--danger); }
+.integration-dialog { width: min(480px, 100%); }
+.integration-dialog > p { margin: 0.65rem 0 0; color: var(--muted-foreground); line-height: 1.5; }
+.integration-icon { width: 48px; height: 48px; margin-bottom: 1rem; display: grid; place-items: center; border: 1px solid color-mix(in oklab, var(--primary) 28%, var(--border)); border-radius: 13px; color: var(--primary); background: color-mix(in oklab, var(--primary) 10%, var(--card)); }
+.checkbox-row { display: flex !important; grid-template-columns: none !important; align-items: flex-start; gap: 0.75rem !important; margin-top: 1.1rem; padding: 0.9rem; border: 1px solid var(--border); border-radius: 11px; background: var(--muted); cursor: pointer; }
+.checkbox-row input { width: 18px; height: 18px; margin: 0.1rem 0 0; accent-color: var(--primary); flex: 0 0 auto; }
+.checkbox-row span, .checkbox-row strong, .checkbox-row small { display: block; }
+.checkbox-row small { margin-top: 0.18rem; color: var(--muted-foreground); font-size: 0.76rem; font-weight: 400; }
+.integration-dialog .form-error { margin-top: 0.85rem; }
+.integration-dialog .dialog-actions { margin-top: 1.1rem; }
 
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 @media (max-width: 760px) {
-  .topbar { min-height: 68px; padding: 0.65rem 0.85rem; }
+  .topbar { min-height: 68px; padding: 0 0.85rem; }
+  .topbar-inner { min-height: 68px; }
   .brand-block span:not(.brand-mark) { display: none; }
   .content-area { padding: 0.8rem; }
-  .intro-panel { min-height: 0; align-items: flex-start; flex-direction: column; gap: 1.1rem; padding: 1.2rem; }
+  .intro-panel { min-height: 0; align-items: flex-start; flex-direction: column; gap: 1.1rem; padding: 1rem 0.2rem 1.2rem; }
   .intro-panel h1 { font-size: 2rem; }
   .runtime-summary { width: 100%; }
   .profile-row { grid-template-columns: 48px minmax(0, 1fr); }

@@ -11,6 +11,8 @@ const api = vi.hoisted(() => ({
   updateProfile: vi.fn(),
   launchProfile: vi.fn(),
   deleteProfile: vi.fn(),
+  getDesktopIntegrationStatus: vi.fn(),
+  installDesktopIntegration: vi.fn(),
 }))
 
 vi.mock("./lib/desktop-api", () => api)
@@ -32,6 +34,20 @@ beforeEach(() => {
   api.updateProfile.mockReset().mockResolvedValue(profile)
   api.launchProfile.mockReset().mockResolvedValue(undefined)
   api.deleteProfile.mockReset().mockResolvedValue(undefined)
+  api.getDesktopIntegrationStatus.mockReset().mockResolvedValue({
+    available: false,
+    installed: true,
+    desktopShortcut: false,
+    version: "0.2.0",
+    source: "package",
+  })
+  api.installDesktopIntegration.mockReset().mockResolvedValue({
+    available: true,
+    installed: true,
+    desktopShortcut: true,
+    version: "0.2.0",
+    source: "appimage",
+  })
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockImplementation(() => ({
@@ -128,5 +144,77 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("alert").textContent).toContain("keyring unavailable")
     await user.click(screen.getByRole("button", { name: "Try again" }))
     expect(await screen.findByRole("heading", { name: "Personal" })).toBeInTheDocument()
+  })
+
+  it("offers desktop integration on the first portable AppImage launch", async () => {
+    api.getDesktopIntegrationStatus.mockResolvedValue({
+      available: true,
+      installed: false,
+      desktopShortcut: false,
+      version: "0.2.0",
+      source: "appimage",
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    const dialog = await screen.findByRole("dialog", { name: "Add Multi Codex to your apps?" })
+    expect(within(dialog).getByRole("checkbox", { name: /Create Desktop shortcut/ })).toBeChecked()
+    await user.click(within(dialog).getByRole("button", { name: "Not now" }))
+    expect(localStorage.getItem("multi-codex-desktop-dismissed")).toBe("0.2.0")
+    expect(screen.getByRole("button", { name: "Install desktop integration" })).toBeEnabled()
+  })
+
+  it("installs desktop integration with the selected shortcut preference", async () => {
+    api.getDesktopIntegrationStatus.mockResolvedValue({
+      available: true,
+      installed: false,
+      desktopShortcut: false,
+      version: "0.2.0",
+      source: "appimage",
+    })
+    api.installDesktopIntegration.mockResolvedValue({
+      available: true,
+      installed: true,
+      desktopShortcut: false,
+      version: "0.2.0",
+      source: "appimage",
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    const dialog = await screen.findByRole("dialog", { name: "Add Multi Codex to your apps?" })
+    await user.click(within(dialog).getByRole("checkbox", { name: /Create Desktop shortcut/ }))
+    await user.click(within(dialog).getByRole("button", { name: "Install" }))
+    await waitFor(() => expect(api.installDesktopIntegration).toHaveBeenCalledWith(false))
+    expect(screen.queryByRole("dialog", { name: "Add Multi Codex to your apps?" })).not.toBeInTheDocument()
+  })
+
+  it("keeps the integration dialog open when installation fails", async () => {
+    api.getDesktopIntegrationStatus.mockResolvedValue({
+      available: true,
+      installed: false,
+      desktopShortcut: false,
+      version: "0.2.0",
+      source: "appimage",
+    })
+    api.installDesktopIntegration.mockRejectedValue(new Error("desktop directory is read-only"))
+    const user = userEvent.setup()
+    render(<App />)
+    const dialog = await screen.findByRole("dialog", { name: "Add Multi Codex to your apps?" })
+    await user.click(within(dialog).getByRole("button", { name: "Install" }))
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("desktop directory is read-only")
+  })
+
+  it("reopens desktop integration after dismissing it", async () => {
+    api.getDesktopIntegrationStatus.mockResolvedValue({
+      available: true,
+      installed: false,
+      desktopShortcut: false,
+      version: "0.2.0",
+      source: "appimage",
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Not now" }))
+    await user.click(screen.getByRole("button", { name: "Install desktop integration" }))
+    expect(screen.getByRole("dialog", { name: "Add Multi Codex to your apps?" })).toBeInTheDocument()
   })
 })
