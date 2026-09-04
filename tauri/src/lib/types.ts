@@ -15,3 +15,10 @@ export interface SaveProfileInput {
   authJson: string
 }
 
+export interface DesktopIntegrationStatus {
+  available: boolean
+  installed: boolean
+  desktopShortcut: boolean
+  version: string
+  source: "appimage" | "package"
+}
