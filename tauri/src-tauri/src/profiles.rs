@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -20,6 +20,12 @@ pub type Result<T> = std::result::Result<T, String>;
 pub struct SaveProfileInput {
     pub name: String,
     pub auth_json: String,
+    #[serde(default)]
+    pub requests_remaining: Option<u32>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub reset_date: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -28,6 +34,12 @@ pub struct ProfileMetadata {
     pub id: String,
     pub name: String,
     pub auth_mode: String,
+    #[serde(default)]
+    pub requests_remaining: Option<u32>,
+    #[serde(default)]
+    pub notes: Option<String>,
+    #[serde(default)]
+    pub reset_date: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -197,6 +209,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     pub fn add_profile(&self, input: SaveProfileInput) -> Result<ProfileView> {
         let name = validate_name(&input.name)?;
+        let (requests_remaining, notes, reset_date) =
+            validate_optional_metadata(input.requests_remaining, input.notes, input.reset_date)?;
         let auth_mode = validate_auth_structure(&input.auth_json)?;
         self.recognizer.recognize(&input.auth_json)?;
         let mut profiles = self.load_metadata()?;
@@ -206,6 +220,9 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             id: Uuid::new_v4().to_string(),
             name,
             auth_mode,
+            requests_remaining,
+            notes,
+            reset_date,
             created_at: now,
             updated_at: now,
         };
@@ -222,7 +239,13 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         })
     }
 
-    pub fn import_current(&self, name: String) -> Result<ProfileView> {
+    pub fn import_current(
+        &self,
+        name: String,
+        requests_remaining: Option<u32>,
+        notes: Option<String>,
+        reset_date: Option<String>,
+    ) -> Result<ProfileView> {
         let auth_path = self.global_codex_home.join("auth.json");
         let metadata = fs::symlink_metadata(&auth_path)
             .map_err(|_| "The current Codex auth file could not be read".to_string())?;
@@ -234,7 +257,13 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         }
         let auth_json = fs::read_to_string(&auth_path)
             .map_err(|_| "The current Codex auth file could not be read".to_string())?;
-        self.add_profile(SaveProfileInput { name, auth_json })
+        self.add_profile(SaveProfileInput {
+            name,
+            auth_json,
+            requests_remaining,
+            notes,
+            reset_date,
+        })
     }
 
     pub fn update_profile(
@@ -242,12 +271,17 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         id: &str,
         name: String,
         auth_json: Option<String>,
+        requests_remaining: Option<u32>,
+        notes: Option<String>,
+        reset_date: Option<String>,
     ) -> Result<ProfileView> {
         validate_id(id)?;
         if self.is_running(id)? {
             return Err("Close this profile's VS Code window before editing it".to_string());
         }
         let name = validate_name(&name)?;
+        let (requests_remaining, notes, reset_date) =
+            validate_optional_metadata(requests_remaining, notes, reset_date)?;
         let mut profiles = self.load_metadata()?;
         ensure_unique_name(&profiles, &name, Some(id))?;
         let index = profiles
@@ -269,6 +303,9 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         };
         profiles[index].name = name;
         profiles[index].auth_mode = auth_mode;
+        profiles[index].requests_remaining = requests_remaining;
+        profiles[index].notes = notes;
+        profiles[index].reset_date = reset_date;
         profiles[index].updated_at = Utc::now();
         let metadata = profiles[index].clone();
         if let Err(error) = self.save_metadata(&profiles) {
@@ -534,6 +571,33 @@ fn validate_name(name: &str) -> Result<String> {
     Ok(name.to_string())
 }
 
+fn validate_optional_metadata(
+    requests_remaining: Option<u32>,
+    notes: Option<String>,
+    reset_date: Option<String>,
+) -> Result<(Option<u32>, Option<String>, Option<String>)> {
+    if requests_remaining.is_some_and(|value| value > 1_000_000) {
+        return Err("Requests remaining must be 1,000,000 or less".to_string());
+    }
+    let notes = notes
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    if notes
+        .as_ref()
+        .is_some_and(|value| value.chars().count() > 500)
+    {
+        return Err("Notes must be 500 characters or fewer".to_string());
+    }
+    let reset_date = reset_date
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty());
+    if let Some(value) = &reset_date {
+        NaiveDate::parse_from_str(value, "%Y-%m-%d")
+            .map_err(|_| "Reset date must be a valid date".to_string())?;
+    }
+    Ok((requests_remaining, notes, reset_date))
+}
+
 fn validate_id(id: &str) -> Result<()> {
     match Uuid::parse_str(id) {
         Ok(parsed) if parsed.to_string() == id => Ok(()),
@@ -759,6 +823,16 @@ mod tests {
         r#"{"auth_mode":"chatgpt","tokens":{"access_token":"test-only"}}"#.to_string()
     }
 
+    fn sample_input(name: &str) -> SaveProfileInput {
+        SaveProfileInput {
+            name: name.into(),
+            auth_json: sample_auth(),
+            requests_remaining: None,
+            notes: None,
+            reset_date: None,
+        }
+    }
+
     #[test]
     fn validates_supported_shapes_without_exposing_values() {
         assert_eq!(validate_auth_structure(&sample_auth()).unwrap(), "ChatGPT");
@@ -779,12 +853,7 @@ mod tests {
     #[test]
     fn metadata_and_directories_are_owner_only() {
         let (_temp, service) = fixture();
-        service
-            .add_profile(SaveProfileInput {
-                name: "Personal".into(),
-                auth_json: sample_auth(),
-            })
-            .unwrap();
+        service.add_profile(sample_input("Personal")).unwrap();
         let metadata = service.data_root.join("profiles.json");
         assert_eq!(
             fs::metadata(&metadata).unwrap().permissions().mode() & 0o777,
@@ -807,12 +876,7 @@ mod tests {
     #[test]
     fn credential_is_materialized_privately_and_cleaned_as_stale() {
         let (_temp, service) = fixture();
-        let profile = service
-            .add_profile(SaveProfileInput {
-                name: "Work".into(),
-                auth_json: sample_auth(),
-            })
-            .unwrap();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
         let (codex_home, _) = service.profile_paths(&profile.metadata.id).unwrap();
         ensure_private_managed_dir(&service.data_root, &codex_home).unwrap();
         let auth_path = codex_home.join("auth.json");
@@ -828,18 +892,8 @@ mod tests {
     #[test]
     fn delete_removes_only_selected_profile_data_and_secret() {
         let (_temp, service) = fixture();
-        let first = service
-            .add_profile(SaveProfileInput {
-                name: "First".into(),
-                auth_json: sample_auth(),
-            })
-            .unwrap();
-        let second = service
-            .add_profile(SaveProfileInput {
-                name: "Second".into(),
-                auth_json: sample_auth(),
-            })
-            .unwrap();
+        let first = service.add_profile(sample_input("First")).unwrap();
+        let second = service.add_profile(sample_input("Second")).unwrap();
         let (first_home, _) = service.profile_paths(&first.metadata.id).unwrap();
         let (second_home, _) = service.profile_paths(&second.metadata.id).unwrap();
         ensure_private_managed_dir(&service.data_root, &first_home).unwrap();
@@ -898,12 +952,58 @@ mod tests {
         write_private_file(&source, sample_auth().as_bytes()).unwrap();
         let before = fs::read(&source).unwrap();
         let mode_before = fs::metadata(&source).unwrap().permissions().mode() & 0o777;
-        service.import_current("Current".into()).unwrap();
+        service
+            .import_current("Current".into(), None, None, None)
+            .unwrap();
         assert_eq!(fs::read(&source).unwrap(), before);
         assert_eq!(
             fs::metadata(&source).unwrap().permissions().mode() & 0o777,
             mode_before
         );
         assert!(temp.path().exists());
+    }
+
+    #[test]
+    fn optional_profile_metadata_is_validated_and_persisted() {
+        let (_temp, service) = fixture();
+        let mut input = sample_input("Tracked");
+        input.requests_remaining = Some(125);
+        input.notes = Some("  Resets after the billing cycle  ".into());
+        input.reset_date = Some("2026-09-30".into());
+        let profile = service.add_profile(input).unwrap();
+        assert_eq!(profile.metadata.requests_remaining, Some(125));
+        assert_eq!(
+            profile.metadata.notes.as_deref(),
+            Some("Resets after the billing cycle")
+        );
+        assert_eq!(profile.metadata.reset_date.as_deref(), Some("2026-09-30"));
+
+        let stored = service.list_profiles().unwrap().remove(0).metadata;
+        assert_eq!(stored.requests_remaining, Some(125));
+        assert_eq!(stored.notes, profile.metadata.notes);
+        assert_eq!(stored.reset_date, profile.metadata.reset_date);
+
+        let mut invalid = sample_input("Invalid");
+        invalid.reset_date = Some("2026-02-30".into());
+        assert!(service.add_profile(invalid).is_err());
+    }
+
+    #[test]
+    fn old_metadata_without_optional_fields_remains_compatible() {
+        let (_temp, service) = fixture();
+        let id = Uuid::new_v4().to_string();
+        let metadata = format!(
+            r#"[{{"id":"{id}","name":"Legacy","authMode":"ChatGPT","createdAt":"2026-09-01T00:00:00Z","updatedAt":"2026-09-01T00:00:00Z"}}]"#
+        );
+        write_private_file(
+            &service.data_root.join("profiles.json"),
+            metadata.as_bytes(),
+        )
+        .unwrap();
+        let profile = service.list_profiles().unwrap().remove(0);
+        assert_eq!(profile.metadata.name, "Legacy");
+        assert_eq!(profile.metadata.requests_remaining, None);
+        assert_eq!(profile.metadata.notes, None);
+        assert_eq!(profile.metadata.reset_date, None);
     }
 }

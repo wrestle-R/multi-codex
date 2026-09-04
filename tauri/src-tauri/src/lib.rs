@@ -27,8 +27,16 @@ fn add_profile(input: SaveProfileInput, state: State<'_, AppState>) -> Result<Pr
 }
 
 #[tauri::command]
-fn import_current_profile(name: String, state: State<'_, AppState>) -> Result<ProfileView, String> {
-    state.service.import_current(name)
+fn import_current_profile(
+    name: String,
+    requests_remaining: Option<u32>,
+    notes: Option<String>,
+    reset_date: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<ProfileView, String> {
+    state
+        .service
+        .import_current(name, requests_remaining, notes, reset_date)
 }
 
 #[tauri::command]
@@ -36,9 +44,14 @@ fn update_profile(
     id: String,
     name: String,
     auth_json: Option<String>,
+    requests_remaining: Option<u32>,
+    notes: Option<String>,
+    reset_date: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ProfileView, String> {
-    state.service.update_profile(&id, name, auth_json)
+    state
+        .service
+        .update_profile(&id, name, auth_json, requests_remaining, notes, reset_date)
 }
 
 #[tauri::command]

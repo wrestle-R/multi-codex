@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, Profile, SaveProfileInput } from "./types"
+import type { DesktopIntegrationStatus, Profile, ProfileDetails, SaveProfileInput } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -8,6 +8,9 @@ let demoProfiles: Profile[] = [
     id: "demo-personal",
     name: "Personal",
     authMode: "ChatGPT",
+    requestsRemaining: 42,
+    notes: "Personal projects and experiments",
+    resetDate: "2026-09-12",
     createdAt: "2026-09-01T09:30:00Z",
     updatedAt: "2026-09-04T08:10:00Z",
     status: "idle",
@@ -16,6 +19,9 @@ let demoProfiles: Profile[] = [
     id: "demo-work",
     name: "Work",
     authMode: "ChatGPT",
+    requestsRemaining: 18,
+    notes: "Client work",
+    resetDate: "2026-09-08",
     createdAt: "2026-09-02T11:20:00Z",
     updatedAt: "2026-09-04T07:45:00Z",
     status: "running",
@@ -37,6 +43,9 @@ export async function addProfile(input: SaveProfileInput): Promise<Profile> {
     id: crypto.randomUUID(),
     name: input.name.trim(),
     authMode: "ChatGPT",
+    requestsRemaining: input.requestsRemaining,
+    notes: input.notes,
+    resetDate: input.resetDate,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: "idle",
@@ -45,11 +54,12 @@ export async function addProfile(input: SaveProfileInput): Promise<Profile> {
   return profile
 }
 
-export async function importCurrentProfile(name: string): Promise<Profile> {
-  if (isTauri) return invoke<Profile>("import_current_profile", { name })
+export async function importCurrentProfile(name: string, details: ProfileDetails): Promise<Profile> {
+  if (isTauri) return invoke<Profile>("import_current_profile", { name, ...details })
   return addProfile({
     name,
     authJson: '{"auth_mode":"chatgpt","tokens":{"access_token":"demo"}}',
+    ...details,
   })
 }
 
@@ -57,12 +67,13 @@ export async function updateProfile(
   id: string,
   name: string,
   authJson?: string,
+  details: ProfileDetails = {},
 ): Promise<Profile> {
-  if (isTauri) return invoke<Profile>("update_profile", { id, name, authJson })
+  if (isTauri) return invoke<Profile>("update_profile", { id, name, authJson, ...details })
   if (authJson) JSON.parse(authJson)
   const updatedAt = new Date().toISOString()
   demoProfiles = demoProfiles.map((profile) =>
-    profile.id === id ? { ...profile, name: name.trim(), updatedAt } : profile,
+    profile.id === id ? { ...profile, name: name.trim(), ...details, updatedAt } : profile,
   )
   return demoProfiles.find((profile) => profile.id === id)!
 }
