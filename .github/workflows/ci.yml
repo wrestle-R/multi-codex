@@ -73,7 +73,12 @@ jobs:
       - run: npm run tauri -- build --bundles dmg --target universal-apple-darwin
       - name: Inspect and smoke-test universal app bundle
         run: |
-          APP=$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print -quit)
+          test -n "$DMG"
+          MOUNT=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null
+          trap 'hdiutil detach "$MOUNT" >/dev/null 2>&1 || true; rm -rf "$MOUNT" "$TEST_HOME"' EXIT
+          APP=$(find "$MOUNT" -maxdepth 1 -type d -name '*.app' -print -quit)
           test -n "$APP"
           EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
           BINARY="$APP/Contents/MacOS/$EXECUTABLE"
@@ -89,4 +94,3 @@ jobs:
           kill -0 "$PID"
           kill "$PID"
           wait "$PID" || true
-          rm -rf "$TEST_HOME"
