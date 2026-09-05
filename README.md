@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/
 bash /tmp/install-multi-codex.sh
 ```
 
-[Download for Arch Linux](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.1/Multi.Codex_2.1.1_amd64.AppImage)
+[Download for Arch Linux](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.2/Multi.Codex_2.1.2_amd64.AppImage)
 
 ## macOS
 
@@ -26,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/
 bash /tmp/install-multi-codex.sh
 ```
 
-[Download for macOS](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.1/Multi.Codex_2.1.1_universal.dmg)
+[Download for macOS](https://github.com/wrestle-R/multi-codex/releases/download/v2.1.2/Multi.Codex_2.1.2_universal.dmg)
 
 ## Update
 
