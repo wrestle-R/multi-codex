@@ -16,6 +16,7 @@ import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
 import {
   addProfile,
+  checkProfileLimits,
   deleteProfile,
   getDesktopIntegrationStatus,
   importCurrentProfile,
@@ -24,7 +25,7 @@ import {
   listProfiles,
   updateProfile,
 } from "./lib/desktop-api"
-import type { DesktopIntegrationStatus, Profile, ProfileDetails } from "./lib/types"
+import type { DesktopIntegrationStatus, LimitCheckState, Profile, ProfileDetails } from "./lib/types"
 
 type Theme = "system" | "light" | "dark"
 
@@ -49,6 +50,7 @@ export default function App() {
   const [showIntegration, setShowIntegration] = useState(false)
   const [integrationBusy, setIntegrationBusy] = useState(false)
   const [integrationError, setIntegrationError] = useState<string | null>(null)
+  const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
 
   const refresh = useCallback(async () => {
     try {
@@ -130,6 +132,24 @@ export default function App() {
       setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "error", error: message } : item))
     }
     await refresh()
+  }
+
+  async function handleCheckLimits(profile: Profile) {
+    if (limitChecks[profile.id]?.loading) return
+    setLimitChecks((current) => ({
+      ...current,
+      [profile.id]: { ...current[profile.id], loading: true, error: undefined },
+    }))
+    try {
+      const data = await checkProfileLimits(profile.id)
+      setLimitChecks((current) => ({ ...current, [profile.id]: { loading: false, data } }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setLimitChecks((current) => ({
+        ...current,
+        [profile.id]: { ...current[profile.id], loading: false, error: message },
+      }))
+    }
   }
 
   async function handleDelete() {
@@ -243,6 +263,8 @@ export default function App() {
                 <ProfileRow
                   key={profile.id}
                   profile={profile}
+                  limits={limitChecks[profile.id]}
+                  onCheckLimits={handleCheckLimits}
                   onLaunch={handleLaunch}
                   onEdit={(selected) => { setDialogError(null); setDialogProfile(selected) }}
                   onDelete={(selected) => { setDialogError(null); setDeleteTarget(selected) }}

@@ -1,19 +1,23 @@
 mod desktop_integration;
 mod profiles;
+mod usage;
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
     default_service, validate_auth_structure, CodexCliRecognizer, KeyringSecretStore,
     ProfileRuntime, ProfileService, ProfileView, SaveProfileInput,
 };
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use tauri::State;
+use usage::ProfileLimits;
 
 type AppService = ProfileService<KeyringSecretStore, CodexCliRecognizer>;
 
 struct AppState {
     service: Arc<AppService>,
     desktop_integration: DesktopIntegration,
+    limit_checks: Arc<Mutex<HashSet<String>>>,
 }
 
 #[tauri::command]
@@ -29,14 +33,10 @@ fn add_profile(input: SaveProfileInput, state: State<'_, AppState>) -> Result<Pr
 #[tauri::command]
 fn import_current_profile(
     name: String,
-    requests_remaining: Option<u32>,
     notes: Option<String>,
-    reset_date: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ProfileView, String> {
-    state
-        .service
-        .import_current(name, requests_remaining, notes, reset_date)
+    state.service.import_current(name, notes)
 }
 
 #[tauri::command]
@@ -44,14 +44,10 @@ fn update_profile(
     id: String,
     name: String,
     auth_json: Option<String>,
-    requests_remaining: Option<u32>,
     notes: Option<String>,
-    reset_date: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ProfileView, String> {
-    state
-        .service
-        .update_profile(&id, name, auth_json, requests_remaining, notes, reset_date)
+    state.service.update_profile(&id, name, auth_json, notes)
 }
 
 #[tauri::command]
@@ -75,6 +71,32 @@ fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> 
 #[tauri::command]
 fn get_runtime_status(id: String, state: State<'_, AppState>) -> Result<ProfileRuntime, String> {
     state.service.runtime_status(&id)
+}
+
+#[tauri::command]
+async fn check_profile_limits(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<ProfileLimits, String> {
+    {
+        let mut checks = state
+            .limit_checks
+            .lock()
+            .map_err(|_| "Limits-check state is unavailable".to_string())?;
+        if !checks.insert(id.clone()) {
+            return Err("A limits check is already running for this profile".to_string());
+        }
+    }
+
+    let service = Arc::clone(&state.service);
+    let profile_id = id.clone();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || service.check_profile_limits(&profile_id))
+            .await;
+    if let Ok(mut checks) = state.limit_checks.lock() {
+        checks.remove(&id);
+    }
+    result.map_err(|_| "Codex limits check could not complete".to_string())?
 }
 
 #[tauri::command]
@@ -106,6 +128,7 @@ pub fn run() {
         .manage(AppState {
             service: Arc::new(service),
             desktop_integration,
+            limit_checks: Arc::new(Mutex::new(HashSet::new())),
         })
         .setup(|app| {
             use tauri::Manager;
@@ -124,6 +147,7 @@ pub fn run() {
             launch_profile,
             delete_profile,
             get_runtime_status,
+            check_profile_limits,
             get_desktop_integration_status,
             install_desktop_integration,
         ])
