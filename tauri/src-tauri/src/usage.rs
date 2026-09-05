@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use crate::profiles::{resolve_command, set_owner_only_dir, write_private_file, Result};
+use crate::profiles::{resolve_codex_command, set_owner_only_dir, write_private_file, Result};
 
 const FIVE_HOUR_MINS: i64 = 5 * 60;
 const WEEKLY_MINS: i64 = 7 * 24 * 60;
@@ -30,12 +30,8 @@ pub struct ProfileLimits {
 }
 
 pub fn read_profile_limits(auth_json: &str) -> Result<ProfileLimits> {
-    read_with_command(
-        &resolve_command("codex"),
-        auth_json,
-        REQUEST_TIMEOUT,
-        Utc::now(),
-    )
+    let codex = resolve_codex_command()?;
+    read_with_command(&codex, auth_json, REQUEST_TIMEOUT, Utc::now())
 }
 
 fn read_with_command(
@@ -262,11 +258,15 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let script = temp.path().join("fake-codex");
         let pid_file = temp.path().join("pid");
+        #[cfg(target_os = "linux")]
+        let permission_check = "stat -c %a \"$CODEX_HOME/auth.json\"";
+        #[cfg(target_os = "macos")]
+        let permission_check = "stat -f %Lp \"$CODEX_HOME/auth.json\"";
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nprintf '%s' $$ > '{}'\n[ \"$(stat -c %a \"$CODEX_HOME/auth.json\")\" = 600 ] || exit 3\nread a\nread b\nread c\nprintf '%s\\n' '{{\"id\":2,\"result\":{{\"rateLimits\":{{\"primary\":{{\"usedPercent\":40,\"windowDurationMins\":300,\"resetsAt\":null}}}},\"rateLimitResetCredits\":{{\"availableCount\":1}}}}}}'\nsleep 30\n",
-                pid_file.display()
+                "#!/bin/sh\nprintf '%s' $$ > '{}'\n[ \"$({permission_check})\" = 600 ] || exit 3\nread a\nread b\nread c\nprintf '%s\\n' '{{\"id\":2,\"result\":{{\"rateLimits\":{{\"primary\":{{\"usedPercent\":40,\"windowDurationMins\":300,\"resetsAt\":null}}}},\"rateLimitResetCredits\":{{\"availableCount\":1}}}}}}'\nsleep 30\n",
+                pid_file.display(),
             ),
         )
         .unwrap();
