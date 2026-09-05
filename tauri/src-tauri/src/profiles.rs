@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -11,6 +11,8 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
+use crate::usage::{read_profile_limits, ProfileLimits};
+
 const MAX_AUTH_BYTES: usize = 1024 * 1024;
 const KEYRING_SERVICE: &str = "multi-codex";
 
@@ -22,11 +24,7 @@ pub struct SaveProfileInput {
     pub name: String,
     pub auth_json: String,
     #[serde(default)]
-    pub requests_remaining: Option<u32>,
-    #[serde(default)]
     pub notes: Option<String>,
-    #[serde(default)]
-    pub reset_date: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -36,11 +34,7 @@ pub struct ProfileMetadata {
     pub name: String,
     pub auth_mode: String,
     #[serde(default)]
-    pub requests_remaining: Option<u32>,
-    #[serde(default)]
     pub notes: Option<String>,
-    #[serde(default)]
-    pub reset_date: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -212,8 +206,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     pub fn add_profile(&self, input: SaveProfileInput) -> Result<ProfileView> {
         let name = validate_name(&input.name)?;
-        let (requests_remaining, notes, reset_date) =
-            validate_optional_metadata(input.requests_remaining, input.notes, input.reset_date)?;
+        let notes = validate_notes(input.notes)?;
         let auth_mode = validate_auth_structure(&input.auth_json)?;
         self.recognizer.recognize(&input.auth_json)?;
         let mut profiles = self.load_metadata()?;
@@ -223,9 +216,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             id: Uuid::new_v4().to_string(),
             name,
             auth_mode,
-            requests_remaining,
             notes,
-            reset_date,
             created_at: now,
             updated_at: now,
         };
@@ -242,13 +233,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         })
     }
 
-    pub fn import_current(
-        &self,
-        name: String,
-        requests_remaining: Option<u32>,
-        notes: Option<String>,
-        reset_date: Option<String>,
-    ) -> Result<ProfileView> {
+    pub fn import_current(&self, name: String, notes: Option<String>) -> Result<ProfileView> {
         let auth_path = self.global_codex_home.join("auth.json");
         let metadata = fs::symlink_metadata(&auth_path)
             .map_err(|_| "The current Codex auth file could not be read".to_string())?;
@@ -263,9 +248,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         self.add_profile(SaveProfileInput {
             name,
             auth_json,
-            requests_remaining,
             notes,
-            reset_date,
         })
     }
 
@@ -274,17 +257,14 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         id: &str,
         name: String,
         auth_json: Option<String>,
-        requests_remaining: Option<u32>,
         notes: Option<String>,
-        reset_date: Option<String>,
     ) -> Result<ProfileView> {
         validate_id(id)?;
         if self.is_running(id)? {
             return Err("Close this profile's VS Code window before editing it".to_string());
         }
         let name = validate_name(&name)?;
-        let (requests_remaining, notes, reset_date) =
-            validate_optional_metadata(requests_remaining, notes, reset_date)?;
+        let notes = validate_notes(notes)?;
         let mut profiles = self.load_metadata()?;
         ensure_unique_name(&profiles, &name, Some(id))?;
         let index = profiles
@@ -306,9 +286,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         };
         profiles[index].name = name;
         profiles[index].auth_mode = auth_mode;
-        profiles[index].requests_remaining = requests_remaining;
         profiles[index].notes = notes;
-        profiles[index].reset_date = reset_date;
         profiles[index].updated_at = Utc::now();
         let metadata = profiles[index].clone();
         if let Err(error) = self.save_metadata(&profiles) {
@@ -448,6 +426,22 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         })
     }
 
+    pub fn check_profile_limits(&self, id: &str) -> Result<ProfileLimits> {
+        validate_id(id)?;
+        let profile = self
+            .load_metadata()?
+            .into_iter()
+            .find(|profile| profile.id == id)
+            .ok_or_else(|| "Profile not found".to_string())?;
+        if !profile.auth_mode.eq_ignore_ascii_case("chatgpt") {
+            return Err("Live limits are available only for ChatGPT accounts".to_string());
+        }
+        let secret = self.secrets.get(id)?;
+        let result = read_profile_limits(&secret);
+        drop(secret);
+        result
+    }
+
     fn load_metadata(&self) -> Result<Vec<ProfileMetadata>> {
         read_metadata(&self.data_root.join("profiles.json"))
     }
@@ -574,14 +568,7 @@ fn validate_name(name: &str) -> Result<String> {
     Ok(name.to_string())
 }
 
-fn validate_optional_metadata(
-    requests_remaining: Option<u32>,
-    notes: Option<String>,
-    reset_date: Option<String>,
-) -> Result<(Option<u32>, Option<String>, Option<String>)> {
-    if requests_remaining.is_some_and(|value| value > 1_000_000) {
-        return Err("Requests remaining must be 1,000,000 or less".to_string());
-    }
+fn validate_notes(notes: Option<String>) -> Result<Option<String>> {
     let notes = notes
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
@@ -591,14 +578,7 @@ fn validate_optional_metadata(
     {
         return Err("Notes must be 500 characters or fewer".to_string());
     }
-    let reset_date = reset_date
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty());
-    if let Some(value) = &reset_date {
-        NaiveDate::parse_from_str(value, "%Y-%m-%d")
-            .map_err(|_| "Reset date must be a valid date".to_string())?;
-    }
-    Ok((requests_remaining, notes, reset_date))
+    Ok(notes)
 }
 
 fn validate_id(id: &str) -> Result<()> {
@@ -652,7 +632,7 @@ fn ensure_private_dir(path: &Path) -> Result<()> {
     set_owner_only_dir(path)
 }
 
-fn set_owner_only_dir(path: &Path) -> Result<()> {
+pub(crate) fn set_owner_only_dir(path: &Path) -> Result<()> {
     fs::set_permissions(path, fs::Permissions::from_mode(0o700))
         .map_err(|error| format!("Could not protect {}: {error}", path.display()))
 }
@@ -691,7 +671,7 @@ fn ensure_private_managed_dir(root: &Path, path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_private_file(path: &Path, bytes: &[u8]) -> Result<()> {
+pub(crate) fn write_private_file(path: &Path, bytes: &[u8]) -> Result<()> {
     if let Some(parent) = path.parent() {
         ensure_private_dir(parent)?;
     }
@@ -745,13 +725,22 @@ fn build_vscode_command(codex_home: &Path, vscode_home: &Path, extensions_dir: &
     command
 }
 
-fn resolve_command(name: &str) -> PathBuf {
+pub(crate) fn resolve_command(name: &str) -> PathBuf {
     if let Some(path) = env::var_os("PATH").and_then(|paths| {
         env::split_paths(&paths)
             .map(|directory| directory.join(name))
             .find(|candidate| candidate.is_file())
     }) {
         return path;
+    }
+
+    if name == "codex" {
+        let home = dirs::home_dir().unwrap_or_default();
+        for candidate in [home.join(".local/bin/codex"), find_extension_codex(&home)] {
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
     }
 
     #[cfg(target_os = "macos")]
@@ -765,7 +754,6 @@ fn resolve_command(name: &str) -> PathBuf {
                 home.join("Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
             ],
             "codex" => vec![
-                home.join(".local/bin/codex"),
                 PathBuf::from("/opt/homebrew/bin/codex"),
                 PathBuf::from("/usr/local/bin/codex"),
             ],
@@ -777,6 +765,50 @@ fn resolve_command(name: &str) -> PathBuf {
     }
 
     PathBuf::from(name)
+}
+
+fn find_extension_codex(home: &Path) -> PathBuf {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    const PLATFORM: &str = "linux-x86_64";
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    const PLATFORM: &str = "linux-aarch64";
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    const PLATFORM: &str = "darwin-x86_64";
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    const PLATFORM: &str = "darwin-arm64";
+    #[cfg(not(any(
+        all(target_os = "linux", target_arch = "x86_64"),
+        all(target_os = "linux", target_arch = "aarch64"),
+        all(target_os = "macos", target_arch = "x86_64"),
+        all(target_os = "macos", target_arch = "aarch64")
+    )))]
+    const PLATFORM: &str = "unsupported";
+
+    let extensions = home.join(".vscode/extensions");
+    let mut versions = fs::read_dir(&extensions)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("openai.chatgpt-")
+        })
+        .map(|entry| entry.path())
+        .collect::<Vec<_>>();
+    versions.sort();
+    versions
+        .into_iter()
+        .rev()
+        .map(|extension| extension.join("bin").join(PLATFORM).join("codex"))
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| {
+            extensions
+                .join("openai.chatgpt/bin")
+                .join(PLATFORM)
+                .join("codex")
+        })
 }
 
 #[cfg(target_os = "linux")]
@@ -876,9 +908,7 @@ mod tests {
         SaveProfileInput {
             name: name.into(),
             auth_json: sample_auth(),
-            requests_remaining: None,
             notes: None,
-            reset_date: None,
         }
     }
 
@@ -980,6 +1010,34 @@ mod tests {
     }
 
     #[test]
+    fn finds_codex_bundled_with_the_newest_vscode_extension() {
+        let temp = tempfile::tempdir().unwrap();
+        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+        let platform = "linux-x86_64";
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let platform = "linux-aarch64";
+        #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+        let platform = "darwin-x86_64";
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let platform = "darwin-arm64";
+        let older = temp
+            .path()
+            .join(".vscode/extensions/openai.chatgpt-1.0.0/bin")
+            .join(platform)
+            .join("codex");
+        let newest = temp
+            .path()
+            .join(".vscode/extensions/openai.chatgpt-2.0.0/bin")
+            .join(platform)
+            .join("codex");
+        fs::create_dir_all(older.parent().unwrap()).unwrap();
+        fs::create_dir_all(newest.parent().unwrap()).unwrap();
+        fs::write(&older, b"old").unwrap();
+        fs::write(&newest, b"new").unwrap();
+        assert_eq!(find_extension_codex(temp.path()), newest);
+    }
+
+    #[test]
     fn managed_directory_creation_rejects_symlink_escapes() {
         let (temp, service) = fixture();
         let id = Uuid::new_v4().to_string();
@@ -1001,9 +1059,7 @@ mod tests {
         write_private_file(&source, sample_auth().as_bytes()).unwrap();
         let before = fs::read(&source).unwrap();
         let mode_before = fs::metadata(&source).unwrap().permissions().mode() & 0o777;
-        service
-            .import_current("Current".into(), None, None, None)
-            .unwrap();
+        service.import_current("Current".into(), None).unwrap();
         assert_eq!(fs::read(&source).unwrap(), before);
         assert_eq!(
             fs::metadata(&source).unwrap().permissions().mode() & 0o777,
@@ -1013,28 +1069,18 @@ mod tests {
     }
 
     #[test]
-    fn optional_profile_metadata_is_validated_and_persisted() {
+    fn optional_notes_are_validated_and_persisted() {
         let (_temp, service) = fixture();
         let mut input = sample_input("Tracked");
-        input.requests_remaining = Some(125);
         input.notes = Some("  Resets after the billing cycle  ".into());
-        input.reset_date = Some("2026-09-30".into());
         let profile = service.add_profile(input).unwrap();
-        assert_eq!(profile.metadata.requests_remaining, Some(125));
         assert_eq!(
             profile.metadata.notes.as_deref(),
             Some("Resets after the billing cycle")
         );
-        assert_eq!(profile.metadata.reset_date.as_deref(), Some("2026-09-30"));
 
         let stored = service.list_profiles().unwrap().remove(0).metadata;
-        assert_eq!(stored.requests_remaining, Some(125));
         assert_eq!(stored.notes, profile.metadata.notes);
-        assert_eq!(stored.reset_date, profile.metadata.reset_date);
-
-        let mut invalid = sample_input("Invalid");
-        invalid.reset_date = Some("2026-02-30".into());
-        assert!(service.add_profile(invalid).is_err());
     }
 
     #[test]
@@ -1051,8 +1097,22 @@ mod tests {
         .unwrap();
         let profile = service.list_profiles().unwrap().remove(0);
         assert_eq!(profile.metadata.name, "Legacy");
-        assert_eq!(profile.metadata.requests_remaining, None);
         assert_eq!(profile.metadata.notes, None);
-        assert_eq!(profile.metadata.reset_date, None);
+    }
+
+    #[test]
+    fn legacy_manual_usage_fields_are_ignored() {
+        let (_temp, service) = fixture();
+        let id = Uuid::new_v4().to_string();
+        let metadata = format!(
+            r#"[{{"id":"{id}","name":"Legacy","authMode":"ChatGPT","requestsRemaining":125,"resetDate":"2026-09-30","notes":"Keep this","createdAt":"2026-09-01T00:00:00Z","updatedAt":"2026-09-01T00:00:00Z"}}]"#
+        );
+        write_private_file(
+            &service.data_root.join("profiles.json"),
+            metadata.as_bytes(),
+        )
+        .unwrap();
+        let profile = service.list_profiles().unwrap().remove(0);
+        assert_eq!(profile.metadata.notes.as_deref(), Some("Keep this"));
     }
 }

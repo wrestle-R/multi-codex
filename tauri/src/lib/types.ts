@@ -4,9 +4,7 @@ export interface Profile {
   id: string
   name: string
   authMode: string
-  requestsRemaining?: number | null
   notes?: string | null
-  resetDate?: string | null
   createdAt: string
   updatedAt: string
   status: RuntimeStatus
@@ -16,15 +14,29 @@ export interface Profile {
 export interface SaveProfileInput {
   name: string
   authJson: string
-  requestsRemaining?: number
   notes?: string
-  resetDate?: string
 }
 
 export interface ProfileDetails {
-  requestsRemaining?: number
   notes?: string
-  resetDate?: string
+}
+
+export interface LimitWindow {
+  remainingPercent: number
+  resetsAt: number | null
+}
+
+export interface ProfileLimits {
+  fiveHour: LimitWindow | null
+  weekly: LimitWindow | null
+  resetCreditsAvailable: number | null
+  checkedAt: string
+}
+
+export interface LimitCheckState {
+  loading: boolean
+  data?: ProfileLimits
+  error?: string
 }
 
 export interface DesktopIntegrationStatus {
