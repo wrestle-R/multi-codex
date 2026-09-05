@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::env;
+use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
@@ -119,11 +120,12 @@ impl AuthRecognizer for CodexCliRecognizer {
         set_owner_only_dir(temp.path())?;
         write_private_file(&temp.path().join("auth.json"), auth_json.as_bytes())?;
 
-        let output = Command::new(resolve_command("codex"))
+        let codex = resolve_codex_command()?;
+        let output = Command::new(codex)
             .args(["login", "status"])
             .env("CODEX_HOME", temp.path())
             .output()
-            .map_err(|error| format!("Could not run codex login status: {error}"))?;
+            .map_err(|_| "Codex CLI could not be started to validate this account".to_string())?;
         if output.status.success() {
             Ok(())
         } else {
@@ -726,26 +728,47 @@ fn build_vscode_command(codex_home: &Path, vscode_home: &Path, extensions_dir: &
 }
 
 pub(crate) fn resolve_command(name: &str) -> PathBuf {
-    if let Some(path) = env::var_os("PATH").and_then(|paths| {
-        env::split_paths(&paths)
+    let home = dirs::home_dir().unwrap_or_default();
+    resolve_command_with(name, env::var_os("PATH").as_deref(), &home)
+        .unwrap_or_else(|| PathBuf::from(name))
+}
+
+pub(crate) fn resolve_codex_command() -> Result<PathBuf> {
+    let home = dirs::home_dir().unwrap_or_default();
+    require_codex_command(env::var_os("PATH").as_deref(), &home)
+}
+
+fn require_codex_command(path: Option<&OsStr>, home: &Path) -> Result<PathBuf> {
+    resolve_command_with("codex", path, home).ok_or_else(|| {
+        "Codex CLI was not found. Install Codex or the OpenAI VS Code extension, then reopen Multi Codex".to_string()
+    })
+}
+
+fn resolve_command_with(name: &str, path: Option<&OsStr>, home: &Path) -> Option<PathBuf> {
+    if let Some(candidate) = path.and_then(|paths| {
+        env::split_paths(paths)
             .map(|directory| directory.join(name))
-            .find(|candidate| candidate.is_file())
+            .find(|candidate| is_executable_file(candidate))
     }) {
-        return path;
+        return Some(candidate);
     }
 
     if name == "codex" {
-        let home = dirs::home_dir().unwrap_or_default();
-        for candidate in [home.join(".local/bin/codex"), find_extension_codex(&home)] {
-            if candidate.is_file() {
-                return candidate;
-            }
+        let candidates = [
+            Some(home.join(".local/bin/codex")),
+            find_extension_codex(home),
+        ];
+        if let Some(candidate) = candidates
+            .into_iter()
+            .flatten()
+            .find(|candidate| is_executable_file(candidate))
+        {
+            return Some(candidate);
         }
     }
 
     #[cfg(target_os = "macos")]
     {
-        let home = dirs::home_dir().unwrap_or_default();
         let candidates = match name {
             "code" => vec![
                 PathBuf::from(
@@ -759,15 +782,23 @@ pub(crate) fn resolve_command(name: &str) -> PathBuf {
             ],
             _ => Vec::new(),
         };
-        if let Some(path) = candidates.into_iter().find(|candidate| candidate.is_file()) {
-            return path;
+        if let Some(path) = candidates
+            .into_iter()
+            .find(|candidate| is_executable_file(candidate))
+        {
+            return Some(path);
         }
     }
 
-    PathBuf::from(name)
+    None
 }
 
-fn find_extension_codex(home: &Path) -> PathBuf {
+fn is_executable_file(path: &Path) -> bool {
+    fs::metadata(path)
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+}
+
+fn find_extension_codex(home: &Path) -> Option<PathBuf> {
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     const PLATFORM: &str = "linux-x86_64";
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -784,6 +815,10 @@ fn find_extension_codex(home: &Path) -> PathBuf {
     )))]
     const PLATFORM: &str = "unsupported";
 
+    find_extension_codex_for_platform(home, PLATFORM)
+}
+
+fn find_extension_codex_for_platform(home: &Path, platform: &str) -> Option<PathBuf> {
     let extensions = home.join(".vscode/extensions");
     let mut versions = fs::read_dir(&extensions)
         .into_iter()
@@ -801,14 +836,8 @@ fn find_extension_codex(home: &Path) -> PathBuf {
     versions
         .into_iter()
         .rev()
-        .map(|extension| extension.join("bin").join(PLATFORM).join("codex"))
-        .find(|candidate| candidate.is_file())
-        .unwrap_or_else(|| {
-            extensions
-                .join("openai.chatgpt/bin")
-                .join(PLATFORM)
-                .join("codex")
-        })
+        .map(|extension| extension.join("bin").join(platform).join("codex"))
+        .find(|candidate| is_executable_file(candidate))
 }
 
 #[cfg(target_os = "linux")]
@@ -910,6 +939,12 @@ mod tests {
             auth_json: sample_auth(),
             notes: None,
         }
+    }
+
+    fn write_executable(path: &Path, contents: &[u8]) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, contents).unwrap();
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
     }
 
     #[test]
@@ -1030,11 +1065,70 @@ mod tests {
             .join(".vscode/extensions/openai.chatgpt-2.0.0/bin")
             .join(platform)
             .join("codex");
-        fs::create_dir_all(older.parent().unwrap()).unwrap();
-        fs::create_dir_all(newest.parent().unwrap()).unwrap();
-        fs::write(&older, b"old").unwrap();
-        fs::write(&newest, b"new").unwrap();
-        assert_eq!(find_extension_codex(temp.path()), newest);
+        write_executable(&older, b"old");
+        write_executable(&newest, b"new");
+        assert_eq!(find_extension_codex(temp.path()), Some(newest));
+    }
+
+    #[test]
+    fn resolves_extension_codex_when_desktop_path_is_restricted() {
+        let temp = tempfile::tempdir().unwrap();
+        let path_dir = temp.path().join("desktop-path");
+        fs::create_dir(&path_dir).unwrap();
+        let path = env::join_paths([&path_dir]).unwrap();
+        let extension = temp
+            .path()
+            .join(".vscode/extensions/openai.chatgpt-1.0.0/bin")
+            .join(if cfg!(target_arch = "aarch64") {
+                if cfg!(target_os = "macos") {
+                    "darwin-arm64"
+                } else {
+                    "linux-aarch64"
+                }
+            } else if cfg!(target_os = "macos") {
+                "darwin-x86_64"
+            } else {
+                "linux-x86_64"
+            })
+            .join("codex");
+        write_executable(&extension, b"codex");
+
+        assert_eq!(
+            resolve_command_with("codex", Some(path.as_os_str()), temp.path()),
+            Some(extension)
+        );
+    }
+
+    #[test]
+    fn skips_non_executable_candidates_and_returns_actionable_error() {
+        let temp = tempfile::tempdir().unwrap();
+        let path_dir = temp.path().join("bin");
+        fs::create_dir(&path_dir).unwrap();
+        fs::write(path_dir.join("codex"), b"not executable").unwrap();
+        let path = env::join_paths([&path_dir]).unwrap();
+
+        let error = require_codex_command(Some(path.as_os_str()), temp.path()).unwrap_err();
+        assert_eq!(
+            error,
+            "Codex CLI was not found. Install Codex or the OpenAI VS Code extension, then reopen Multi Codex"
+        );
+    }
+
+    #[test]
+    fn recognizes_both_macos_extension_architectures() {
+        for platform in ["darwin-x86_64", "darwin-arm64"] {
+            let temp = tempfile::tempdir().unwrap();
+            let binary = temp
+                .path()
+                .join(".vscode/extensions/openai.chatgpt-1.0.0/bin")
+                .join(platform)
+                .join("codex");
+            write_executable(&binary, b"codex");
+            assert_eq!(
+                find_extension_codex_for_platform(temp.path(), platform),
+                Some(binary)
+            );
+        }
     }
 
     #[test]
