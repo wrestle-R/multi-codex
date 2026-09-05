@@ -21,7 +21,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tauri/package-lock.json
-      - name: Validate and apply tag version
+      - name: Validate tag version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
@@ -29,19 +29,18 @@ jobs:
           VERSION="${RELEASE_TAG#v}"
           VERSION="$VERSION" node -e '
             const fs = require("fs");
-            for (const path of ["package.json", "package-lock.json"]) {
-              const doc = JSON.parse(fs.readFileSync(path, "utf8"));
-              doc.version = process.env.VERSION;
-              if (doc.packages && doc.packages[""]) doc.packages[""].version = process.env.VERSION;
-              fs.writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
+            const expected = process.env.VERSION;
+            const actual = [
+              JSON.parse(fs.readFileSync("package.json", "utf8")).version,
+              JSON.parse(fs.readFileSync("package-lock.json", "utf8")).version,
+              JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version,
+              fs.readFileSync("src-tauri/Cargo.toml", "utf8").match(/^version = "([^"]+)"/m)?.[1],
+              fs.readFileSync("src-tauri/Cargo.lock", "utf8").match(/name = "multi-codex-desktop"\nversion = "([^"]+)"/)?.[1],
+            ];
+            if (actual.some(version => version !== expected)) {
+              throw new Error(`Tag ${expected} does not match committed versions: ${actual.join(", ")}`);
             }
-            const path = "src-tauri/tauri.conf.json";
-            const doc = JSON.parse(fs.readFileSync(path, "utf8"));
-            doc.version = process.env.VERSION;
-            fs.writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
           '
-          sed -i "0,/^version = \".*\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
-          sed -i "/^name = \"multi-codex-desktop\"$/,/^dependencies = \[/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -75,7 +74,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tauri/package-lock.json
-      - name: Validate tag and apply version
+      - name: Validate tag version
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
@@ -83,19 +82,18 @@ jobs:
           VERSION="${RELEASE_TAG#v}"
           VERSION="$VERSION" node -e '
             const fs = require("fs");
-            for (const path of ["package.json", "package-lock.json"]) {
-              const doc = JSON.parse(fs.readFileSync(path, "utf8"));
-              doc.version = process.env.VERSION;
-              if (doc.packages && doc.packages[""]) doc.packages[""].version = process.env.VERSION;
-              fs.writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
+            const expected = process.env.VERSION;
+            const actual = [
+              JSON.parse(fs.readFileSync("package.json", "utf8")).version,
+              JSON.parse(fs.readFileSync("package-lock.json", "utf8")).version,
+              JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version,
+              fs.readFileSync("src-tauri/Cargo.toml", "utf8").match(/^version = "([^"]+)"/m)?.[1],
+              fs.readFileSync("src-tauri/Cargo.lock", "utf8").match(/name = "multi-codex-desktop"\nversion = "([^"]+)"/)?.[1],
+            ];
+            if (actual.some(version => version !== expected)) {
+              throw new Error(`Tag ${expected} does not match committed versions: ${actual.join(", ")}`);
             }
-            const path = "src-tauri/tauri.conf.json";
-            const doc = JSON.parse(fs.readFileSync(path, "utf8"));
-            doc.version = process.env.VERSION;
-            fs.writeFileSync(path, JSON.stringify(doc, null, 2) + "\n");
           '
-          sed -i '' "1,/^version = \".*\"/s//version = \"$VERSION\"/" src-tauri/Cargo.toml
-          sed -i '' "/^name = \"multi-codex-desktop\"$/,/^dependencies = \[/s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.lock
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
