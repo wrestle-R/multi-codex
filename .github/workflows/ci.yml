@@ -70,15 +70,10 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npm run check:secrets
-      - run: npm run tauri -- build --bundles dmg --target universal-apple-darwin
+      - run: npm run tauri -- build --bundles app,dmg --target universal-apple-darwin
       - name: Inspect and smoke-test universal app bundle
         run: |
-          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print -quit)
-          test -n "$DMG"
-          MOUNT=$(mktemp -d)
-          hdiutil attach -nobrowse -readonly -mountpoint "$MOUNT" "$DMG" >/dev/null
-          trap 'hdiutil detach "$MOUNT" >/dev/null 2>&1 || true; rm -rf "$MOUNT" "$TEST_HOME"' EXIT
-          APP=$(find "$MOUNT" -maxdepth 1 -type d -name '*.app' -print -quit)
+          APP=$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
           test -n "$APP"
           EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
           BINARY="$APP/Contents/MacOS/$EXECUTABLE"
@@ -88,6 +83,7 @@ jobs:
           [[ " $ARCHS " == *" arm64 "* ]]
           [[ " $ARCHS " == *" x86_64 "* ]]
           TEST_HOME=$(mktemp -d)
+          trap 'rm -rf "$TEST_HOME"' EXIT
           HOME="$TEST_HOME" "$BINARY" >"$RUNNER_TEMP/multi-codex-macos.log" 2>&1 &
           PID=$!
           sleep 5
