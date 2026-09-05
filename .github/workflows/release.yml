@@ -105,6 +105,25 @@ jobs:
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - run: npm run tauri -- build --bundles dmg --target universal-apple-darwin
+      - name: Inspect and smoke-test universal app bundle
+        run: |
+          APP=$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          test -n "$APP"
+          EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
+          BINARY="$APP/Contents/MacOS/$EXECUTABLE"
+          test -x "$BINARY"
+          test -f "$APP/Contents/Resources/icon.icns"
+          ARCHS=$(lipo -archs "$BINARY")
+          [[ " $ARCHS " == *" arm64 "* ]]
+          [[ " $ARCHS " == *" x86_64 "* ]]
+          TEST_HOME=$(mktemp -d)
+          HOME="$TEST_HOME" "$BINARY" >"$RUNNER_TEMP/multi-codex-macos.log" 2>&1 &
+          PID=$!
+          sleep 5
+          kill -0 "$PID"
+          kill "$PID"
+          wait "$PID" || true
+          rm -rf "$TEST_HOME"
       - name: Normalize DMG name
         env:
           RELEASE_TAG: ${{ github.ref_name }}
