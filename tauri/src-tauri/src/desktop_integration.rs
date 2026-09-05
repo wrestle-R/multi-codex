@@ -104,7 +104,8 @@ impl DesktopIntegration {
             atomic_write(&self.icon_path(size), bytes, 0o644)?;
         }
 
-        let desktop_entry = desktop_entry(&self.install_bin, &self.version)?;
+        let desktop_entry =
+            desktop_entry(&self.install_bin, &self.icon_path("512x512"), &self.version)?;
         atomic_write(
             &self.applications_dir.join(DESKTOP_FILE_NAME),
             desktop_entry.as_bytes(),
@@ -123,6 +124,12 @@ impl DesktopIntegration {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .status();
+        let _ = Command::new("gtk-update-icon-cache")
+            .args(["-f", "-t"])
+            .arg(&self.icons_dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
 
         Ok(self.status())
     }
@@ -135,7 +142,7 @@ impl DesktopIntegration {
     }
 }
 
-fn desktop_entry(executable: &Path, version: &str) -> Result<String, String> {
+fn desktop_entry(executable: &Path, icon: &Path, version: &str) -> Result<String, String> {
     let executable = executable
         .to_str()
         .ok_or_else(|| "The AppImage install path is not valid UTF-8".to_string())?;
@@ -144,8 +151,11 @@ fn desktop_entry(executable: &Path, version: &str) -> Result<String, String> {
         .replace('"', "\\\"")
         .replace('`', "\\`")
         .replace('$', "\\$");
+    let icon = icon
+        .to_str()
+        .ok_or_else(|| "The icon install path is not valid UTF-8".to_string())?;
     Ok(format!(
-        "[Desktop Entry]\nType=Application\nName=Multi Codex\nComment=Launch isolated Codex accounts\nExec=\"{escaped}\"\nIcon={APP_ID}\nTerminal=false\nCategories=Utility;Development;\nStartupWMClass={APP_ID}\nX-MultiCodex-Version={version}\n"
+        "[Desktop Entry]\nType=Application\nName=Multi Codex\nComment=Launch isolated Codex accounts\nExec=\"{escaped}\"\nIcon={icon}\nTerminal=false\nCategories=Utility;Development;\nStartupWMClass={APP_ID}\nX-MultiCodex-Version={version}\n"
     ))
 }
 
@@ -269,7 +279,10 @@ mod tests {
         }
         let entry =
             fs::read_to_string(integration.applications_dir.join(DESKTOP_FILE_NAME)).unwrap();
-        assert!(entry.contains("Icon=multi-codex-desktop"));
+        assert!(entry.contains(&format!(
+            "Icon={}",
+            integration.icon_path("512x512").display()
+        )));
         assert!(entry.contains("StartupWMClass=multi-codex-desktop"));
     }
 
@@ -286,6 +299,7 @@ mod tests {
     fn desktop_entry_escapes_exec_metacharacters() {
         let entry = desktop_entry(
             Path::new("/tmp/a $b/with`tick\\and\"quote.AppImage"),
+            Path::new("/tmp/icons/multi-codex-desktop.png"),
             "2.1.0",
         )
         .unwrap();
