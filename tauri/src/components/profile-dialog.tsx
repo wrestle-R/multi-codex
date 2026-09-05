@@ -26,8 +26,6 @@ export function ProfileDialog({
   const [mode, setMode] = useState<"paste" | "current">("paste")
   const [name, setName] = useState(profile?.name ?? "")
   const [authJson, setAuthJson] = useState("")
-  const [requestsRemaining, setRequestsRemaining] = useState(profile?.requestsRemaining?.toString() ?? "")
-  const [resetDate, setResetDate] = useState(profile?.resetDate ?? "")
   const [notes, setNotes] = useState(profile?.notes ?? "")
   const dialogRef = useDialogFocus(onClose, busy)
 
@@ -36,8 +34,6 @@ export function ProfileDialog({
   async function submit(event: FormEvent) {
     event.preventDefault()
     const details: ProfileDetails = {
-      requestsRemaining: requestsRemaining === "" ? undefined : Number(requestsRemaining),
-      resetDate: resetDate || undefined,
       notes: notes.trim() || undefined,
     }
     if (profile || mode === "paste") await onSave(name, authJson.trim() || undefined, details)
@@ -83,26 +79,6 @@ export function ProfileDialog({
           ) : (
             <div className="notice">Reads your current Codex login and saves a protected copy. The original file is never changed.</div>
           )}
-
-          <div className="optional-fields">
-            <label>
-              <span>Requests remaining <small>Optional</small></span>
-              <input
-                type="number"
-                min="0"
-                max="1000000"
-                step="1"
-                inputMode="numeric"
-                value={requestsRemaining}
-                placeholder="250"
-                onChange={(event) => setRequestsRemaining(event.currentTarget.value)}
-              />
-            </label>
-            <label>
-              <span>Reset date <small>Optional</small></span>
-              <input type="date" value={resetDate} onChange={(event) => setResetDate(event.currentTarget.value)} />
-            </label>
-          </div>
 
           <label>
             <span>Notes <small>Optional</small></span>

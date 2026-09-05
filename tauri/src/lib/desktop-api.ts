@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, Profile, ProfileDetails, SaveProfileInput } from "./types"
+import type { DesktopIntegrationStatus, Profile, ProfileDetails, ProfileLimits, SaveProfileInput } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -8,9 +8,7 @@ let demoProfiles: Profile[] = [
     id: "demo-personal",
     name: "Personal",
     authMode: "ChatGPT",
-    requestsRemaining: 42,
     notes: "Personal projects and experiments",
-    resetDate: "2026-09-12",
     createdAt: "2026-09-01T09:30:00Z",
     updatedAt: "2026-09-04T08:10:00Z",
     status: "idle",
@@ -19,9 +17,7 @@ let demoProfiles: Profile[] = [
     id: "demo-work",
     name: "Work",
     authMode: "ChatGPT",
-    requestsRemaining: 18,
     notes: "Client work",
-    resetDate: "2026-09-08",
     createdAt: "2026-09-02T11:20:00Z",
     updatedAt: "2026-09-04T07:45:00Z",
     status: "running",
@@ -43,9 +39,7 @@ export async function addProfile(input: SaveProfileInput): Promise<Profile> {
     id: crypto.randomUUID(),
     name: input.name.trim(),
     authMode: "ChatGPT",
-    requestsRemaining: input.requestsRemaining,
     notes: input.notes,
-    resetDate: input.resetDate,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: "idle",
@@ -88,6 +82,23 @@ export async function launchProfile(id: string): Promise<void> {
 export async function deleteProfile(id: string): Promise<void> {
   if (isTauri) return invoke("delete_profile", { id })
   demoProfiles = demoProfiles.filter((profile) => profile.id !== id)
+}
+
+export async function checkProfileLimits(id: string): Promise<ProfileLimits> {
+  if (isTauri) return invoke<ProfileLimits>("check_profile_limits", { id })
+  await wait()
+  const profile = demoProfiles.find((item) => item.id === id)
+  if (!profile) throw new Error("Profile not found")
+  if (profile.authMode.toLowerCase() !== "chatgpt") {
+    throw new Error("Live limits are available only for ChatGPT accounts")
+  }
+  const now = Math.floor(Date.now() / 1000)
+  return {
+    fiveHour: { remainingPercent: 64, resetsAt: now + 2 * 60 * 60 },
+    weekly: { remainingPercent: 81, resetsAt: now + 4 * 24 * 60 * 60 },
+    resetCreditsAvailable: 2,
+    checkedAt: new Date().toISOString(),
+  }
 }
 
 export async function getDesktopIntegrationStatus(): Promise<DesktopIntegrationStatus> {

@@ -105,6 +105,17 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .profile-details span + span::before { width: 3px; height: 3px; margin-right: 0.7rem; border-radius: 50%; background: var(--muted-foreground); content: ""; flex: 0 0 auto; }
 .profile-details strong { margin-right: 0.18rem; color: var(--foreground); font-size: inherit; }
 .profile-note { max-width: 28rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.limits-panel { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(88px, auto); gap: 0.65rem; margin-top: 0.75rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
+.limit-metric, .reset-credit-metric { min-width: 0; }
+.limit-metric-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.limit-metric-heading span, .reset-credit-metric span { color: var(--muted-foreground); font-size: 0.7rem; }
+.limit-metric-heading strong { font-size: 0.76rem; white-space: nowrap; }
+.limit-track { width: 100%; height: 5px; margin-top: 0.35rem; overflow: hidden; border-radius: 3px; background: var(--muted); }
+.limit-track span { display: block; height: 100%; border-radius: inherit; background: var(--signal); }
+.limit-metric small, .reset-credit-metric small { display: block; margin-top: 0.3rem; overflow: hidden; color: var(--muted-foreground); font-size: 0.66rem; text-overflow: ellipsis; white-space: nowrap; }
+.reset-credit-metric { padding-left: 0.65rem; border-left: 1px solid var(--border); }
+.reset-credit-metric strong { display: block; margin-top: 0.15rem; font-size: 1rem; }
+.limits-error { margin-top: 0.6rem !important; }
 .status { padding: 0.22rem 0.52rem; border-radius: 999px; color: var(--foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; line-height: 1.15; text-transform: capitalize; }
 .status-running { color: var(--signal); background: var(--signal-soft); }
 .status-launching { color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); }
@@ -114,6 +125,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .profile-time strong { margin-top: 0.15rem; font-size: 0.82rem; }
 .profile-actions { justify-content: flex-end; gap: 0.5rem; }
 .launch-button { min-width: 104px; }
+.limits-button { min-width: 118px; display: inline-flex; align-items: center; justify-content: center; gap: 0.42rem; }
+.limits-button svg { flex: 0 0 auto; }
 
 .state-panel { min-height: 280px; margin-top: 0.85rem; display: grid; place-items: center; align-content: center; gap: 0.3rem; padding: 2rem; text-align: center; }
 .state-panel h2 { margin: 0.5rem 0 0; }
@@ -165,15 +178,22 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
   .intro-panel h1 { font-size: 2rem; }
   .runtime-summary { width: 100%; }
   .profile-row { grid-template-columns: 48px minmax(0, 1fr); }
+  .profile-avatar { align-self: start; margin-top: 0.1rem; }
   .profile-time { display: none; }
   .profile-actions { grid-column: 1 / -1; }
   .launch-button { flex: 1; }
+  .limits-panel { grid-template-columns: 1fr 1fr; }
+  .reset-credit-metric { grid-column: 1 / -1; padding: 0.55rem 0 0; border-top: 1px solid var(--border); border-left: 0; }
+  .limits-button { flex: 1; }
 }
 @media (max-width: 430px) {
-  .optional-fields { grid-template-columns: 1fr; }
   .brand-block strong { font-size: 1.05rem; }
   .brand-mark { width: 38px; height: 38px; }
   .header-button { width: 42px; padding: 0; font-size: 0; }
   .header-button svg { width: 20px; height: 20px; }
   .profile-actions .icon-button { width: 40px; height: 40px; }
+  .profile-actions { flex-wrap: wrap; }
+  .limits-panel { grid-template-columns: 1fr; }
+  .reset-credit-metric { grid-column: auto; }
+  .limits-button, .launch-button { min-width: calc(50% - 0.25rem); }
 }
