@@ -10,6 +10,7 @@ interface ProfileDialogProps {
   busy: boolean
   error: string | null
   loginOutput?: string
+  deviceLoginActive: boolean
   onClose: () => void
   onSave: (name: string, authJson: string | undefined, details: ProfileDetails) => Promise<void>
   onImportCurrent: (name: string, details: ProfileDetails) => Promise<void>
@@ -21,6 +22,7 @@ export function ProfileDialog({
   busy,
   error,
   loginOutput,
+  deviceLoginActive,
   onClose,
   onSave,
   onImportCurrent,
@@ -31,7 +33,18 @@ export function ProfileDialog({
   const [name, setName] = useState(profile?.name ?? "")
   const [authJson, setAuthJson] = useState("")
   const [notes, setNotes] = useState(profile?.notes ?? "")
-  const dialogRef = useDialogFocus(onClose, busy)
+  const dialogRef = useDialogFocus(onClose, busy && !deviceLoginActive)
+  const cleanLoginOutput = stripTerminalFormatting(loginOutput ?? "")
+  const signInUrl = cleanLoginOutput.match(/https:\/\/auth\.openai\.com\/codex\/device\b/)?.[0]
+  const deviceCode = cleanLoginOutput.match(/\b[A-Z0-9]{4,6}-[A-Z0-9]{4,6}\b/)?.[0]
+
+  async function copy(value: string) {
+    try {
+      await navigator.clipboard.writeText(value)
+    } catch {
+      // Clipboard access can be unavailable in a browser preview. The text remains selectable.
+    }
+  }
 
   const canSubmit = name.trim().length > 0 && (Boolean(profile) || mode === "browser" || mode === "current" || authJson.trim().length > 0)
 
@@ -46,14 +59,14 @@ export function ProfileDialog({
   }
 
   return (
-    <div className="dialog-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
+    <div className="dialog-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && (!busy || deviceLoginActive) && onClose()}>
       <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="dialog-header">
           <div>
             <span className="eyebrow">Account profile</span>
             <h2 id={titleId}>{profile ? "Edit account" : "Add account"}</h2>
           </div>
-          <button className="dialog-close" type="button" aria-label="Close" title="Close" disabled={busy} onClick={onClose}>
+          <button className="dialog-close" type="button" aria-label="Close" title="Close" disabled={busy && !deviceLoginActive} onClick={onClose}>
             <HugeiconsIcon icon={Cancel01Icon} size={20} strokeWidth={1.8} />
           </button>
         </div>
@@ -100,14 +113,42 @@ export function ProfileDialog({
           </label>
 
           {error ? <div className="form-error" role="alert">{error}</div> : null}
-          {loginOutput ? <pre className="login-output" aria-live="polite">{loginOutput}</pre> : null}
+          {deviceLoginActive ? (
+            <div className="device-sign-in" aria-live="polite">
+              <strong>Finish sign-in in your browser</strong>
+              {signInUrl ? (
+                <div className="device-sign-in-field">
+                  <span>Open this link</span>
+                  <a href={signInUrl} target="_blank" rel="noreferrer">{signInUrl}</a>
+                  <div><button className="button secondary" type="button" onClick={() => void copy(signInUrl)}>Copy link</button><button className="button secondary" type="button" onClick={() => window.open(signInUrl, "_blank", "noopener,noreferrer")}>Open browser</button></div>
+                </div>
+              ) : null}
+              {deviceCode ? (
+                <div className="device-sign-in-field">
+                  <span>Enter this one-time code</span>
+                  <code>{deviceCode}</code>
+                  <button className="button secondary" type="button" onClick={() => void copy(deviceCode)}>Copy code</button>
+                </div>
+              ) : null}
+              {!signInUrl && !deviceCode ? <p>Getting your secure sign-in link and code…</p> : null}
+              {cleanLoginOutput ? <details><summary>Technical details</summary><pre className="login-output">{cleanLoginOutput}</pre></details> : null}
+            </div>
+          ) : null}
 
           <div className="dialog-actions">
-            <button className="button secondary" type="button" disabled={busy} onClick={onClose}>Cancel</button>
+            <button className="button secondary" type="button" disabled={busy && !deviceLoginActive} onClick={onClose}>Cancel</button>
             <button className="button primary" type="submit" disabled={!canSubmit || busy}>{busy ? mode === "browser" ? "Waiting for browser" : "Saving" : profile ? "Save changes" : mode === "browser" ? "Get sign-in code" : "Add account"}</button>
           </div>
         </form>
       </section>
     </div>
   )
+}
+
+function stripTerminalFormatting(value: string): string {
+  return value
+    .replace(/\u001B\][^\u0007]*(?:\u0007|\u001B\\)/g, "")
+    .replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "")
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "")
+    .trim()
 }

@@ -8,11 +8,11 @@ const api = vi.hoisted(() => ({
   listProfiles: vi.fn(),
   addProfile: vi.fn(),
   beginDeviceLogin: vi.fn(),
+  cancelDeviceLogin: vi.fn(),
   chooseWorkspace: vi.fn(),
   importCurrentProfile: vi.fn(),
   updateProfile: vi.fn(),
   checkProfileLimits: vi.fn(),
-  searchHistory: vi.fn(),
   subscribeDeviceLogin: vi.fn(),
   launchProfile: vi.fn(),
   deleteProfile: vi.fn(),
@@ -31,11 +31,14 @@ const profile: Profile = {
   status: "idle",
 }
 
+let deviceLoginListener: ((event: { id: string; output?: string; completed: boolean; error?: string }) => void) | undefined
+
 beforeEach(() => {
   localStorage.clear()
   api.listProfiles.mockReset().mockResolvedValue([profile])
   api.addProfile.mockReset().mockResolvedValue(profile)
   api.beginDeviceLogin.mockReset().mockResolvedValue("device-login")
+  api.cancelDeviceLogin.mockReset().mockResolvedValue(undefined)
   api.chooseWorkspace.mockReset().mockResolvedValue("/home/user/Desktop")
   api.importCurrentProfile.mockReset().mockResolvedValue(profile)
   api.updateProfile.mockReset().mockResolvedValue(profile)
@@ -46,8 +49,11 @@ beforeEach(() => {
     checkedAt: "2026-09-05T04:30:00Z",
   })
   api.launchProfile.mockReset().mockResolvedValue(undefined)
-  api.searchHistory.mockReset().mockResolvedValue([])
-  api.subscribeDeviceLogin.mockReset().mockResolvedValue(() => undefined)
+  deviceLoginListener = undefined
+  api.subscribeDeviceLogin.mockReset().mockImplementation(async (listener) => {
+    deviceLoginListener = listener
+    return () => undefined
+  })
   api.deleteProfile.mockReset().mockResolvedValue(undefined)
   api.getDesktopIntegrationStatus.mockReset().mockResolvedValue({
     available: false,
@@ -102,12 +108,23 @@ describe("Multi Codex", () => {
     await waitFor(() => expect(api.beginDeviceLogin).toHaveBeenCalledWith("Work", { notes: undefined }))
   })
 
-  it("opens the safe shared local history archive", async () => {
+  it("formats device sign-in details and cancels the pending login from the close button", async () => {
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getByRole("button", { name: "Shared history" }))
-    expect(await screen.findByRole("dialog", { name: "Shared chat history" })).toBeInTheDocument()
-    expect(api.searchHistory).toHaveBeenCalledWith("")
+    await user.click(await screen.findByRole("button", { name: "Add account" }))
+    await user.type(screen.getByLabelText("Profile name"), "Work")
+    await user.click(screen.getByRole("button", { name: "Get sign-in code" }))
+    await waitFor(() => expect(api.beginDeviceLogin).toHaveBeenCalled())
+    deviceLoginListener?.({
+      id: "device-login",
+      output: "\u001b[90mOpen https://auth.openai.com/codex/device\u001b[0m\nCode: \u001b[94mCGNT-02M3R\u001b[0m",
+      completed: false,
+    })
+    expect(await screen.findByRole("button", { name: "Copy link" })).toBeEnabled()
+    expect(screen.getByText("CGNT-02M3R")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Close" }))
+    await waitFor(() => expect(api.cancelDeviceLogin).toHaveBeenCalledWith("device-login"))
+    expect(screen.queryByRole("dialog", { name: "Add account" })).not.toBeInTheDocument()
   })
 
   it("shows saved notes without obsolete manual usage fields", async () => {
@@ -192,6 +209,28 @@ describe("Multi Codex", () => {
     expect(row).toHaveTextContent("Reset credits")
     expect(row).toHaveTextContent("2")
     expect(screen.getByRole("progressbar", { name: "5-hour usage remaining" })).toHaveAttribute("aria-valuenow", "76")
+  })
+
+  it("refreshes all ChatGPT accounts while keeping unavailable limits valid", async () => {
+    const second = { ...profile, id: "second", name: "Second", accountTier: "Plus" }
+    api.listProfiles.mockResolvedValue([{ ...profile, accountTier: "Free" }, second])
+    api.checkProfileLimits
+      .mockResolvedValueOnce({ fiveHour: null, weekly: null, resetCreditsAvailable: 0, checkedAt: "2026-09-05T04:30:00Z" })
+      .mockResolvedValueOnce({ fiveHour: { remainingPercent: 50, resetsAt: null }, weekly: null, resetCreditsAvailable: null, checkedAt: "2026-09-05T04:30:00Z" })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Refresh all" }))
+    await waitFor(() => expect(api.checkProfileLimits).toHaveBeenCalledWith(profile.id))
+    expect(api.checkProfileLimits).toHaveBeenCalledWith(second.id)
+    expect(screen.getByTestId(`profile-${profile.id}`)).toHaveTextContent("Unavailable")
+    expect(screen.getByTestId(`profile-${profile.id}`)).toHaveTextContent("Free")
+    expect(screen.getByTestId(`profile-${second.id}`)).toHaveTextContent("Plus")
+  })
+
+  it("does not render a plan badge when the plan is unavailable", async () => {
+    render(<App />)
+    const row = await screen.findByTestId(`profile-${profile.id}`)
+    expect(row.querySelector(".account-tier")).toBeNull()
   })
 
   it("shows unavailable when the service omits optional limit values", async () => {

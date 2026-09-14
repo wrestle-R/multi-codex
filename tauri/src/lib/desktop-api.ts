@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, HistoryEntry, Profile, ProfileDetails, ProfileLimits, SaveProfileInput } from "./types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, Profile, ProfileDetails, ProfileLimits, SaveProfileInput } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -62,15 +62,14 @@ export async function beginDeviceLogin(name: string, details: ProfileDetails): P
   return crypto.randomUUID()
 }
 
+export async function cancelDeviceLogin(id: string): Promise<void> {
+  if (isTauri) return invoke("cancel_device_login", { id })
+}
+
 export async function subscribeDeviceLogin(listener: (event: DeviceLoginEvent) => void): Promise<() => void> {
   if (!isTauri) return () => undefined
   const { listen } = await import("@tauri-apps/api/event")
   return listen<DeviceLoginEvent>("device-login", (event) => listener(event.payload))
-}
-
-export async function searchHistory(query: string): Promise<HistoryEntry[]> {
-  if (isTauri) return invoke<HistoryEntry[]>("search_history", { query })
-  return []
 }
 
 export async function updateProfile(

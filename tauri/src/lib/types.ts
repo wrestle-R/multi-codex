@@ -1,4 +1,4 @@
-export type RuntimeStatus = "idle" | "launching" | "running" | "error"
+export type RuntimeStatus = "idle" | "running" | "error"
 
 export interface Profile {
   id: string
@@ -7,6 +7,7 @@ export interface Profile {
   notes?: string | null
   createdAt: string
   updatedAt: string
+  accountTier?: string
   status: RuntimeStatus
   error?: string | null
 }
@@ -52,12 +53,4 @@ export interface DeviceLoginEvent {
   output?: string
   completed: boolean
   error?: string
-}
-
-export interface HistoryEntry {
-  id: string
-  profileId: string
-  profileName: string
-  modifiedAt: string
-  preview: string
 }

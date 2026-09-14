@@ -5,13 +5,14 @@ mod usage;
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
     choose_workspace as choose_workspace_path, default_service, resolve_codex_command,
-    validate_auth_structure, CodexCliRecognizer, HistoryEntry, KeyringSecretStore, ProfileRuntime,
+    validate_auth_structure, CodexCliRecognizer, KeyringSecretStore, ProfileRuntime,
     ProfileService, ProfileView, SaveProfileInput,
 };
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 use tauri::{Emitter, State};
 use usage::ProfileLimits;
 
@@ -21,7 +22,7 @@ struct AppState {
     service: Arc<AppService>,
     desktop_integration: DesktopIntegration,
     limit_checks: Arc<Mutex<HashSet<String>>>,
-    device_logins: Arc<Mutex<HashSet<String>>>,
+    device_logins: Arc<Mutex<HashMap<String, mpsc::Sender<()>>>>,
 }
 
 #[tauri::command]
@@ -89,22 +90,31 @@ fn begin_device_login(
 ) -> Result<String, String> {
     let pending = state.service.prepare_device_login(name, notes)?;
     let id = pending.id.clone();
-    {
-        let mut logins = state
-            .device_logins
-            .lock()
-            .map_err(|_| "Browser sign-in state is unavailable".to_string())?;
-        logins.insert(id.clone());
-    }
-
-    let codex = resolve_codex_command()?;
+    let codex = match resolve_codex_command() {
+        Ok(codex) => codex,
+        Err(error) => {
+            let _ = state.service.abandon_device_login(pending);
+            return Err(error);
+        }
+    };
     let mut child = Command::new(codex)
         .args(["login", "--device-auth"])
         .env("CODEX_HOME", &pending.codex_home)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|_| "Could not start the Codex browser sign-in".to_string())?;
+        .map_err(|_| {
+            let _ = state.service.abandon_device_login(pending.clone());
+            "Could not start the Codex browser sign-in".to_string()
+        })?;
+    let (cancel_sender, cancel_receiver) = mpsc::channel();
+    {
+        let mut logins = state
+            .device_logins
+            .lock()
+            .map_err(|_| "Browser sign-in state is unavailable".to_string())?;
+        logins.insert(id.clone(), cancel_sender);
+    }
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let service = Arc::clone(&state.service);
@@ -134,8 +144,24 @@ fn begin_device_login(
         if let Some(stderr) = stderr {
             emit_lines(Box::new(stderr), app_handle.clone(), output_id.clone());
         }
-        let status = child.wait();
+        let mut cancelled = false;
+        let status = loop {
+            if cancel_receiver.try_recv().is_ok() {
+                cancelled = true;
+                let _ = child.kill();
+                break child.wait();
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => break Ok(status),
+                Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+                Err(error) => break Err(error),
+            }
+        };
         let result = match status {
+            _ if cancelled => {
+                let _ = service.abandon_device_login(pending);
+                Err("Browser sign-in was cancelled".to_string())
+            }
             Ok(status) if status.success() => service.finish_device_login(pending),
             Ok(_) => {
                 let _ = service.abandon_device_login(pending);
@@ -174,6 +200,19 @@ fn begin_device_login(
 }
 
 #[tauri::command]
+fn cancel_device_login(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let sender = state
+        .device_logins
+        .lock()
+        .map_err(|_| "Browser sign-in state is unavailable".to_string())?
+        .remove(&id);
+    if let Some(sender) = sender {
+        let _ = sender.send(());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn launch_profile(id: String, workspace: String, state: State<'_, AppState>) -> Result<(), String> {
     state
         .service
@@ -188,11 +227,6 @@ fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> 
 #[tauri::command]
 fn get_runtime_status(id: String, state: State<'_, AppState>) -> Result<ProfileRuntime, String> {
     state.service.runtime_status(&id)
-}
-
-#[tauri::command]
-fn search_history(query: String, state: State<'_, AppState>) -> Result<Vec<HistoryEntry>, String> {
-    state.service.search_history(query)
 }
 
 #[tauri::command]
@@ -251,7 +285,7 @@ pub fn run() {
             service: Arc::new(service),
             desktop_integration,
             limit_checks: Arc::new(Mutex::new(HashSet::new())),
-            device_logins: Arc::new(Mutex::new(HashSet::new())),
+            device_logins: Arc::new(Mutex::new(HashMap::new())),
         })
         .setup(|app| {
             use tauri::Manager;
@@ -269,10 +303,10 @@ pub fn run() {
             validate_auth,
             choose_workspace,
             begin_device_login,
+            cancel_device_login,
             launch_profile,
             delete_profile,
             get_runtime_status,
-            search_history,
             check_profile_limits,
             get_desktop_integration_status,
             install_desktop_integration,
