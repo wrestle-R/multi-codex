@@ -87,10 +87,6 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
         {limits?.error ? <p className="inline-error limits-error">{limits.error}</p> : null}
         {profile.error ? <p className="inline-error">{profile.error}</p> : null}
       </div>
-      <div className="profile-time">
-        <span>Updated</span>
-        <strong>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(profile.updatedAt))}</strong>
-      </div>
       <div className="profile-actions">
         <button
           className="button secondary limits-button"

@@ -150,6 +150,7 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .dialog label span small { margin-left: 0.35rem; color: var(--muted-foreground); font-size: 0.68rem; font-weight: 500; }
 .optional-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
 .dialog textarea.notes-input { min-height: 82px; font: inherit; }
+.login-output { max-height: 160px; margin: 0; overflow: auto; padding: 0.8rem; border: 1px solid var(--border); border-radius: 10px; color: var(--foreground); background: var(--muted); font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
 .notice, .form-error { padding: 0.85rem; border-radius: 10px; font-size: 0.82rem; }
 .notice { color: var(--muted-foreground); background: var(--muted); }
 .form-error { color: var(--danger); border: 1px solid color-mix(in oklab, var(--danger) 35%, var(--border)); background: color-mix(in oklab, var(--danger) 8%, transparent); }
@@ -166,6 +167,15 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .checkbox-row small { margin-top: 0.18rem; color: var(--muted-foreground); font-size: 0.76rem; font-weight: 400; }
 .integration-dialog .form-error { margin-top: 0.85rem; }
 .integration-dialog .dialog-actions { margin-top: 1.1rem; }
+.history-dialog { width: min(760px, 100%); }
+.history-help, .history-empty { color: var(--muted-foreground); line-height: 1.5; }
+.history-search { display: grid; gap: 0.42rem; margin-top: 1rem; font-size: 0.82rem; font-weight: 600; }
+.history-search input { height: 44px; padding: 0 0.8rem; border: 1px solid var(--border); border-radius: 10px; color: var(--foreground); background: color-mix(in oklab, var(--card) 96%, transparent); }
+.history-results { display: grid; gap: 0.7rem; margin-top: 1rem; }
+.history-entry { padding: 0.85rem; border: 1px solid var(--border); border-radius: 10px; background: var(--muted); }
+.history-entry > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.history-entry small { color: var(--muted-foreground); }
+.history-entry p { margin: 0.55rem 0; overflow-wrap: anywhere; font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }

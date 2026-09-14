@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, Profile, ProfileDetails, ProfileLimits, SaveProfileInput } from "./types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, HistoryEntry, Profile, ProfileDetails, ProfileLimits, SaveProfileInput } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -57,6 +57,22 @@ export async function importCurrentProfile(name: string, details: ProfileDetails
   })
 }
 
+export async function beginDeviceLogin(name: string, details: ProfileDetails): Promise<string> {
+  if (isTauri) return invoke<string>("begin_device_login", { name, ...details })
+  return crypto.randomUUID()
+}
+
+export async function subscribeDeviceLogin(listener: (event: DeviceLoginEvent) => void): Promise<() => void> {
+  if (!isTauri) return () => undefined
+  const { listen } = await import("@tauri-apps/api/event")
+  return listen<DeviceLoginEvent>("device-login", (event) => listener(event.payload))
+}
+
+export async function searchHistory(query: string): Promise<HistoryEntry[]> {
+  if (isTauri) return invoke<HistoryEntry[]>("search_history", { query })
+  return []
+}
+
 export async function updateProfile(
   id: string,
   name: string,
@@ -72,8 +88,13 @@ export async function updateProfile(
   return demoProfiles.find((profile) => profile.id === id)!
 }
 
-export async function launchProfile(id: string): Promise<void> {
-  if (isTauri) return invoke("launch_profile", { id })
+export async function chooseWorkspace(): Promise<string | null> {
+  if (isTauri) return invoke<string | null>("choose_workspace")
+  return "/home/user/Desktop"
+}
+
+export async function launchProfile(id: string, workspace: string): Promise<void> {
+  if (isTauri) return invoke("launch_profile", { id, workspace })
   demoProfiles = demoProfiles.map((profile) =>
     profile.id === id ? { ...profile, status: "running" } : profile,
   )

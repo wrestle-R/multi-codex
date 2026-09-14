@@ -9,34 +9,39 @@ interface ProfileDialogProps {
   profile?: Profile | null
   busy: boolean
   error: string | null
+  loginOutput?: string
   onClose: () => void
   onSave: (name: string, authJson: string | undefined, details: ProfileDetails) => Promise<void>
   onImportCurrent: (name: string, details: ProfileDetails) => Promise<void>
+  onDeviceLogin: (name: string, details: ProfileDetails) => Promise<void>
 }
 
 export function ProfileDialog({
   profile,
   busy,
   error,
+  loginOutput,
   onClose,
   onSave,
   onImportCurrent,
+  onDeviceLogin,
 }: ProfileDialogProps) {
   const titleId = useId()
-  const [mode, setMode] = useState<"paste" | "current">("paste")
+  const [mode, setMode] = useState<"browser" | "paste" | "current">("browser")
   const [name, setName] = useState(profile?.name ?? "")
   const [authJson, setAuthJson] = useState("")
   const [notes, setNotes] = useState(profile?.notes ?? "")
   const dialogRef = useDialogFocus(onClose, busy)
 
-  const canSubmit = name.trim().length > 0 && (Boolean(profile) || mode === "current" || authJson.trim().length > 0)
+  const canSubmit = name.trim().length > 0 && (Boolean(profile) || mode === "browser" || mode === "current" || authJson.trim().length > 0)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
     const details: ProfileDetails = {
       notes: notes.trim() || undefined,
     }
-    if (profile || mode === "paste") await onSave(name, authJson.trim() || undefined, details)
+    if (!profile && mode === "browser") await onDeviceLogin(name, details)
+    else if (profile || mode === "paste") await onSave(name, authJson.trim() || undefined, details)
     else await onImportCurrent(name, details)
   }
 
@@ -55,6 +60,7 @@ export function ProfileDialog({
 
         {!profile ? (
           <div className="segmented-control" aria-label="Account source">
+            <button type="button" className={mode === "browser" ? "active" : ""} onClick={() => setMode("browser")}>Sign in with browser</button>
             <button type="button" className={mode === "paste" ? "active" : ""} onClick={() => setMode("paste")}>Paste JSON</button>
             <button type="button" className={mode === "current" ? "active" : ""} onClick={() => setMode("current")}>Import current</button>
           </div>
@@ -76,8 +82,10 @@ export function ProfileDialog({
                 onChange={(event) => setAuthJson(event.currentTarget.value)}
               />
             </label>
-          ) : (
+          ) : mode === "current" ? (
             <div className="notice">Reads your current Codex login and saves a protected copy. The original file is never changed.</div>
+          ) : (
+            <div className="notice">A one-time code and sign-in link will appear below. Complete the browser sign-in and this account will be added automatically.</div>
           )}
 
           <label>
@@ -92,10 +100,11 @@ export function ProfileDialog({
           </label>
 
           {error ? <div className="form-error" role="alert">{error}</div> : null}
+          {loginOutput ? <pre className="login-output" aria-live="polite">{loginOutput}</pre> : null}
 
           <div className="dialog-actions">
             <button className="button secondary" type="button" disabled={busy} onClick={onClose}>Cancel</button>
-            <button className="button primary" type="submit" disabled={!canSubmit || busy}>{busy ? "Saving" : profile ? "Save changes" : "Add account"}</button>
+            <button className="button primary" type="submit" disabled={!canSubmit || busy}>{busy ? mode === "browser" ? "Waiting for browser" : "Saving" : profile ? "Save changes" : mode === "browser" ? "Get sign-in code" : "Add account"}</button>
           </div>
         </form>
       </section>

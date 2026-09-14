@@ -7,7 +7,9 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use crate::profiles::{resolve_codex_command, set_owner_only_dir, write_private_file, Result};
+use crate::profiles::{
+    resolve_codex_command, set_owner_only_dir, write_codex_config, write_private_file, Result,
+};
 
 const FIVE_HOUR_MINS: i64 = 5 * 60;
 const WEEKLY_MINS: i64 = 7 * 24 * 60;
@@ -46,6 +48,7 @@ fn read_with_command(
         .map_err(|_| "Could not create a protected limits-check directory".to_string())?;
     set_owner_only_dir(temp.path())?;
     write_private_file(&temp.path().join("auth.json"), auth_json.as_bytes())?;
+    write_codex_config(temp.path())?;
 
     let mut child = Command::new(codex)
         .args(["app-server", "--stdio"])
