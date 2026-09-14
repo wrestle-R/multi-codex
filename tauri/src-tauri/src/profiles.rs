@@ -1400,10 +1400,17 @@ mod tests {
 
         let launches = temp.path().join("bin/launches");
         let deadline = Instant::now() + Duration::from_secs(2);
-        while !launches.exists() && Instant::now() < deadline {
+        let requests = loop {
+            let requests = fs::read_to_string(&launches).unwrap_or_default();
+            if requests.lines().count() == 2 {
+                break requests;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "the fake launcher did not receive both window requests"
+            );
             std::thread::sleep(Duration::from_millis(20));
-        }
-        let requests = fs::read_to_string(&launches).unwrap();
+        };
         assert_eq!(requests.lines().count(), 2);
         assert!(requests
             .lines()
