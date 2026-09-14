@@ -7,9 +7,13 @@ import type { Profile } from "./lib/types"
 const api = vi.hoisted(() => ({
   listProfiles: vi.fn(),
   addProfile: vi.fn(),
+  beginDeviceLogin: vi.fn(),
+  chooseWorkspace: vi.fn(),
   importCurrentProfile: vi.fn(),
   updateProfile: vi.fn(),
   checkProfileLimits: vi.fn(),
+  searchHistory: vi.fn(),
+  subscribeDeviceLogin: vi.fn(),
   launchProfile: vi.fn(),
   deleteProfile: vi.fn(),
   getDesktopIntegrationStatus: vi.fn(),
@@ -31,6 +35,8 @@ beforeEach(() => {
   localStorage.clear()
   api.listProfiles.mockReset().mockResolvedValue([profile])
   api.addProfile.mockReset().mockResolvedValue(profile)
+  api.beginDeviceLogin.mockReset().mockResolvedValue("device-login")
+  api.chooseWorkspace.mockReset().mockResolvedValue("/home/user/Desktop")
   api.importCurrentProfile.mockReset().mockResolvedValue(profile)
   api.updateProfile.mockReset().mockResolvedValue(profile)
   api.checkProfileLimits.mockReset().mockResolvedValue({
@@ -40,6 +46,8 @@ beforeEach(() => {
     checkedAt: "2026-09-05T04:30:00Z",
   })
   api.launchProfile.mockReset().mockResolvedValue(undefined)
+  api.searchHistory.mockReset().mockResolvedValue([])
+  api.subscribeDeviceLogin.mockReset().mockResolvedValue(() => undefined)
   api.deleteProfile.mockReset().mockResolvedValue(undefined)
   api.getDesktopIntegrationStatus.mockReset().mockResolvedValue({
     available: false,
@@ -76,6 +84,32 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("button", { name: "Launch" })).toBeEnabled()
   })
 
+  it("asks for a workspace before launching an isolated profile", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    expect(api.chooseWorkspace).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/user/Desktop"))
+  })
+
+  it("starts browser device-code sign-in without asking for credential JSON", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Add account" }))
+    await user.type(screen.getByLabelText("Profile name"), "Work")
+    expect(screen.queryByLabelText("Auth JSON")).not.toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Get sign-in code" }))
+    await waitFor(() => expect(api.beginDeviceLogin).toHaveBeenCalledWith("Work", { notes: undefined }))
+  })
+
+  it("opens the safe shared local history archive", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole("button", { name: "Shared history" }))
+    expect(await screen.findByRole("dialog", { name: "Shared chat history" })).toBeInTheDocument()
+    expect(api.searchHistory).toHaveBeenCalledWith("")
+  })
+
   it("shows saved notes without obsolete manual usage fields", async () => {
     api.listProfiles.mockResolvedValue([{ ...profile, notes: "Use for personal work" }])
     render(<App />)
@@ -89,6 +123,7 @@ describe("Multi Codex", () => {
     render(<App />)
     await screen.findByRole("heading", { name: "Personal" })
     await user.click(screen.getByRole("button", { name: "Add account" }))
+    await user.click(screen.getByRole("button", { name: "Paste JSON" }))
     const submit = within(screen.getByRole("dialog")).getByRole("button", { name: "Add account" })
     expect(submit).toBeDisabled()
     await user.type(screen.getByLabelText("Profile name"), "Work")
@@ -102,6 +137,7 @@ describe("Multi Codex", () => {
     render(<App />)
     await screen.findByRole("heading", { name: "Personal" })
     await user.click(screen.getByRole("button", { name: "Add account" }))
+    await user.click(screen.getByRole("button", { name: "Paste JSON" }))
     await user.type(screen.getByLabelText("Profile name"), "Work")
     fireEvent.change(screen.getByLabelText("Auth JSON"), { target: { value: '{"auth_mode":"chatgpt"}' } })
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Add account" }))

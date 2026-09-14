@@ -46,3 +46,18 @@ export interface DesktopIntegrationStatus {
   version: string
   source: "appimage" | "package"
 }
+
+export interface DeviceLoginEvent {
+  id: string
+  output?: string
+  completed: boolean
+  error?: string
+}
+
+export interface HistoryEntry {
+  id: string
+  profileId: string
+  profileName: string
+  modifiedAt: string
+  preview: string
+}

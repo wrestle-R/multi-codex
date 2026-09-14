@@ -4,12 +4,15 @@ mod usage;
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
-    default_service, validate_auth_structure, CodexCliRecognizer, KeyringSecretStore,
-    ProfileRuntime, ProfileService, ProfileView, SaveProfileInput,
+    choose_workspace as choose_workspace_path, default_service, resolve_codex_command,
+    validate_auth_structure, CodexCliRecognizer, HistoryEntry, KeyringSecretStore, ProfileRuntime,
+    ProfileService, ProfileView, SaveProfileInput,
 };
 use std::collections::HashSet;
+use std::io::{BufRead, BufReader};
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Emitter, State};
 use usage::ProfileLimits;
 
 type AppService = ProfileService<KeyringSecretStore, CodexCliRecognizer>;
@@ -18,6 +21,7 @@ struct AppState {
     service: Arc<AppService>,
     desktop_integration: DesktopIntegration,
     limit_checks: Arc<Mutex<HashSet<String>>>,
+    device_logins: Arc<Mutex<HashSet<String>>>,
 }
 
 #[tauri::command]
@@ -59,8 +63,121 @@ fn validate_auth(auth_json: String, state: State<'_, AppState>) -> Result<String
 }
 
 #[tauri::command]
-fn launch_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    state.service.launch_profile(&id)
+fn choose_workspace() -> Result<Option<String>, String> {
+    choose_workspace_path()
+}
+
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DeviceLoginEvent {
+    id: String,
+    output: Option<String>,
+    completed: bool,
+    error: Option<String>,
+}
+
+fn emit_device_login(app: &tauri::AppHandle, event: DeviceLoginEvent) {
+    let _ = app.emit("device-login", event);
+}
+
+#[tauri::command]
+fn begin_device_login(
+    name: String,
+    notes: Option<String>,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let pending = state.service.prepare_device_login(name, notes)?;
+    let id = pending.id.clone();
+    {
+        let mut logins = state
+            .device_logins
+            .lock()
+            .map_err(|_| "Browser sign-in state is unavailable".to_string())?;
+        logins.insert(id.clone());
+    }
+
+    let codex = resolve_codex_command()?;
+    let mut child = Command::new(codex)
+        .args(["login", "--device-auth"])
+        .env("CODEX_HOME", &pending.codex_home)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|_| "Could not start the Codex browser sign-in".to_string())?;
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let service = Arc::clone(&state.service);
+    let active_logins = Arc::clone(&state.device_logins);
+    let app_handle = app.clone();
+    let output_id = id.clone();
+    std::thread::spawn(move || {
+        let emit_lines =
+            |reader: Box<dyn std::io::Read + Send>, app: tauri::AppHandle, id: String| {
+                std::thread::spawn(move || {
+                    for line in BufReader::new(reader).lines().map_while(Result::ok) {
+                        emit_device_login(
+                            &app,
+                            DeviceLoginEvent {
+                                id: id.clone(),
+                                output: Some(line),
+                                completed: false,
+                                error: None,
+                            },
+                        );
+                    }
+                })
+            };
+        if let Some(stdout) = stdout {
+            emit_lines(Box::new(stdout), app_handle.clone(), output_id.clone());
+        }
+        if let Some(stderr) = stderr {
+            emit_lines(Box::new(stderr), app_handle.clone(), output_id.clone());
+        }
+        let status = child.wait();
+        let result = match status {
+            Ok(status) if status.success() => service.finish_device_login(pending),
+            Ok(_) => {
+                let _ = service.abandon_device_login(pending);
+                Err("Browser sign-in was cancelled or did not complete".to_string())
+            }
+            Err(_) => {
+                let _ = service.abandon_device_login(pending);
+                Err("Could not wait for the Codex browser sign-in".to_string())
+            }
+        };
+        if let Ok(mut logins) = active_logins.lock() {
+            logins.remove(&output_id);
+        }
+        match result {
+            Ok(_) => emit_device_login(
+                &app_handle,
+                DeviceLoginEvent {
+                    id: output_id,
+                    output: None,
+                    completed: true,
+                    error: None,
+                },
+            ),
+            Err(error) => emit_device_login(
+                &app_handle,
+                DeviceLoginEvent {
+                    id: output_id,
+                    output: None,
+                    completed: true,
+                    error: Some(error),
+                },
+            ),
+        }
+    });
+    Ok(id)
+}
+
+#[tauri::command]
+fn launch_profile(id: String, workspace: String, state: State<'_, AppState>) -> Result<(), String> {
+    state
+        .service
+        .launch_profile(&id, std::path::Path::new(&workspace))
 }
 
 #[tauri::command]
@@ -71,6 +188,11 @@ fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> 
 #[tauri::command]
 fn get_runtime_status(id: String, state: State<'_, AppState>) -> Result<ProfileRuntime, String> {
     state.service.runtime_status(&id)
+}
+
+#[tauri::command]
+fn search_history(query: String, state: State<'_, AppState>) -> Result<Vec<HistoryEntry>, String> {
+    state.service.search_history(query)
 }
 
 #[tauri::command]
@@ -129,6 +251,7 @@ pub fn run() {
             service: Arc::new(service),
             desktop_integration,
             limit_checks: Arc::new(Mutex::new(HashSet::new())),
+            device_logins: Arc::new(Mutex::new(HashSet::new())),
         })
         .setup(|app| {
             use tauri::Manager;
@@ -144,9 +267,12 @@ pub fn run() {
             import_current_profile,
             update_profile,
             validate_auth,
+            choose_workspace,
+            begin_device_login,
             launch_profile,
             delete_profile,
             get_runtime_status,
+            search_history,
             check_profile_limits,
             get_desktop_integration_status,
             install_desktop_integration,
