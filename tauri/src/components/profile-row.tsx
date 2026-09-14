@@ -54,7 +54,6 @@ function LimitMetric({ label, window }: { label: string; window: LimitWindow | n
 }
 
 export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, onDelete }: ProfileRowProps) {
-  const busy = profile.status === "launching" || profile.status === "running"
   const supportsLimits = profile.authMode.toLowerCase() === "chatgpt"
 
   return (
@@ -65,7 +64,7 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
       <div className="profile-main">
         <div className="profile-heading">
           <h2>{profile.name}</h2>
-          <span className={`status status-${profile.status}`}>{profile.status}</span>
+          {profile.accountTier ? <span className="account-tier">{profile.accountTier}</span> : null}
         </div>
         <p>{profile.authMode} account</p>
         {profile.notes ? (
@@ -112,7 +111,6 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
           type="button"
           title={`Delete ${profile.name}`}
           aria-label={`Delete ${profile.name}`}
-          disabled={busy}
           onClick={() => onDelete(profile)}
         >
           <HugeiconsIcon icon={Delete02Icon} size={19} strokeWidth={1.8} />
@@ -120,11 +118,10 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
         <button
           className="button primary launch-button"
           type="button"
-          disabled={busy}
           onClick={() => onLaunch(profile)}
         >
           <HugeiconsIcon icon={PlayIcon} size={18} strokeWidth={1.8} />
-          {profile.status === "launching" ? "Opening" : profile.status === "running" ? "Running" : "Launch"}
+          Launch
         </button>
       </div>
     </article>

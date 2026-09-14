@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::{json, Value};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::mpsc;
@@ -55,14 +55,27 @@ fn read_with_command(
         .env("CODEX_HOME", temp.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|_| "Codex CLI is required to check live limits".to_string())?;
 
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Codex limits check could not read diagnostics".to_string())?;
+    let (diagnostic_sender, diagnostic_receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut diagnostic = String::new();
+        let _ = BufReader::new(stderr).read_to_string(&mut diagnostic);
+        let _ = diagnostic_sender.send(diagnostic);
+    });
     let result = run_protocol(&mut child, timeout, checked_at);
     let _ = child.kill();
     let _ = child.wait();
-    result
+    let diagnostic = diagnostic_receiver
+        .recv_timeout(Duration::from_secs(1))
+        .unwrap_or_default();
+    result.map_err(|error| classify_limit_failure(error, &diagnostic))
 }
 
 fn run_protocol(
@@ -132,11 +145,44 @@ fn run_protocol(
         if message.get("id").and_then(Value::as_i64) != Some(2) {
             continue;
         }
-        if message.get("error").is_some() {
-            return Err("Codex could not retrieve limits for this account".to_string());
+        if let Some(error) = message.get("error") {
+            return Err(protocol_error_message(error));
         }
         return parse_limits_response(&message, checked_at);
     }
+}
+
+fn protocol_error_message(error: &Value) -> String {
+    let message = error
+        .get("message")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if message.contains("unauthorized")
+        || message.contains("refresh token")
+        || message.contains("sign in")
+    {
+        return "This account needs to sign in again before limits can be checked".to_string();
+    }
+    "Codex did not provide limits for this account".to_string()
+}
+
+fn classify_limit_failure(error: String, diagnostic: &str) -> String {
+    let diagnostic = diagnostic.to_ascii_lowercase();
+    if diagnostic.contains("refresh token")
+        && (diagnostic.contains("401") || diagnostic.contains("unauthorized"))
+    {
+        return "This account needs to sign in again before limits can be checked".to_string();
+    }
+    if diagnostic.contains("network")
+        || diagnostic.contains("connection")
+        || diagnostic.contains("dns")
+        || diagnostic.contains("timed out")
+    {
+        return "Codex could not reach the limits service. Check your connection and try again"
+            .to_string();
+    }
+    error
 }
 
 fn parse_limits_response(message: &Value, checked_at: DateTime<Utc>) -> Result<ProfileLimits> {
@@ -254,6 +300,26 @@ mod tests {
             parse_limits_response(&response, checked_at()).unwrap_err(),
             "Codex returned an invalid usage percentage"
         );
+    }
+
+    #[test]
+    fn classifies_revoked_sessions_without_exposing_diagnostics() {
+        assert_eq!(
+            classify_limit_failure(
+                "Codex limits service ended before returning data".into(),
+                "ERROR Failed to refresh token: 401 Unauthorized: sensitive server response",
+            ),
+            "This account needs to sign in again before limits can be checked"
+        );
+    }
+
+    #[test]
+    fn keeps_missing_limit_windows_as_a_valid_response() {
+        let response = json!({"id": 2, "result": {"rateLimits": null, "rateLimitResetCredits": {"availableCount": 0}}});
+        let limits = parse_limits_response(&response, checked_at()).unwrap();
+        assert_eq!(limits.five_hour, None);
+        assert_eq!(limits.weekly, None);
+        assert_eq!(limits.reset_credits_available, Some(0));
     }
 
     #[test]

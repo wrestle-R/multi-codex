@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,7 +11,6 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::usage::{read_profile_limits, ProfileLimits};
@@ -46,6 +46,8 @@ pub struct ProfileMetadata {
 pub struct ProfileView {
     #[serde(flatten)]
     pub metadata: ProfileMetadata,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_tier: Option<String>,
     pub status: RuntimeStatus,
     pub error: Option<String>,
 }
@@ -54,7 +56,6 @@ pub struct ProfileView {
 #[serde(rename_all = "lowercase")]
 pub enum RuntimeStatus {
     Idle,
-    Launching,
     Running,
     Error,
 }
@@ -65,16 +66,6 @@ pub struct ProfileRuntime {
     pub id: String,
     pub status: RuntimeStatus,
     pub error: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct HistoryEntry {
-    pub id: String,
-    pub profile_id: String,
-    pub profile_name: String,
-    pub modified_at: DateTime<Utc>,
-    pub preview: String,
 }
 
 #[derive(Clone, Debug)]
@@ -222,8 +213,16 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                     RuntimeStatus::Idle
                 });
             let error = runtime.errors.get(&metadata.id).cloned();
+            // Account plan is display-only metadata derived locally. A missing or unreadable
+            // credential deliberately produces no badge rather than a guess.
+            let account_tier = self
+                .secrets
+                .get(&metadata.id)
+                .ok()
+                .and_then(|secret| account_tier_from_auth(&secret));
             views.push(ProfileView {
                 metadata,
+                account_tier,
                 status,
                 error,
             });
@@ -255,6 +254,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         }
         Ok(ProfileView {
             metadata,
+            account_tier: account_tier_from_auth(&input.auth_json),
             status: RuntimeStatus::Idle,
             error: None,
         })
@@ -366,6 +366,11 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         }
         Ok(ProfileView {
             metadata,
+            account_tier: self
+                .secrets
+                .get(id)
+                .ok()
+                .and_then(|secret| account_tier_from_auth(&secret)),
             status: RuntimeStatus::Idle,
             error: None,
         })
@@ -406,10 +411,6 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".to_string());
         }
-        if self.is_running(id)? {
-            return Err("This profile is already running".to_string());
-        }
-
         let workspace = canonical_workspace(workspace)?;
         let paths = self.profile_paths(id)?;
         ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
@@ -420,17 +421,6 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let secret = self.secrets.get(id)?;
         write_private_file(&auth_path, secret.as_bytes())?;
         drop(secret);
-
-        {
-            let mut runtime = self
-                .runtime
-                .lock()
-                .map_err(|_| "Runtime state is unavailable")?;
-            runtime
-                .statuses
-                .insert(id.to_string(), RuntimeStatus::Launching);
-            runtime.errors.remove(id);
-        }
 
         let mut command = build_vscode_command(
             &paths.codex_home,
@@ -447,45 +437,30 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             }
         };
 
+        {
+            let mut runtime = self
+                .runtime
+                .lock()
+                .map_err(|_| "Runtime state is unavailable")?;
+            runtime
+                .statuses
+                .insert(id.to_string(), RuntimeStatus::Running);
+            runtime.errors.remove(id);
+        }
+
         let runtime = Arc::clone(&self.runtime);
         let secrets = Arc::clone(&self.secrets);
         let profile_id = id.to_string();
-        let vscode_home = paths.vscode_home;
         std::thread::spawn(move || {
             let mut child = child;
             let result = child.wait();
-            let deadline = Instant::now() + Duration::from_secs(20);
-            let mut detected = false;
-            while Instant::now() < deadline {
-                if profile_process_running(&vscode_home) {
-                    detected = true;
-                    if let Ok(mut state) = runtime.lock() {
-                        state
-                            .statuses
-                            .insert(profile_id.clone(), RuntimeStatus::Running);
-                    }
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(200));
-            }
-            while detected && profile_process_running(&vscode_home) {
-                std::thread::sleep(Duration::from_secs(1));
-            }
-            let sync = if detected {
-                match fs::read_to_string(&auth_path) {
-                    Ok(updated_auth) => validate_auth_structure(&updated_auth)
-                        .and_then(|_| secrets.set(&profile_id, &updated_auth)),
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-                    Err(_) => Err("Could not save the refreshed profile credential".to_string()),
-                }
-            } else {
-                Err("VS Code did not start an isolated profile window. Your saved credential was kept unchanged.".to_string())
+            let sync = match fs::read_to_string(&auth_path) {
+                Ok(updated_auth) => validate_auth_structure(&updated_auth)
+                    .and_then(|_| secrets.set(&profile_id, &updated_auth)),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
+                Err(_) => Err("Could not save the refreshed profile credential".to_string()),
             };
-            let cleanup = if detected {
-                remove_private_file(&auth_path)
-            } else {
-                Ok(())
-            };
+            let cleanup = remove_private_file(&auth_path);
             if let Ok(mut state) = runtime.lock() {
                 state
                     .statuses
@@ -552,19 +527,6 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         result
     }
 
-    pub fn search_history(&self, query: String) -> Result<Vec<HistoryEntry>> {
-        let query = query.trim().to_ascii_lowercase();
-        let mut entries = Vec::new();
-        for profile in self.load_metadata()? {
-            let paths = self.profile_paths(&profile.id)?;
-            let sessions = paths.codex_home.join("sessions");
-            collect_history_entries(&sessions, &profile, &query, &mut entries)?;
-        }
-        entries.sort_by_key(|entry| std::cmp::Reverse(entry.modified_at));
-        entries.truncate(100);
-        Ok(entries)
-    }
-
     fn load_metadata(&self) -> Result<Vec<ProfileMetadata>> {
         read_metadata(&self.data_root.join("profiles.json"))
     }
@@ -597,7 +559,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             .map_err(|_| "Runtime state is unavailable")?;
         Ok(matches!(
             runtime.statuses.get(id),
-            Some(RuntimeStatus::Launching | RuntimeStatus::Running)
+            Some(RuntimeStatus::Running)
         ))
     }
 
@@ -621,62 +583,42 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 }
 
-fn collect_history_entries(
-    directory: &Path,
-    profile: &ProfileMetadata,
-    query: &str,
-    entries: &mut Vec<HistoryEntry>,
-) -> Result<()> {
-    let read_dir = match fs::read_dir(directory) {
-        Ok(entries) => entries,
-        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(error) => return Err(format!("Could not read local chat history: {error}")),
-    };
-    for entry in read_dir.flatten() {
-        let path = entry.path();
-        if path.is_dir() {
-            collect_history_entries(&path, profile, query, entries)?;
+fn account_tier_from_auth(auth_json: &str) -> Option<String> {
+    let auth = serde_json::from_str::<Value>(auth_json).ok()?;
+    let tokens = auth.get("tokens")?.as_object()?;
+    for key in ["access_token", "id_token"] {
+        let Some(token) = tokens.get(key).and_then(Value::as_str) else {
             continue;
-        }
-        if path.extension().and_then(|extension| extension.to_str()) != Some("jsonl") {
+        };
+        let Some(payload) = token.split('.').nth(1) else {
             continue;
-        }
-        let metadata = match entry.metadata() {
-            Ok(metadata) if metadata.len() <= 1_048_576 => metadata,
+        };
+        let Ok(bytes) = URL_SAFE_NO_PAD.decode(payload) else {
+            continue;
+        };
+        let Ok(claims) = serde_json::from_slice::<Value>(&bytes) else {
+            continue;
+        };
+        let Some(plan) = claims
+            .get("https://api.openai.com/auth")
+            .and_then(|auth| auth.get("chatgpt_plan_type"))
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let tier = match plan.to_ascii_lowercase().as_str() {
+            "free" => "Free",
+            "plus" => "Plus",
+            "pro" => "Pro",
+            "go" => "Go",
+            "team" => "Team",
+            "business" => "Business",
+            "enterprise" => "Enterprise",
             _ => continue,
         };
-        let content = match fs::read_to_string(&path) {
-            Ok(content) => content,
-            Err(_) => continue,
-        };
-        let preview = content
-            .lines()
-            .find(|line| query.is_empty() || line.to_ascii_lowercase().contains(query))
-            .map(history_preview);
-        let Some(preview) = preview else { continue };
-        let modified_at = metadata
-            .modified()
-            .ok()
-            .map(DateTime::<Utc>::from)
-            .unwrap_or_else(Utc::now);
-        entries.push(HistoryEntry {
-            id: format!("{}:{}", profile.id, path.display()),
-            profile_id: profile.id.clone(),
-            profile_name: profile.name.clone(),
-            modified_at,
-            preview,
-        });
+        return Some(tier.to_string());
     }
-    Ok(())
-}
-
-fn history_preview(line: &str) -> String {
-    let compact = line.split_whitespace().collect::<Vec<_>>().join(" ");
-    let mut preview = compact.chars().take(280).collect::<String>();
-    if compact.chars().count() > preview.chars().count() {
-        preview.push('…');
-    }
-    preview
+    None
 }
 
 pub(crate) fn write_codex_config(codex_home: &Path) -> Result<()> {
@@ -1202,6 +1144,22 @@ mod tests {
         assert_eq!(validate_auth_structure(&sample_auth()).unwrap(), "ChatGPT");
         assert!(validate_auth_structure("[]").is_err());
         assert!(validate_auth_structure(r#"{"auth_mode":"chatgpt"}"#).is_err());
+    }
+
+    #[test]
+    fn derives_a_supported_chatgpt_plan_without_exposing_the_credential() {
+        let claims = serde_json::json!({
+            "https://api.openai.com/auth": { "chatgpt_plan_type": "plus" }
+        });
+        let payload = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&claims).unwrap());
+        let auth = format!(
+            r#"{{"auth_mode":"chatgpt","tokens":{{"access_token":"header.{payload}.signature"}}}}"#
+        );
+        assert_eq!(account_tier_from_auth(&auth).as_deref(), Some("Plus"));
+        assert_eq!(
+            account_tier_from_auth(r#"{"auth_mode":"chatgpt","tokens":{}}"#),
+            None
+        );
     }
 
     #[test]

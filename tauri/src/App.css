@@ -56,7 +56,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .app-shell { width: 100%; height: 100%; display: flex; flex-direction: column; }
 .topbar { min-height: 76px; flex: 0 0 auto; padding: 0 1.4rem; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--background) 88%, transparent); backdrop-filter: blur(24px); z-index: 20; }
 .topbar-inner { width: 100%; max-width: 64rem; min-height: 76px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.brand-block, .topbar-actions, .profile-heading, .profile-actions, .runtime-summary, .dialog-header, .dialog-actions, .header-button { display: flex; align-items: center; }
+.brand-block, .topbar-actions, .profile-heading, .profile-actions, .dialog-header, .dialog-actions, .header-button, .refresh-all-button { display: flex; align-items: center; }
 .brand-block { gap: 0.78rem; }
 .brand-block strong, h1, h2 { font-family: "Bricolage Grotesque", "Outfit", sans-serif; letter-spacing: 0; }
 .brand-block strong { display: block; font-size: 1.27rem; }
@@ -75,6 +75,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .button.secondary, .icon-button { background: color-mix(in oklab, var(--card) 94%, transparent); box-shadow: inset 0 0 0 1px var(--border); }
 .button.destructive { color: white; background: oklch(0.5 0.18 25); }
 .header-button, .launch-button { justify-content: center; gap: 0.45rem; }
+.refresh-all-button { justify-content: center; gap: 0.42rem; }
 .icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; border-radius: 999px; }
 .integration-button { color: var(--primary); }
 .danger-button:hover:not(:disabled) { color: var(--danger); }
@@ -87,10 +88,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .eyebrow { display: block; margin-bottom: 0.35rem; color: var(--muted-foreground); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0; }
 .intro-panel h1 { margin: 0; max-width: 680px; font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.08; }
 .intro-panel p, .state-panel p, .confirm-dialog p { margin: 0.65rem 0 0; color: var(--muted-foreground); }
-.runtime-summary { min-width: 176px; gap: 0.7rem; padding: 0.78rem 0.9rem; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in oklab, var(--muted) 72%, transparent); }
-.runtime-summary span, .runtime-summary strong { display: block; }
-.runtime-summary span { color: var(--muted-foreground); font-size: 0.76rem; }
-.runtime-summary strong { margin-top: 0.12rem; }
 
 .profile-list { display: grid; gap: 0.7rem; margin-top: 0.85rem; }
 .profile-row { min-height: 98px; display: grid; grid-template-columns: 52px minmax(180px, 1fr) minmax(120px, auto) auto; align-items: center; gap: 1rem; padding: 0.95rem 1rem; transition: border-color 150ms ease, background 150ms ease, transform 150ms ease; }
@@ -116,10 +113,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .reset-credit-metric { padding-left: 0.65rem; border-left: 1px solid var(--border); }
 .reset-credit-metric strong { display: block; margin-top: 0.15rem; font-size: 1rem; }
 .limits-error { margin-top: 0.6rem !important; }
-.status { padding: 0.22rem 0.52rem; border-radius: 999px; color: var(--foreground); background: var(--muted); font-size: 0.68rem; font-weight: 700; line-height: 1.15; text-transform: capitalize; }
-.status-running { color: var(--signal); background: var(--signal-soft); }
-.status-launching { color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); }
-.status-error, .inline-error { color: var(--danger) !important; }
+.account-tier { padding: 0.22rem 0.52rem; border-radius: 999px; color: var(--signal); background: var(--signal-soft); font-size: 0.68rem; font-weight: 700; line-height: 1.15; }
+.inline-error { color: var(--danger) !important; }
 .profile-time span, .profile-time strong { display: block; text-align: right; }
 .profile-time span { color: var(--muted-foreground); font-size: 0.72rem; }
 .profile-time strong { margin-top: 0.15rem; font-size: 0.82rem; }
@@ -154,6 +149,18 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .notice, .form-error { padding: 0.85rem; border-radius: 10px; font-size: 0.82rem; }
 .notice { color: var(--muted-foreground); background: var(--muted); }
 .form-error { color: var(--danger); border: 1px solid color-mix(in oklab, var(--danger) 35%, var(--border)); background: color-mix(in oklab, var(--danger) 8%, transparent); }
+.device-sign-in { display: grid; gap: 0.75rem; padding: 1rem; border: 1px solid color-mix(in oklab, var(--primary) 28%, var(--border)); border-radius: 12px; background: color-mix(in oklab, var(--primary) 7%, var(--card)); }
+.device-sign-in > strong { font-size: 0.9rem; }
+.device-sign-in > p { margin: 0; color: var(--muted-foreground); font-size: 0.82rem; }
+.device-sign-in-field { display: grid; gap: 0.45rem; }
+.device-sign-in-field > span { color: var(--muted-foreground); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.device-sign-in-field a { overflow-wrap: anywhere; color: var(--foreground); font-size: 0.82rem; }
+.device-sign-in-field code { width: fit-content; padding: 0.5rem 0.65rem; border: 1px dashed color-mix(in oklab, var(--primary) 50%, var(--border)); border-radius: 8px; color: var(--primary); background: var(--card); font: 700 1.2rem/1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 0.08em; }
+.device-sign-in-field > div { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.device-sign-in-field .button { min-height: 36px; padding: 0.45rem 0.75rem; font-size: 0.78rem; }
+.device-sign-in details { color: var(--muted-foreground); font-size: 0.76rem; }
+.device-sign-in summary { cursor: pointer; }
+.device-sign-in .login-output { margin-top: 0.55rem; }
 .dialog-actions { justify-content: flex-end; gap: 0.6rem; margin-top: 0.2rem; }
 .confirm-dialog { width: min(460px, 100%); }
 .confirm-dialog .dialog-actions { margin-top: 1.2rem; }
@@ -167,15 +174,6 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .checkbox-row small { margin-top: 0.18rem; color: var(--muted-foreground); font-size: 0.76rem; font-weight: 400; }
 .integration-dialog .form-error { margin-top: 0.85rem; }
 .integration-dialog .dialog-actions { margin-top: 1.1rem; }
-.history-dialog { width: min(760px, 100%); }
-.history-help, .history-empty { color: var(--muted-foreground); line-height: 1.5; }
-.history-search { display: grid; gap: 0.42rem; margin-top: 1rem; font-size: 0.82rem; font-weight: 600; }
-.history-search input { height: 44px; padding: 0 0.8rem; border: 1px solid var(--border); border-radius: 10px; color: var(--foreground); background: color-mix(in oklab, var(--card) 96%, transparent); }
-.history-results { display: grid; gap: 0.7rem; margin-top: 1rem; }
-.history-entry { padding: 0.85rem; border: 1px solid var(--border); border-radius: 10px; background: var(--muted); }
-.history-entry > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
-.history-entry small { color: var(--muted-foreground); }
-.history-entry p { margin: 0.55rem 0; overflow-wrap: anywhere; font: 0.78rem/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
