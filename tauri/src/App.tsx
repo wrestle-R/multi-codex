@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Add01Icon,
   ComputerIcon,
@@ -12,20 +12,25 @@ import "./App.css"
 import { BrandMark } from "./components/brand-mark"
 import { ConfirmDialog } from "./components/confirm-dialog"
 import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
+import { HistoryDialog } from "./components/history-dialog"
 import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
 import {
   addProfile,
+  beginDeviceLogin,
   checkProfileLimits,
+  chooseWorkspace,
   deleteProfile,
   getDesktopIntegrationStatus,
   importCurrentProfile,
   installDesktopIntegration,
   launchProfile,
   listProfiles,
+  searchHistory,
+  subscribeDeviceLogin,
   updateProfile,
 } from "./lib/desktop-api"
-import type { DesktopIntegrationStatus, LimitCheckState, Profile, ProfileDetails } from "./lib/types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, HistoryEntry, LimitCheckState, Profile, ProfileDetails } from "./lib/types"
 
 type Theme = "system" | "light" | "dark"
 
@@ -51,6 +56,12 @@ export default function App() {
   const [integrationBusy, setIntegrationBusy] = useState(false)
   const [integrationError, setIntegrationError] = useState<string | null>(null)
   const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
+  const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const deviceLoginRef = useRef<typeof deviceLogin>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -89,10 +100,43 @@ export default function App() {
     return () => media.removeEventListener("change", apply)
   }, [theme])
 
+  useEffect(() => {
+    deviceLoginRef.current = deviceLogin
+  }, [deviceLogin])
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined
+    void subscribeDeviceLogin((event: DeviceLoginEvent) => {
+      setDeviceLogin((current) => {
+        if (!current || current.id !== event.id) return current
+        return event.output ? { ...current, output: [...current.output, event.output].slice(-12) } : current
+      })
+      const activeLogin = deviceLoginRef.current
+      if (!event.completed || !activeLogin || event.id !== activeLogin.id) return
+      setBusy(false)
+      if (event.error) setDialogError(event.error)
+      else {
+        void refresh()
+        setDialogProfile(undefined)
+        deviceLoginRef.current = null
+        setDeviceLogin(null)
+      }
+    }).then((stop) => { unlisten = stop })
+    return () => unlisten?.()
+  }, [refresh])
+
   const runningCount = useMemo(
     () => profiles.filter((profile) => profile.status === "running" || profile.status === "launching").length,
     [profiles],
   )
+
+  const handleHistorySearch = useCallback((query: string) => {
+    setHistoryLoading(true)
+    setHistoryError(null)
+    void searchHistory(query).then(setHistoryEntries).catch((error) => {
+      setHistoryError(error instanceof Error ? error.message : String(error))
+    }).finally(() => setHistoryLoading(false))
+  }, [])
 
   async function handleSave(name: string, authJson: string | undefined, details: ProfileDetails) {
     setBusy(true)
@@ -123,10 +167,26 @@ export default function App() {
     }
   }
 
+  async function handleDeviceLogin(name: string, details: ProfileDetails) {
+    setBusy(true)
+    setDialogError(null)
+    try {
+      const id = await beginDeviceLogin(name, details)
+      const login = { id, output: [] }
+      deviceLoginRef.current = login
+      setDeviceLogin(login)
+    } catch (error) {
+      setDialogError(error instanceof Error ? error.message : String(error))
+      setBusy(false)
+    }
+  }
+
   async function handleLaunch(profile: Profile) {
+    const workspace = await chooseWorkspace()
+    if (!workspace) return
     setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "launching", error: null } : item))
     try {
-      await launchProfile(profile.id)
+      await launchProfile(profile.id, workspace)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "error", error: message } : item))
@@ -156,6 +216,7 @@ export default function App() {
     if (!deleteTarget) return
     setBusy(true)
     setDialogError(null)
+    setDeviceLogin(null)
     try {
       await deleteProfile(deleteTarget.id)
       await refresh()
@@ -227,6 +288,7 @@ export default function App() {
             >
               <HugeiconsIcon icon={theme === "system" ? ComputerIcon : theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
             </button>
+            <button className="button secondary" type="button" onClick={() => { setShowHistory(true); handleHistorySearch("") }}>Shared history</button>
             <button className="button primary header-button" type="button" onClick={openAdd}>
               <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
               Add account
@@ -282,9 +344,11 @@ export default function App() {
           profile={dialogProfile}
           busy={busy}
           error={dialogError}
+          loginOutput={deviceLogin?.output.join("\n")}
           onClose={() => setDialogProfile(undefined)}
           onSave={handleSave}
           onImportCurrent={handleImport}
+          onDeviceLogin={handleDeviceLogin}
         />
       ) : null}
       {deleteTarget ? (
@@ -304,6 +368,7 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
+      {showHistory ? <HistoryDialog entries={historyEntries} loading={historyLoading} error={historyError} onSearch={handleHistorySearch} onClose={() => setShowHistory(false)} /> : null}
     </main>
   )
 }
