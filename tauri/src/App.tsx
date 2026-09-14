@@ -4,7 +4,7 @@ import {
   ComputerIcon,
   DownloadSquare01Icon,
   Moon02Icon,
-  ShieldKeyIcon,
+  Refresh01Icon,
   Sun03Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -12,12 +12,12 @@ import "./App.css"
 import { BrandMark } from "./components/brand-mark"
 import { ConfirmDialog } from "./components/confirm-dialog"
 import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
-import { HistoryDialog } from "./components/history-dialog"
 import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
 import {
   addProfile,
   beginDeviceLogin,
+  cancelDeviceLogin,
   checkProfileLimits,
   chooseWorkspace,
   deleteProfile,
@@ -26,11 +26,10 @@ import {
   installDesktopIntegration,
   launchProfile,
   listProfiles,
-  searchHistory,
   subscribeDeviceLogin,
   updateProfile,
 } from "./lib/desktop-api"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, HistoryEntry, LimitCheckState, Profile, ProfileDetails } from "./lib/types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, LimitCheckState, Profile, ProfileDetails } from "./lib/types"
 
 type Theme = "system" | "light" | "dark"
 
@@ -56,11 +55,8 @@ export default function App() {
   const [integrationBusy, setIntegrationBusy] = useState(false)
   const [integrationError, setIntegrationError] = useState<string | null>(null)
   const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
+  const [refreshingAllLimits, setRefreshingAllLimits] = useState(false)
   const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
-  const [showHistory, setShowHistory] = useState(false)
-  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const [historyError, setHistoryError] = useState<string | null>(null)
   const deviceLoginRef = useRef<typeof deviceLogin>(null)
 
   const refresh = useCallback(async () => {
@@ -125,18 +121,10 @@ export default function App() {
     return () => unlisten?.()
   }, [refresh])
 
-  const runningCount = useMemo(
-    () => profiles.filter((profile) => profile.status === "running" || profile.status === "launching").length,
+  const chatGptProfiles = useMemo(
+    () => profiles.filter((profile) => profile.authMode.toLowerCase() === "chatgpt"),
     [profiles],
   )
-
-  const handleHistorySearch = useCallback((query: string) => {
-    setHistoryLoading(true)
-    setHistoryError(null)
-    void searchHistory(query).then(setHistoryEntries).catch((error) => {
-      setHistoryError(error instanceof Error ? error.message : String(error))
-    }).finally(() => setHistoryLoading(false))
-  }, [])
 
   async function handleSave(name: string, authJson: string | undefined, details: ProfileDetails) {
     setBusy(true)
@@ -181,10 +169,24 @@ export default function App() {
     }
   }
 
+  async function closeProfileDialog() {
+    const activeLogin = deviceLoginRef.current
+    deviceLoginRef.current = null
+    setDeviceLogin(null)
+    setBusy(false)
+    setDialogProfile(undefined)
+    if (activeLogin) {
+      try {
+        await cancelDeviceLogin(activeLogin.id)
+      } catch {
+        // The login may already have completed; the dialog is still safely closed.
+      }
+    }
+  }
+
   async function handleLaunch(profile: Profile) {
     const workspace = await chooseWorkspace()
     if (!workspace) return
-    setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "launching", error: null } : item))
     try {
       await launchProfile(profile.id, workspace)
     } catch (error) {
@@ -209,6 +211,16 @@ export default function App() {
         ...current,
         [profile.id]: { ...current[profile.id], loading: false, error: message },
       }))
+    }
+  }
+
+  async function handleRefreshAllLimits() {
+    if (refreshingAllLimits || chatGptProfiles.length === 0) return
+    setRefreshingAllLimits(true)
+    try {
+      await Promise.all(chatGptProfiles.map((profile) => handleCheckLimits(profile)))
+    } finally {
+      setRefreshingAllLimits(false)
     }
   }
 
@@ -288,7 +300,15 @@ export default function App() {
             >
               <HugeiconsIcon icon={theme === "system" ? ComputerIcon : theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
             </button>
-            <button className="button secondary" type="button" onClick={() => { setShowHistory(true); handleHistorySearch("") }}>Shared history</button>
+            <button
+              className="button secondary refresh-all-button"
+              type="button"
+              disabled={refreshingAllLimits || chatGptProfiles.length === 0}
+              onClick={() => void handleRefreshAllLimits()}
+            >
+              <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
+              {refreshingAllLimits ? "Refreshing all" : "Refresh all"}
+            </button>
             <button className="button primary header-button" type="button" onClick={openAdd}>
               <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
               Add account
@@ -304,10 +324,6 @@ export default function App() {
               <span className="eyebrow">Codex profiles</span>
               <h1>One account per workspace.</h1>
               <p>Open separate VS Code windows without changing your main Codex login.</p>
-            </div>
-            <div className="runtime-summary">
-              <HugeiconsIcon icon={ShieldKeyIcon} size={22} strokeWidth={1.7} />
-              <div><span>Protected locally</span><strong>{runningCount} running</strong></div>
             </div>
           </div>
 
@@ -345,7 +361,8 @@ export default function App() {
           busy={busy}
           error={dialogError}
           loginOutput={deviceLogin?.output.join("\n")}
-          onClose={() => setDialogProfile(undefined)}
+          deviceLoginActive={Boolean(deviceLogin)}
+          onClose={() => void closeProfileDialog()}
           onSave={handleSave}
           onImportCurrent={handleImport}
           onDeviceLogin={handleDeviceLogin}
@@ -368,7 +385,6 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
-      {showHistory ? <HistoryDialog entries={historyEntries} loading={historyLoading} error={historyError} onSearch={handleHistorySearch} onClose={() => setShowHistory(false)} /> : null}
     </main>
   )
 }

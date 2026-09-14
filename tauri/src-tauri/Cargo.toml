@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-desktop"
-version = "2.2.2"
+version = "2.2.3"
 description = "Run isolated Codex accounts in separate VS Code windows"
 authors = ["Russell Daniel Paul"]
 license = "MIT"
@@ -14,6 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
+base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
 keyring = "4.2"
