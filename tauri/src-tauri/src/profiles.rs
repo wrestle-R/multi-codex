@@ -2,7 +2,7 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File, OpenOptions};
@@ -11,6 +11,7 @@ use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use crate::usage::{read_profile_limits, ProfileLimits};
@@ -88,6 +89,7 @@ struct ProfilePaths {
 struct RuntimeState {
     statuses: HashMap<String, RuntimeStatus>,
     errors: HashMap<String, String>,
+    monitors: HashSet<String>,
 }
 
 pub trait SecretStore: Send + Sync + 'static {
@@ -188,7 +190,6 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             recognizer: Arc::new(recognizer),
             runtime: Arc::new(Mutex::new(RuntimeState::default())),
         };
-        service.clean_stale_credentials()?;
         Ok(service)
     }
 
@@ -247,9 +248,19 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             updated_at: now,
         };
         self.secrets.set(&metadata.id, &input.auth_json)?;
+        if let Err(error) = self.persist_profile_credential(&metadata.id, &input.auth_json) {
+            let _ = self.secrets.delete(&metadata.id);
+            return Err(error);
+        }
         profiles.push(metadata.clone());
         if let Err(error) = self.save_metadata(&profiles) {
             let _ = self.secrets.delete(&metadata.id);
+            if let Ok(paths) = self.profile_paths(&metadata.id) {
+                let _ = remove_managed_tree(
+                    &self.data_root,
+                    paths.codex_home.parent().unwrap_or(&paths.codex_home),
+                );
+            }
             return Err(error);
         }
         Ok(ProfileView {
@@ -345,10 +356,21 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         } else {
             None
         };
+        let previous_file_auth = if auth_json.is_some() {
+            self.read_persisted_profile_credential(id)?
+        } else {
+            None
+        };
         let auth_mode = if let Some(ref value) = auth_json {
             let mode = validate_auth_structure(value)?;
             self.recognizer.recognize(value)?;
             self.secrets.set(id, value)?;
+            if let Err(error) = self.persist_profile_credential(id, value) {
+                if let Some(previous) = &previous_secret {
+                    let _ = self.secrets.set(id, previous);
+                }
+                return Err(error);
+            }
             mode
         } else {
             profiles[index].auth_mode.clone()
@@ -361,6 +383,17 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if let Err(error) = self.save_metadata(&profiles) {
             if let Some(previous) = previous_secret {
                 let _ = self.secrets.set(id, &previous);
+            }
+            match previous_file_auth {
+                Some(previous) => {
+                    let _ = self.persist_profile_credential(id, &previous);
+                }
+                None if auth_json.is_some() => {
+                    if let Ok(paths) = self.profile_paths(id) {
+                        let _ = remove_private_file(&paths.codex_home.join("auth.json"));
+                    }
+                }
+                None => {}
             }
             return Err(error);
         }
@@ -407,6 +440,11 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     pub fn launch_profile(&self, id: &str, workspace: &Path) -> Result<()> {
+        let code = resolve_command("code");
+        self.launch_profile_with_command(id, workspace, &code)
+    }
+
+    fn launch_profile_with_command(&self, id: &str, workspace: &Path, code: &Path) -> Result<()> {
         validate_id(id)?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".to_string());
@@ -418,11 +456,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         ensure_private_managed_dir(&self.data_root, &paths.extensions_dir)?;
         write_codex_config(&paths.codex_home)?;
         let auth_path = paths.codex_home.join("auth.json");
-        let secret = self.secrets.get(id)?;
-        write_private_file(&auth_path, secret.as_bytes())?;
-        drop(secret);
+        self.current_profile_credential(id)?;
 
-        let mut command = build_vscode_command(
+        let mut command = build_vscode_command_with(
+            code,
             &paths.codex_home,
             &paths.vscode_home,
             &paths.extensions_dir,
@@ -431,7 +468,6 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
-                let _ = remove_private_file(&auth_path);
                 self.set_error(id, format!("Could not launch VS Code: {error}"));
                 return Err("Could not launch VS Code".to_string());
             }
@@ -448,46 +484,14 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             runtime.errors.remove(id);
         }
 
-        let runtime = Arc::clone(&self.runtime);
-        let secrets = Arc::clone(&self.secrets);
-        let profile_id = id.to_string();
+        // The `code` helper returns after forwarding a window request, so its lifetime does not
+        // represent the isolated VS Code window. Reap it separately and monitor the profile's
+        // user-data directory instead. The durable auth file stays available for every window.
         std::thread::spawn(move || {
             let mut child = child;
-            let result = child.wait();
-            let sync = match fs::read_to_string(&auth_path) {
-                Ok(updated_auth) => validate_auth_structure(&updated_auth)
-                    .and_then(|_| secrets.set(&profile_id, &updated_auth)),
-                Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-                Err(_) => Err("Could not save the refreshed profile credential".to_string()),
-            };
-            let cleanup = remove_private_file(&auth_path);
-            if let Ok(mut state) = runtime.lock() {
-                state
-                    .statuses
-                    .insert(profile_id.clone(), RuntimeStatus::Idle);
-                if let Err(error) = result {
-                    state
-                        .statuses
-                        .insert(profile_id.clone(), RuntimeStatus::Error);
-                    state.errors.insert(
-                        profile_id.clone(),
-                        format!("VS Code exited unexpectedly: {error}"),
-                    );
-                } else if let Err(error) = sync {
-                    state
-                        .statuses
-                        .insert(profile_id.clone(), RuntimeStatus::Error);
-                    state.errors.insert(profile_id.clone(), error);
-                } else if let Err(error) = cleanup {
-                    state
-                        .statuses
-                        .insert(profile_id.clone(), RuntimeStatus::Error);
-                    state.errors.insert(profile_id.clone(), error);
-                } else {
-                    state.errors.remove(&profile_id);
-                }
-            }
+            let _ = child.wait();
         });
+        self.start_profile_monitor(id, paths.vscode_home, auth_path)?;
         Ok(())
     }
 
@@ -521,10 +525,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !profile.auth_mode.eq_ignore_ascii_case("chatgpt") {
             return Err("Live limits are available only for ChatGPT accounts".to_string());
         }
-        let secret = self.secrets.get(id)?;
-        let result = read_profile_limits(&secret);
-        drop(secret);
-        result
+        let credential = self.current_profile_credential(id)?;
+        read_profile_limits(&credential)
     }
 
     fn load_metadata(&self) -> Result<Vec<ProfileMetadata>> {
@@ -563,13 +565,100 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         ))
     }
 
-    fn clean_stale_credentials(&self) -> Result<()> {
-        for profile in self.load_metadata()? {
-            let paths = self.profile_paths(&profile.id)?;
-            if !profile_process_running(&paths.vscode_home) {
-                remove_private_file(&paths.codex_home.join("auth.json"))?;
+    fn persist_profile_credential(&self, id: &str, credential: &str) -> Result<()> {
+        validate_id(id)?;
+        validate_auth_structure(credential)?;
+        let paths = self.profile_paths(id)?;
+        ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
+        write_codex_config(&paths.codex_home)?;
+        let auth_path = paths.codex_home.join("auth.json");
+        match fs::symlink_metadata(&auth_path) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err("The isolated profile credential is not a regular file".to_string());
             }
+            Ok(_) | Err(_) => {}
         }
+        write_private_file(&auth_path, credential.as_bytes())
+    }
+
+    fn read_persisted_profile_credential(&self, id: &str) -> Result<Option<String>> {
+        validate_id(id)?;
+        let auth_path = self.profile_paths(id)?.codex_home.join("auth.json");
+        match fs::symlink_metadata(&auth_path) {
+            Ok(_) => read_persisted_credential(&auth_path).map(Some),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(_) => Err("Could not inspect the isolated profile credential".to_string()),
+        }
+    }
+
+    fn current_profile_credential(&self, id: &str) -> Result<String> {
+        if let Some(credential) = self.read_persisted_profile_credential(id)? {
+            self.secrets.set(id, &credential)?;
+            return Ok(credential);
+        }
+        let credential = self.secrets.get(id)?;
+        self.persist_profile_credential(id, &credential)?;
+        Ok(credential)
+    }
+
+    fn start_profile_monitor(
+        &self,
+        id: &str,
+        vscode_home: PathBuf,
+        auth_path: PathBuf,
+    ) -> Result<()> {
+        let should_start = {
+            let mut runtime = self
+                .runtime
+                .lock()
+                .map_err(|_| "Runtime state is unavailable")?;
+            runtime.monitors.insert(id.to_string())
+        };
+        if !should_start {
+            return Ok(());
+        }
+
+        let runtime = Arc::clone(&self.runtime);
+        let secrets = Arc::clone(&self.secrets);
+        let profile_id = id.to_string();
+        std::thread::spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(20);
+            let mut detected = false;
+            while Instant::now() < deadline {
+                if profile_process_running(&vscode_home) {
+                    detected = true;
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            if detected {
+                while profile_process_running(&vscode_home) {
+                    std::thread::sleep(Duration::from_secs(1));
+                }
+            }
+            let sync = if detected {
+                match read_persisted_credential(&auth_path) {
+                    Ok(credential) => secrets.set(&profile_id, &credential),
+                    Err(error) => Err(error),
+                }
+            } else {
+                Err("VS Code did not start an isolated profile window. The saved credential was retained.".to_string())
+            };
+            if let Ok(mut state) = runtime.lock() {
+                state.monitors.remove(&profile_id);
+                if let Err(error) = sync {
+                    state
+                        .statuses
+                        .insert(profile_id.clone(), RuntimeStatus::Error);
+                    state.errors.insert(profile_id.clone(), error);
+                } else {
+                    state
+                        .statuses
+                        .insert(profile_id.clone(), RuntimeStatus::Idle);
+                    state.errors.remove(&profile_id);
+                }
+            }
+        });
         Ok(())
     }
 
@@ -826,6 +915,27 @@ pub(crate) fn set_owner_only_dir(path: &Path) -> Result<()> {
         .map_err(|error| format!("Could not protect {}: {error}", path.display()))
 }
 
+fn set_owner_only_file(path: &Path) -> Result<()> {
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+        .map_err(|error| format!("Could not protect {}: {error}", path.display()))
+}
+
+fn read_persisted_credential(path: &Path) -> Result<String> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| "Could not inspect the isolated profile credential".to_string())?;
+    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+        return Err("The isolated profile credential is not a regular file".to_string());
+    }
+    if metadata.len() as usize > MAX_AUTH_BYTES {
+        return Err("The isolated profile credential is too large".to_string());
+    }
+    set_owner_only_file(path)?;
+    let credential = fs::read_to_string(path)
+        .map_err(|_| "Could not read the isolated profile credential".to_string())?;
+    validate_auth_structure(&credential)?;
+    Ok(credential)
+}
+
 fn ensure_private_managed_dir(root: &Path, path: &Path) -> Result<()> {
     ensure_private_dir(root)?;
     let canonical_root = fs::canonicalize(root)
@@ -901,13 +1011,14 @@ fn remove_managed_tree(root: &Path, path: &Path) -> Result<()> {
         .map_err(|error| format!("Could not delete isolated profile data: {error}"))
 }
 
-fn build_vscode_command(
+fn build_vscode_command_with(
+    code: &Path,
     codex_home: &Path,
     vscode_home: &Path,
     extensions_dir: &Path,
     workspace: &Path,
 ) -> Command {
-    let mut command = Command::new(resolve_command("code"));
+    let mut command = Command::new(code);
     command
         .arg("--new-window")
         .arg("--user-data-dir")
@@ -1196,22 +1307,137 @@ mod tests {
     }
 
     #[test]
-    fn credential_is_materialized_privately_and_cleaned_as_stale() {
+    fn credential_is_materialized_privately_and_persists_between_launches() {
         let (_temp, service) = fixture();
         let profile = service.add_profile(sample_input("Work")).unwrap();
         let codex_home = service
             .profile_paths(&profile.metadata.id)
             .unwrap()
             .codex_home;
-        ensure_private_managed_dir(&service.data_root, &codex_home).unwrap();
         let auth_path = codex_home.join("auth.json");
-        write_private_file(&auth_path, sample_auth().as_bytes()).unwrap();
+        assert_eq!(fs::read_to_string(&auth_path).unwrap(), sample_auth());
         assert_eq!(
             fs::metadata(&auth_path).unwrap().permissions().mode() & 0o777,
             0o600
         );
-        service.clean_stale_credentials().unwrap();
-        assert!(!auth_path.exists());
+        assert_eq!(
+            service
+                .current_profile_credential(&profile.metadata.id)
+                .unwrap(),
+            sample_auth()
+        );
+        assert!(auth_path.exists());
+    }
+
+    #[test]
+    fn persisted_credential_is_preferred_and_synchronized_to_the_keyring() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let auth_path = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home
+            .join("auth.json");
+        let refreshed = r#"{"auth_mode":"chatgpt","tokens":{"access_token":"refreshed"}}"#;
+        write_private_file(&auth_path, refreshed.as_bytes()).unwrap();
+
+        assert_eq!(
+            service
+                .current_profile_credential(&profile.metadata.id)
+                .unwrap(),
+            refreshed
+        );
+        assert_eq!(
+            service.secrets.get(&profile.metadata.id).unwrap(),
+            refreshed
+        );
+    }
+
+    #[test]
+    fn updating_a_profile_replaces_the_persisted_credential() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let replacement = r#"{"auth_mode":"chatgpt","tokens":{"access_token":"replacement"}}"#;
+        service
+            .update_profile(
+                &profile.metadata.id,
+                "Work".into(),
+                Some(replacement.into()),
+                None,
+            )
+            .unwrap();
+
+        let auth_path = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home
+            .join("auth.json");
+        assert_eq!(fs::read_to_string(auth_path).unwrap(), replacement);
+        assert_eq!(
+            service.secrets.get(&profile.metadata.id).unwrap(),
+            replacement
+        );
+    }
+
+    #[test]
+    fn repeat_launches_use_new_windows_and_keep_the_profile_credential() {
+        let (temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let workspace = temp.path().join("workspace");
+        fs::create_dir(&workspace).unwrap();
+        let launcher = temp.path().join("bin/code");
+        write_executable(
+            &launcher,
+            b"#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$(dirname \"$0\")/launches\"\nsh -c 'sleep 1' multi-codex-profile \"$@\" &\n",
+        );
+
+        service
+            .launch_profile_with_command(&profile.metadata.id, &workspace, &launcher)
+            .unwrap();
+        service
+            .launch_profile_with_command(&profile.metadata.id, &workspace, &launcher)
+            .unwrap();
+
+        let launches = temp.path().join("bin/launches");
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !launches.exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let requests = fs::read_to_string(&launches).unwrap();
+        assert_eq!(requests.lines().count(), 2);
+        assert!(requests
+            .lines()
+            .all(|request| request.contains("--new-window")));
+        assert!(requests
+            .lines()
+            .all(|request| request.contains(workspace.to_str().unwrap())));
+
+        std::thread::sleep(Duration::from_millis(1200));
+        let auth_path = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home
+            .join("auth.json");
+        assert_eq!(fs::read_to_string(auth_path).unwrap(), sample_auth());
+    }
+
+    #[test]
+    fn failed_launch_keeps_the_persisted_profile_credential() {
+        let (temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let workspace = temp.path().join("workspace");
+        fs::create_dir(&workspace).unwrap();
+        let missing_launcher = temp.path().join("missing-code");
+
+        assert!(service
+            .launch_profile_with_command(&profile.metadata.id, &workspace, &missing_launcher)
+            .is_err());
+        let auth_path = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home
+            .join("auth.json");
+        assert_eq!(fs::read_to_string(auth_path).unwrap(), sample_auth());
     }
 
     #[test]
@@ -1243,8 +1469,9 @@ mod tests {
         let vscode = temp.path().join("vscode");
         let extensions = temp.path().join("extensions");
         let workspace = temp.path().join("workspace");
-        let command = build_vscode_command(&codex, &vscode, &extensions, &workspace);
+        let command = build_vscode_command_with(&codex, &codex, &vscode, &extensions, &workspace);
         let args: Vec<_> = command.get_args().map(|value| value.to_owned()).collect();
+        assert!(args.iter().any(|argument| argument == "--new-window"));
         assert!(args
             .windows(2)
             .any(|pair| pair[0] == "--user-data-dir" && pair[1] == vscode.as_os_str()));
