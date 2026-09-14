@@ -38,7 +38,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-resolved_url=$(curl --fail --silent --show-error --location --output /dev/null --write-out '%{url_effective}' "$latest_url")
+resolved_url=$(curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 --output /dev/null --write-out '%{url_effective}' "$latest_url")
 tag=${resolved_url##*/}
 if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   printf 'Could not determine the latest Multi Codex release.\n' >&2
@@ -55,8 +55,8 @@ asset_url="$release_url/$asset_name"
 checksums_url="$release_url/SHA256SUMS"
 
 printf 'Downloading Multi Codex %s...\n' "$tag"
-curl --fail --silent --show-error --location "$asset_url" --output "$work_dir/$asset_name"
-curl --fail --silent --show-error --location "$checksums_url" --output "$work_dir/SHA256SUMS"
+curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 "$asset_url" --output "$work_dir/$asset_name"
+curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 "$checksums_url" --output "$work_dir/SHA256SUMS"
 
 expected_checksum=$(awk -v name="$asset_name" '$2 == name { print $1; found = 1 } END { if (!found) exit 1 }' "$work_dir/SHA256SUMS")
 actual_checksum=$(sha256_file "$work_dir/$asset_name")
@@ -67,13 +67,23 @@ fi
 printf '%s: OK\n' "$asset_name"
 
 if [[ "$suffix" == ".AppImage" ]]; then
-  destination="$HOME/Applications/Multi.Codex.AppImage"
-  mkdir -p "$HOME/Applications"
-  staged="$HOME/Applications/.Multi.Codex.AppImage.new.$$"
+  legacy_destination="$HOME/.local/bin/multi-codex.AppImage"
+  applications_destination="$HOME/Applications/Multi.Codex.AppImage"
+  if [[ -e "$legacy_destination" ]]; then
+    destination="$legacy_destination"
+  elif [[ -e "$applications_destination" ]]; then
+    destination="$applications_destination"
+  else
+    destination="$legacy_destination"
+  fi
+  mkdir -p "$(dirname "$destination")"
+  staged="$(dirname "$destination")/.Multi.Codex.AppImage.new.$$"
   install -m 0755 "$work_dir/$asset_name" "$staged"
   mv -f "$staged" "$destination"
-  printf 'Installed %s at %s. If prompted, choose Install to refresh the launcher and icons.\n' "$tag" "$destination"
-  APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}" "$destination"
+  printf 'Installed %s at %s. Your Multi Codex profile data was not modified.\n' "$tag" "$destination"
+  if [[ "${MULTI_CODEX_NO_LAUNCH:-0}" != "1" ]]; then
+    APPIMAGE_EXTRACT_AND_RUN="${APPIMAGE_EXTRACT_AND_RUN:-1}" "$destination"
+  fi
 else
   mount_dir="$work_dir/dmg"
   mkdir "$mount_dir"
