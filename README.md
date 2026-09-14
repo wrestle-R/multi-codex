@@ -2,9 +2,9 @@
 
 Launch multiple Codex accounts in isolated VS Code windows without changing your default Codex login. Re-launching an account opens another VS Code window, including for the same workspace.
 
-![Current Multi Codex interface](tauri/public/light_screenshot.png)
+![Current Multi Codex light interface](tauri/public/light_screenshot.png)
 
-![Current Multi Codex interface, compact view](tauri/public/dark_screenshot.png)
+![Current Multi Codex dark interface](tauri/public/dark_screenshot.png)
 
 ## Safe updates
 
