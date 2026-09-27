@@ -265,6 +265,14 @@ mod tests {
         Utc.with_ymd_and_hms(2026, 9, 5, 4, 30, 0).unwrap()
     }
 
+    fn write_executable_script(path: &Path, contents: &str) {
+        let mut file = fs::File::create(path).unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
+        file.sync_all().unwrap();
+        drop(file);
+        fs::set_permissions(path, fs::Permissions::from_mode(0o700)).unwrap();
+    }
+
     #[test]
     fn maps_windows_by_duration_and_parses_reset_credits() {
         let response = json!({"id": 2, "result": {
@@ -352,20 +360,18 @@ mod tests {
         let permission_check = "stat -c %a \"$CODEX_HOME/auth.json\"";
         #[cfg(target_os = "macos")]
         let permission_check = "stat -f %Lp \"$CODEX_HOME/auth.json\"";
-        fs::write(
+        write_executable_script(
             &script,
-            format!(
+            &format!(
                 "#!/bin/sh\nprintf '%s' $$ > '{}'\n[ \"$({permission_check})\" = 600 ] || exit 3\nread a\nread b\nread c\nprintf refreshed > \"$CODEX_HOME/auth.json\"\nprintf '%s\\n' '{{\"id\":2,\"result\":{{\"rateLimits\":{{\"primary\":{{\"usedPercent\":40,\"windowDurationMins\":300,\"resetsAt\":null}}}},\"rateLimitResetCredits\":{{\"availableCount\":1}}}}}}'\nsleep 30\n",
                 pid_file.display(),
             ),
-        )
-        .unwrap();
+        );
         fs::set_permissions(
             codex_home.join("auth.json"),
             fs::Permissions::from_mode(0o600),
         )
         .unwrap();
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
         let limits =
             read_with_command(&script, &codex_home, Duration::from_secs(2), checked_at()).unwrap();
         assert_eq!(limits.five_hour.unwrap().remaining_percent, 60);
@@ -389,8 +395,7 @@ mod tests {
         let script = temp.path().join("fake-codex");
         let codex_home = temp.path().join("codex-home");
         fs::create_dir(&codex_home).unwrap();
-        fs::write(&script, "#!/bin/sh\nread a\nread b\nread c\nsleep 30\n").unwrap();
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
+        write_executable_script(&script, "#!/bin/sh\nread a\nread b\nread c\nsleep 30\n");
         let error = read_with_command(
             &script,
             &codex_home,
