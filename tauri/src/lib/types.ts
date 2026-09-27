@@ -30,8 +30,13 @@ export interface LimitWindow {
 export interface ProfileLimits {
   fiveHour: LimitWindow | null
   weekly: LimitWindow | null
+  monthly: LimitWindow | null
   resetCreditsAvailable: number | null
   checkedAt: string
+}
+
+export interface StorageUsage {
+  bytes: number
 }
 
 export interface LimitCheckState {

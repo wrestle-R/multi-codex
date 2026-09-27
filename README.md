@@ -2,6 +2,8 @@
 
 Launch multiple Codex accounts in isolated VS Code windows without changing your default Codex login. Re-launching an account opens another VS Code window, including for the same workspace.
 
+Multi Codex shows live 5-hour and weekly limits for paid ChatGPT accounts and the 30-day limit reported for Free accounts. It also shows the disk space used by all isolated profiles in the top-right corner.
+
 ![Current Multi Codex light interface](tauri/public/light_screenshot.png)
 
 ![Current Multi Codex dark interface](tauri/public/dark_screenshot.png)
@@ -19,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/
 bash /tmp/install-multi-codex.sh
 ```
 
-[Download v1.1.6 for Arch Linux](https://github.com/wrestle-R/multi-codex/releases/download/v1.1.6/Multi.Codex_1.1.6_amd64.AppImage)
+[Download v1.1.7 for Arch Linux](https://github.com/wrestle-R/multi-codex/releases/download/v1.1.7/Multi.Codex_1.1.7_amd64.AppImage)
 
 ## macOS
 
@@ -30,7 +32,7 @@ curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/
 bash /tmp/install-multi-codex.sh
 ```
 
-[Download v1.1.6 for macOS](https://github.com/wrestle-R/multi-codex/releases/download/v1.1.6/Multi.Codex_1.1.6_universal.dmg)
+[Download v1.1.7 for macOS](https://github.com/wrestle-R/multi-codex/releases/download/v1.1.7/Multi.Codex_1.1.7_universal.dmg)
 
 ## Update
 
