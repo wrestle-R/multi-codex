@@ -3,6 +3,7 @@ import {
   Add01Icon,
   ComputerIcon,
   DownloadSquare01Icon,
+  HardDriveIcon,
   Moon02Icon,
   Refresh01Icon,
   Sun03Icon,
@@ -22,6 +23,7 @@ import {
   chooseWorkspace,
   deleteProfile,
   getDesktopIntegrationStatus,
+  getStorageUsage,
   importCurrentProfile,
   installDesktopIntegration,
   launchProfile,
@@ -54,27 +56,45 @@ export default function App() {
   const [showIntegration, setShowIntegration] = useState(false)
   const [integrationBusy, setIntegrationBusy] = useState(false)
   const [integrationError, setIntegrationError] = useState<string | null>(null)
+  const [storageBytes, setStorageBytes] = useState<number | null>(null)
   const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
   const [refreshingAllLimits, setRefreshingAllLimits] = useState(false)
   const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
   const deviceLoginRef = useRef<typeof deviceLogin>(null)
+  const refreshPromiseRef = useRef<Promise<void> | null>(null)
 
-  const refresh = useCallback(async () => {
-    try {
-      const next = await listProfiles()
-      setProfiles(next)
-      setPageError(null)
-    } catch (error) {
-      setPageError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setLoading(false)
-    }
+  const refresh = useCallback(() => {
+    if (refreshPromiseRef.current) return refreshPromiseRef.current
+    const request = (async () => {
+      try {
+        const next = await listProfiles()
+        setProfiles(next)
+        setPageError(null)
+      } catch (error) {
+        setPageError(error instanceof Error ? error.message : String(error))
+      } finally {
+        setLoading(false)
+      }
+    })()
+    refreshPromiseRef.current = request
+    void request.finally(() => {
+      if (refreshPromiseRef.current === request) refreshPromiseRef.current = null
+    })
+    return request
   }, [])
 
   useEffect(() => {
-    void refresh()
-    const interval = window.setInterval(() => void refresh(), 2000)
-    return () => window.clearInterval(interval)
+    let cancelled = false
+    let timeout: number | undefined
+    const poll = async () => {
+      await refresh()
+      if (!cancelled) timeout = window.setTimeout(() => void poll(), 2000)
+    }
+    void poll()
+    return () => {
+      cancelled = true
+      if (timeout !== undefined) window.clearTimeout(timeout)
+    }
   }, [refresh])
 
   useEffect(() => {
@@ -86,6 +106,29 @@ export default function App() {
       }
     }).catch(() => undefined)
   }, [])
+
+  const refreshStorage = useCallback(async () => {
+    try {
+      const usage = await getStorageUsage()
+      setStorageBytes(usage.bytes)
+    } catch {
+      // Storage is informational and should never block the main profile workflow.
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    let timeout: number | undefined
+    const poll = async () => {
+      await refreshStorage()
+      if (!cancelled) timeout = window.setTimeout(() => void poll(), 5 * 60_000)
+    }
+    void poll()
+    return () => {
+      cancelled = true
+      if (timeout !== undefined) window.clearTimeout(timeout)
+    }
+  }, [refreshStorage])
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)")
@@ -159,7 +202,7 @@ export default function App() {
     setBusy(true)
     setDialogError(null)
     try {
-      const id = await beginDeviceLogin(name, details)
+      const id = await beginDeviceLogin(name, details, dialogProfile?.id)
       const login = { id, output: [] }
       deviceLoginRef.current = login
       setDeviceLogin(login)
@@ -232,6 +275,7 @@ export default function App() {
     try {
       await deleteProfile(deleteTarget.id)
       await refresh()
+      await refreshStorage()
       setDeleteTarget(null)
     } catch (error) {
       setDialogError(error instanceof Error ? error.message : String(error))
@@ -280,6 +324,10 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
+            <div className="storage-status" title="Storage used by isolated Multi Codex profiles" aria-label={storageBytes == null ? "Calculating app storage" : `${formatStorage(storageBytes)} used by Multi Codex`}>
+              <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
+              <span>{storageBytes == null ? "Calculating" : formatStorage(storageBytes)}</span>
+            </div>
             {integrationStatus?.available && !integrationStatus.installed ? (
               <button
                 className="icon-button integration-button"
@@ -387,4 +435,12 @@ export default function App() {
       ) : null}
     </main>
   )
+}
+
+export function formatStorage(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
+  const units = ["B", "KB", "MB", "GB", "TB"]
+  const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  const value = bytes / 1024 ** unit
+  return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
 }
