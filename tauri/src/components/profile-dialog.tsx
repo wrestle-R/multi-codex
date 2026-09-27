@@ -98,7 +98,11 @@ export function ProfileDialog({
           ) : mode === "current" ? (
             <div className="notice">Reads your current Codex login and saves a protected copy. The original file is never changed.</div>
           ) : (
-            <div className="notice">A one-time code and sign-in link will appear below. Complete the browser sign-in and this account will be added automatically.</div>
+            <div className="notice">
+              {profile
+                ? "Reconnect this saved profile with a fresh browser sign-in. Its name, notes, and isolated workspace data will be kept."
+                : "A one-time code and sign-in link will appear below. Complete the browser sign-in and this account will be added automatically."}
+            </div>
           )}
 
           <label>
@@ -137,6 +141,16 @@ export function ProfileDialog({
 
           <div className="dialog-actions">
             <button className="button secondary" type="button" disabled={busy && !deviceLoginActive} onClick={onClose}>Cancel</button>
+            {profile ? (
+              <button
+                className="button secondary"
+                type="button"
+                disabled={!name.trim() || busy}
+                onClick={() => void onDeviceLogin(name, { notes: notes.trim() || undefined })}
+              >
+                {busy && deviceLoginActive ? "Waiting for browser" : "Sign in again"}
+              </button>
+            ) : null}
             <button className="button primary" type="submit" disabled={!canSubmit || busy}>{busy ? mode === "browser" ? "Waiting for browser" : "Saving" : profile ? "Save changes" : mode === "browser" ? "Get sign-in code" : "Add account"}</button>
           </div>
         </form>

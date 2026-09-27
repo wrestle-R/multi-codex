@@ -67,6 +67,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .brand-mark > span:nth-child(2) { transform: translate(5px, 5px); border-color: var(--primary); }
 .brand-mark i { position: relative; z-index: 1; font: 700 0.78rem/1 "Bricolage Grotesque", sans-serif; font-style: normal; }
 .topbar-actions { gap: 0.65rem; }
+.storage-status { min-height: 42px; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0 0.8rem; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); background: color-mix(in oklab, var(--card) 94%, transparent); font-size: 0.76rem; font-weight: 600; white-space: nowrap; }
+.storage-status svg { color: var(--primary); }
 .button, .icon-button, .segmented-control button { cursor: pointer; transition: transform 140ms ease, background 140ms ease, box-shadow 140ms ease; }
 .button:active:not(:disabled), .icon-button:active:not(:disabled) { transform: scale(0.97); }
 .button:disabled, .icon-button:disabled { cursor: not-allowed; opacity: 0.5; }
@@ -113,6 +115,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .reset-credit-metric { padding-left: 0.65rem; border-left: 1px solid var(--border); }
 .reset-credit-metric strong { display: block; margin-top: 0.15rem; font-size: 1rem; }
 .limits-error { margin-top: 0.6rem !important; }
+.free-limits-note { align-self: center; margin: 0 !important; color: var(--muted-foreground); font-size: 0.76rem; }
 .account-tier { padding: 0.22rem 0.52rem; border-radius: 999px; color: var(--signal); background: var(--signal-soft); font-size: 0.68rem; font-weight: 700; line-height: 1.15; }
 .inline-error { color: var(--danger) !important; }
 .profile-time span, .profile-time strong { display: block; text-align: right; }
@@ -178,6 +181,8 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
 @media (max-width: 760px) {
+  .storage-status span { display: none; }
+  .storage-status { width: 42px; justify-content: center; padding: 0; }
   .topbar { min-height: 68px; padding: 0 0.85rem; }
   .topbar-inner { min-height: 68px; }
   .brand-block span:not(.brand-mark) { display: none; }

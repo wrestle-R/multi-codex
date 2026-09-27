@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, Profile, ProfileDetails, ProfileLimits, SaveProfileInput } from "./types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -57,8 +57,8 @@ export async function importCurrentProfile(name: string, details: ProfileDetails
   })
 }
 
-export async function beginDeviceLogin(name: string, details: ProfileDetails): Promise<string> {
-  if (isTauri) return invoke<string>("begin_device_login", { name, ...details })
+export async function beginDeviceLogin(name: string, details: ProfileDetails, profileId?: string): Promise<string> {
+  if (isTauri) return invoke<string>("begin_device_login", { name, ...details, profileId })
   return crypto.randomUUID()
 }
 
@@ -88,7 +88,11 @@ export async function updateProfile(
 }
 
 export async function chooseWorkspace(): Promise<string | null> {
-  if (isTauri) return invoke<string | null>("choose_workspace")
+  if (isTauri) {
+    const { open } = await import("@tauri-apps/plugin-dialog")
+    const selected = await open({ directory: true, multiple: false, title: "Choose a workspace" })
+    return typeof selected === "string" ? selected : null
+  }
   return "/home/user/Desktop"
 }
 
@@ -116,9 +120,16 @@ export async function checkProfileLimits(id: string): Promise<ProfileLimits> {
   return {
     fiveHour: { remainingPercent: 64, resetsAt: now + 2 * 60 * 60 },
     weekly: { remainingPercent: 81, resetsAt: now + 4 * 24 * 60 * 60 },
+    monthly: null,
     resetCreditsAvailable: 2,
     checkedAt: new Date().toISOString(),
   }
+}
+
+export async function getStorageUsage(): Promise<StorageUsage> {
+  if (isTauri) return invoke<StorageUsage>("get_storage_usage")
+  await wait()
+  return { bytes: 9_876_543_210 }
 }
 
 export async function getDesktopIntegrationStatus(): Promise<DesktopIntegrationStatus> {

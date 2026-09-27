@@ -4,9 +4,8 @@ mod usage;
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
-    choose_workspace as choose_workspace_path, default_service, resolve_codex_command,
-    validate_auth_structure, CodexCliRecognizer, KeyringSecretStore, ProfileRuntime,
-    ProfileService, ProfileView, SaveProfileInput,
+    default_service, resolve_codex_command, validate_auth_structure, CodexCliRecognizer,
+    KeyringSecretStore, ProfileRuntime, ProfileService, ProfileView, SaveProfileInput,
 };
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
@@ -25,47 +24,68 @@ struct AppState {
     device_logins: Arc<Mutex<HashMap<String, mpsc::Sender<()>>>>,
 }
 
-#[tauri::command]
-fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ProfileView>, String> {
-    state.service.list_profiles()
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StorageUsage {
+    bytes: u64,
 }
 
 #[tauri::command]
-fn add_profile(input: SaveProfileInput, state: State<'_, AppState>) -> Result<ProfileView, String> {
-    state.service.add_profile(input)
+async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ProfileView>, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.list_profiles())
+        .await
+        .map_err(|_| "Could not load profiles".to_string())?
 }
 
 #[tauri::command]
-fn import_current_profile(
+async fn add_profile(
+    input: SaveProfileInput,
+    state: State<'_, AppState>,
+) -> Result<ProfileView, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.add_profile(input))
+        .await
+        .map_err(|_| "Could not add the profile".to_string())?
+}
+
+#[tauri::command]
+async fn import_current_profile(
     name: String,
     notes: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ProfileView, String> {
-    state.service.import_current(name, notes)
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.import_current(name, notes))
+        .await
+        .map_err(|_| "Could not import the current profile".to_string())?
 }
 
 #[tauri::command]
-fn update_profile(
+async fn update_profile(
     id: String,
     name: String,
     auth_json: Option<String>,
     notes: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<ProfileView, String> {
-    state.service.update_profile(&id, name, auth_json, notes)
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || {
+        service.update_profile(&id, name, auth_json, notes)
+    })
+    .await
+    .map_err(|_| "Could not update the profile".to_string())?
 }
 
 #[tauri::command]
-fn validate_auth(auth_json: String, state: State<'_, AppState>) -> Result<String, String> {
-    validate_auth_structure(&auth_json)?;
-    profiles::AuthRecognizer::recognize(&CodexCliRecognizer, &auth_json)?;
-    let _ = state;
-    validate_auth_structure(&auth_json)
-}
-
-#[tauri::command]
-fn choose_workspace() -> Result<Option<String>, String> {
-    choose_workspace_path()
+async fn validate_auth(auth_json: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        validate_auth_structure(&auth_json)?;
+        profiles::AuthRecognizer::recognize(&CodexCliRecognizer, &auth_json)?;
+        validate_auth_structure(&auth_json)
+    })
+    .await
+    .map_err(|_| "Could not validate the credential".to_string())?
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -85,10 +105,17 @@ fn emit_device_login(app: &tauri::AppHandle, event: DeviceLoginEvent) {
 fn begin_device_login(
     name: String,
     notes: Option<String>,
+    profile_id: Option<String>,
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let pending = state.service.prepare_device_login(name, notes)?;
+    let pending = if let Some(profile_id) = profile_id {
+        state
+            .service
+            .prepare_profile_reauthentication(&profile_id)?
+    } else {
+        state.service.prepare_device_login(name, notes)?
+    };
     let id = pending.id.clone();
     let codex = match resolve_codex_command() {
         Ok(codex) => codex,
@@ -213,20 +240,45 @@ fn cancel_device_login(id: String, state: State<'_, AppState>) -> Result<(), Str
 }
 
 #[tauri::command]
-fn launch_profile(id: String, workspace: String, state: State<'_, AppState>) -> Result<(), String> {
-    state
-        .service
-        .launch_profile(&id, std::path::Path::new(&workspace))
+async fn launch_profile(
+    id: String,
+    workspace: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || {
+        service.launch_profile(&id, std::path::Path::new(&workspace))
+    })
+    .await
+    .map_err(|_| "Could not launch the profile".to_string())?
 }
 
 #[tauri::command]
-fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    state.service.delete_profile(&id)
+async fn delete_profile(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.delete_profile(&id))
+        .await
+        .map_err(|_| "Could not delete the profile".to_string())?
 }
 
 #[tauri::command]
-fn get_runtime_status(id: String, state: State<'_, AppState>) -> Result<ProfileRuntime, String> {
-    state.service.runtime_status(&id)
+async fn get_runtime_status(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<ProfileRuntime, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.runtime_status(&id))
+        .await
+        .map_err(|_| "Could not read profile status".to_string())?
+}
+
+#[tauri::command]
+async fn get_storage_usage(state: State<'_, AppState>) -> Result<StorageUsage, String> {
+    let service = Arc::clone(&state.service);
+    let bytes = tauri::async_runtime::spawn_blocking(move || service.storage_usage())
+        .await
+        .map_err(|_| "Could not calculate app storage".to_string())??;
+    Ok(StorageUsage { bytes })
 }
 
 #[tauri::command]
@@ -263,11 +315,14 @@ fn get_desktop_integration_status(
 }
 
 #[tauri::command]
-fn install_desktop_integration(
+async fn install_desktop_integration(
     create_desktop_shortcut: bool,
     state: State<'_, AppState>,
 ) -> Result<DesktopIntegrationStatus, String> {
-    state.desktop_integration.install(create_desktop_shortcut)
+    let integration = state.desktop_integration.clone();
+    tauri::async_runtime::spawn_blocking(move || integration.install(create_desktop_shortcut))
+        .await
+        .map_err(|_| "Could not install desktop integration".to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -281,6 +336,7 @@ pub fn run() {
         std::process::exit(1);
     });
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             service: Arc::new(service),
             desktop_integration,
@@ -301,12 +357,12 @@ pub fn run() {
             import_current_profile,
             update_profile,
             validate_auth,
-            choose_workspace,
             begin_device_login,
             cancel_device_login,
             launch_profile,
             delete_profile,
             get_runtime_status,
+            get_storage_usage,
             check_profile_limits,
             get_desktop_integration_status,
             install_desktop_integration,

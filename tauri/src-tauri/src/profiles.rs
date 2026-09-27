@@ -76,6 +76,7 @@ pub(crate) struct PendingDeviceLogin {
     pub notes: Option<String>,
     pub codex_home: PathBuf,
     root: PathBuf,
+    replace_profile_id: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -196,15 +197,17 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     pub fn list_profiles(&self) -> Result<Vec<ProfileView>> {
         let mut profiles = self.load_metadata()?;
         profiles.sort_by_key(|profile| std::cmp::Reverse(profile.updated_at));
-        let runtime = self
-            .runtime
-            .lock()
-            .map_err(|_| "Runtime state is unavailable")?;
+        let (statuses, errors) = {
+            let runtime = self
+                .runtime
+                .lock()
+                .map_err(|_| "Runtime state is unavailable")?;
+            (runtime.statuses.clone(), runtime.errors.clone())
+        };
         let mut views = Vec::with_capacity(profiles.len());
         for metadata in profiles {
             let detected = profile_process_running(&self.profile_paths(&metadata.id)?.vscode_home);
-            let status = runtime
-                .statuses
+            let status = statuses
                 .get(&metadata.id)
                 .copied()
                 .filter(|status| *status != RuntimeStatus::Running || detected)
@@ -213,13 +216,13 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 } else {
                     RuntimeStatus::Idle
                 });
-            let error = runtime.errors.get(&metadata.id).cloned();
-            // Account plan is display-only metadata derived locally. A missing or unreadable
-            // credential deliberately produces no badge rather than a guess.
+            let error = errors.get(&metadata.id).cloned();
+            // Avoid a system-keyring round trip on every UI poll. The durable profile credential
+            // is also the freshest copy because Codex writes token refreshes into this file.
             let account_tier = self
-                .secrets
-                .get(&metadata.id)
+                .read_persisted_profile_credential(&metadata.id)
                 .ok()
+                .flatten()
                 .and_then(|secret| account_tier_from_auth(&secret));
             views.push(ProfileView {
                 metadata,
@@ -309,17 +312,55 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             notes,
             codex_home,
             root,
+            replace_profile_id: None,
+        })
+    }
+
+    pub(crate) fn prepare_profile_reauthentication(
+        &self,
+        profile_id: &str,
+    ) -> Result<PendingDeviceLogin> {
+        validate_id(profile_id)?;
+        if self.is_running(profile_id)? {
+            return Err("Close this profile's VS Code window before signing in again".to_string());
+        }
+        let profile = self
+            .load_metadata()?
+            .into_iter()
+            .find(|profile| profile.id == profile_id)
+            .ok_or_else(|| "Profile not found".to_string())?;
+        let id = Uuid::new_v4().to_string();
+        let root = self.data_root.join("device-logins").join(&id);
+        let codex_home = root.join("codex-home");
+        ensure_private_managed_dir(&self.data_root, &codex_home)?;
+        write_codex_config(&codex_home)?;
+        Ok(PendingDeviceLogin {
+            id,
+            name: profile.name,
+            notes: profile.notes,
+            codex_home,
+            root,
+            replace_profile_id: Some(profile_id.to_string()),
         })
     }
 
     pub(crate) fn finish_device_login(&self, pending: PendingDeviceLogin) -> Result<ProfileView> {
         let auth_json = fs::read_to_string(pending.codex_home.join("auth.json"))
             .map_err(|_| "The browser sign-in did not create a credential".to_string())?;
-        let result = self.add_profile(SaveProfileInput {
-            name: pending.name,
-            auth_json,
-            notes: pending.notes,
-        });
+        let result = if let Some(profile_id) = &pending.replace_profile_id {
+            self.update_profile(
+                profile_id,
+                pending.name.clone(),
+                Some(auth_json),
+                pending.notes.clone(),
+            )
+        } else {
+            self.add_profile(SaveProfileInput {
+                name: pending.name.clone(),
+                auth_json,
+                notes: pending.notes.clone(),
+            })
+        };
         let cleanup = remove_managed_tree(&self.data_root, &pending.root);
         match (result, cleanup) {
             (Ok(profile), Ok(())) => Ok(profile),
@@ -525,8 +566,20 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !profile.auth_mode.eq_ignore_ascii_case("chatgpt") {
             return Err("Live limits are available only for ChatGPT accounts".to_string());
         }
-        let credential = self.current_profile_credential(id)?;
-        read_profile_limits(&credential)
+        self.current_profile_credential(id)?;
+        let paths = self.profile_paths(id)?;
+        let result = read_profile_limits(&paths.codex_home);
+
+        // Codex can refresh and rotate credentials while serving the limits request. Always copy
+        // that durable result back to the keyring, even when the limits request itself failed.
+        if let Ok(refreshed) = read_persisted_credential(&paths.codex_home.join("auth.json")) {
+            self.secrets.set(id, &refreshed)?;
+        }
+        result
+    }
+
+    pub fn storage_usage(&self) -> Result<u64> {
+        directory_size(&self.data_root)
     }
 
     fn load_metadata(&self) -> Result<Vec<ProfileMetadata>> {
@@ -741,52 +794,6 @@ pub fn default_service() -> Result<ProfileService<KeyringSecretStore, CodexCliRe
     )
 }
 
-pub fn choose_workspace() -> Result<Option<String>> {
-    let home = dirs::home_dir().ok_or_else(|| "Home directory is unavailable".to_string())?;
-    let desktop = home.join("Desktop");
-    let initial = if desktop.is_dir() { desktop } else { home };
-
-    #[cfg(target_os = "linux")]
-    let output = Command::new("kdialog")
-        .arg("--getexistingdirectory")
-        .arg(&initial)
-        .output()
-        .or_else(|_| {
-            Command::new("zenity")
-                .args(["--file-selection", "--directory", "--filename"])
-                .arg(format!("{}/", initial.display()))
-                .output()
-        })
-        .map_err(|_| {
-            "A desktop folder picker is required (install kdialog or zenity)".to_string()
-        })?;
-
-    #[cfg(target_os = "macos")]
-    let output = Command::new("osascript")
-        .args([
-            "-e",
-            "POSIX path of (choose folder with prompt \"Choose a workspace\" default location (path to desktop folder))",
-        ])
-        .output()
-        .map_err(|_| "Could not open the folder picker".to_string())?;
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
-    return Err("Folder selection is not supported on this operating system".to_string());
-
-    if !output.status.success() {
-        return Ok(None);
-    }
-    let selection = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if selection.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(
-        canonical_workspace(Path::new(&selection))?
-            .display()
-            .to_string(),
-    ))
-}
-
 pub fn validate_auth_structure(auth_json: &str) -> Result<String> {
     if auth_json.is_empty() {
         return Err("Auth JSON is required".to_string());
@@ -908,6 +915,28 @@ fn ensure_private_dir(path: &Path) -> Result<()> {
     fs::create_dir_all(path)
         .map_err(|error| format!("Could not create {}: {error}", path.display()))?;
     set_owner_only_dir(path)
+}
+
+fn directory_size(path: &Path) -> Result<u64> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|error| format!("Could not inspect app storage: {error}"))?;
+    if metadata.file_type().is_symlink() {
+        return Ok(0);
+    }
+    if metadata.is_file() {
+        return Ok(metadata.len());
+    }
+    if !metadata.is_dir() {
+        return Ok(0);
+    }
+    let mut total = 0_u64;
+    for entry in
+        fs::read_dir(path).map_err(|error| format!("Could not read app storage: {error}"))?
+    {
+        let entry = entry.map_err(|error| format!("Could not read app storage: {error}"))?;
+        total = total.saturating_add(directory_size(&entry.path())?);
+    }
+    Ok(total)
 }
 
 pub(crate) fn set_owner_only_dir(path: &Path) -> Result<()> {
@@ -1307,6 +1336,21 @@ mod tests {
     }
 
     #[test]
+    fn storage_usage_counts_managed_files_without_following_symlinks() {
+        let (temp, service) = fixture();
+        let first = service.data_root.join("profiles/first.bin");
+        let nested = service.data_root.join("profiles/nested/second.bin");
+        fs::create_dir_all(nested.parent().unwrap()).unwrap();
+        fs::write(&first, vec![0_u8; 11]).unwrap();
+        fs::write(&nested, vec![0_u8; 17]).unwrap();
+        let outside = temp.path().join("outside.bin");
+        fs::write(&outside, vec![0_u8; 1_000]).unwrap();
+        symlink(&outside, service.data_root.join("profiles/outside-link")).unwrap();
+
+        assert_eq!(service.storage_usage().unwrap(), 28);
+    }
+
+    #[test]
     fn credential_is_materialized_privately_and_persists_between_launches() {
         let (_temp, service) = fixture();
         let profile = service.add_profile(sample_input("Work")).unwrap();
@@ -1350,6 +1394,39 @@ mod tests {
         assert_eq!(
             service.secrets.get(&profile.metadata.id).unwrap(),
             refreshed
+        );
+    }
+
+    #[test]
+    fn browser_reauthentication_replaces_only_the_existing_profiles_credential() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let pending = service
+            .prepare_profile_reauthentication(&profile.metadata.id)
+            .unwrap();
+        let replacement =
+            r#"{"auth_mode":"chatgpt","tokens":{"access_token":"fresh-browser-session"}}"#;
+        write_private_file(
+            &pending.codex_home.join("auth.json"),
+            replacement.as_bytes(),
+        )
+        .unwrap();
+
+        let updated = service.finish_device_login(pending).unwrap();
+
+        assert_eq!(updated.metadata.id, profile.metadata.id);
+        assert_eq!(updated.metadata.name, profile.metadata.name);
+        assert_eq!(service.load_metadata().unwrap().len(), 1);
+        assert_eq!(
+            service.secrets.get(&profile.metadata.id).unwrap(),
+            replacement
+        );
+        assert_eq!(
+            service
+                .read_persisted_profile_credential(&profile.metadata.id)
+                .unwrap()
+                .as_deref(),
+            Some(replacement)
         );
     }
 

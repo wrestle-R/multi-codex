@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import App from "./App"
+import App, { formatStorage } from "./App"
 import type { Profile } from "./lib/types"
 
 const api = vi.hoisted(() => ({
@@ -17,6 +17,7 @@ const api = vi.hoisted(() => ({
   launchProfile: vi.fn(),
   deleteProfile: vi.fn(),
   getDesktopIntegrationStatus: vi.fn(),
+  getStorageUsage: vi.fn(),
   installDesktopIntegration: vi.fn(),
 }))
 
@@ -45,6 +46,7 @@ beforeEach(() => {
   api.checkProfileLimits.mockReset().mockResolvedValue({
     fiveHour: { remainingPercent: 76, resetsAt: 1788597000 },
     weekly: { remainingPercent: 43, resetsAt: 1788998400 },
+    monthly: null,
     resetCreditsAvailable: 2,
     checkedAt: "2026-09-05T04:30:00Z",
   })
@@ -62,6 +64,7 @@ beforeEach(() => {
     version: "0.2.0",
     source: "package",
   })
+  api.getStorageUsage.mockReset().mockResolvedValue({ bytes: 9_876_543_210 })
   api.installDesktopIntegration.mockReset().mockResolvedValue({
     available: true,
     installed: true,
@@ -82,6 +85,11 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 describe("Multi Codex", () => {
+  it("formats storage using compact binary units", () => {
+    expect(formatStorage(0)).toBe("0 B")
+    expect(formatStorage(9_876_543_210)).toBe("9.2 GB")
+  })
+
   it("loads profiles and exposes profile actions", async () => {
     render(<App />)
     expect(await screen.findByRole("heading", { name: "Personal" })).toBeInTheDocument()
@@ -105,7 +113,19 @@ describe("Multi Codex", () => {
     await user.type(screen.getByLabelText("Profile name"), "Work")
     expect(screen.queryByLabelText("Auth JSON")).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Get sign-in code" }))
-    await waitFor(() => expect(api.beginDeviceLogin).toHaveBeenCalledWith("Work", { notes: undefined }))
+    await waitFor(() => expect(api.beginDeviceLogin).toHaveBeenCalledWith("Work", { notes: undefined }, undefined))
+  })
+
+  it("reconnects an existing profile without replacing its profile identity", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Edit Personal" }))
+    await user.click(screen.getByRole("button", { name: "Sign in again" }))
+    await waitFor(() => expect(api.beginDeviceLogin).toHaveBeenCalledWith(
+      "Personal",
+      { notes: undefined },
+      profile.id,
+    ))
   })
 
   it("formats device sign-in details and cancels the pending login from the close button", async () => {
@@ -211,18 +231,36 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("progressbar", { name: "5-hour usage remaining" })).toHaveAttribute("aria-valuenow", "76")
   })
 
+  it("displays the monthly window returned for a free account", async () => {
+    api.listProfiles.mockResolvedValue([{ ...profile, accountTier: "Free" }])
+    api.checkProfileLimits.mockResolvedValue({
+      fiveHour: null,
+      weekly: null,
+      monthly: { remainingPercent: 37, resetsAt: 1792841898 },
+      resetCreditsAvailable: 0,
+      checkedAt: "2026-09-27T17:00:00Z",
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Check limits" }))
+    const row = await screen.findByLabelText(`Live limits for ${profile.name}`)
+    expect(row).toHaveTextContent("Monthly")
+    expect(row).toHaveTextContent("37% left")
+    expect(row).not.toHaveTextContent("Unavailable")
+  })
+
   it("refreshes all ChatGPT accounts while keeping unavailable limits valid", async () => {
     const second = { ...profile, id: "second", name: "Second", accountTier: "Plus" }
     api.listProfiles.mockResolvedValue([{ ...profile, accountTier: "Free" }, second])
     api.checkProfileLimits
-      .mockResolvedValueOnce({ fiveHour: null, weekly: null, resetCreditsAvailable: 0, checkedAt: "2026-09-05T04:30:00Z" })
-      .mockResolvedValueOnce({ fiveHour: { remainingPercent: 50, resetsAt: null }, weekly: null, resetCreditsAvailable: null, checkedAt: "2026-09-05T04:30:00Z" })
+      .mockResolvedValueOnce({ fiveHour: null, weekly: null, monthly: null, resetCreditsAvailable: 0, checkedAt: "2026-09-05T04:30:00Z" })
+      .mockResolvedValueOnce({ fiveHour: { remainingPercent: 50, resetsAt: null }, weekly: null, monthly: null, resetCreditsAvailable: null, checkedAt: "2026-09-05T04:30:00Z" })
     const user = userEvent.setup()
     render(<App />)
     await user.click(await screen.findByRole("button", { name: "Refresh all" }))
     await waitFor(() => expect(api.checkProfileLimits).toHaveBeenCalledWith(profile.id))
     expect(api.checkProfileLimits).toHaveBeenCalledWith(second.id)
-    expect(screen.getByTestId(`profile-${profile.id}`)).toHaveTextContent("Unavailable")
+    expect(screen.getByTestId(`profile-${profile.id}`)).toHaveTextContent("Free account limits not reported")
     expect(screen.getByTestId(`profile-${profile.id}`)).toHaveTextContent("Free")
     expect(screen.getByTestId(`profile-${second.id}`)).toHaveTextContent("Plus")
   })
@@ -237,6 +275,7 @@ describe("Multi Codex", () => {
     api.checkProfileLimits.mockResolvedValue({
       fiveHour: null,
       weekly: null,
+      monthly: null,
       resetCreditsAvailable: null,
       checkedAt: "2026-09-05T04:30:00Z",
     })
@@ -267,6 +306,7 @@ describe("Multi Codex", () => {
     resolveCheck?.({
       fiveHour: null,
       weekly: null,
+      monthly: null,
       resetCreditsAvailable: 0,
       checkedAt: "2026-09-05T04:30:00Z",
     })

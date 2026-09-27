@@ -55,6 +55,8 @@ function LimitMetric({ label, window }: { label: string; window: LimitWindow | n
 
 export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, onDelete }: ProfileRowProps) {
   const supportsLimits = profile.authMode.toLowerCase() === "chatgpt"
+  const hasReportedWindow = Boolean(limits?.data?.fiveHour || limits?.data?.weekly || limits?.data?.monthly)
+  const freeLimitsNotReported = profile.accountTier?.toLowerCase() === "free" && limits?.data && !hasReportedWindow
 
   return (
     <article className="profile-row" data-testid={`profile-${profile.id}`}>
@@ -74,8 +76,10 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
         ) : null}
         {limits?.data ? (
           <div className="limits-panel" aria-label={`Live limits for ${profile.name}`}>
-            <LimitMetric label="5-hour" window={limits.data.fiveHour} />
-            <LimitMetric label="Weekly" window={limits.data.weekly} />
+            {limits.data.monthly ? <LimitMetric label="Monthly" window={limits.data.monthly} /> : null}
+            {!limits.data.monthly && !freeLimitsNotReported ? <LimitMetric label="5-hour" window={limits.data.fiveHour} /> : null}
+            {!limits.data.monthly && !freeLimitsNotReported ? <LimitMetric label="Weekly" window={limits.data.weekly} /> : null}
+            {freeLimitsNotReported ? <p className="free-limits-note">Free account limits not reported</p> : null}
             <div className="reset-credit-metric">
               <span>Reset credits</span>
               <strong>{limits.data.resetCreditsAvailable ?? "Unavailable"}</strong>

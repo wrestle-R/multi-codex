@@ -7,12 +7,11 @@ use std::process::{Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use crate::profiles::{
-    resolve_codex_command, set_owner_only_dir, write_codex_config, write_private_file, Result,
-};
+use crate::profiles::{resolve_codex_command, Result};
 
 const FIVE_HOUR_MINS: i64 = 5 * 60;
 const WEEKLY_MINS: i64 = 7 * 24 * 60;
+const MONTHLY_MINS: i64 = 30 * 24 * 60;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(20);
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -27,32 +26,27 @@ pub struct LimitWindow {
 pub struct ProfileLimits {
     pub five_hour: Option<LimitWindow>,
     pub weekly: Option<LimitWindow>,
+    pub monthly: Option<LimitWindow>,
     pub reset_credits_available: Option<u32>,
     pub checked_at: DateTime<Utc>,
 }
 
-pub fn read_profile_limits(auth_json: &str) -> Result<ProfileLimits> {
+pub fn read_profile_limits(codex_home: &Path) -> Result<ProfileLimits> {
     let codex = resolve_codex_command()?;
-    read_with_command(&codex, auth_json, REQUEST_TIMEOUT, Utc::now())
+    read_with_command(&codex, codex_home, REQUEST_TIMEOUT, Utc::now())
 }
 
 fn read_with_command(
     codex: &Path,
-    auth_json: &str,
+    codex_home: &Path,
     timeout: Duration,
     checked_at: DateTime<Utc>,
 ) -> Result<ProfileLimits> {
-    let temp = tempfile::Builder::new()
-        .prefix("multi-codex-limits-")
-        .tempdir()
-        .map_err(|_| "Could not create a protected limits-check directory".to_string())?;
-    set_owner_only_dir(temp.path())?;
-    write_private_file(&temp.path().join("auth.json"), auth_json.as_bytes())?;
-    write_codex_config(temp.path())?;
-
     let mut child = Command::new(codex)
         .args(["app-server", "--stdio"])
-        .env("CODEX_HOME", temp.path())
+        // Use the profile's durable home so a token refreshed by Codex is not discarded with a
+        // temporary directory. Each Multi Codex profile already has its own isolated CODEX_HOME.
+        .env("CODEX_HOME", codex_home)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -162,7 +156,7 @@ fn protocol_error_message(error: &Value) -> String {
         || message.contains("refresh token")
         || message.contains("sign in")
     {
-        return "This account needs to sign in again before limits can be checked".to_string();
+        return expired_session_message();
     }
     "Codex did not provide limits for this account".to_string()
 }
@@ -172,7 +166,7 @@ fn classify_limit_failure(error: String, diagnostic: &str) -> String {
     if diagnostic.contains("refresh token")
         && (diagnostic.contains("401") || diagnostic.contains("unauthorized"))
     {
-        return "This account needs to sign in again before limits can be checked".to_string();
+        return expired_session_message();
     }
     if diagnostic.contains("network")
         || diagnostic.contains("connection")
@@ -183,6 +177,11 @@ fn classify_limit_failure(error: String, diagnostic: &str) -> String {
             .to_string();
     }
     error
+}
+
+fn expired_session_message() -> String {
+    "This saved profile is safe, but its Codex session expired. Open Edit and choose Sign in again before checking limits"
+        .to_string()
 }
 
 fn parse_limits_response(message: &Value, checked_at: DateTime<Utc>) -> Result<ProfileLimits> {
@@ -198,6 +197,7 @@ fn parse_limits_response(message: &Value, checked_at: DateTime<Utc>) -> Result<P
 
     let five_hour = find_window(snapshot, FIVE_HOUR_MINS)?;
     let weekly = find_window(snapshot, WEEKLY_MINS)?;
+    let monthly = find_window(snapshot, MONTHLY_MINS)?;
     let reset_credits_available = match result.get("rateLimitResetCredits") {
         None | Some(Value::Null) => None,
         Some(summary) => {
@@ -215,6 +215,7 @@ fn parse_limits_response(message: &Value, checked_at: DateTime<Utc>) -> Result<P
     Ok(ProfileLimits {
         five_hour,
         weekly,
+        monthly,
         reset_credits_available,
         checked_at,
     })
@@ -277,6 +278,7 @@ mod tests {
         let limits = parse_limits_response(&response, checked_at()).unwrap();
         assert_eq!(limits.five_hour.unwrap().remaining_percent, 82);
         assert_eq!(limits.weekly.unwrap().remaining_percent, 28);
+        assert_eq!(limits.monthly, None);
         assert_eq!(limits.reset_credits_available, Some(3));
     }
 
@@ -288,7 +290,23 @@ mod tests {
         let limits = parse_limits_response(&response, checked_at()).unwrap();
         assert_eq!(limits.five_hour.unwrap().resets_at, None);
         assert_eq!(limits.weekly, None);
+        assert_eq!(limits.monthly, None);
         assert_eq!(limits.reset_credits_available, None);
+    }
+
+    #[test]
+    fn parses_the_monthly_window_reported_for_free_accounts() {
+        let response = json!({"id": 2, "result": {
+            "rateLimitsByLimitId": {"codex": {
+                "primary": {"usedPercent": 63, "windowDurationMins": 43200, "resetsAt": 1_792_841_898},
+                "secondary": null
+            }},
+            "rateLimitResetCredits": {"availableCount": 0}
+        }});
+        let limits = parse_limits_response(&response, checked_at()).unwrap();
+        assert_eq!(limits.five_hour, None);
+        assert_eq!(limits.weekly, None);
+        assert_eq!(limits.monthly.unwrap().remaining_percent, 37);
     }
 
     #[test]
@@ -309,7 +327,7 @@ mod tests {
                 "Codex limits service ended before returning data".into(),
                 "ERROR Failed to refresh token: 401 Unauthorized: sensitive server response",
             ),
-            "This account needs to sign in again before limits can be checked"
+            "This saved profile is safe, but its Codex session expired. Open Edit and choose Sign in again before checking limits"
         );
     }
 
@@ -323,10 +341,13 @@ mod tests {
     }
 
     #[test]
-    fn protocol_uses_private_temp_auth_and_stops_the_child() {
+    fn protocol_preserves_refreshed_auth_and_stops_the_child() {
         let temp = tempfile::tempdir().unwrap();
         let script = temp.path().join("fake-codex");
         let pid_file = temp.path().join("pid");
+        let codex_home = temp.path().join("codex-home");
+        fs::create_dir(&codex_home).unwrap();
+        fs::write(codex_home.join("auth.json"), "original").unwrap();
         #[cfg(target_os = "linux")]
         let permission_check = "stat -c %a \"$CODEX_HOME/auth.json\"";
         #[cfg(target_os = "macos")]
@@ -334,20 +355,24 @@ mod tests {
         fs::write(
             &script,
             format!(
-                "#!/bin/sh\nprintf '%s' $$ > '{}'\n[ \"$({permission_check})\" = 600 ] || exit 3\nread a\nread b\nread c\nprintf '%s\\n' '{{\"id\":2,\"result\":{{\"rateLimits\":{{\"primary\":{{\"usedPercent\":40,\"windowDurationMins\":300,\"resetsAt\":null}}}},\"rateLimitResetCredits\":{{\"availableCount\":1}}}}}}'\nsleep 30\n",
+                "#!/bin/sh\nprintf '%s' $$ > '{}'\n[ \"$({permission_check})\" = 600 ] || exit 3\nread a\nread b\nread c\nprintf refreshed > \"$CODEX_HOME/auth.json\"\nprintf '%s\\n' '{{\"id\":2,\"result\":{{\"rateLimits\":{{\"primary\":{{\"usedPercent\":40,\"windowDurationMins\":300,\"resetsAt\":null}}}},\"rateLimitResetCredits\":{{\"availableCount\":1}}}}}}'\nsleep 30\n",
                 pid_file.display(),
             ),
         )
         .unwrap();
-        fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
-        let limits = read_with_command(
-            &script,
-            r#"{"auth_mode":"chatgpt","tokens":{"access_token":"fixture-only"}}"#,
-            Duration::from_secs(2),
-            checked_at(),
+        fs::set_permissions(
+            codex_home.join("auth.json"),
+            fs::Permissions::from_mode(0o600),
         )
         .unwrap();
+        fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
+        let limits =
+            read_with_command(&script, &codex_home, Duration::from_secs(2), checked_at()).unwrap();
         assert_eq!(limits.five_hour.unwrap().remaining_percent, 60);
+        assert_eq!(
+            fs::read_to_string(codex_home.join("auth.json")).unwrap(),
+            "refreshed"
+        );
         let pid = fs::read_to_string(pid_file).unwrap();
         assert!(!Command::new("kill")
             .args(["-0", pid.trim()])
@@ -362,16 +387,17 @@ mod tests {
     fn protocol_timeout_is_bounded_and_sanitized() {
         let temp = tempfile::tempdir().unwrap();
         let script = temp.path().join("fake-codex");
+        let codex_home = temp.path().join("codex-home");
+        fs::create_dir(&codex_home).unwrap();
         fs::write(&script, "#!/bin/sh\nread a\nread b\nread c\nsleep 30\n").unwrap();
         fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
         let error = read_with_command(
             &script,
-            r#"{"auth_mode":"chatgpt","tokens":{"access_token":"never-print-this"}}"#,
+            &codex_home,
             Duration::from_millis(100),
             checked_at(),
         )
         .unwrap_err();
         assert_eq!(error, "Codex limits check timed out");
-        assert!(!error.contains("never-print-this"));
     }
 }
