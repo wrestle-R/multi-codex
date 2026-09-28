@@ -138,9 +138,7 @@ fn valid_address(address: &str) -> bool {
 fn main_window_lua(address: &str) -> String {
     format!(
         "local w=hl.get_window('address:{address}'); assert(w); \
-         hl.dispatch(hl.dsp.window.float({{action='set',window=w}})); \
-         hl.dispatch(hl.dsp.window.resize({{x=1180,y=760,'exact',window=w}})); \
-         hl.dispatch(hl.dsp.window.center({{window=w}}))"
+         hl.dispatch(hl.dsp.window.fullscreen({{mode='fullscreen',action='set',window=w}}))"
     )
 }
 
@@ -163,12 +161,13 @@ mod tests {
     }
 
     #[test]
-    fn main_window_command_targets_the_app_and_sets_popup_geometry() {
+    fn main_window_command_targets_the_app_and_sets_fullscreen_state() {
         let lua = main_window_lua("0xabc123");
         assert!(lua.contains("address:0xabc123"));
-        assert!(lua.contains("action='set'"));
-        assert!(lua.contains("x=1180,y=760"));
-        assert!(lua.contains("center"));
+        assert!(lua.contains("window.fullscreen"));
+        assert!(lua.contains("mode='fullscreen',action='set'"));
+        assert!(!lua.contains("window.float"));
+        assert!(!lua.contains("window.resize"));
     }
 
     #[test]
