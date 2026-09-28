@@ -86,6 +86,39 @@ struct ProfilePaths {
     extensions_dir: PathBuf,
 }
 
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileStorageUsage {
+    pub id: String,
+    pub name: String,
+    pub bytes: u64,
+    pub reclaimable_bytes: u64,
+    pub running: bool,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct StorageUsage {
+    pub bytes: u64,
+    pub reclaimable_bytes: u64,
+    pub other_bytes: u64,
+    pub profiles: Vec<ProfileStorageUsage>,
+}
+
+const RECLAIMABLE_PATHS: &[&[&str]] = &[
+    &["vscode-user-data", "CachedExtensionVSIXs"],
+    &["vscode-user-data", "Cache"],
+    &["vscode-user-data", "CachedData"],
+    &["vscode-user-data", "GPUCache"],
+    &["vscode-user-data", "Code Cache"],
+    &["vscode-user-data", "Crashpad"],
+    &["vscode-user-data", "logs"],
+    &["codex-home", "cache"],
+    &["codex-home", ".tmp"],
+    &["codex-home", "tmp"],
+    &["codex-home", "log"],
+];
+
 #[derive(Default)]
 struct RuntimeState {
     statuses: HashMap<String, RuntimeStatus>,
@@ -578,8 +611,58 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         result
     }
 
-    pub fn storage_usage(&self) -> Result<u64> {
-        directory_size(&self.data_root)
+    pub fn storage_usage(&self) -> Result<StorageUsage> {
+        let bytes = directory_size(&self.data_root)?;
+        let mut profile_bytes = 0_u64;
+        let mut reclaimable_bytes = 0_u64;
+        let mut profiles = Vec::new();
+        for profile in self.load_metadata()? {
+            let root = self.data_root.join("profiles").join(&profile.id);
+            let size = if root.exists() {
+                directory_size(&root)?
+            } else {
+                0
+            };
+            let reclaimable = reclaimable_size(&root)?;
+            let running = self.is_running(&profile.id)?;
+            profile_bytes = profile_bytes.saturating_add(size);
+            reclaimable_bytes = reclaimable_bytes.saturating_add(reclaimable);
+            profiles.push(ProfileStorageUsage {
+                id: profile.id,
+                name: profile.name,
+                bytes: size,
+                reclaimable_bytes: reclaimable,
+                running,
+            });
+        }
+        profiles.sort_by_key(|profile| std::cmp::Reverse(profile.bytes));
+        Ok(StorageUsage {
+            bytes,
+            reclaimable_bytes,
+            other_bytes: bytes.saturating_sub(profile_bytes),
+            profiles,
+        })
+    }
+
+    pub fn clear_profile_cache(&self, id: &str) -> Result<u64> {
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".to_string());
+        }
+        if self.is_running(id)? {
+            return Err(
+                "Close this profile's VS Code windows before clearing its cache".to_string(),
+            );
+        }
+        let root = self.data_root.join("profiles").join(id);
+        let reclaimed = reclaimable_size(&root)?;
+        for components in RECLAIMABLE_PATHS {
+            let path = components
+                .iter()
+                .fold(root.clone(), |path, component| path.join(component));
+            remove_managed_tree(&self.data_root, &path)?;
+        }
+        Ok(reclaimed)
     }
 
     fn load_metadata(&self) -> Result<Vec<ProfileMetadata>> {
@@ -601,6 +684,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             vscode_home: base.join("vscode-user-data"),
             extensions_dir: base.join("vscode-extensions"),
         })
+    }
+
+    pub(crate) fn vscode_home(&self, id: &str) -> Result<PathBuf> {
+        Ok(self.profile_paths(id)?.vscode_home)
     }
 
     fn is_running(&self, id: &str) -> Result<bool> {
@@ -935,6 +1022,23 @@ fn directory_size(path: &Path) -> Result<u64> {
     {
         let entry = entry.map_err(|error| format!("Could not read app storage: {error}"))?;
         total = total.saturating_add(directory_size(&entry.path())?);
+    }
+    Ok(total)
+}
+
+fn reclaimable_size(profile_root: &Path) -> Result<u64> {
+    let mut total = 0_u64;
+    for components in RECLAIMABLE_PATHS {
+        let path = components
+            .iter()
+            .fold(profile_root.to_path_buf(), |path, component| {
+                path.join(component)
+            });
+        match fs::symlink_metadata(&path) {
+            Ok(_) => total = total.saturating_add(directory_size(&path)?),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("Could not inspect app storage: {error}")),
+        }
     }
     Ok(total)
 }
@@ -1347,7 +1451,98 @@ mod tests {
         fs::write(&outside, vec![0_u8; 1_000]).unwrap();
         symlink(&outside, service.data_root.join("profiles/outside-link")).unwrap();
 
-        assert_eq!(service.storage_usage().unwrap(), 28);
+        assert_eq!(service.storage_usage().unwrap().bytes, 28);
+    }
+
+    #[test]
+    fn storage_breakdown_reports_profile_and_reclaimable_bytes() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let root = service
+            .data_root
+            .join("profiles")
+            .join(&profile.metadata.id);
+        let cache = root.join("vscode-user-data/CachedExtensionVSIXs");
+        fs::create_dir_all(&cache).unwrap();
+        fs::write(cache.join("cached.vsix"), vec![0_u8; 31]).unwrap();
+        let usage = service.storage_usage().unwrap();
+        let item = usage
+            .profiles
+            .iter()
+            .find(|item| item.id == profile.metadata.id)
+            .unwrap();
+        assert_eq!(item.reclaimable_bytes, 31);
+        assert!(item.bytes >= item.reclaimable_bytes);
+        assert_eq!(usage.reclaimable_bytes, 31);
+    }
+
+    #[test]
+    fn cache_cleanup_preserves_credentials_sessions_settings_and_extensions() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let root = service
+            .data_root
+            .join("profiles")
+            .join(&profile.metadata.id);
+        let cache = root.join("vscode-user-data/CachedExtensionVSIXs");
+        let settings = root.join("vscode-user-data/User/settings.json");
+        let extension = root.join("vscode-extensions/openai.chatgpt-test/extension.js");
+        let session = root.join("codex-home/sessions/2026/session.jsonl");
+        fs::create_dir_all(&cache).unwrap();
+        fs::create_dir_all(settings.parent().unwrap()).unwrap();
+        fs::create_dir_all(extension.parent().unwrap()).unwrap();
+        fs::create_dir_all(session.parent().unwrap()).unwrap();
+        fs::write(cache.join("cached.vsix"), vec![0_u8; 31]).unwrap();
+        fs::write(&settings, "settings").unwrap();
+        fs::write(&extension, "extension").unwrap();
+        fs::write(&session, "session").unwrap();
+
+        assert_eq!(
+            service.clear_profile_cache(&profile.metadata.id).unwrap(),
+            31
+        );
+        assert!(!cache.exists());
+        assert!(settings.exists());
+        assert!(extension.exists());
+        assert!(session.exists());
+        assert!(root.join("codex-home/auth.json").exists());
+    }
+
+    #[test]
+    fn cache_cleanup_refuses_symlink_escapes() {
+        let (temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let root = service
+            .data_root
+            .join("profiles")
+            .join(&profile.metadata.id);
+        let outside = temp.path().join("outside-cache");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("keep"), "safe").unwrap();
+        let cache = root.join("vscode-user-data/CachedExtensionVSIXs");
+        fs::create_dir_all(cache.parent().unwrap()).unwrap();
+        symlink(&outside, &cache).unwrap();
+
+        assert!(service.clear_profile_cache(&profile.metadata.id).is_err());
+        assert!(outside.join("keep").exists());
+    }
+
+    #[test]
+    fn cache_cleanup_refuses_running_profiles() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        service
+            .runtime
+            .lock()
+            .unwrap()
+            .statuses
+            .insert(profile.metadata.id.clone(), RuntimeStatus::Running);
+        assert_eq!(
+            service
+                .clear_profile_cache(&profile.metadata.id)
+                .unwrap_err(),
+            "Close this profile's VS Code windows before clearing its cache"
+        );
     }
 
     #[test]

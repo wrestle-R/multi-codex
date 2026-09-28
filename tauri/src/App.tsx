@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import {
   Add01Icon,
-  ComputerIcon,
   DownloadSquare01Icon,
   HardDriveIcon,
   Moon02Icon,
@@ -11,18 +11,24 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import "./App.css"
 import { BrandMark } from "./components/brand-mark"
+import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
 import { ConfirmDialog } from "./components/confirm-dialog"
 import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
 import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
+import { ResetCreditsDialog } from "./components/reset-credits-dialog"
+import { StorageDialog } from "./components/storage-dialog"
+import { WorkspaceDialog } from "./components/workspace-dialog"
 import {
   addProfile,
   beginDeviceLogin,
   cancelDeviceLogin,
   checkProfileLimits,
   chooseWorkspace,
+  clearProfileCache,
   deleteProfile,
   getDesktopIntegrationStatus,
+  getLaunchEnvironment,
   getStorageUsage,
   importCurrentProfile,
   installDesktopIntegration,
@@ -31,17 +37,18 @@ import {
   subscribeDeviceLogin,
   updateProfile,
 } from "./lib/desktop-api"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, LimitCheckState, Profile, ProfileDetails } from "./lib/types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, LimitCheckState, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
+import { formatStorage } from "./lib/formatters"
 
-type Theme = "system" | "light" | "dark"
+export { formatStorage } from "./lib/formatters"
+
+type Theme = "light" | "dark"
 
 function initialTheme(): Theme {
   const saved = localStorage.getItem("multi-codex-theme")
-  if (saved === "system" || saved === "light" || saved === "dark") return saved
-  return "system"
+  if (saved === "light" || saved === "dark") return saved
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
-
-const nextTheme: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" }
 
 export default function App() {
   const [profiles, setProfiles] = useState<Profile[]>([])
@@ -56,12 +63,23 @@ export default function App() {
   const [showIntegration, setShowIntegration] = useState(false)
   const [integrationBusy, setIntegrationBusy] = useState(false)
   const [integrationError, setIntegrationError] = useState<string | null>(null)
-  const [storageBytes, setStorageBytes] = useState<number | null>(null)
+  const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null)
+  const [storageLoading, setStorageLoading] = useState(false)
+  const [storageError, setStorageError] = useState<string | null>(null)
+  const [showStorage, setShowStorage] = useState(false)
+  const [cacheTarget, setCacheTarget] = useState<ProfileStorageUsage | null>(null)
+  const [cacheBusy, setCacheBusy] = useState(false)
+  const [cacheError, setCacheError] = useState<string | null>(null)
+  const [launchEnvironment, setLaunchEnvironment] = useState<LaunchEnvironment | null>(null)
+  const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string } | null>(null)
+  const [launchBusy, setLaunchBusy] = useState(false)
+  const [creditsTarget, setCreditsTarget] = useState<{ profile: Profile; limits: ProfileLimits } | null>(null)
   const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
   const [refreshingAllLimits, setRefreshingAllLimits] = useState(false)
   const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
   const deviceLoginRef = useRef<typeof deviceLogin>(null)
   const refreshPromiseRef = useRef<Promise<void> | null>(null)
+  const nextThemeRevealRef = useRef<"expand" | "contract">("expand")
 
   const refresh = useCallback(() => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current
@@ -107,12 +125,20 @@ export default function App() {
     }).catch(() => undefined)
   }, [])
 
+  useEffect(() => {
+    void getLaunchEnvironment().then(setLaunchEnvironment).catch(() => undefined)
+  }, [])
+
   const refreshStorage = useCallback(async () => {
+    setStorageLoading(true)
     try {
       const usage = await getStorageUsage()
-      setStorageBytes(usage.bytes)
-    } catch {
-      // Storage is informational and should never block the main profile workflow.
+      setStorageUsage(usage)
+      setStorageError(null)
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setStorageLoading(false)
     }
   }, [])
 
@@ -130,14 +156,62 @@ export default function App() {
     }
   }, [refreshStorage])
 
+  const applyTheme = useCallback((next: Theme) => {
+    setTheme(next)
+    document.documentElement.classList.toggle("dark", next === "dark")
+    document.documentElement.dataset.theme = next
+    localStorage.setItem("multi-codex-theme", next)
+  }, [])
+
+  useEffect(() => { applyTheme(theme) }, [applyTheme, theme])
+
+  const toggleTheme = useCallback((source: HTMLElement | null = null) => {
+    const next: Theme = theme === "dark" ? "light" : "dark"
+    const root = document.documentElement
+    if (!source || typeof document.startViewTransition !== "function" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      applyTheme(next)
+      return
+    }
+    if (root.classList.contains("theme-transition")) return
+    const rect = source.getBoundingClientRect()
+    const x = rect.left + rect.width / 2
+    const y = rect.top + rect.height / 2
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+    root.style.setProperty("--theme-transition-x", `${x}px`)
+    root.style.setProperty("--theme-transition-y", `${y}px`)
+    root.style.setProperty("--theme-transition-radius", `${radius}px`)
+    root.dataset.themeReveal = nextThemeRevealRef.current
+    root.classList.add("theme-transition")
+    const cleanup = () => {
+      root.classList.remove("theme-transition")
+      delete root.dataset.themeReveal
+      root.style.removeProperty("--theme-transition-x")
+      root.style.removeProperty("--theme-transition-y")
+      root.style.removeProperty("--theme-transition-radius")
+    }
+    try {
+      const transition = document.startViewTransition(() => flushSync(() => applyTheme(next)))
+      transition.finished.then(cleanup, cleanup)
+      transition.ready.then(() => {
+        nextThemeRevealRef.current = nextThemeRevealRef.current === "expand" ? "contract" : "expand"
+      }, () => undefined)
+    } catch {
+      cleanup()
+      applyTheme(next)
+    }
+  }, [applyTheme, theme])
+
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)")
-    const apply = () => document.documentElement.classList.toggle("dark", theme === "dark" || (theme === "system" && media.matches))
-    apply()
-    localStorage.setItem("multi-codex-theme", theme)
-    media.addEventListener("change", apply)
-    return () => media.removeEventListener("change", apply)
-  }, [theme])
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || event.key.toLowerCase() !== "d") return
+      const target = event.target
+      if (target instanceof HTMLElement && (target.isContentEditable || ["input", "textarea", "select"].includes(target.tagName.toLowerCase()))) return
+      event.preventDefault()
+      toggleTheme()
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [toggleTheme])
 
   useEffect(() => {
     deviceLoginRef.current = deviceLogin
@@ -228,15 +302,37 @@ export default function App() {
   }
 
   async function handleLaunch(profile: Profile) {
-    const workspace = await chooseWorkspace()
-    if (!workspace) return
     try {
-      await launchProfile(profile.id, workspace)
+      const environment = launchEnvironment ?? await getLaunchEnvironment()
+      setLaunchEnvironment(environment)
+      const workspace = await chooseWorkspace(environment.defaultWorkspace)
+      if (!workspace) return
+      if (environment.hyprland) {
+        setLaunchRequest({ profile, workspace })
+        return
+      }
+      await launchProfile(profile.id, workspace, null)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "error", error: message } : item))
     }
     await refresh()
+  }
+
+  async function completeLaunch(desktop: number | null) {
+    if (!launchRequest || launchBusy) return
+    const request = launchRequest
+    setLaunchBusy(true)
+    setLaunchRequest(null)
+    try {
+      await launchProfile(request.profile.id, request.workspace, desktop)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setProfiles((current) => current.map((item) => item.id === request.profile.id ? { ...item, status: "error", error: message } : item))
+    } finally {
+      setLaunchBusy(false)
+      await refresh()
+    }
   }
 
   async function handleCheckLimits(profile: Profile) {
@@ -284,6 +380,21 @@ export default function App() {
     }
   }
 
+  async function handleClearCache() {
+    if (!cacheTarget || cacheBusy) return
+    setCacheBusy(true)
+    setCacheError(null)
+    try {
+      await clearProfileCache(cacheTarget.id)
+      await refreshStorage()
+      setCacheTarget(null)
+    } catch (error) {
+      setCacheError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setCacheBusy(false)
+    }
+  }
+
   function openAdd() {
     setDialogError(null)
     setDialogProfile(null)
@@ -324,10 +435,10 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
-            <div className="storage-status" title="Storage used by isolated Multi Codex profiles" aria-label={storageBytes == null ? "Calculating app storage" : `${formatStorage(storageBytes)} used by Multi Codex`}>
+            <button className="storage-status" type="button" title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
-              <span>{storageBytes == null ? "Calculating" : formatStorage(storageBytes)}</span>
-            </div>
+              <span>{storageUsage == null ? "Calculating" : formatStorage(storageUsage.bytes)}</span>
+            </button>
             {integrationStatus?.available && !integrationStatus.installed ? (
               <button
                 className="icon-button integration-button"
@@ -342,11 +453,11 @@ export default function App() {
             <button
               className="icon-button"
               type="button"
-              title={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
-              aria-label={`Theme: ${theme}. Use ${nextTheme[theme]} theme`}
-              onClick={() => setTheme((current) => nextTheme[current])}
+              title={`Use ${theme === "dark" ? "light" : "dark"} theme`}
+              aria-label={`Theme: ${theme}. Use ${theme === "dark" ? "light" : "dark"} theme`}
+              onClick={(event) => toggleTheme(event.currentTarget)}
             >
-              <HugeiconsIcon icon={theme === "system" ? ComputerIcon : theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
+              <HugeiconsIcon icon={theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
             </button>
             <button
               className="button secondary refresh-all-button"
@@ -394,6 +505,7 @@ export default function App() {
                   onLaunch={handleLaunch}
                   onEdit={(selected) => { setDialogError(null); setDialogProfile(selected) }}
                   onDelete={(selected) => { setDialogError(null); setDeleteTarget(selected) }}
+                  onShowResetCredits={(selected, limits) => setCreditsTarget({ profile: selected, limits })}
                 />
               ))}
             </div>
@@ -433,14 +545,39 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
+      {launchRequest ? (
+        <WorkspaceDialog
+          profile={launchRequest.profile}
+          workspace={launchRequest.workspace}
+          busy={launchBusy}
+          onCancel={() => setLaunchRequest(null)}
+          onChoose={(desktop) => void completeLaunch(desktop)}
+        />
+      ) : null}
+      {showStorage ? (
+        <StorageDialog
+          usage={storageUsage}
+          loading={storageLoading}
+          error={storageError}
+          profiles={profiles}
+          onClose={() => setShowStorage(false)}
+          onRefresh={() => void refreshStorage()}
+          onClear={(profile) => { setCacheError(null); setCacheTarget(profile) }}
+          onDelete={(profile) => { setShowStorage(false); setDialogError(null); setDeleteTarget(profile) }}
+        />
+      ) : null}
+      {cacheTarget ? (
+        <CacheConfirmDialog
+          profile={cacheTarget}
+          busy={cacheBusy}
+          error={cacheError}
+          onCancel={() => { setCacheError(null); setCacheTarget(null) }}
+          onConfirm={() => void handleClearCache()}
+        />
+      ) : null}
+      {creditsTarget ? (
+        <ResetCreditsDialog profileName={creditsTarget.profile.name} limits={creditsTarget.limits} onClose={() => setCreditsTarget(null)} />
+      ) : null}
     </main>
   )
-}
-
-export function formatStorage(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B"
-  const units = ["B", "KB", "MB", "GB", "TB"]
-  const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  const value = bytes / 1024 ** unit
-  return `${value >= 10 || unit === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unit]}`
 }

@@ -28,7 +28,20 @@ pub struct ProfileLimits {
     pub weekly: Option<LimitWindow>,
     pub monthly: Option<LimitWindow>,
     pub reset_credits_available: Option<u32>,
+    pub reset_credits: Option<Vec<ResetCredit>>,
     pub checked_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ResetCredit {
+    pub id: String,
+    pub status: String,
+    pub reset_type: String,
+    pub granted_at: i64,
+    pub expires_at: Option<i64>,
+    pub title: Option<String>,
+    pub description: Option<String>,
 }
 
 pub fn read_profile_limits(codex_home: &Path) -> Result<ProfileLimits> {
@@ -198,17 +211,28 @@ fn parse_limits_response(message: &Value, checked_at: DateTime<Utc>) -> Result<P
     let five_hour = find_window(snapshot, FIVE_HOUR_MINS)?;
     let weekly = find_window(snapshot, WEEKLY_MINS)?;
     let monthly = find_window(snapshot, MONTHLY_MINS)?;
-    let reset_credits_available = match result.get("rateLimitResetCredits") {
-        None | Some(Value::Null) => None,
+    let (reset_credits_available, reset_credits) = match result.get("rateLimitResetCredits") {
+        None | Some(Value::Null) => (None, None),
         Some(summary) => {
             let count = summary
                 .get("availableCount")
                 .and_then(Value::as_u64)
                 .ok_or_else(|| "Codex returned an invalid reset-credit count".to_string())?;
-            Some(
+            let available = Some(
                 u32::try_from(count)
                     .map_err(|_| "Codex returned an invalid reset-credit count".to_string())?,
-            )
+            );
+            let credits = match summary.get("credits") {
+                None | Some(Value::Null) => None,
+                Some(Value::Array(credits)) => Some(
+                    credits
+                        .iter()
+                        .map(parse_reset_credit)
+                        .collect::<Result<Vec<_>>>()?,
+                ),
+                Some(_) => return Err("Codex returned invalid reset-credit details".to_string()),
+            };
+            (available, credits)
         }
     };
 
@@ -217,7 +241,49 @@ fn parse_limits_response(message: &Value, checked_at: DateTime<Utc>) -> Result<P
         weekly,
         monthly,
         reset_credits_available,
+        reset_credits,
         checked_at,
+    })
+}
+
+fn parse_reset_credit(value: &Value) -> Result<ResetCredit> {
+    let field = |key: &str| {
+        value
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string)
+            .ok_or_else(|| "Codex returned invalid reset-credit details".to_string())
+    };
+    let granted_at = value
+        .get("grantedAt")
+        .and_then(Value::as_i64)
+        .filter(|timestamp| *timestamp >= 0)
+        .ok_or_else(|| "Codex returned invalid reset-credit details".to_string())?;
+    let expires_at = match value.get("expiresAt") {
+        None | Some(Value::Null) => None,
+        Some(value) => Some(
+            value
+                .as_i64()
+                .filter(|timestamp| *timestamp >= 0)
+                .ok_or_else(|| "Codex returned invalid reset-credit details".to_string())?,
+        ),
+    };
+    let optional_string = |key: &str| match value.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(value) => value
+            .as_str()
+            .map(|value| Some(value.to_string()))
+            .ok_or_else(|| "Codex returned invalid reset-credit details".to_string()),
+    };
+    Ok(ResetCredit {
+        id: field("id")?,
+        status: field("status")?,
+        reset_type: field("resetType")?,
+        granted_at,
+        expires_at,
+        title: optional_string("title")?,
+        description: optional_string("description")?,
     })
 }
 
@@ -288,6 +354,31 @@ mod tests {
         assert_eq!(limits.weekly.unwrap().remaining_percent, 28);
         assert_eq!(limits.monthly, None);
         assert_eq!(limits.reset_credits_available, Some(3));
+        assert_eq!(limits.reset_credits, None);
+    }
+
+    #[test]
+    fn parses_reset_credit_expiry_details_when_the_backend_provides_them() {
+        let response = json!({"id": 2, "result": {
+            "rateLimits": null,
+            "rateLimitResetCredits": {
+                "availableCount": 1,
+                "credits": [{
+                    "id": "credit-1",
+                    "status": "available",
+                    "resetType": "codexRateLimits",
+                    "grantedAt": 1_700_000_000,
+                    "expiresAt": 1_800_000_000,
+                    "title": "Usage reset",
+                    "description": "Restores the current usage window"
+                }]
+            }
+        }});
+        let limits = parse_limits_response(&response, checked_at()).unwrap();
+        let credit = &limits.reset_credits.unwrap()[0];
+        assert_eq!(credit.id, "credit-1");
+        assert_eq!(credit.expires_at, Some(1_800_000_000));
+        assert_eq!(credit.title.as_deref(), Some("Usage reset"));
     }
 
     #[test]
