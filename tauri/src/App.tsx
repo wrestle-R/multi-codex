@@ -19,12 +19,12 @@ import { ProfileRow } from "./components/profile-row"
 import { ResetCreditsDialog } from "./components/reset-credits-dialog"
 import { StorageDialog } from "./components/storage-dialog"
 import { WorkspaceDialog } from "./components/workspace-dialog"
+import { WorkspacePickerDialog } from "./components/workspace-picker-dialog"
 import {
   addProfile,
   beginDeviceLogin,
   cancelDeviceLogin,
   checkProfileLimits,
-  chooseWorkspace,
   clearProfileCache,
   deleteProfile,
   getDesktopIntegrationStatus,
@@ -72,6 +72,7 @@ export default function App() {
   const [cacheError, setCacheError] = useState<string | null>(null)
   const [launchEnvironment, setLaunchEnvironment] = useState<LaunchEnvironment | null>(null)
   const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string } | null>(null)
+  const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string } | null>(null)
   const [launchBusy, setLaunchBusy] = useState(false)
   const [creditsTarget, setCreditsTarget] = useState<{ profile: Profile; limits: ProfileLimits } | null>(null)
   const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
@@ -305,16 +306,27 @@ export default function App() {
     try {
       const environment = launchEnvironment ?? await getLaunchEnvironment()
       setLaunchEnvironment(environment)
-      const workspace = await chooseWorkspace(environment.defaultWorkspace)
-      if (!workspace) return
-      if (environment.hyprland) {
-        setLaunchRequest({ profile, workspace })
-        return
-      }
-      await launchProfile(profile.id, workspace, null)
+      setFolderRequest({ profile, initialPath: environment.defaultWorkspace })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "error", error: message } : item))
+    }
+    await refresh()
+  }
+
+  async function completeFolderSelection(workspace: string) {
+    if (!folderRequest) return
+    const request = folderRequest
+    setFolderRequest(null)
+    if (launchEnvironment?.hyprland) {
+      setLaunchRequest({ profile: request.profile, workspace })
+      return
+    }
+    try {
+      await launchProfile(request.profile.id, workspace, null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      setProfiles((current) => current.map((item) => item.id === request.profile.id ? { ...item, status: "error", error: message } : item))
     }
     await refresh()
   }
@@ -552,6 +564,14 @@ export default function App() {
           busy={launchBusy}
           onCancel={() => setLaunchRequest(null)}
           onChoose={(desktop) => void completeLaunch(desktop)}
+        />
+      ) : null}
+      {folderRequest ? (
+        <WorkspacePickerDialog
+          initialPath={folderRequest.initialPath}
+          busy={false}
+          onCancel={() => setFolderRequest(null)}
+          onChoose={(path) => void completeFolderSelection(path)}
         />
       ) : null}
       {showStorage ? (
