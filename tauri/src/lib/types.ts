@@ -66,6 +66,17 @@ export interface LaunchEnvironment {
   hyprland: boolean
 }
 
+export interface WorkspaceDirectory {
+  name: string
+  path: string
+}
+
+export interface WorkspaceDirectoryListing {
+  path: string
+  parentPath: string | null
+  directories: WorkspaceDirectory[]
+}
+
 export interface LimitCheckState {
   loading: boolean
   data?: ProfileLimits
