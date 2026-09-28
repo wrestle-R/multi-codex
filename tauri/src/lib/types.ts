@@ -32,11 +32,38 @@ export interface ProfileLimits {
   weekly: LimitWindow | null
   monthly: LimitWindow | null
   resetCreditsAvailable: number | null
+  resetCredits: ResetCredit[] | null
   checkedAt: string
+}
+
+export interface ResetCredit {
+  id: string
+  status: string
+  resetType: string
+  grantedAt: number
+  expiresAt: number | null
+  title?: string | null
+  description?: string | null
+}
+
+export interface ProfileStorageUsage {
+  id: string
+  name: string
+  bytes: number
+  reclaimableBytes: number
+  running: boolean
 }
 
 export interface StorageUsage {
   bytes: number
+  reclaimableBytes: number
+  otherBytes: number
+  profiles: ProfileStorageUsage[]
+}
+
+export interface LaunchEnvironment {
+  defaultWorkspace: string
+  hyprland: boolean
 }
 
 export interface LimitCheckState {

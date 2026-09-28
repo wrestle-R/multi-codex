@@ -5,7 +5,7 @@ import {
   Refresh01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import type { LimitCheckState, LimitWindow, Profile } from "../lib/types"
+import type { LimitCheckState, LimitWindow, Profile, ProfileLimits } from "../lib/types"
 
 interface ProfileRowProps {
   profile: Profile
@@ -14,6 +14,7 @@ interface ProfileRowProps {
   onLaunch: (profile: Profile) => void
   onEdit: (profile: Profile) => void
   onDelete: (profile: Profile) => void
+  onShowResetCredits: (profile: Profile, limits: ProfileLimits) => void
 }
 
 function resetLabel(window: LimitWindow | null): string {
@@ -53,7 +54,7 @@ function LimitMetric({ label, window }: { label: string; window: LimitWindow | n
   )
 }
 
-export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, onDelete }: ProfileRowProps) {
+export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, onDelete, onShowResetCredits }: ProfileRowProps) {
   const supportsLimits = profile.authMode.toLowerCase() === "chatgpt"
   const hasReportedWindow = Boolean(limits?.data?.fiveHour || limits?.data?.weekly || limits?.data?.monthly)
   const freeLimitsNotReported = profile.accountTier?.toLowerCase() === "free" && limits?.data && !hasReportedWindow
@@ -80,11 +81,11 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
             {!limits.data.monthly && !freeLimitsNotReported ? <LimitMetric label="5-hour" window={limits.data.fiveHour} /> : null}
             {!limits.data.monthly && !freeLimitsNotReported ? <LimitMetric label="Weekly" window={limits.data.weekly} /> : null}
             {freeLimitsNotReported ? <p className="free-limits-note">Free account limits not reported</p> : null}
-            <div className="reset-credit-metric">
+            <button className="reset-credit-metric" type="button" onClick={() => onShowResetCredits(profile, limits.data!)} aria-label={`Show reset-credit expiry for ${profile.name}`}>
               <span>Reset credits</span>
               <strong>{limits.data.resetCreditsAvailable ?? "Unavailable"}</strong>
-              <small>Checked {new Intl.DateTimeFormat(undefined, { timeStyle: "short" }).format(new Date(limits.data.checkedAt))}</small>
-            </div>
+              <small>{limits.data.resetCreditsAvailable == null ? "No details" : "View expiry"}</small>
+            </button>
           </div>
         ) : null}
         {limits?.error ? <p className="inline-error limits-error">{limits.error}</p> : null}

@@ -10,6 +10,7 @@ const api = vi.hoisted(() => ({
   beginDeviceLogin: vi.fn(),
   cancelDeviceLogin: vi.fn(),
   chooseWorkspace: vi.fn(),
+  clearProfileCache: vi.fn(),
   importCurrentProfile: vi.fn(),
   updateProfile: vi.fn(),
   checkProfileLimits: vi.fn(),
@@ -17,6 +18,7 @@ const api = vi.hoisted(() => ({
   launchProfile: vi.fn(),
   deleteProfile: vi.fn(),
   getDesktopIntegrationStatus: vi.fn(),
+  getLaunchEnvironment: vi.fn(),
   getStorageUsage: vi.fn(),
   installDesktopIntegration: vi.fn(),
 }))
@@ -41,6 +43,7 @@ beforeEach(() => {
   api.beginDeviceLogin.mockReset().mockResolvedValue("device-login")
   api.cancelDeviceLogin.mockReset().mockResolvedValue(undefined)
   api.chooseWorkspace.mockReset().mockResolvedValue("/home/user/Desktop")
+  api.clearProfileCache.mockReset().mockResolvedValue(256_000_000)
   api.importCurrentProfile.mockReset().mockResolvedValue(profile)
   api.updateProfile.mockReset().mockResolvedValue(profile)
   api.checkProfileLimits.mockReset().mockResolvedValue({
@@ -48,6 +51,9 @@ beforeEach(() => {
     weekly: { remainingPercent: 43, resetsAt: 1788998400 },
     monthly: null,
     resetCreditsAvailable: 2,
+    resetCredits: [
+      { id: "credit-1", status: "available", resetType: "codexRateLimits", grantedAt: 1788500000, expiresAt: 1893456000, title: "Usage reset" },
+    ],
     checkedAt: "2026-09-05T04:30:00Z",
   })
   api.launchProfile.mockReset().mockResolvedValue(undefined)
@@ -64,7 +70,13 @@ beforeEach(() => {
     version: "0.2.0",
     source: "package",
   })
-  api.getStorageUsage.mockReset().mockResolvedValue({ bytes: 9_876_543_210 })
+  api.getStorageUsage.mockReset().mockResolvedValue({
+    bytes: 9_876_543_210,
+    reclaimableBytes: 256_000_000,
+    otherBytes: 1_024,
+    profiles: [{ id: profile.id, name: profile.name, bytes: 9_876_542_186, reclaimableBytes: 256_000_000, running: false }],
+  })
+  api.getLaunchEnvironment.mockReset().mockResolvedValue({ defaultWorkspace: "/home/rdp/Desktop/code", hyprland: true })
   api.installDesktopIntegration.mockReset().mockResolvedValue({
     available: true,
     installed: true,
@@ -98,12 +110,21 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("button", { name: "Launch" })).toBeEnabled()
   })
 
-  it("asks for a workspace before launching an isolated profile", async () => {
+  it("starts in the preferred folder and launches on the current Hyprland desktop", async () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(await screen.findByRole("button", { name: "Launch" }))
-    expect(api.chooseWorkspace).toHaveBeenCalledTimes(1)
-    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/user/Desktop"))
+    expect(api.chooseWorkspace).toHaveBeenCalledWith("/home/rdp/Desktop/code")
+    await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/user/Desktop", null))
+  })
+
+  it("forwards a numbered Hyprland desktop after folder selection", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Open on desktop 7" }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/user/Desktop", 7))
   })
 
   it("starts browser device-code sign-in without asking for credential JSON", async () => {
@@ -231,6 +252,52 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("progressbar", { name: "5-hour usage remaining" })).toHaveAttribute("aria-valuenow", "76")
   })
 
+  it("opens reset-credit expiry details returned by Codex", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Check limits" }))
+    await user.click(await screen.findByRole("button", { name: `Show reset-credit expiry for ${profile.name}` }))
+    const dialog = screen.getByRole("dialog", { name: "Reset credits" })
+    expect(dialog).toHaveTextContent("Usage reset")
+    expect(dialog).toHaveTextContent(/Expires/)
+  })
+
+  it("explains when Codex returns a reset-credit count without expiry rows", async () => {
+    api.checkProfileLimits.mockResolvedValue({ fiveHour: null, weekly: null, monthly: null, resetCreditsAvailable: 2, resetCredits: null, checkedAt: "2026-09-05T04:30:00Z" })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Check limits" }))
+    await user.click(await screen.findByRole("button", { name: `Show reset-credit expiry for ${profile.name}` }))
+    expect(screen.getByRole("dialog", { name: "Reset credits" })).toHaveTextContent("did not provide expiry details")
+  })
+
+  it("shows per-profile storage and confirms safe cache cleanup", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: /used by Multi Codex.*View breakdown/ }))
+    const storage = await screen.findByRole("dialog", { name: "Profile storage" })
+    expect(storage).toHaveTextContent("Personal")
+    expect(storage).toHaveTextContent("Safe to clear")
+    await user.click(within(storage).getByRole("button", { name: /Clear 244 MB/ }))
+    const confirmation = screen.getByRole("alertdialog", { name: /Clear 244 MB from Personal/ })
+    expect(confirmation).toHaveTextContent("Credentials, conversations, settings, skills, plugins, and installed extensions stay intact")
+    await user.click(within(confirmation).getByRole("button", { name: "Clear cache" }))
+    await waitFor(() => expect(api.clearProfileCache).toHaveBeenCalledWith(profile.id))
+  })
+
+  it("disables cache cleanup while a profile is running", async () => {
+    api.getStorageUsage.mockResolvedValue({
+      bytes: 1_000,
+      reclaimableBytes: 500,
+      otherBytes: 0,
+      profiles: [{ id: profile.id, name: profile.name, bytes: 1_000, reclaimableBytes: 500, running: true }],
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: /used by Multi Codex.*View breakdown/ }))
+    expect(await screen.findByRole("button", { name: "In use" })).toBeDisabled()
+  })
+
   it("displays the monthly window returned for a free account", async () => {
     api.listProfiles.mockResolvedValue([{ ...profile, accountTier: "Free" }])
     api.checkProfileLimits.mockResolvedValue({
@@ -338,15 +405,26 @@ describe("Multi Codex", () => {
     await waitFor(() => expect(api.deleteProfile).toHaveBeenCalledWith(profile.id))
   })
 
-  it("cycles through system, light, and dark themes", async () => {
+  it("toggles and persists the Portfolio-style light and dark themes", async () => {
     const user = userEvent.setup()
     render(<App />)
-    const system = screen.getByRole("button", { name: "Theme: system. Use light theme" })
-    await user.click(system)
-    expect(screen.getByRole("button", { name: "Theme: light. Use dark theme" })).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Theme: light. Use dark theme" }))
     expect(document.documentElement).toHaveClass("dark")
     expect(localStorage.getItem("multi-codex-theme")).toBe("dark")
+    await user.keyboard("d")
+    expect(document.documentElement).not.toHaveClass("dark")
+    expect(localStorage.getItem("multi-codex-theme")).toBe("light")
+  })
+
+  it("does not use the D theme shortcut while editing a field", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Add account" }))
+    const input = screen.getByLabelText("Profile name")
+    await user.click(input)
+    await user.keyboard("d")
+    expect(input).toHaveValue("d")
+    expect(document.documentElement).not.toHaveClass("dark")
   })
 
   it("renders a recoverable loading error", async () => {

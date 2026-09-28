@@ -1,3 +1,4 @@
+mod desktop_environment;
 mod desktop_integration;
 mod profiles;
 mod usage;
@@ -6,6 +7,7 @@ use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
     default_service, resolve_codex_command, validate_auth_structure, CodexCliRecognizer,
     KeyringSecretStore, ProfileRuntime, ProfileService, ProfileView, SaveProfileInput,
+    StorageUsage,
 };
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
@@ -26,8 +28,9 @@ struct AppState {
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
-struct StorageUsage {
-    bytes: u64,
+struct LaunchEnvironment {
+    default_workspace: String,
+    hyprland: bool,
 }
 
 #[tauri::command]
@@ -243,11 +246,21 @@ fn cancel_device_login(id: String, state: State<'_, AppState>) -> Result<(), Str
 async fn launch_profile(
     id: String,
     workspace: String,
+    desktop: Option<u8>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    if desktop.is_some_and(|desktop| !(1..=10).contains(&desktop)) {
+        return Err("Desktop must be between 1 and 10".to_string());
+    }
     let service = Arc::clone(&state.service);
     tauri::async_runtime::spawn_blocking(move || {
-        service.launch_profile(&id, std::path::Path::new(&workspace))
+        let vscode_home = service.vscode_home(&id)?;
+        let previous = desktop.map(|_| desktop_environment::existing_window_addresses());
+        service.launch_profile(&id, std::path::Path::new(&workspace))?;
+        if let (Some(desktop), Some(previous)) = (desktop, previous) {
+            desktop_environment::move_new_vscode_window(&previous, &vscode_home, desktop)?;
+        }
+        Ok(())
     })
     .await
     .map_err(|_| "Could not launch the profile".to_string())?
@@ -275,10 +288,27 @@ async fn get_runtime_status(
 #[tauri::command]
 async fn get_storage_usage(state: State<'_, AppState>) -> Result<StorageUsage, String> {
     let service = Arc::clone(&state.service);
-    let bytes = tauri::async_runtime::spawn_blocking(move || service.storage_usage())
+    tauri::async_runtime::spawn_blocking(move || service.storage_usage())
         .await
-        .map_err(|_| "Could not calculate app storage".to_string())??;
-    Ok(StorageUsage { bytes })
+        .map_err(|_| "Could not calculate app storage".to_string())?
+}
+
+#[tauri::command]
+async fn clear_profile_cache(id: String, state: State<'_, AppState>) -> Result<u64, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.clear_profile_cache(&id))
+        .await
+        .map_err(|_| "Could not clear the profile cache".to_string())?
+}
+
+#[tauri::command]
+fn get_launch_environment() -> LaunchEnvironment {
+    LaunchEnvironment {
+        default_workspace: desktop_environment::default_workspace_root()
+            .to_string_lossy()
+            .into_owned(),
+        hyprland: desktop_environment::is_hyprland(),
+    }
 }
 
 #[tauri::command]
@@ -349,6 +379,7 @@ pub fn run() {
                 let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
                 window.set_icon(icon)?;
             }
+            desktop_environment::configure_main_window();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -363,6 +394,8 @@ pub fn run() {
             delete_profile,
             get_runtime_status,
             get_storage_usage,
+            clear_profile_cache,
+            get_launch_environment,
             check_profile_limits,
             get_desktop_integration_status,
             install_desktop_integration,
