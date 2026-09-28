@@ -199,6 +199,23 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 
 .workspace-dialog > p, .credits-dialog > p { margin: 0.65rem 0 0; color: var(--muted-foreground); line-height: 1.5; }
 .workspace-dialog > p strong { color: var(--foreground); }
+.folder-picker-dialog { width: min(760px, 100%); display: flex; flex-direction: column; overflow: hidden; }
+.folder-picker-dialog > .dialog-header { flex: 0 0 auto; }
+.folder-picker-hint { margin: 0.45rem 0 0.8rem; color: var(--muted-foreground); font-size: 0.84rem; }
+.folder-picker-location { min-height: 46px; display: flex; align-items: center; gap: 0.7rem; padding: 0.35rem 0.55rem; border: 1px solid var(--border); border-radius: 11px; background: color-mix(in oklab, var(--muted) 55%, transparent); }
+.folder-picker-location button, .folder-picker-retry { flex: 0 0 auto; padding: 0.4rem 0.65rem; border-radius: 8px; background: var(--muted); cursor: pointer; }
+.folder-picker-location button:disabled { opacity: 0.45; cursor: default; }
+.folder-picker-location span { overflow: hidden; color: var(--muted-foreground); font: 0.76rem/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; text-overflow: ellipsis; white-space: nowrap; }
+.folder-picker-list { min-height: 190px; max-height: min(43dvh, 380px); overflow: auto; margin-top: 0.65rem; padding: 0.3rem; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in oklab, var(--background) 55%, transparent); }
+.folder-picker-entry { width: 100%; min-height: 45px; display: grid; grid-template-columns: 27px minmax(0, 1fr) auto; align-items: center; gap: 0.55rem; padding: 0.45rem 0.6rem; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
+.folder-picker-entry:hover:not(:disabled) { background: var(--muted); }
+.folder-picker-entry > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folder-glyph { color: var(--primary); font-size: 1rem; }
+.folder-entry-open { color: var(--muted-foreground); font-size: 0.74rem; }
+.folder-picker-empty { display: grid; min-height: 175px; place-items: center; margin: 0; color: var(--muted-foreground); font-size: 0.84rem; text-align: center; }
+.folder-picker-list .form-error { padding: 1rem; }
+.folder-picker-retry { align-self: flex-start; margin-top: 0.55rem; }
+.folder-picker-actions { flex: 0 0 auto; margin-top: 0.8rem; }
 .desktop-current { width: 100%; margin-top: 1.1rem; display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1rem; border: 1px solid color-mix(in oklab, var(--primary) 30%, var(--border)); border-radius: 12px; color: var(--foreground); background: color-mix(in oklab, var(--primary) 8%, var(--card)); cursor: pointer; }
 .desktop-current span { font-weight: 700; }
 .desktop-current small { color: var(--muted-foreground); }

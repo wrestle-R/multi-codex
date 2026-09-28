@@ -11,6 +11,7 @@ use profiles::{
 };
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
@@ -26,11 +27,65 @@ struct AppState {
     device_logins: Arc<Mutex<HashMap<String, mpsc::Sender<()>>>>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LaunchEnvironment {
     default_workspace: String,
     hyprland: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDirectory {
+    name: String,
+    path: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceDirectoryListing {
+    path: String,
+    parent_path: Option<String>,
+    directories: Vec<WorkspaceDirectory>,
+}
+
+fn read_workspace_directories(requested_path: &str) -> Result<WorkspaceDirectoryListing, String> {
+    let path = Path::new(requested_path)
+        .canonicalize()
+        .map_err(|error| format!("Could not open this folder: {error}"))?;
+    if !path.is_dir() {
+        return Err("The selected path is not a folder".to_string());
+    }
+    let mut directories = std::fs::read_dir(&path)
+        .map_err(|error| format!("Could not read this folder: {error}"))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file_type = entry.file_type().ok()?;
+            if !file_type.is_dir() {
+                return None;
+            }
+            let entry_path = entry.path().canonicalize().ok()?;
+            Some(WorkspaceDirectory {
+                name: entry.file_name().to_string_lossy().into_owned(),
+                path: entry_path.to_string_lossy().into_owned(),
+            })
+        })
+        .collect::<Vec<_>>();
+    directories.sort_by_key(|entry| entry.name.to_lowercase());
+    Ok(WorkspaceDirectoryListing {
+        path: path.to_string_lossy().into_owned(),
+        parent_path: path
+            .parent()
+            .map(|parent| parent.to_string_lossy().into_owned()),
+        directories,
+    })
+}
+
+#[tauri::command]
+async fn list_workspace_directories(path: String) -> Result<WorkspaceDirectoryListing, String> {
+    tauri::async_runtime::spawn_blocking(move || read_workspace_directories(&path))
+        .await
+        .map_err(|_| "Could not read folders".to_string())?
 }
 
 #[tauri::command]
@@ -366,7 +421,6 @@ pub fn run() {
         std::process::exit(1);
     });
     tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             service: Arc::new(service),
             desktop_integration,
@@ -396,10 +450,72 @@ pub fn run() {
             get_storage_usage,
             clear_profile_cache,
             get_launch_environment,
+            list_workspace_directories,
             check_profile_limits,
             get_desktop_integration_status,
             install_desktop_integration,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Multi Codex");
+}
+
+#[cfg(test)]
+mod workspace_picker_tests {
+    use super::read_workspace_directories;
+    use std::fs;
+
+    #[test]
+    fn lists_only_directories_in_sorted_order_and_canonicalizes_location() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("zebra")).unwrap();
+        fs::create_dir(root.path().join("Alpha")).unwrap();
+        fs::write(root.path().join("notes.txt"), "not a folder").unwrap();
+
+        let listing = read_workspace_directories(root.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(
+            listing.path,
+            root.path().canonicalize().unwrap().to_string_lossy()
+        );
+        assert_eq!(
+            listing
+                .directories
+                .iter()
+                .map(|entry| entry.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Alpha", "zebra"]
+        );
+        assert_eq!(
+            listing.parent_path,
+            root.path()
+                .parent()
+                .map(|path| path.to_string_lossy().into_owned())
+        );
+    }
+
+    #[test]
+    fn rejects_missing_and_non_directory_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("file.txt");
+        fs::write(&file, "hello").unwrap();
+        assert!(read_workspace_directories(root.path().join("missing").to_str().unwrap()).is_err());
+        assert_eq!(
+            read_workspace_directories(file.to_str().unwrap()).unwrap_err(),
+            "The selected path is not a folder"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn does_not_follow_symlinked_directory_entries() {
+        use std::os::unix::fs::symlink;
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        fs::create_dir(outside.path().join("secret")).unwrap();
+        symlink(outside.path(), root.path().join("linked")).unwrap();
+
+        let listing = read_workspace_directories(root.path().to_str().unwrap()).unwrap();
+
+        assert!(listing.directories.is_empty());
+    }
 }

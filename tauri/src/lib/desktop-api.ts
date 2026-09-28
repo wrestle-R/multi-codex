@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage } from "./types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -99,13 +99,13 @@ export async function updateProfile(
   return demoProfiles.find((profile) => profile.id === id)!
 }
 
-export async function chooseWorkspace(defaultPath: string): Promise<string | null> {
-  if (isTauri) {
-    const { open } = await import("@tauri-apps/plugin-dialog")
-    const selected = await open({ directory: true, multiple: false, title: "Choose a workspace", defaultPath })
-    return typeof selected === "string" ? selected : null
+export async function listWorkspaceDirectories(path: string): Promise<WorkspaceDirectoryListing> {
+  if (isTauri) return invoke<WorkspaceDirectoryListing>("list_workspace_directories", { path })
+  return {
+    path,
+    parentPath: path === "/home/rdp/Desktop/code" ? "/home/rdp/Desktop" : null,
+    directories: [],
   }
-  return defaultPath
 }
 
 export async function launchProfile(id: string, workspace: string, desktop: number | null): Promise<void> {

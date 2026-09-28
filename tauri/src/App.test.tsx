@@ -9,7 +9,7 @@ const api = vi.hoisted(() => ({
   addProfile: vi.fn(),
   beginDeviceLogin: vi.fn(),
   cancelDeviceLogin: vi.fn(),
-  chooseWorkspace: vi.fn(),
+  listWorkspaceDirectories: vi.fn(),
   clearProfileCache: vi.fn(),
   importCurrentProfile: vi.fn(),
   updateProfile: vi.fn(),
@@ -42,7 +42,7 @@ beforeEach(() => {
   api.addProfile.mockReset().mockResolvedValue(profile)
   api.beginDeviceLogin.mockReset().mockResolvedValue("device-login")
   api.cancelDeviceLogin.mockReset().mockResolvedValue(undefined)
-  api.chooseWorkspace.mockReset().mockResolvedValue("/home/user/Desktop")
+  api.listWorkspaceDirectories.mockReset().mockImplementation(async (path: string) => ({ path, parentPath: "/home/rdp/Desktop", directories: [] }))
   api.clearProfileCache.mockReset().mockResolvedValue(256_000_000)
   api.importCurrentProfile.mockReset().mockResolvedValue(profile)
   api.updateProfile.mockReset().mockResolvedValue(profile)
@@ -110,21 +110,50 @@ describe("Multi Codex", () => {
     expect(screen.getByRole("button", { name: "Launch" })).toBeEnabled()
   })
 
-  it("starts in the preferred folder and launches on the current Hyprland desktop", async () => {
+  it("opens the in-app folder picker at the preferred folder before the desktop chooser", async () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(await screen.findByRole("button", { name: "Launch" }))
-    expect(api.chooseWorkspace).toHaveBeenCalledWith("/home/rdp/Desktop/code")
+    expect(await screen.findByRole("dialog", { name: "Choose a folder" })).toBeInTheDocument()
+    expect(api.listWorkspaceDirectories).toHaveBeenCalledWith("/home/rdp/Desktop/code")
+    await user.click(screen.getByRole("button", { name: "Choose this folder" }))
     await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
-    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/user/Desktop", null))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", null))
   })
 
   it("forwards a numbered Hyprland desktop after folder selection", async () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
     await user.click(await screen.findByRole("button", { name: "Open on desktop 7" }))
-    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/user/Desktop", 7))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", 7))
+  })
+
+  it("navigates folders in the in-app picker and uses the selected directory", async () => {
+    const user = userEvent.setup()
+    api.listWorkspaceDirectories.mockImplementation(async (path: string) => ({
+      path,
+      parentPath: "/home/rdp/Desktop/code",
+      directories: path.endsWith("/code") ? [{ name: "sample-project", path: `${path}/sample-project` }] : [],
+    }))
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: /sample-project/ }))
+    expect(await screen.findByText("No subfolders here. You can choose this folder.")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Choose this folder" }))
+    await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code/sample-project", null))
+  })
+
+  it("cancels folder selection without launching or showing the desktop chooser", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Cancel" }))
+    expect(api.launchProfile).not.toHaveBeenCalled()
+    expect(screen.queryByRole("dialog", { name: "Choose a folder" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: "Choose a desktop" })).not.toBeInTheDocument()
   })
 
   it("starts browser device-code sign-in without asking for credential JSON", async () => {
