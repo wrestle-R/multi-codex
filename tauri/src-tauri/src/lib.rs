@@ -488,6 +488,8 @@ mod workspace_picker_tests {
         assert_eq!(
             listing.parent_path,
             root.path()
+                .canonicalize()
+                .unwrap()
                 .parent()
                 .map(|path| path.to_string_lossy().into_owned())
         );
