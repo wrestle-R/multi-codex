@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage } from "./types"
+import type { DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -11,6 +11,7 @@ let demoProfiles: Profile[] = [
     notes: "Personal projects and experiments",
     createdAt: "2026-09-01T09:30:00Z",
     updatedAt: "2026-09-04T08:10:00Z",
+    accountTier: "Free",
     status: "idle",
   },
   {
@@ -20,7 +21,18 @@ let demoProfiles: Profile[] = [
     notes: "Client work",
     createdAt: "2026-09-02T11:20:00Z",
     updatedAt: "2026-09-04T07:45:00Z",
+    accountTier: "Plus",
     status: "running",
+  },
+  {
+    id: "demo-studio",
+    name: "Studio",
+    authMode: "ChatGPT",
+    notes: "Shared projects and experiments",
+    createdAt: "2026-09-03T11:20:00Z",
+    updatedAt: "2026-09-04T07:30:00Z",
+    accountTier: "Go",
+    status: "idle",
   },
 ]
 
@@ -87,17 +99,17 @@ export async function updateProfile(
   return demoProfiles.find((profile) => profile.id === id)!
 }
 
-export async function chooseWorkspace(): Promise<string | null> {
+export async function chooseWorkspace(defaultPath: string): Promise<string | null> {
   if (isTauri) {
     const { open } = await import("@tauri-apps/plugin-dialog")
-    const selected = await open({ directory: true, multiple: false, title: "Choose a workspace" })
+    const selected = await open({ directory: true, multiple: false, title: "Choose a workspace", defaultPath })
     return typeof selected === "string" ? selected : null
   }
-  return "/home/user/Desktop"
+  return defaultPath
 }
 
-export async function launchProfile(id: string, workspace: string): Promise<void> {
-  if (isTauri) return invoke("launch_profile", { id, workspace })
+export async function launchProfile(id: string, workspace: string, desktop: number | null): Promise<void> {
+  if (isTauri) return invoke("launch_profile", { id, workspace, desktop })
   demoProfiles = demoProfiles.map((profile) =>
     profile.id === id ? { ...profile, status: "running" } : profile,
   )
@@ -122,6 +134,10 @@ export async function checkProfileLimits(id: string): Promise<ProfileLimits> {
     weekly: { remainingPercent: 81, resetsAt: now + 4 * 24 * 60 * 60 },
     monthly: null,
     resetCreditsAvailable: 2,
+    resetCredits: [
+      { id: "demo-credit-1", status: "available", resetType: "codexRateLimits", grantedAt: now - 3600, expiresAt: now + 2 * 24 * 60 * 60, title: "Usage reset" },
+      { id: "demo-credit-2", status: "available", resetType: "codexRateLimits", grantedAt: now - 3600, expiresAt: now + 5 * 24 * 60 * 60, title: "Usage reset" },
+    ],
     checkedAt: new Date().toISOString(),
   }
 }
@@ -129,7 +145,29 @@ export async function checkProfileLimits(id: string): Promise<ProfileLimits> {
 export async function getStorageUsage(): Promise<StorageUsage> {
   if (isTauri) return invoke<StorageUsage>("get_storage_usage")
   await wait()
-  return { bytes: 9_876_543_210 }
+  return {
+    bytes: 9_876_543_210,
+    reclaimableBytes: 2_143_000_000,
+    otherBytes: 12_000,
+    profiles: demoProfiles.map((profile, index) => ({
+      id: profile.id,
+      name: profile.name,
+      bytes: index === 0 ? 3_900_000_000 : index === 1 ? 3_100_000_000 : 2_876_531_210,
+      reclaimableBytes: index === 0 ? 980_000_000 : index === 1 ? 720_000_000 : 443_000_000,
+      running: profile.status === "running",
+    })),
+  }
+}
+
+export async function clearProfileCache(id: string): Promise<number> {
+  if (isTauri) return invoke<number>("clear_profile_cache", { id })
+  const usage = await getStorageUsage()
+  return usage.profiles.find((profile) => profile.id === id)?.reclaimableBytes ?? 0
+}
+
+export async function getLaunchEnvironment(): Promise<LaunchEnvironment> {
+  if (isTauri) return invoke<LaunchEnvironment>("get_launch_environment")
+  return { defaultWorkspace: "/home/rdp/Desktop/code", hyprland: true }
 }
 
 export async function getDesktopIntegrationStatus(): Promise<DesktopIntegrationStatus> {
