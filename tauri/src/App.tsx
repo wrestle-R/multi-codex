@@ -13,6 +13,7 @@ import "./App.css"
 import { BrandMark } from "./components/brand-mark"
 import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
 import { ConfirmDialog } from "./components/confirm-dialog"
+import { LaunchSettingsDialog } from "./components/launch-settings-dialog"
 import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
 import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
@@ -28,6 +29,7 @@ import {
   clearProfileCache,
   deleteProfile,
   getDesktopIntegrationStatus,
+  discardPlacement,
   getLaunchEnvironment,
   getStorageUsage,
   importCurrentProfile,
@@ -73,7 +75,11 @@ export default function App() {
   const [launchEnvironment, setLaunchEnvironment] = useState<LaunchEnvironment | null>(null)
   const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string } | null>(null)
   const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string } | null>(null)
+  const [showLaunchSettings, setShowLaunchSettings] = useState(false)
   const [launchBusy, setLaunchBusy] = useState(false)
+  const [launchError, setLaunchError] = useState<string | null>(null)
+  const [placementToken, setPlacementToken] = useState<string | null>(null)
+  const launchLock = useRef(false)
   const [creditsTarget, setCreditsTarget] = useState<{ profile: Profile; limits: ProfileLimits } | null>(null)
   const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
   const [refreshingAllLimits, setRefreshingAllLimits] = useState(false)
@@ -318,30 +324,38 @@ export default function App() {
     if (!folderRequest) return
     const request = folderRequest
     setFolderRequest(null)
-    if (launchEnvironment?.hyprland) {
-      setLaunchRequest({ profile: request.profile, workspace })
-      return
-    }
-    try {
-      await launchProfile(request.profile.id, workspace, null)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      setProfiles((current) => current.map((item) => item.id === request.profile.id ? { ...item, status: "error", error: message } : item))
-    }
-    await refresh()
+    setLaunchError(null)
+    setPlacementToken(null)
+    setLaunchRequest({ profile: request.profile, workspace })
   }
 
-  async function completeLaunch(desktop: number | null) {
-    if (!launchRequest || launchBusy) return
-    const request = launchRequest
-    setLaunchBusy(true)
+  function cancelLaunch() {
+    if (launchLock.current) return
+    if (placementToken) void discardPlacement(placementToken).catch(() => undefined)
     setLaunchRequest(null)
+    setPlacementToken(null)
+    setLaunchError(null)
+  }
+
+  async function completeLaunch(desktop: string | null) {
+    if (!launchRequest || launchLock.current) return
+    const request = launchRequest
+    launchLock.current = true
+    setLaunchBusy(true)
+    setLaunchError(null)
     try {
-      await launchProfile(request.profile.id, request.workspace, desktop)
+      const result = await launchProfile(request.profile.id, request.workspace, desktop, placementToken)
+      if (result.completed) {
+        setLaunchRequest(null)
+        setPlacementToken(null)
+      } else {
+        setPlacementToken(result.retryToken)
+        setLaunchError(result.error ?? "Could not verify desktop placement")
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      setProfiles((current) => current.map((item) => item.id === request.profile.id ? { ...item, status: "error", error: message } : item))
+      setLaunchError(error instanceof Error ? error.message : String(error))
     } finally {
+      launchLock.current = false
       setLaunchBusy(false)
       await refresh()
     }
@@ -447,6 +461,7 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
+            <button className="button secondary" type="button" onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
             <button className="storage-status" type="button" title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
               <span>{storageUsage == null ? "Calculating" : formatStorage(storageUsage.bytes)}</span>
@@ -557,12 +572,15 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
+      {showLaunchSettings ? <LaunchSettingsDialog onClose={() => setShowLaunchSettings(false)} /> : null}
       {launchRequest ? (
         <WorkspaceDialog
           profile={launchRequest.profile}
           workspace={launchRequest.workspace}
           busy={launchBusy}
-          onCancel={() => setLaunchRequest(null)}
+          error={launchError}
+          alreadyOpened={placementToken !== null}
+          onCancel={cancelLaunch}
           onChoose={(desktop) => void completeLaunch(desktop)}
         />
       ) : null}
