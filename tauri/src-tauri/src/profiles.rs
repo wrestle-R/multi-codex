@@ -531,17 +531,28 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         write_codex_config(&paths.codex_home)?;
         let auth_path = paths.codex_home.join("auth.json");
         self.current_profile_credential(id)?;
+        let launch_workspace = create_launch_workspace(
+            &self.data_root,
+            paths
+                .vscode_home
+                .parent()
+                .ok_or("Profile directory unavailable")?,
+            &workspace,
+        )?;
 
         let mut command = build_vscode_command_with(
             code,
             &paths.codex_home,
             &paths.vscode_home,
             &paths.extensions_dir,
-            &workspace,
+            &launch_workspace,
         );
         let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
+                if let Some(directory) = launch_workspace.parent() {
+                    let _ = remove_managed_tree(&self.data_root, directory);
+                }
                 let message = format!("Could not launch VS Code: {error}");
                 self.set_error(id, message.clone());
                 return Err(message);
@@ -1149,6 +1160,35 @@ fn remove_managed_tree(root: &Path, path: &Path) -> Result<()> {
         .map_err(|error| format!("Could not delete isolated profile data: {error}"))
 }
 
+// VS Code can reuse an already-open folder even with --new-window. A separate
+// single-folder workspace gives every launch its own window identity. Keep the
+// descriptor for VS Code session restore; project files and profile homes stay put.
+pub(crate) fn create_launch_workspace(
+    data_root: &Path,
+    profile_root: &Path,
+    workspace: &Path,
+) -> Result<PathBuf> {
+    let directory = profile_root
+        .join("launch-workspaces")
+        .join(Uuid::new_v4().to_string());
+    ensure_private_managed_dir(data_root, &directory)?;
+    let mut name = workspace
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("Workspace")
+        .to_string();
+    while name.len() > 160 {
+        name.pop();
+    }
+    let path = directory.join(format!("{name}.code-workspace"));
+    let contents = serde_json::to_vec_pretty(&serde_json::json!({
+        "folders": [{ "path": workspace.to_str().ok_or("Workspace path is not valid UTF-8")? }]
+    }))
+    .map_err(|error| error.to_string())?;
+    write_private_file(&path, &contents)?;
+    Ok(path)
+}
+
 fn build_vscode_command_with(
     code: &Path,
     codex_home: &Path,
@@ -1164,7 +1204,11 @@ fn build_vscode_command_with(
         .arg("--extensions-dir")
         .arg(extensions_dir)
         .arg(workspace)
-        .env("CODEX_HOME", codex_home);
+        .env("CODEX_HOME", codex_home)
+        .env_remove("VSCODE_IPC_HOOK_CLI")
+        .env_remove("VSCODE_PID")
+        .env_remove("VSCODE_CWD")
+        .env_remove("ELECTRON_RUN_AS_NODE");
     command
 }
 
@@ -1907,12 +1951,12 @@ mod tests {
     fn repeat_launches_use_new_windows_and_keep_the_profile_credential() {
         let (temp, service) = fixture();
         let profile = service.add_profile(sample_input("Work")).unwrap();
-        let workspace = temp.path().join("workspace");
+        let workspace = temp.path().join("workspace 工具 with spaces");
         fs::create_dir(&workspace).unwrap();
         let launcher = temp.path().join("bin/code");
         write_executable(
             &launcher,
-            b"#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$(dirname \"$0\")/launches\"\nsh -c 'sleep 1' multi-codex-profile \"$@\" &\n",
+            b"#!/bin/sh\nfor arg; do last=\"$arg\"; done\nprintf '%s\\n' \"$last\" >> \"$(dirname \"$0\")/launches\"\nsh -c 'sleep 1' multi-codex-profile \"$@\" &\n",
         );
 
         service
@@ -1936,12 +1980,27 @@ mod tests {
             std::thread::sleep(Duration::from_millis(20));
         };
         assert_eq!(requests.lines().count(), 2);
-        assert!(requests
-            .lines()
-            .all(|request| request.contains("--new-window")));
-        assert!(requests
-            .lines()
-            .all(|request| request.contains(workspace.to_str().unwrap())));
+        let descriptors: Vec<_> = requests.lines().map(PathBuf::from).collect();
+        assert_ne!(descriptors[0], descriptors[1]);
+        for descriptor in descriptors {
+            assert_eq!(descriptor.extension().unwrap(), "code-workspace");
+            let contents: serde_json::Value =
+                serde_json::from_slice(&fs::read(&descriptor).unwrap()).unwrap();
+            assert_eq!(contents["folders"][0]["path"], workspace.to_str().unwrap());
+            assert_eq!(
+                fs::metadata(&descriptor).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+            assert_eq!(
+                fs::metadata(descriptor.parent().unwrap())
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o700
+            );
+        }
+        assert_eq!(fs::read_dir(&workspace).unwrap().count(), 0);
 
         std::thread::sleep(Duration::from_millis(1200));
         let auth_path = service
@@ -1969,6 +2028,27 @@ mod tests {
             .codex_home
             .join("auth.json");
         assert_eq!(fs::read_to_string(auth_path).unwrap(), sample_auth());
+        let launch_root = service
+            .data_root
+            .join("profiles")
+            .join(&profile.metadata.id)
+            .join("launch-workspaces");
+        assert_eq!(fs::read_dir(launch_root).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn launch_workspaces_refuse_symlink_escapes() {
+        let (temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        let profile_root = service
+            .data_root
+            .join("profiles")
+            .join(&profile.metadata.id);
+        let outside = temp.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        symlink(&outside, profile_root.join("launch-workspaces")).unwrap();
+        assert!(create_launch_workspace(&service.data_root, &profile_root, &outside).is_err());
+        assert_eq!(fs::read_dir(outside).unwrap().count(), 0);
     }
 
     #[test]
@@ -2022,6 +2102,16 @@ mod tests {
                 .unwrap(),
             codex.as_os_str()
         );
+        for key in [
+            "VSCODE_IPC_HOOK_CLI",
+            "VSCODE_PID",
+            "VSCODE_CWD",
+            "ELECTRON_RUN_AS_NODE",
+        ] {
+            assert!(command
+                .get_envs()
+                .any(|(name, value)| name == key && value.is_none()));
+        }
     }
 
     #[test]
