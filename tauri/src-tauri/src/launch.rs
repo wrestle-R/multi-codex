@@ -50,7 +50,8 @@ impl DesktopControl for NativeDesktopControl {
     fn validate_window(&self, window: &str, home: &Path) -> Result<()> {
         let snapshot = desktop_environment::inventory()?;
         if snapshot.windows().iter().any(|candidate| {
-            candidate.id == window && crate::profiles::process_uses_profile(candidate.pid, home)
+            candidate.id == window
+                && crate::profiles::window_process_uses_profile(candidate.pid, home)
         }) {
             Ok(())
         } else {
@@ -97,6 +98,23 @@ impl LaunchCoordinator {
             desktop,
             retry,
         } = request;
+        // "Open here" must also wait for the new window and place it onto the
+        // launcher's desktop. An existing profile can otherwise reopen elsewhere.
+        // Accepting a failed placement with a retry token still means keep it as-is.
+        let current_destination = if desktop.is_none() && retry.is_none() {
+            control
+                .inventory()
+                .ok()
+                .filter(|snapshot| snapshot.capabilities.move_windows)
+                .and_then(|snapshot| {
+                    snapshot
+                        .current_destination(std::process::id())
+                        .map(str::to_owned)
+                })
+        } else {
+            None
+        };
+        let desktop = desktop.or(current_destination.as_deref());
         self.pending
             .retain(|_, p| p.created.elapsed() < Duration::from_secs(1800));
         let token = if let Some(token) = retry {
@@ -231,6 +249,56 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn current_desktop_waits_for_identification_and_verified_placement() {
+        struct Current {
+            control: Fake,
+            moves: Cell<usize>,
+        }
+        impl DesktopControl for Current {
+            fn inventory(&self) -> Result<DesktopInventory> {
+                let mut snapshot = self.control.inventory()?;
+                snapshot.desktops[0].current = true;
+                Ok(snapshot)
+            }
+            fn find_window(&self, previous: &HashSet<String>, home: &Path) -> Result<String> {
+                self.control.find_window(previous, home)
+            }
+            fn validate_window(&self, window: &str, home: &Path) -> Result<()> {
+                self.control.validate_window(window, home)
+            }
+            fn move_window(&self, window: &str, desktop: &str) -> Result<()> {
+                assert_eq!(window, "new-window");
+                assert_eq!(desktop, "fake:12");
+                self.moves.set(self.moves.get() + 1);
+                self.control.move_window(window, desktop)
+            }
+        }
+        let control = Current {
+            control: Fake {
+                fail: Cell::new(false),
+                valid: Cell::new(true),
+            },
+            moves: Cell::new(0),
+        };
+        let mut coordinator = LaunchCoordinator::default();
+        let result = coordinator
+            .execute(
+                LaunchRequest {
+                    profile: "profile",
+                    workspace: "/workspace",
+                    home: Path::new("/profile"),
+                    desktop: None,
+                    retry: None,
+                },
+                || Ok(()),
+                &control,
+            )
+            .unwrap();
+        assert!(result.completed);
+        assert_eq!(control.moves.get(), 1);
+    }
+
     #[test]
     fn concurrent_launches_use_the_production_serialization_entrypoint() {
         use std::sync::{

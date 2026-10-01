@@ -111,6 +111,7 @@ export interface DesktopWindow {
   pid: number
   application: string
   title: string
+  icon?: string | null
 }
 
 export interface Desktop {

@@ -204,11 +204,17 @@ export async function getDesktopInventory(): Promise<DesktopInventory> {
   return {
     protocolVersion: 1,
     capabilities: { backend: "preview", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null },
-    desktops: [
-      { id: "preview:1", name: "Browse", monitor: "Main display", current: true, windows: [{ id: "browser", pid: 1, application: "Browser", title: "Documentation" }] },
-      { id: "preview:2", name: "Code", monitor: "Main display", current: false, windows: [{ id: "code", pid: 2, application: "Visual Studio Code", title: "Project — Visual Studio Code" }] },
-      { id: "preview:3", name: "Desktop 3", monitor: "Main display", current: false, windows: [] },
-    ],
+    desktops: Array.from({ length: 10 }, (_, index) => ({
+      id: `preview:${index + 1}`,
+      name: `Desktop ${index + 1}`,
+      monitor: "Main display",
+      current: index === 5,
+      windows: index === 0 ? [{ id: "browser", pid: 1, application: "Zen Browser", title: "Documentation" }]
+        : index === 3 ? [{ id: "code", pid: 2, application: "Visual Studio Code", title: "Project — Visual Studio Code" }, { id: "reference", pid: 3, application: "Firefox", title: "API reference" }]
+        : index === 4 ? [{ id: "code-second", pid: 4, application: "Visual Studio Code", title: "Welcome — Visual Studio Code" }]
+        : index === 5 ? [{ id: "launcher", pid: 5, application: "Multi Codex", title: "Accounts" }]
+        : [],
+    })),
   }
 }
 

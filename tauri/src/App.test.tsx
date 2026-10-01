@@ -145,6 +145,36 @@ describe("Multi Codex", () => {
     await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", "hyprland:7", null))
   })
 
+  it("shows ten desktops with grouped application icons and returns to accounts after placement", async () => {
+    api.getDesktopInventory.mockResolvedValue({
+      protocolVersion: 1,
+      capabilities: { backend: "hyprland", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null },
+      desktops: Array.from({ length: 10 }, (_, index) => ({
+        id: `hyprland:${index + 1}`, name: `Desktop ${index + 1}`, monitor: "Main display", current: index === 5,
+        windows: index === 3 ? [
+          { id: "code-one", pid: 42, application: "Visual Studio Code", title: "First project", icon: "data:image/png;base64,test" },
+          { id: "code-two", pid: 42, application: "Visual Studio Code", title: "Second project", icon: "data:image/png;base64,test" },
+        ] : [],
+      })),
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+    const grid = await screen.findByLabelText("Available desktops")
+    await waitFor(() => expect(within(grid).getAllByRole("button")).toHaveLength(10))
+    const fourth = within(grid).getByRole("button", { name: "Open on Desktop 4" })
+    expect(fourth).toHaveTextContent("2 windows")
+    expect(within(fourth).getAllByRole("img", { name: "Visual Studio Code" })).toHaveLength(1)
+    expect(await screen.findByText("First project")).toBeVisible()
+    fireEvent.error(within(fourth).getByRole("img"))
+    expect(within(fourth).getByRole("img")).toHaveTextContent("V")
+    await user.click(within(grid).getByRole("button", { name: "Open on Desktop 10" }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", "hyprland:10", null))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose a desktop" })).not.toBeInTheDocument())
+    expect(screen.getByRole("heading", { name: "Personal" })).toBeVisible()
+  })
+
   it("shows window titles and empty desktops, keeping placement failures retryable", async () => {
     const user = userEvent.setup()
     api.launchProfile.mockResolvedValueOnce({ completed: false, error: "Permission denied", retryToken: "placement-1" })

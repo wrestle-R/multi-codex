@@ -28,6 +28,8 @@ pub struct DesktopWindow {
     pub pid: u32,
     pub application: String,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -49,6 +51,19 @@ pub struct DesktopInventory {
 }
 
 impl DesktopInventory {
+    pub fn current_destination(&self, launcher_pid: u32) -> Option<&str> {
+        let mut current = self.desktops.iter().filter(|desktop| desktop.current);
+        if let Some(desktop) = current.clone().find(|desktop| {
+            desktop
+                .windows
+                .iter()
+                .any(|window| window.pid == launcher_pid)
+        }) {
+            return Some(&desktop.id);
+        }
+        let only = current.next()?;
+        current.next().is_none().then_some(only.id.as_str())
+    }
     pub fn windows(&self) -> Vec<DesktopWindow> {
         let mut seen = HashSet::new();
         self.desktops
@@ -159,6 +174,18 @@ pub fn inventory() -> Result<DesktopInventory> {
     }
 }
 
+pub fn inventory_with_icons() -> Result<DesktopInventory> {
+    let snapshot = inventory()?;
+    #[cfg(target_os = "linux")]
+    {
+        let mut snapshot = snapshot;
+        crate::application_icons::decorate(&mut snapshot);
+        Ok(snapshot)
+    }
+    #[cfg(not(target_os = "linux"))]
+    Ok(snapshot)
+}
+
 pub fn capabilities() -> DesktopCapabilities {
     inventory()
         .unwrap_or_else(|error| unsupported_inventory(backend(), error))
@@ -188,6 +215,17 @@ fn group_hyprland(
     clients: Vec<HyprClient>,
     monitors: Vec<HyprMonitor>,
 ) -> DesktopInventory {
+    // Hyprland creates workspaces lazily. These are valid compositor destinations
+    // even before a window has caused the workspace to appear in `workspaces`.
+    for id in 1..=10 {
+        if !workspaces.iter().any(|workspace| workspace.id == id) {
+            workspaces.push(HyprWorkspace {
+                id,
+                name: id.to_string(),
+                monitor: String::new(),
+            });
+        }
+    }
     let active: HashMap<i32, String> = monitors
         .into_iter()
         .map(|m| (m.active_workspace.id, m.name))
@@ -198,7 +236,11 @@ fn group_hyprland(
         .into_iter()
         .map(|w| Desktop {
             id: format!("hyprland:{}", w.id),
-            name: w.name,
+            name: if w.name == w.id.to_string() {
+                format!("Desktop {}", w.id)
+            } else {
+                w.name
+            },
             monitor: active
                 .get(&w.id)
                 .cloned()
@@ -212,6 +254,7 @@ fn group_hyprland(
                     pid: c.pid,
                     application: c.class.clone(),
                     title: c.title.clone(),
+                    icon: None,
                 })
                 .collect(),
         })
@@ -305,7 +348,7 @@ pub fn find_new_window(previous: &HashSet<String>, vscode_home: &Path) -> Result
             .into_iter()
             .filter(|c| {
                 !previous.contains(&c.id)
-                    && crate::profiles::process_uses_profile(c.pid, vscode_home)
+                    && crate::profiles::window_process_uses_profile(c.pid, vscode_home)
             })
             .collect();
         match candidates.as_slice() {
@@ -371,14 +414,141 @@ mod tests {
     #[test]
     #[ignore = "requires a live Hyprland session; reads inventory only"]
     fn live_hyprland_inventory() {
-        let inventory = hypr_inventory().unwrap();
+        let inventory = inventory_with_icons().unwrap();
         assert!(inventory.capabilities.enumerate_desktops);
+        for id in 1..=10 {
+            assert!(inventory
+                .require_destination(&format!("hyprland:{id}"))
+                .is_ok());
+        }
         assert!(inventory.desktops.iter().any(|d| d.current));
+        if let Ok(home) = env::var("MULTI_CODEX_TEST_EXISTING_HOME") {
+            assert!(inventory.windows().iter().any(|window| {
+                crate::profiles::window_process_uses_profile(window.pid, Path::new(&home))
+            }));
+        }
+        assert!(inventory
+            .windows()
+            .iter()
+            .filter(|window| matches!(
+                window.application.as_str(),
+                "Visual Studio Code" | "Zen Browser" | "Multi Codex"
+            ))
+            .all(|window| window.icon.is_some()));
         println!(
             "Verified live Hyprland inventory: {} desktops, {} windows",
             inventory.desktops.len(),
             inventory.windows().len()
         );
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    #[ignore = "opens disposable VS Code windows in a live Hyprland session"]
+    fn live_hyprland_vscode_placement() {
+        assert_eq!(
+            env::var("MULTI_CODEX_TEST_HYPR_PLACEMENT").as_deref(),
+            Ok("1")
+        );
+        let before = hypr_inventory().unwrap();
+        let previous: HashSet<_> = before
+            .windows()
+            .into_iter()
+            .map(|window| window.id)
+            .collect();
+        let clients = hypr_json::<Vec<HyprClient>>("clients").unwrap();
+        let executable = clients
+            .iter()
+            .filter(|client| client.class.to_lowercase().contains("code"))
+            .find_map(|client| std::fs::read_link(format!("/proc/{}/exe", client.pid)).ok())
+            .expect("requires an installed/running VS Code binary");
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("Profile 工具/vscode-user-data");
+        let workspace = root.path().join("Multi Codex placement test");
+        std::fs::create_dir_all(home.join("User")).unwrap();
+        std::fs::create_dir_all(&workspace).unwrap();
+        std::fs::write(home.join("User/settings.json"), r#"{"update.mode":"none","telemetry.telemetryLevel":"off","workbench.startupEditor":"none"}"#).unwrap();
+        let mut child = Command::new(&executable)
+            .arg("--new-window")
+            .arg("--disable-extensions")
+            .arg("--user-data-dir")
+            .arg(&home)
+            .arg("--extensions-dir")
+            .arg(root.path().join("extensions"))
+            .arg(&workspace)
+            .env("CODEX_HOME", root.path().join("codex-home"))
+            .env_remove("ELECTRON_RUN_AS_NODE")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let result = (|| -> Result<()> {
+            let window = find_new_window(&previous, &home)?;
+            let destination = (1..=10)
+                .rev()
+                .find(|id| {
+                    before
+                        .desktops
+                        .iter()
+                        .any(|d| d.id == format!("hyprland:{id}") && d.windows.is_empty())
+                })
+                .ok_or("requires an empty desktop")?;
+            move_window(&window, &format!("hyprland:{destination}"))?;
+            assert!(hypr_inventory()?
+                .desktops
+                .iter()
+                .any(|d| d.id == format!("hyprland:{destination}")
+                    && d.windows.iter().any(|w| w.id == window)));
+            // An existing profile process must still produce a distinct, identifiable new window.
+            let first_snapshot: HashSet<_> = hypr_inventory()?
+                .windows()
+                .into_iter()
+                .map(|w| w.id)
+                .collect();
+            Command::new(crate::profiles::resolve_command("code")?)
+                .arg("--new-window")
+                .arg("--disable-extensions")
+                .arg("--user-data-dir")
+                .arg(&home)
+                .arg("--extensions-dir")
+                .arg(root.path().join("extensions"))
+                .arg(&workspace)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .map_err(|error| error.to_string())?
+                .wait()
+                .map_err(|error| error.to_string())?;
+            let second = find_new_window(&first_snapshot, &home)?;
+            assert_ne!(window, second);
+            let occupied = before
+                .desktops
+                .iter()
+                .find(|d| !d.windows.is_empty())
+                .ok_or("requires an occupied desktop")?;
+            move_window(&second, &occupied.id)?;
+            println!("Verified disposable VS Code placement on empty desktop {destination} and occupied {}, including a second window of the same profile", occupied.name);
+            Ok(())
+        })();
+        // Terminate only the disposable main process we spawned, never a user's VS Code PID.
+        let _ = child.kill();
+        let _ = child.wait();
+        if let Some(current) = before.desktops.iter().find(|d| d.current) {
+            let id = current
+                .id
+                .strip_prefix("hyprland:")
+                .unwrap()
+                .parse::<i32>()
+                .unwrap();
+            let _ = crate::process::output(
+                Command::new("hyprctl").args([
+                    "eval",
+                    &format!("hl.dispatch(hl.dsp.focus({{workspace={id}}}))"),
+                ]),
+                Duration::from_secs(3),
+            );
+        }
+        result.unwrap();
     }
 
     #[test]
@@ -393,12 +563,27 @@ mod tests {
         let clients = serde_json::from_str(r#"[{"address":"0xab","pid":42,"class":"Code","title":"Project","workspace":{"id":2,"name":"Code"}}]"#).unwrap();
         let monitors = serde_json::from_str(r#"[{"name":"A","activeWorkspace":{"id":2,"name":"Code"}},{"name":"B","activeWorkspace":{"id":12,"name":"Empty"}}]"#).unwrap();
         let inventory = group_hyprland(workspaces, clients, monitors);
-        assert_eq!(inventory.desktops.len(), 2);
-        assert_eq!(inventory.desktops[0].windows[0].title, "Project");
-        assert!(inventory.desktops[1].windows.is_empty());
-        assert!(inventory.desktops.iter().all(|d| d.current));
+        assert_eq!(inventory.desktops.len(), 11);
+        let code = inventory
+            .desktops
+            .iter()
+            .find(|d| d.id == "hyprland:2")
+            .unwrap();
+        let empty = inventory
+            .desktops
+            .iter()
+            .find(|d| d.id == "hyprland:12")
+            .unwrap();
+        assert_eq!(code.name, "Code");
+        assert_eq!(code.windows[0].title, "Project");
+        assert!(empty.windows.is_empty());
+        assert!(code.current && empty.current);
+        assert_eq!(inventory.desktops.iter().filter(|d| d.current).count(), 2);
+        assert_eq!(inventory.current_destination(42), Some("hyprland:2"));
+        assert_eq!(inventory.current_destination(999), None);
         assert!(inventory.require_destination("hyprland:12").is_ok());
-        assert!(inventory.require_destination("hyprland:7").is_err());
+        assert!(inventory.require_destination("hyprland:7").is_ok());
+        assert!(inventory.require_destination("hyprland:11").is_err());
     }
     #[test]
     fn unsupported_placement_is_an_error() {
