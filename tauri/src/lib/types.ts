@@ -138,4 +138,6 @@ export interface ExecutableSettings {
   codePath: string | null
   codexPath: string | null
   globalCodexHome: string | null
+  preferredWorkspace?: string | null
+  hideDesktopPicker?: boolean
 }

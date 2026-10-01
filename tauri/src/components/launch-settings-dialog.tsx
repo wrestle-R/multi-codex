@@ -3,7 +3,7 @@ import { getExecutableSettings, saveExecutableSettings } from "../lib/desktop-ap
 import type { ExecutableSettings } from "../lib/types"
 import { useDialogFocus } from "./use-dialog-focus"
 
-export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
+export function LaunchSettingsDialog({ onClose, isMac }: { onClose: () => void; isMac: boolean }) {
   const titleId = useId()
   const [settings, setSettings] = useState<ExecutableSettings>({ codePath: null, codexPath: null, globalCodexHome: null })
   const [loading, setLoading] = useState(true)
@@ -30,9 +30,12 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
     <div className="dialog-layer" role="presentation" onMouseDown={event => event.target === event.currentTarget && !busy && onClose()}>
       <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <span className="eyebrow">Launch settings</span>
-        <h2 id={titleId}>Tools and Codex home</h2>
+        <h2 id={titleId}>Folders and tools</h2>
         <p>Leave paths empty for automatic discovery. Use full paths without quotes or command arguments.</p>
         <form onSubmit={event => void save(event)} className="launch-settings-form">
+          <label>Preferred folder<input value={settings.preferredWorkspace ?? ""} disabled={loading || busy} placeholder="Default workspace folder" onChange={event => setSettings(value => ({ ...value, preferredWorkspace: event.target.value || null }))} /></label>
+          <p className="desktop-notice">Start the folder picker here. You can choose a different project for each launch.</p>
+          {!isMac ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} /> Show desktop picker before launching</label> : null}
           <label>VS Code executable<input value={settings.codePath ?? ""} disabled={loading || busy} placeholder="Automatic discovery" onChange={event => setSettings(value => ({ ...value, codePath: event.target.value || null }))} /></label>
           <label>Codex executable<input value={settings.codexPath ?? ""} disabled={loading || busy} placeholder="Automatic discovery" onChange={event => setSettings(value => ({ ...value, codexPath: event.target.value || null }))} /></label>
           <label>Global Codex home<input value={settings.globalCodexHome ?? ""} disabled={loading || busy} placeholder="CODEX_HOME or ~/.codex" onChange={event => setSettings(value => ({ ...value, globalCodexHome: event.target.value || null }))} /></label>

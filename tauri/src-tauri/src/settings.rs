@@ -12,6 +12,10 @@ pub struct ExecutableSettings {
     pub codex_path: Option<String>,
     #[serde(default)]
     pub global_codex_home: Option<String>,
+    #[serde(default)]
+    pub preferred_workspace: Option<String>,
+    #[serde(default)]
+    pub hide_desktop_picker: bool,
 }
 
 pub fn data_root() -> Result<PathBuf> {
@@ -43,6 +47,7 @@ pub fn save(mut settings: ExecutableSettings) -> Result<ExecutableSettings> {
         &mut settings.code_path,
         &mut settings.codex_path,
         &mut settings.global_codex_home,
+        &mut settings.preferred_workspace,
     ] {
         if value.as_deref().is_some_and(|v| v.trim().is_empty()) {
             *value = None;
@@ -65,6 +70,13 @@ pub fn save(mut settings: ExecutableSettings) -> Result<ExecutableSettings> {
         if !Path::new(home).is_absolute() || !Path::new(home).is_dir() {
             return Err(
                 "Global Codex home must be an existing directory using an absolute path".into(),
+            );
+        }
+    }
+    if let Some(workspace) = &settings.preferred_workspace {
+        if !Path::new(workspace).is_absolute() || !Path::new(workspace).is_dir() {
+            return Err(
+                "Preferred folder must be an existing directory using an absolute path".into(),
             );
         }
     }
@@ -110,12 +122,32 @@ pub fn global_codex_home(
 mod tests {
     use super::*;
     #[test]
+    fn old_settings_keep_desktop_picker_enabled_and_new_preferences_persist() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("executables.json"),
+            br#"{"codePath":null,"codexPath":null,"globalCodexHome":null}"#,
+        )
+        .unwrap();
+        let mut settings = load_from(root.path()).unwrap();
+        assert!(!settings.hide_desktop_picker);
+        assert!(settings.preferred_workspace.is_none());
+        settings.hide_desktop_picker = true;
+        settings.preferred_workspace = Some("/Users/test/My Projects".into());
+        save_to(root.path(), &settings).unwrap();
+        let saved = load_from(root.path()).unwrap();
+        assert!(saved.hide_desktop_picker);
+        assert_eq!(saved.preferred_workspace, settings.preferred_workspace);
+    }
+
+    #[test]
     fn round_trips_paths_with_spaces_without_relocating_profiles() {
         let root = tempfile::tempdir().unwrap();
         let settings = ExecutableSettings {
             code_path: Some("/Applications/Visual Studio Code.app/bin/code".into()),
             codex_path: Some("/home/user/工具/codex".into()),
             global_codex_home: None,
+            ..Default::default()
         };
         save_to(root.path(), &settings).unwrap();
         assert_eq!(
