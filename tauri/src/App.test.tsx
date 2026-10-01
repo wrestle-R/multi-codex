@@ -156,6 +156,14 @@ describe("Multi Codex", () => {
     await user.click(screen.getByRole("button", { name: "Open on Desktop 7" }))
     expect(await screen.findByRole("alert")).toHaveTextContent("Permission denied")
     expect(screen.getByRole("dialog", { name: "Choose a desktop" })).toBeInTheDocument()
+    api.getDesktopInventory.mockResolvedValue({
+      protocolVersion: 1,
+      capabilities: { backend: "hyprland", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null },
+      desktops: [{ id: "hyprland:12", name: "Desktop 12", monitor: "Other display", current: true, windows: [] }],
+    })
+    await user.click(screen.getByRole("button", { name: "Refresh desktops" }))
+    expect(await screen.findByText("The selected desktop disappeared. Choose another destination.")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open on Desktop 7" })).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Open on Desktop 12" }))
     await waitFor(() => expect(api.launchProfile).toHaveBeenLastCalledWith(profile.id, "/home/rdp/Desktop/code", "hyprland:12", "placement-1"))
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose a desktop" })).not.toBeInTheDocument())

@@ -338,16 +338,16 @@ async fn launch_profile(
     let launches = Arc::clone(&state.launches);
     tauri::async_runtime::spawn_blocking(move || {
         // Held across snapshot, launch and placement, including retries.
-        let mut coordinator = launches
-            .lock()
-            .map_err(|_| "Launch coordinator unavailable")?;
         let home = service.vscode_home(&id)?;
-        coordinator.execute(
-            &id,
-            &workspace,
-            &home,
-            desktop.as_deref(),
-            retry_token.as_deref(),
+        launch::LaunchCoordinator::execute_serialized(
+            &launches,
+            launch::LaunchRequest {
+                profile: &id,
+                workspace: &workspace,
+                home: &home,
+                desktop: desktop.as_deref(),
+                retry: retry_token.as_deref(),
+            },
             || service.launch_profile(&id, Path::new(&workspace)),
             &launch::NativeDesktopControl,
         )
