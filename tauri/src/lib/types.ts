@@ -140,4 +140,14 @@ export interface ExecutableSettings {
   globalCodexHome: string | null
   preferredWorkspace?: string | null
   hideDesktopPicker?: boolean
+  onboardingCompleted?: boolean
+  detectedApps?: LaunchTargets | null
+}
+
+export interface LaunchTargets {
+  platform: string
+  vscodeInstalled: boolean
+  codexCliAvailable: boolean
+  standaloneInstalled: boolean
+  standaloneVerified: boolean
 }

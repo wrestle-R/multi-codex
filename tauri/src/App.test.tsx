@@ -24,6 +24,7 @@ const api = vi.hoisted(() => ({
   deleteProfile: vi.fn(),
   getDesktopIntegrationStatus: vi.fn(),
   getLaunchEnvironment: vi.fn(),
+  getLaunchTargets: vi.fn(),
   getStorageUsage: vi.fn(),
   installDesktopIntegration: vi.fn(),
 }))
@@ -93,6 +94,7 @@ beforeEach(() => {
     otherBytes: 1_024,
     profiles: [{ id: profile.id, name: profile.name, bytes: 9_876_542_186, reclaimableBytes: 256_000_000, running: false }],
   })
+  api.getLaunchTargets.mockReset().mockResolvedValue({ platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false })
   api.getLaunchEnvironment.mockReset().mockResolvedValue({ defaultWorkspace: "/home/rdp/Desktop/code", capabilities: { backend: "hyprland", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null } })
   api.installDesktopIntegration.mockReset().mockResolvedValue({
     available: true,
@@ -217,6 +219,7 @@ describe("Multi Codex", () => {
   })
 
   it("launches on Mac without opening or polling the desktop picker", async () => {
+    api.getLaunchTargets.mockResolvedValue({ platform: "macos", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false })
     const user = userEvent.setup()
     api.getLaunchEnvironment.mockResolvedValue({ defaultWorkspace: "/Users/test/Projects", capabilities: { backend: "macos", enumerateDesktops: false, enumerateWindows: false, moveWindows: false, reason: null } })
     api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, preferredWorkspace: "/Users/test/My Projects" })
@@ -239,7 +242,7 @@ describe("Multi Codex", () => {
     await waitFor(() => expect(toggle).toBeEnabled())
     await user.click(toggle)
     await user.type(screen.getByLabelText("Preferred folder"), "/home/test/Projects")
-    await user.click(screen.getByRole("button", { name: "Save paths" }))
+    await user.click(screen.getByRole("button", { name: "Save settings" }))
     await waitFor(() => expect(api.saveExecutableSettings).toHaveBeenCalledWith(expect.objectContaining({ hideDesktopPicker: true, preferredWorkspace: "/home/test/Projects" })))
     api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, hideDesktopPicker: true, preferredWorkspace: "/home/test/Projects" })
     await user.click(screen.getByRole("button", { name: "Launch" }))
@@ -255,10 +258,11 @@ describe("Multi Codex", () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(screen.getByRole("button", { name: "Launch settings" }))
+    await user.click(await screen.findByText("Advanced"))
     const input = await screen.findByLabelText("VS Code executable")
     await waitFor(() => expect(input).toBeEnabled())
     await user.type(input, "/Applications/Custom Code.app/bin/code")
-    await user.click(screen.getByRole("button", { name: "Save paths" }))
+    await user.click(screen.getByRole("button", { name: "Save settings" }))
     await waitFor(() => expect(api.saveExecutableSettings).toHaveBeenCalledWith({ codePath: "/Applications/Custom Code.app/bin/code", codexPath: null, globalCodexHome: null }))
   })
 
@@ -684,4 +688,112 @@ describe("Multi Codex", () => {
     await user.click(screen.getByRole("button", { name: "Install desktop integration" }))
     expect(screen.getByRole("dialog", { name: "Add Multi Codex to your apps?" })).toBeInTheDocument()
   })
+})
+
+it("welcomes a new user without settings and saves setup before continuing", async () => {
+  const user = userEvent.setup()
+  api.listProfiles.mockResolvedValue([])
+  render(<App />)
+  expect(await screen.findByRole("heading", { name: "Welcome to Multi Codex." })).toBeInTheDocument()
+  expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+  expect(screen.queryByText("Open accounts with")).not.toBeInTheDocument()
+  await user.click(screen.getByRole("button", { name: "Get started" }))
+  expect(await screen.findByRole("heading", { name: "No accounts yet" })).toBeInTheDocument()
+  expect(api.saveExecutableSettings).toHaveBeenCalledWith(expect.objectContaining({ onboardingCompleted: true, detectedApps: expect.objectContaining({ platform: "linux", vscodeInstalled: true }) }))
+  cleanup()
+  api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, onboardingCompleted: true })
+  render(<App />)
+  expect(await screen.findByRole("heading", { name: "No accounts yet" })).toBeInTheDocument()
+  expect(screen.queryByRole("button", { name: "Get started" })).not.toBeInTheDocument()
+})
+
+it("keeps the welcome screen recoverable when saving setup fails", async () => {
+  const user = userEvent.setup()
+  api.listProfiles.mockResolvedValue([])
+  api.saveExecutableSettings.mockRejectedValueOnce(new Error("Settings disk unavailable"))
+  render(<App />)
+  await user.click(await screen.findByRole("button", { name: "Get started" }))
+  expect(await screen.findByRole("alert")).toHaveTextContent("Settings disk unavailable")
+  expect(screen.getByRole("heading", { name: "Welcome to Multi Codex." })).toBeInTheDocument()
+  await user.click(screen.getByRole("button", { name: "Get started" }))
+  expect(await screen.findByRole("heading", { name: "No accounts yet" })).toBeInTheDocument()
+})
+
+it("uses the existing picker for a preferred folder without launching or saving until confirmed", async () => {
+  const user = userEvent.setup()
+  api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, preferredWorkspace: "/home/test/Projects" })
+  api.listWorkspaceDirectories.mockImplementation(async (path: string) => ({ path, parentPath: "/home/test", directories: path.endsWith("Projects") ? [{ name: "Client work", path: `${path}/Client work` }] : [] }))
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await waitFor(() => expect(screen.getByRole("button", { name: "Browse" })).toBeEnabled())
+  await user.click(screen.getByRole("button", { name: "Browse" }))
+  await user.click(await screen.findByRole("button", { name: /Client work/ }))
+  await user.click(screen.getByRole("button", { name: "Choose this folder" }))
+  expect(screen.getByLabelText("Preferred folder")).toHaveValue("/home/test/Projects/Client work")
+  expect(api.saveExecutableSettings).not.toHaveBeenCalled()
+  expect(api.launchProfile).not.toHaveBeenCalled()
+  await user.click(screen.getByRole("button", { name: "Browse" }))
+  await screen.findByRole("button", { name: "Choose this folder" })
+  await user.keyboard("{Escape}")
+  expect(screen.getByRole("dialog", { name: "Folders and launching" })).toBeInTheDocument()
+  expect(screen.getByLabelText("Preferred folder")).toHaveValue("/home/test/Projects/Client work")
+  await user.click(screen.getByRole("button", { name: "Save settings" }))
+  await waitFor(() => expect(api.saveExecutableSettings).toHaveBeenCalledWith(expect.objectContaining({ preferredWorkspace: "/home/test/Projects/Client work" })))
+})
+
+it.each([[true, false], [false, true], [false, false]])("hides the whole app-choice section for installation state %s / %s", async (vscodeInstalled, standaloneInstalled) => {
+  const user = userEvent.setup()
+  api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled, codexCliAvailable: false, standaloneInstalled, standaloneVerified: false })
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save settings" })).toBeEnabled())
+  expect(screen.queryByText("Open accounts with")).not.toBeInTheDocument()
+  expect(screen.queryByRole("radio")).not.toBeInTheDocument()
+})
+
+it("shows the isolation gate only when both apps are installed", async () => {
+  const user = userEvent.setup()
+  api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: false })
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  expect(await screen.findByText("Open accounts with")).toBeInTheDocument()
+  expect(screen.getByRole("radio", { name: "VS Code only" })).toBeChecked()
+  expect(screen.getByRole("radio", { name: "Codex app only" })).toBeDisabled()
+  expect(screen.getByRole("radio", { name: "Both" })).toBeDisabled()
+  expect(screen.getByText(/awaiting account-isolation verification/)).toBeInTheDocument()
+})
+
+it("hides the Linux toggle during detection and on Mac after detection", async () => {
+  const user = userEvent.setup()
+  let detect: ((value: unknown) => void) | undefined
+  api.getLaunchTargets.mockImplementation(() => new Promise(resolve => { detect = resolve }))
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  expect(screen.queryByLabelText("Show desktop picker before launching")).not.toBeInTheDocument()
+  detect?.({ platform: "macos", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false })
+  await waitFor(() => expect(screen.getByRole("button", { name: "Save settings" })).toBeEnabled())
+  expect(screen.queryByLabelText("Show desktop picker before launching")).not.toBeInTheDocument()
+})
+
+it("rechecks installed apps before launch and prevents a stale installation from launching", async () => {
+  const user = userEvent.setup()
+  render(<App />)
+  await screen.findByRole("heading", { name: "Personal" })
+  await waitFor(() => expect(api.getLaunchTargets).toHaveBeenCalled())
+  api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled: false, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: false })
+  await user.click(screen.getByRole("button", { name: "Launch" }))
+  await waitFor(() => expect(api.getLaunchTargets.mock.calls.length).toBeGreaterThan(1))
+  expect(api.launchProfile).not.toHaveBeenCalled()
+  expect(screen.queryByRole("dialog", { name: "Choose a folder" })).not.toBeInTheDocument()
+  expect(await screen.findByText(/Isolated standalone launch is awaiting verification/)).toBeInTheDocument()
+})
+
+it("does not overwrite saved settings when detection fails", async () => {
+  const user = userEvent.setup()
+  api.getLaunchTargets.mockRejectedValue(new Error("Detection unavailable"))
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  expect(await screen.findByRole("alert")).toHaveTextContent("Detection unavailable")
+  expect(screen.getByRole("button", { name: "Save settings" })).toBeDisabled()
+  expect(api.saveExecutableSettings).not.toHaveBeenCalled()
 })

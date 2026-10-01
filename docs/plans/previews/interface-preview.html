@@ -1,0 +1,60 @@
+<!doctype html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi Codex — interface preview</title>
+<link rel="stylesheet" href="../../../tauri/src/App.css">
+<style>
+@font-face{font-family:Outfit;src:url('../../../tauri/node_modules/@fontsource/outfit/files/outfit-latin-400-normal.woff2');font-weight:400}
+@font-face{font-family:Outfit;src:url('../../../tauri/node_modules/@fontsource/outfit/files/outfit-latin-600-normal.woff2');font-weight:600}
+@font-face{font-family:'Bricolage Grotesque';src:url('../../../tauri/node_modules/@fontsource/bricolage-grotesque/files/bricolage-grotesque-latin-600-normal.woff2');font-weight:600}
+body{background-size:40px 40px;color:var(--foreground)}
+.window{height:100vh;display:flex;flex-direction:column}.window-title{height:38px;flex:none;display:flex;align-items:center;justify-content:center;position:relative;background:#151515;border-bottom:1px solid var(--border);font-size:12px;color:#a4a4a4}.window-controls{position:absolute;right:18px;display:flex;gap:24px;font-size:15px}.preview-note{position:fixed;bottom:18px;left:24px;color:var(--muted-foreground);font-size:12px;letter-spacing:.02em}.welcome{flex:1;display:grid;place-items:center}.welcome-content{max-width:720px;text-align:center;animation:appear .65s ease both;padding:40px}.welcome .brand-mark{width:92px;height:92px;margin-bottom:20px;animation:float 6s ease-in-out infinite}.welcome .brand-mark>span{width:50px;height:50px;border-radius:14px}.welcome .brand-mark>span:first-child{transform:translate(-10px,-10px)}.welcome .brand-mark>span:nth-child(2){transform:translate(10px,10px)}.welcome .brand-mark i{font-size:20px}.welcome h1{font-size:46px;font-weight:600;letter-spacing:-1.2px;margin:14px 0}.welcome p{font-size:19px;color:var(--muted-foreground);margin:0}.detected{display:inline-flex;align-items:center;gap:9px;font-size:13px;color:var(--muted-foreground);margin:32px 0}.dot{width:6px;height:6px;background:var(--signal);border-radius:50%;box-shadow:0 0 0 4px color-mix(in oklab,var(--signal) 8%,transparent)}.welcome .button{display:flex;align-items:center;justify-content:center;gap:28px;min-width:172px;min-height:47px;margin:0 auto;font-size:15px}.reassurance{font-size:12px!important;margin-top:19px!important;color:var(--muted-foreground)}.settings-stage{flex:1;display:grid;place-items:center;padding:30px}.settings-preview{width:560px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:30px 32px;box-shadow:var(--shadow)}.settings-header{display:flex;justify-content:space-between;align-items:center}.settings-preview h2{font-size:28px;margin:8px 0}.settings-caption{font-size:14px;color:var(--muted-foreground);margin:0 0 27px}.field-label,.section-label{font-size:14px;font-weight:600;display:block;margin-bottom:10px}.folder-field{display:flex;gap:9px}.folder-field input{width:100%;min-width:0;border:1px solid var(--border);border-radius:9px;background:var(--background);color:var(--foreground);padding:13px;font-size:14px}.folder-field .button{min-height:44px;flex:none;padding:0 17px;font-size:14px}.hint{font-size:12px;color:var(--muted-foreground);margin:10px 0 25px}.platform-control{padding:19px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;margin:22px 0}.switch-copy{font-size:14px}.switch-copy small{display:block;font-size:12px;color:var(--muted-foreground);margin-top:5px}.switch{width:37px;height:22px;border-radius:20px;background:var(--primary);padding:3px;display:flex;justify-content:flex-end;cursor:pointer}.switch:after{content:'';display:block;background:#fff;width:16px;height:16px;border-radius:50%}.advanced{border:0;margin:22px 0;cursor:pointer;font-size:14px}.advanced summary{list-style:none;display:flex;gap:11px;align-items:center}.advanced summary:before{content:'›';font-size:22px;color:var(--muted-foreground)}.advanced[open] summary:before{transform:rotate(90deg)}.advanced-fields{margin-top:16px;display:grid;gap:12px}.advanced input{padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--background);color:var(--foreground);width:100%;margin-top:5px}.settings-footer{border-top:1px solid var(--border);padding-top:22px;display:flex;gap:10px;justify-content:flex-end;margin-top:23px}.settings-footer .button{font-size:14px;min-height:42px}.app-selection{margin:26px 0 10px}.choices{display:flex;gap:7px}.choice{border:1px solid var(--border);border-radius:8px;background:var(--background);padding:12px 10px;flex:1;white-space:nowrap;font-size:12px}.choice.active{border-color:var(--primary);background:color-mix(in oklab,var(--primary) 8%,var(--card))}.choice input{accent-color:var(--primary);vertical-align:middle;margin:0 6px 0 0}.install-status{font-size:11px;color:var(--muted-foreground);margin:10px 0;display:flex;gap:22px}.install-status span:before{content:'●';color:var(--signal);margin-right:6px}.close-button{font-size:22px;background:transparent;color:var(--muted-foreground);cursor:pointer}.picker{display:none;position:fixed;inset:38px 0 0;background:#0008;place-items:center}.picker.is-open{display:grid}.picker-content{width:530px;background:var(--card);padding:28px;border:1px solid var(--border);border-radius:16px}.picker h2{margin:6px 0 18px}.picker .location{font-size:13px;background:var(--muted);padding:12px;border-radius:8px}.picker .folder{display:flex;gap:12px;padding:15px 4px;border-bottom:1px solid var(--border);font-size:14px}.picker .folder b{color:var(--primary);font-weight:400}.picker footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}.picker button{font-size:13px}.hidden{display:none!important}@keyframes appear{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="window-title">Multi Codex<span class="window-controls" aria-hidden="true">−　□　×</span></div>
+  <main class="welcome" id="welcome">
+    <div class="welcome-content">
+      <span class="brand-mark" aria-hidden="true"><span></span><span></span><i>&gt;_</i></span>
+      <h1>Welcome to Multi Codex.</h1>
+      <p>Separate accounts. One place to launch them.</p>
+      <div class="detected"><span class="dot"></span><span id="detected">Linux · Ready to go</span></div>
+      <button class="button primary" id="get-started">Get started <span aria-hidden="true">→</span></button>
+      <p class="reassurance">Your default Codex login stays untouched.</p>
+    </div>
+  </main>
+  <main class="settings-stage hidden" id="settings">
+    <section class="settings-preview">
+      <div class="settings-header"><span class="eyebrow">LAUNCH SETTINGS</span><button class="close-button" aria-label="Close settings">×</button></div>
+      <h2>Folders and launching</h2>
+      <p class="settings-caption">A few preferences, just for you.</p>
+      <label class="field-label" for="preferred">Preferred folder</label>
+      <div class="folder-field"><input id="preferred" value="/home/you/Projects" readonly><button class="button secondary" id="browse">Browse</button></div>
+      <p class="hint">The folder picker will start here.</p>
+      <div class="app-selection hidden" id="app-selection">
+        <span class="section-label">Open accounts with</span>
+        <div class="choices"><label class="choice"><input type="radio" name="target">VS Code only</label><label class="choice"><input type="radio" name="target">Codex app only</label><label class="choice active"><input type="radio" name="target" checked>Both</label></div>
+        <div class="install-status"><span>VS Code installed</span><span>Codex app installed</span></div>
+      </div>
+      <div class="platform-control" id="desktop-toggle"><div class="switch-copy">Show desktop picker<small>Choose a desktop before launching.</small></div><button class="switch" aria-label="Show desktop picker" role="switch" aria-checked="true"></button></div>
+      <details class="advanced"><summary>Advanced</summary><div class="advanced-fields"><label>VS Code executable<input placeholder="Automatic discovery"></label><label>Codex executable<input placeholder="Automatic discovery"></label><label>Global Codex home<input placeholder="Default Codex home"></label></div></details>
+      <footer class="settings-footer"><button class="button secondary">Cancel</button><button class="button primary">Save settings</button></footer>
+    </section>
+  </main>
+</div>
+<div class="picker" id="picker"><section class="picker-content"><span class="eyebrow">PREFERRED FOLDER</span><h2>Choose a folder</h2><div class="location">↑ Up　 /home/you/Projects</div><div class="folder"><b>▱</b>Client work</div><div class="folder"><b>▱</b>Personal</div><div class="folder"><b>▱</b>Studio</div><footer><button class="button secondary" id="cancel-picker">Cancel</button><button class="button primary" id="choose-folder">Choose this folder</button></footer></section></div>
+<div class="preview-note" id="preview-note">Interface preview · no account data</div>
+<script>
+const q=new URLSearchParams(location.search), screen=q.get('screen')||'welcome', platform=q.get('os')||'linux', both=q.get('apps')==='both';
+if(screen==='settings'){document.querySelector('#welcome').classList.add('hidden');document.querySelector('#settings').classList.remove('hidden')}
+if(both)document.querySelector('#app-selection').classList.remove('hidden');
+if(platform!=='linux'){document.querySelector('#desktop-toggle').classList.add('hidden');document.querySelector('#preferred').value='/Users/you/Projects'}
+document.querySelector('#detected').textContent=(platform==='mac'?'macOS':'Linux')+' · Ready to go';
+document.querySelector('#get-started').onclick=()=>{document.querySelector('#get-started').textContent='Ready to continue →'};
+document.querySelector('#browse').onclick=()=>document.querySelector('#picker').classList.add('is-open');
+for(const id of ['cancel-picker','choose-folder'])document.getElementById(id).onclick=()=>document.querySelector('#picker').classList.remove('is-open');
+</script>
+</body>
+</html>

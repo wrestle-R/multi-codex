@@ -348,3 +348,45 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
   height: 16px;
   margin: 0;
 }
+
+.settings-intro { color: var(--muted-foreground); margin: .6rem 0 1.5rem; }
+.preferred-folder-control { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: .6rem; }
+.preferred-folder-control .button { min-height: 44px; }
+.advanced-settings { border-top: 1px solid var(--border); padding-top: 1.1rem; }
+.advanced-settings summary { cursor: pointer; font-size: .9rem; font-weight: 600; }
+.advanced-settings summary span { display: block; color: var(--muted-foreground); font-size: .76rem; font-weight: 400; margin: .35rem 0 0 1rem; }
+.advanced-settings-fields { display: grid; gap: 1rem; padding-top: 1rem; }
+.launch-app-options { border: 0; padding: 0; margin: .3rem 0; min-width: 0; }
+.launch-app-options legend { font-size: .85rem; font-weight: 600; margin-bottom: .6rem; }
+.launch-app-choices { display: grid; grid-template-columns: repeat(3,1fr); gap: .5rem; }
+.launch-app-choices label { display: flex; align-items: center; gap: .4rem; border: 1px solid var(--border); border-radius: 8px; padding: .65rem; font-size: .75rem; }
+.launch-app-choices input { width: 16px; height: 16px; min-width: 16px; margin: 0; accent-color: var(--primary); }
+.launch-app-choices label:has(input:disabled) { opacity: .5; }
+.welcome-screen { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
+.welcome-content { max-width: 780px; animation: welcome-entry .65s ease-out both; }
+.welcome-brand { margin-bottom: 2rem; animation: welcome-drift 6s ease-in-out infinite; }
+.welcome-brand .brand-mark { transform: scale(1.65); }
+.welcome-content h1 { font-size: clamp(2.2rem,4vw,2.9rem); line-height: 1.08; letter-spacing: -.025em; margin: 1rem 0; }
+.welcome-content > p { color: var(--muted-foreground); font-size: 1.15rem; margin: .8rem 0 1.5rem; }
+.welcome-content .button { min-width: 180px; justify-content: space-between; gap: 2rem; }
+.welcome-content small { display: block; color: var(--muted-foreground); font-size: .75rem; margin-top: 1rem; }
+.welcome-footer { color: var(--muted-foreground); font-size: .78rem; }
+@keyframes welcome-entry { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes welcome-drift { 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .welcome-content, .welcome-brand { animation: none; } }
+@media (max-width: 420px) { .launch-app-choices { grid-template-columns: 1fr; } .welcome-footer { position: static; margin-top: 3rem; } }
+.welcome-content .welcome-platform { margin: 0 0 1.6rem; }
+.welcome-platform::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--signal); margin-right: .6rem; }
+.welcome-content .welcome-footer { position: static; font-size: .78rem; margin: 1.2rem 0 0; }
+.launch-requirements { min-height: 0; display: block; margin-bottom: 1rem; padding: 1rem; }
+.launch-requirements p { margin: 0; }
+.launch-settings-form .desktop-picker-setting { position: relative; justify-content: space-between; padding: 1rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.launch-settings-form .desktop-picker-setting input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.desktop-setting-copy small { display: block; color: var(--muted-foreground); font-size: .76rem; font-weight: 400; margin-top: .3rem; }
+.desktop-switch-track { width: 37px; height: 22px; border-radius: 20px; padding: 3px; background: var(--muted-foreground); flex: 0 0 auto; transition: background .15s ease; }
+.desktop-switch-track::after { content: ''; display: block; width: 16px; height: 16px; border-radius: 50%; background: white; transition: transform .15s ease; }
+.desktop-picker-setting:has(input:checked) .desktop-switch-track { background: var(--primary); }
+.desktop-picker-setting:has(input:checked) .desktop-switch-track::after { transform: translateX(15px); }
+.desktop-picker-setting:has(input:focus-visible) .desktop-switch-track { outline: 2px solid var(--primary); outline-offset: 3px; }
+.desktop-picker-setting:has(input:disabled) { opacity: .5; }
+@media (prefers-reduced-motion: reduce) { .desktop-switch-track, .desktop-switch-track::after { transition: none; } }
