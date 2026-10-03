@@ -6,6 +6,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 use zbus::blocking::{Connection, Proxy};
 
+static KWIN_REQUEST_LOCK: Mutex<()> = Mutex::new(());
+
 const TIMEOUT: Duration = Duration::from_secs(3);
 const GNOME_HELP: &str = "Install and enable Multi Codex desktops using the bundled platform/gnome extension, then refresh. See docs/platform-support.md.";
 
@@ -108,6 +110,9 @@ impl KWinReply {
 }
 
 fn kde_request(operation: Option<(&str, &str)>) -> Result<DesktopInventory> {
+    let _guard = KWIN_REQUEST_LOCK
+        .lock()
+        .map_err(|_| "KWin bridge state unavailable")?;
     let nonce = uuid::Uuid::new_v4().to_string();
     let state: ReplyState = Arc::new((Mutex::new(None), Condvar::new()));
     let connection = zbus::blocking::connection::Builder::session()
@@ -189,6 +194,40 @@ fn kde_request(operation: Option<(&str, &str)>) -> Result<DesktopInventory> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "requires an isolated live Plasma 6 test session"]
+    fn live_kde_inventory_and_placement() {
+        assert_eq!(std::env::var("MULTI_CODEX_TEST_KDE").as_deref(), Ok("1"));
+        let before = kde_request(None).unwrap();
+        assert!(before.desktops.len() >= 2);
+        if std::env::var_os("MULTI_CODEX_TEST_APPIMAGE").is_some() {
+            assert!(
+                before
+                    .windows()
+                    .iter()
+                    .any(|window| window.title == "Multi Codex"),
+                "packaged application must expose a live native window"
+            );
+        }
+        let window = before
+            .windows()
+            .into_iter()
+            .find(|w| w.title == "Multi Codex bridge test")
+            .expect("test GTK window must be open");
+        let target = before
+            .desktops
+            .iter()
+            .find(|d| !d.windows.iter().any(|w| w.id == window.id))
+            .expect("an empty target desktop");
+        let after = kde_request(Some((&window.id, &target.id))).unwrap();
+        assert!(after
+            .desktops
+            .iter()
+            .any(|d| d.id == target.id && d.windows.iter().any(|w| w.id == window.id)));
+        assert!(kde_request(Some((&window.id, "kde:missing"))).is_err());
+        println!("Verified KDE desktop inventory, empty desktop, placement and missing destination against a live compositor");
+    }
+
     #[test]
     fn rejects_incompatible_protocol_and_forwards_bridge_errors() {
         assert!(parse_snapshot(r#"{"protocolVersion":2,"capabilities":{"backend":"gnome","enumerateDesktops":true,"enumerateWindows":true,"moveWindows":true,"reason":null},"desktops":[]}"#, "gnome").is_err());

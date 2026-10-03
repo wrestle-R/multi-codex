@@ -2,13 +2,17 @@
 
 Launch multiple Codex accounts in isolated VS Code windows without changing your default Codex login. Re-launching an account opens another VS Code window, including for the same workspace.
 
-Multi Codex shows live 5-hour and weekly limits for paid ChatGPT accounts, the 30-day limit reported for Free accounts, and expiry details for reset credits when Codex supplies them. On Hyprland it opens full-screen and can launch VS Code directly onto desktops 1–10. Launching opens a built-in folder picker modal over the app, starting in `~/Desktop/code` when available; no external file manager is opened.
+Multi Codex shows live 5-hour and weekly limits for paid ChatGPT accounts, the 30-day limit reported for Free accounts, and expiry details for reset credits when Codex supplies them. The 1.3.0 candidate adds desktop window previews and verified placement for Hyprland, plus GNOME and KDE integrations. Launching opens a built-in folder picker modal over the app, starting in `~/Desktop/code` when available; no external file manager is opened.
 
 Select the storage total in the top-right corner to see a per-profile breakdown. Safe cache cleanup preserves credentials, conversations, settings, skills, plugins, and installed extensions; full profile deletion always requires separate confirmation.
 
 ![Current Multi Codex light interface](tauri/public/light_screenshot.png)
 
 ![Current Multi Codex dark interface](tauri/public/dark_screenshot.png)
+
+## 1.3.0 candidate status
+
+The desktop-picker implementation and platform adapters are under validation. **1.3.0 is not cleared for publication:** standard macOS Spaces support and real-device/package tests remain blocked or pending. Current public downloads below remain v1.2.3. See [platform support and setup](docs/platform-support.md) and [release gates](docs/releases/v1.3.0-validation.json).
 
 ## Safe updates
 
