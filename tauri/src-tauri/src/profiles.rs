@@ -2237,10 +2237,22 @@ mod tests {
         }
         let text = fs::read_to_string(output).unwrap();
         let lines: Vec<_> = text.lines().collect();
-        assert_eq!(fs::canonicalize(lines[0]).unwrap(), paths.codex_home);
-        assert_eq!(fs::canonicalize(lines[1]).unwrap(), paths.desktop_home);
-        assert_eq!(fs::canonicalize(lines[2]).unwrap(), paths.codex_home);
-        assert_eq!(lines[3], workspace.to_str().unwrap());
+        assert_eq!(
+            fs::canonicalize(lines[0]).unwrap(),
+            fs::canonicalize(&paths.codex_home).unwrap()
+        );
+        assert_eq!(
+            fs::canonicalize(lines[1]).unwrap(),
+            fs::canonicalize(&paths.desktop_home).unwrap()
+        );
+        assert_eq!(
+            fs::canonicalize(lines[2]).unwrap(),
+            fs::canonicalize(&paths.codex_home).unwrap()
+        );
+        assert_eq!(
+            fs::canonicalize(lines[3]).unwrap(),
+            fs::canonicalize(&workspace).unwrap()
+        );
         assert_eq!(lines[5], "--open-project");
         assert_eq!(lines[6], workspace.to_str().unwrap());
         assert!(!paths.vscode_home.exists());
