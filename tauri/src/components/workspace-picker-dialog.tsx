@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { listWorkspaceDirectories } from "../lib/desktop-api"
 import type { WorkspaceDirectoryListing } from "../lib/types"
 import { useDialogFocus } from "./use-dialog-focus"
@@ -13,23 +13,29 @@ interface WorkspacePickerDialogProps {
 export function WorkspacePickerDialog({ initialPath, busy, onCancel, onChoose }: WorkspacePickerDialogProps) {
   const titleId = useId()
   const dialogRef = useDialogFocus(onCancel, busy)
+  const navigationSequence = useRef(0)
   const [listing, setListing] = useState<WorkspaceDirectoryListing | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function navigate(path: string) {
+    const sequence = ++navigationSequence.current
     setLoading(true)
     setError(null)
     try {
-      setListing(await listWorkspaceDirectories(path))
+      const next = await listWorkspaceDirectories(path)
+      if (sequence === navigationSequence.current) setListing(next)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause))
+      if (sequence === navigationSequence.current) setError(cause instanceof Error ? cause.message : String(cause))
     } finally {
-      setLoading(false)
+      if (sequence === navigationSequence.current) setLoading(false)
     }
   }
 
-  useEffect(() => { void navigate(initialPath) }, [initialPath])
+  useEffect(() => {
+    void navigate(initialPath)
+    return () => { navigationSequence.current++ }
+  }, [initialPath])
 
   const segments = listing?.path.split("/").filter(Boolean) ?? []
   const parentSegments = segments.slice(0, -1)

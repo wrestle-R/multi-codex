@@ -514,7 +514,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     pub fn launch_profile(&self, id: &str, workspace: &Path) -> Result<()> {
-        let code = resolve_command("code");
+        let code = resolve_command("code")?;
         self.launch_profile_with_command(id, workspace, &code)
     }
 
@@ -871,7 +871,11 @@ pub fn default_service() -> Result<ProfileService<KeyringSecretStore, CodexCliRe
     let data_root = dirs::data_dir()
         .ok_or_else(|| "Data directory is unavailable".to_string())?
         .join("multi-codex");
-    let codex_home = home.join(".codex");
+    let codex_home = crate::settings::global_codex_home(
+        &home,
+        env::var_os("CODEX_HOME"),
+        &crate::settings::load()?,
+    )?;
     ProfileService::new(
         data_root,
         codex_home,
@@ -1163,17 +1167,33 @@ fn build_vscode_command_with(
     command
 }
 
-pub(crate) fn resolve_command(name: &str) -> PathBuf {
+pub(crate) fn resolve_command(name: &str) -> Result<PathBuf> {
+    let settings = crate::settings::load()?;
+    let configured = match name {
+        "code" => settings.code_path,
+        "codex" => settings.codex_path,
+        _ => None,
+    };
+    if let Some(path) = configured {
+        let path = PathBuf::from(path);
+        if is_executable_file(&path) {
+            return Ok(path);
+        }
+        return Err(format!(
+            "The saved {name} executable is unavailable. Update its path in Launch settings."
+        ));
+    }
     let home = dirs::home_dir().unwrap_or_default();
-    resolve_command_with(name, env::var_os("PATH").as_deref(), &home)
-        .unwrap_or_else(|| PathBuf::from(name))
+    resolve_command_with(name, env::var_os("PATH").as_deref(), &home).ok_or_else(|| {
+        format!("{name} was not found. Install it or set its executable path in Launch settings.")
+    })
 }
 
 pub(crate) fn resolve_codex_command() -> Result<PathBuf> {
-    let home = dirs::home_dir().unwrap_or_default();
-    require_codex_command(env::var_os("PATH").as_deref(), &home)
+    resolve_command("codex")
 }
 
+#[cfg(test)]
 fn require_codex_command(path: Option<&OsStr>, home: &Path) -> Result<PathBuf> {
     resolve_command_with("codex", path, home).ok_or_else(|| {
         "Codex CLI was not found. Install Codex or the OpenAI VS Code extension, then reopen Multi Codex".to_string()
@@ -1229,7 +1249,7 @@ fn resolve_command_with(name: &str, path: Option<&OsStr>, home: &Path) -> Option
     None
 }
 
-fn is_executable_file(path: &Path) -> bool {
+pub(crate) fn is_executable_file(path: &Path) -> bool {
     fs::metadata(path)
         .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
 }
@@ -1276,44 +1296,158 @@ fn find_extension_codex_for_platform(home: &Path, platform: &str) -> Option<Path
         .find(|candidate| is_executable_file(candidate))
 }
 
+fn arguments_use_profile(arguments: &[Vec<u8>], vscode_home: &Path) -> bool {
+    let expected = vscode_home.as_os_str().as_encoded_bytes();
+    // Electron can rewrite argv and leave the user-data path as a standalone
+    // argument. Match whole arguments, never substrings or a flattened ps line.
+    arguments.iter().any(|arg| {
+        arg == expected
+            || arg
+                .strip_prefix(b"--user-data-dir=")
+                .is_some_and(|value| value == expected)
+    })
+}
+
+pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
+    process_arguments(pid).is_some_and(|args| arguments_use_profile(&args, vscode_home))
+}
+
+#[cfg(target_os = "linux")]
+fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
+    Some(
+        fs::read(format!("/proc/{pid}/cmdline"))
+            .ok()?
+            .split(|b| *b == 0)
+            .filter(|a| !a.is_empty())
+            .map(|a| a.to_vec())
+            .collect(),
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
+    // KERN_PROCARGS2 preserves argument boundaries, including spaces and Unicode.
+    let mut mib = [
+        libc::CTL_KERN,
+        libc::KERN_PROCARGS2,
+        i32::try_from(pid).ok()?,
+    ];
+    let mut size = 0usize;
+    // SAFETY: mib has three initialized integers; size is writable; this first
+    // call only asks for the required buffer length.
+    if unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            3,
+            std::ptr::null_mut(),
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    } != 0
+        || size > 4 * 1024 * 1024
+    {
+        return None;
+    }
+    let mut bytes = vec![0u8; size];
+    // SAFETY: bytes is allocated to size bytes and sysctl cannot write beyond it.
+    if unsafe {
+        libc::sysctl(
+            mib.as_mut_ptr(),
+            3,
+            bytes.as_mut_ptr().cast(),
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
+    } != 0
+    {
+        return None;
+    }
+    bytes.truncate(size);
+    parse_macos_arguments(&bytes)
+}
+
+#[cfg(any(target_os = "macos", test))]
+fn parse_macos_arguments(bytes: &[u8]) -> Option<Vec<Vec<u8>>> {
+    let count = i32::from_ne_bytes(bytes.get(..4)?.try_into().ok()?);
+    if !(1..=65536).contains(&count) {
+        return None;
+    }
+    let mut offset = 4 + bytes.get(4..)?.iter().position(|b| *b == 0)? + 1;
+    while bytes.get(offset) == Some(&0) {
+        offset += 1;
+    }
+    let mut arguments = Vec::new();
+    for _ in 0..count {
+        let remaining = bytes.get(offset..)?;
+        let end = remaining.iter().position(|b| *b == 0)?;
+        arguments.push(remaining[..end].to_vec());
+        offset += end + 1;
+    }
+    Some(arguments)
+}
+
 #[cfg(target_os = "linux")]
 fn profile_process_running(vscode_home: &Path) -> bool {
-    let expected = vscode_home.as_os_str().as_encoded_bytes();
     let Ok(entries) = fs::read_dir("/proc") else {
         return false;
     };
-    entries.flatten().any(|entry| {
-        if !entry
-            .file_name()
-            .to_string_lossy()
-            .chars()
-            .all(|character| character.is_ascii_digit())
-        {
-            return false;
-        }
-        let Ok(cmdline) = fs::read(entry.path().join("cmdline")) else {
-            return false;
-        };
-        cmdline
-            .split(|byte| *byte == 0)
-            .any(|argument| argument == expected)
-    })
+    entries
+        .flatten()
+        .filter_map(|entry| entry.file_name().to_str()?.parse::<u32>().ok())
+        .any(|pid| process_uses_profile(pid, vscode_home))
 }
 
 #[cfg(target_os = "macos")]
 fn profile_process_running(vscode_home: &Path) -> bool {
-    let Ok(output) = Command::new("ps").args(["-axo", "command="]).output() else {
+    let Ok(output) = crate::process::output(
+        Command::new("/bin/ps").args(["-axo", "pid="]),
+        Duration::from_secs(3),
+    ) else {
         return false;
     };
-    let expected = vscode_home.to_string_lossy();
     String::from_utf8_lossy(&output.stdout)
         .lines()
-        .any(|command| command.contains(expected.as_ref()))
+        .filter_map(|line| line.trim().parse::<u32>().ok())
+        .any(|pid| process_uses_profile(pid, vscode_home))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn process_arguments_match_whole_paths_and_do_not_match_other_profiles() {
+        let home = Path::new("/Users/A B/工具/vscode-user-data");
+        assert!(arguments_use_profile(
+            &[home.as_os_str().as_encoded_bytes().to_vec()],
+            home
+        ));
+        assert!(arguments_use_profile(
+            &[format!("--user-data-dir={}", home.display()).into_bytes()],
+            home
+        ));
+        assert!(!arguments_use_profile(
+            &[format!("{}-other", home.display()).into_bytes()],
+            home
+        ));
+        assert!(!arguments_use_profile(
+            &[format!("prefix {} suffix", home.display()).into_bytes()],
+            home
+        ));
+    }
+    #[test]
+    fn macos_argument_parser_preserves_spaces_and_excludes_environment() {
+        let mut raw = 3i32.to_ne_bytes().to_vec();
+        raw.extend_from_slice(
+            b"/Applications/Code\0\0code\0--user-data-dir\0/Users/A B/profile\0SECRET=value\0",
+        );
+        let args = parse_macos_arguments(&raw).unwrap();
+        assert_eq!(args.len(), 3);
+        assert_eq!(args[2], b"/Users/A B/profile");
+        assert!(parse_macos_arguments(&raw[..5]).is_none());
+    }
+
     use std::collections::HashMap;
     use std::os::unix::fs::symlink;
     use std::sync::Mutex;

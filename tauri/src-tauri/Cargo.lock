@@ -2210,18 +2210,20 @@ dependencies = [
 
 [[package]]
 name = "multi-codex-desktop"
-version = "2.3.3"
+version = "2.4.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
  "dirs",
  "keyring",
+ "libc",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tempfile",
  "uuid",
+ "zbus",
 ]
 
 [[package]]
