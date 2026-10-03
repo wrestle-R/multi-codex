@@ -39,16 +39,28 @@ import {
   importCurrentProfile,
   installDesktopIntegration,
   launchProfile,
+  launchStandaloneProfile,
   listProfiles,
   subscribeDeviceLogin,
   updateProfile,
 } from "./lib/desktop-api"
-import type { LaunchTargets, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, LimitCheckState, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
+import type { LaunchMode, LaunchTarget, LaunchTargets, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, LimitCheckState, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
 import { formatStorage } from "./lib/formatters"
 
 export { formatStorage } from "./lib/formatters"
 
 type Theme = "light" | "dark"
+
+function enabledLaunchTargets(apps: LaunchTargets | null, mode: LaunchMode): LaunchTarget[] {
+  if (!apps) return ['vscode']
+  if (apps.vscodeInstalled && apps.standaloneInstalled) {
+    if (!apps.standaloneVerified) return mode === 'standalone' ? [] : ['vscode']
+    return mode === 'both' ? ['vscode', 'standalone'] : [mode]
+  }
+  if (apps.vscodeInstalled) return ['vscode']
+  if (apps.standaloneInstalled && apps.standaloneVerified) return ['standalone']
+  return []
+}
 
 function initialTheme(): Theme {
   const saved = localStorage.getItem("multi-codex-theme")
@@ -77,10 +89,12 @@ export default function App() {
   const [cacheBusy, setCacheBusy] = useState(false)
   const [cacheError, setCacheError] = useState<string | null>(null)
   const [launchEnvironment, setLaunchEnvironment] = useState<LaunchEnvironment | null>(null)
-  const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string } | null>(null)
-  const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string } | null>(null)
+  const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string; target: LaunchTarget } | null>(null)
+  const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string; target: LaunchTarget } | null>(null)
   const [showLaunchSettings, setShowLaunchSettings] = useState(false)
   const [launchTargets, setLaunchTargets] = useState<LaunchTargets | null>(null)
+  const [launchMode, setLaunchMode] = useState<LaunchMode>('vscode')
+  const rowLaunchTargets = enabledLaunchTargets(launchTargets, launchMode)
   const [welcomeNeeded, setWelcomeNeeded] = useState(true)
   const [welcomeReady, setWelcomeReady] = useState(false)
   const [welcomeBusy, setWelcomeBusy] = useState(false)
@@ -152,6 +166,7 @@ export default function App() {
     void Promise.all([getExecutableSettings(), getLaunchTargets()]).then(([settings, targets]) => {
       if (!active) return
       setLaunchTargets(targets)
+      setLaunchMode(settings.launchMode ?? 'vscode')
       setWelcomeNeeded(!settings.onboardingCompleted)
     }).catch(error => { if (active) setWelcomeError(String(error)) }).finally(() => { if (active) setWelcomeReady(true) })
     return () => { active = false }
@@ -162,8 +177,10 @@ export default function App() {
     setWelcomeError(null)
     try {
       const [settings, detectedApps] = await Promise.all([getExecutableSettings(), getLaunchTargets()])
-      await saveExecutableSettings({ ...settings, onboardingCompleted: true, detectedApps })
+      const mode = detectedApps.vscodeInstalled && detectedApps.standaloneVerified ? 'both' : settings.launchMode ?? 'vscode'
+      await saveExecutableSettings({ ...settings, onboardingCompleted: true, detectedApps, launchMode: mode })
       setLaunchTargets(detectedApps)
+      setLaunchMode(mode)
       setWelcomeNeeded(false)
     } catch (error) {
       setWelcomeError(error instanceof Error ? error.message : String(error))
@@ -342,19 +359,19 @@ export default function App() {
     }
   }
 
-  async function handleLaunch(profile: Profile) {
+  async function handleLaunch(profile: Profile, target: LaunchTarget) {
     setLaunchPreparationError(null)
     try {
       const environment = launchEnvironment ?? await getLaunchEnvironment()
       setLaunchEnvironment(environment)
       const targets = await getLaunchTargets()
       setLaunchTargets(targets)
-      if (!targets.vscodeInstalled) throw new Error(targets.standaloneInstalled
-        ? "Codex app detected, but isolated account launch is not verified yet. Install VS Code to launch accounts in this release."
-        : "VS Code was not found. Install it or set its executable path in Launch settings.")
+      if (target === 'vscode' && !targets.vscodeInstalled) throw new Error("VS Code was not found. Install it or set its executable path in Launch settings.")
+      if (target === 'standalone' && (!targets.standaloneInstalled || !targets.standaloneVerified)) throw new Error("The verified Codex desktop app is unavailable. Reopen Launch settings to check the installed apps.")
       const settings = await getExecutableSettings()
+      setLaunchMode(settings.launchMode ?? 'vscode')
       setHideDesktopPicker(environment.capabilities.backend === "macos" || Boolean(settings.hideDesktopPicker))
-      setFolderRequest({ profile, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
+      setFolderRequest({ profile, target, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setLaunchPreparationError(message)
@@ -369,7 +386,7 @@ export default function App() {
     setFolderRequest(null)
     setLaunchError(null)
     setPlacementToken(null)
-    const launch = { profile: request.profile, workspace }
+    const launch = { profile: request.profile, target: request.target, workspace }
     setLaunchRequest(launch)
     if (hideDesktopPicker) await completeLaunch(null, launch)
   }
@@ -388,7 +405,7 @@ export default function App() {
     setLaunchBusy(true)
     setLaunchError(null)
     try {
-      const result = await launchProfile(request.profile.id, request.workspace, desktop, placementToken)
+      const result = await (request.target === 'standalone' ? launchStandaloneProfile : launchProfile)(request.profile.id, request.workspace, desktop, placementToken)
       if (result.completed) {
         setLaunchRequest(null)
         setPlacementToken(null)
@@ -555,13 +572,13 @@ export default function App() {
             <div>
               <span className="eyebrow">Codex profiles</span>
               <h1>One account per workspace.</h1>
-              <p>Open separate VS Code windows without changing your main Codex login.</p>
+              <p>Choose an account, then open your workspace. Your default login stays untouched.</p>
             </div>
           </div>
 
           {launchPreparationError ? <p className="form-error" role="alert">{launchPreparationError}</p> : null}
 
-          {launchTargets && !launchTargets.vscodeInstalled ? <div className="state-panel launch-requirements" role="status"><p>{launchTargets.standaloneInstalled ? "Codex app detected. Isolated standalone launch is awaiting verification; use VS Code for now." : "Install VS Code to launch your accounts. You can also set an executable path in Launch settings."}</p></div> : null}
+          {launchTargets && rowLaunchTargets.length === 0 ? <div className="state-panel launch-requirements" role="status"><p>{launchTargets.standaloneInstalled ? "Isolated standalone launch is awaiting verification for this installed version. Use VS Code from Launch settings." : "Install VS Code or the supported Codex desktop app to launch your accounts."}</p></div> : null}
 
           {loading ? (
             <div className="profile-list" aria-label="Loading accounts">
@@ -580,6 +597,7 @@ export default function App() {
                   limits={limitChecks[profile.id]}
                   onCheckLimits={handleCheckLimits}
                   onLaunch={handleLaunch}
+                  launchTargets={rowLaunchTargets}
                   onEdit={(selected) => { setDialogError(null); setDialogProfile(selected) }}
                   onDelete={(selected) => { setDialogError(null); setDeleteTarget(selected) }}
                   onShowResetCredits={(selected, limits) => setCreditsTarget({ profile: selected, limits })}
@@ -622,10 +640,16 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
-      {showLaunchSettings ? <LaunchSettingsDialog onClose={() => setShowLaunchSettings(false)} /> : null}
+      {showLaunchSettings ? <LaunchSettingsDialog onClose={() => {
+        setShowLaunchSettings(false)
+        void Promise.all([getExecutableSettings(), getLaunchTargets()]).then(([settings, apps]) => {
+          setLaunchMode(settings.launchMode ?? 'vscode'); setLaunchTargets(apps)
+        }).catch(error => setLaunchPreparationError(String(error)))
+      }} /> : null}
       {launchRequest ? (
         <WorkspaceDialog
           showDesktopPicker={!hideDesktopPicker}
+          appName={launchRequest.target === 'standalone' ? 'Codex app' : 'VS Code'}
           profile={launchRequest.profile}
           workspace={launchRequest.workspace}
           busy={launchBusy}

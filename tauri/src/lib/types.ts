@@ -142,7 +142,11 @@ export interface ExecutableSettings {
   hideDesktopPicker?: boolean
   onboardingCompleted?: boolean
   detectedApps?: LaunchTargets | null
+  launchMode?: LaunchMode
 }
+
+export type LaunchTarget = "vscode" | "standalone"
+export type LaunchMode = LaunchTarget | "both"
 
 export interface LaunchTargets {
   platform: string
@@ -150,4 +154,5 @@ export interface LaunchTargets {
   codexCliAvailable: boolean
   standaloneInstalled: boolean
   standaloneVerified: boolean
+  standaloneVersion?: string | null
 }

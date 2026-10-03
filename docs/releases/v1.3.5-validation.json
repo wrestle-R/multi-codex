@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "version": "1.3.5",
+  "artifacts": {},
+  "checks": {
+    "native-spaces-macos-27": {
+      "status": "blocked",
+      "reason": "No validated native API for another application\u2019s Spaces inventory and verified placement; real-Mac demonstration required.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "native-spaces-macos-26": {
+      "status": "blocked",
+      "reason": "No validated native API for another application\u2019s Spaces inventory and verified placement; real-Mac demonstration required.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-macos-27-arm64": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-macos-26-arm64": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "macos-signing-notarization": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-debian-ubuntu": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-fedora": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-arch": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "hyprland-placement": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "gnome-wayland-placement": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "gnome-x11-placement": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "kde-wayland-placement": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "kde-x11-placement": {
+      "status": "pending",
+      "reason": "Packaged functional validation has not been performed.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    }
+  }
+}

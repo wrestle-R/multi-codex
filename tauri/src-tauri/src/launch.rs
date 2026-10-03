@@ -46,6 +46,23 @@ pub trait DesktopControl {
     fn validate_window(&self, window: &str, home: &Path) -> Result<()>;
 }
 pub struct NativeDesktopControl;
+pub struct StandaloneDesktopControl;
+impl DesktopControl for StandaloneDesktopControl {
+    fn inventory(&self) -> Result<DesktopInventory> {
+        NativeDesktopControl.inventory()
+    }
+    fn find_window(&self, previous: &HashSet<String>, home: &Path) -> Result<String> {
+        // The desktop's per-profile instance lock reuses its existing window.
+        // Require exact profile ownership and refuse ambiguous windows.
+        desktop_environment::find_profile_window(previous, home, true)
+    }
+    fn move_window(&self, window: &str, desktop: &str) -> Result<()> {
+        NativeDesktopControl.move_window(window, desktop)
+    }
+    fn validate_window(&self, window: &str, home: &Path) -> Result<()> {
+        NativeDesktopControl.validate_window(window, home)
+    }
+}
 impl DesktopControl for NativeDesktopControl {
     fn validate_window(&self, window: &str, home: &Path) -> Result<()> {
         let snapshot = desktop_environment::inventory()?;
@@ -118,7 +135,7 @@ impl LaunchCoordinator {
         self.pending
             .retain(|_, p| p.created.elapsed() < Duration::from_secs(1800));
         let token = if let Some(token) = retry {
-            let pending = self.pending.get(token).ok_or("This placement retry expired. Check the already-opened VS Code window before launching again.")?;
+            let pending = self.pending.get(token).ok_or("This placement retry expired. Check the already-opened app window before launching again.")?;
             if pending.profile != profile
                 || pending.workspace != workspace
                 || pending.profile_home != home

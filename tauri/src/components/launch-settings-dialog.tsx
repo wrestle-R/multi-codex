@@ -54,11 +54,9 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
           {targets?.vscodeInstalled && targets.standaloneInstalled ? <fieldset className="launch-app-options">
             <legend>Open accounts with</legend>
             <div className="launch-app-choices">
-              <label><input type="radio" name="launch-app" checked readOnly /> VS Code only</label>
-              <label><input type="radio" name="launch-app" disabled /> Codex app only</label>
-              <label><input type="radio" name="launch-app" disabled /> Both</label>
+              {([['vscode', 'VS Code only'], ['standalone', 'Codex app only'], ['both', 'Both']] as const).map(([mode, label]) => <label key={mode}><input type="radio" name="launch-app" checked={(settings.launchMode ?? 'vscode') === mode} disabled={loading || busy || (mode !== 'vscode' && !targets.standaloneVerified)} onChange={() => setSettings(value => ({ ...value, launchMode: mode }))} /> {label}</label>)}
             </div>
-            <p className="desktop-notice">Both apps detected. Codex app launch is awaiting account-isolation verification.</p>
+            <p className="desktop-notice">{targets.standaloneVerified ? "Both apps detected. Each opens with your account’s isolated profile." : `Codex app ${targets.standaloneVersion ?? 'version'} has not passed account-isolation verification. VS Code is available.`}</p>
           </fieldset> : null}
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
           <details className="advanced-settings">

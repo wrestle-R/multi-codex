@@ -81,6 +81,17 @@ jobs:
         run: |
           cargo test --manifest-path src-tauri/Cargo.toml macos_live_keychain_round_trip -- --ignored --test-threads=1
           cargo test --manifest-path src-tauri/Cargo.toml macos_live_vscode_launch_is_detected -- --ignored --test-threads=1
+      - name: Install official standalone desktop for native launch smoke
+        run: |
+          curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/Codex.dmg -o "$RUNNER_TEMP/standalone.dmg"
+          mkdir "$RUNNER_TEMP/standalone-volume"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/standalone-volume" "$RUNNER_TEMP/standalone.dmg"
+          DESKTOP_APP=$(find "$RUNNER_TEMP/standalone-volume" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$DESKTOP_APP"
+          ditto "$DESKTOP_APP" "/Applications/$(basename "$DESKTOP_APP")"
+          hdiutil detach "$RUNNER_TEMP/standalone-volume"
+      - name: Verify production standalone launch and restart with long private paths
+        run: cargo test --manifest-path src-tauri/Cargo.toml macos_live_standalone_launch_is_detected -- --ignored --test-threads=1
       - run: npm run check:secrets
       - run: npm run tauri -- build --bundles app,dmg --target aarch64-apple-darwin
       - name: Inspect and smoke-test Apple Silicon app bundle

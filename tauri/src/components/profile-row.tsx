@@ -5,13 +5,14 @@ import {
   Refresh01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
-import type { LimitCheckState, LimitWindow, Profile, ProfileLimits } from "../lib/types"
+import type { LaunchTarget, LimitCheckState, LimitWindow, Profile, ProfileLimits } from "../lib/types"
 
 interface ProfileRowProps {
   profile: Profile
   limits?: LimitCheckState
   onCheckLimits: (profile: Profile) => void
-  onLaunch: (profile: Profile) => void
+  onLaunch: (profile: Profile, target: LaunchTarget) => void
+  launchTargets?: LaunchTarget[]
   onEdit: (profile: Profile) => void
   onDelete: (profile: Profile) => void
   onShowResetCredits: (profile: Profile, limits: ProfileLimits) => void
@@ -54,7 +55,7 @@ function LimitMetric({ label, window }: { label: string; window: LimitWindow | n
   )
 }
 
-export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, onDelete, onShowResetCredits }: ProfileRowProps) {
+export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTargets = ['vscode'], onEdit, onDelete, onShowResetCredits }: ProfileRowProps) {
   const supportsLimits = profile.authMode.toLowerCase() === "chatgpt"
   const hasReportedWindow = Boolean(limits?.data?.fiveHour || limits?.data?.weekly || limits?.data?.monthly)
   const freeLimitsNotReported = profile.accountTier?.toLowerCase() === "free" && limits?.data && !hasReportedWindow
@@ -120,14 +121,15 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, onEdit, o
         >
           <HugeiconsIcon icon={Delete02Icon} size={19} strokeWidth={1.8} />
         </button>
-        <button
-          className="button primary launch-button"
+        {launchTargets.map(target => <button
+          key={target}
+          className={`button ${launchTargets.length > 1 && target === 'vscode' ? 'secondary' : 'primary'} launch-button`}
           type="button"
-          onClick={() => onLaunch(profile)}
+          onClick={() => onLaunch(profile, target)}
         >
           <HugeiconsIcon icon={PlayIcon} size={18} strokeWidth={1.8} />
-          Launch
-        </button>
+          {launchTargets.length > 1 ? target === 'vscode' ? 'VS Code' : 'Codex app' : 'Launch'}
+        </button>)}
       </div>
     </article>
   )
