@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 export const requiredChecks = [
-  'native-spaces-macos-27', 'native-spaces-macos-26',
   'packaged-macos-27-arm64', 'packaged-macos-26-arm64', 'macos-signing-notarization',
   'packaged-debian-ubuntu', 'packaged-fedora', 'packaged-arch',
   'hyprland-placement', 'gnome-wayland-placement', 'gnome-x11-placement',

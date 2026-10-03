@@ -1,50 +1,48 @@
-# Platform support for the 1.3.1 candidate
+# Platform support for the v1.3.5 candidate
 
-This candidate is **not cleared for publication**. The full standard-macOS desktop requirement has not passed its feasibility gate. A successful CI build is not a functional support claim.
+v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Code launcher. The candidate is still a **draft**: authenticated isolation and native startup checks passed, while packaged functional validation, distribution coverage, and Apple signing/notarization remain open. A passing source or CI smoke test does not validate an installed release package.
 
-| Environment | Desktop inventory / placement | Validation performed |
+| Environment | Launch and desktop behavior | Evidence and remaining limits |
 | --- | --- | --- |
-| Hyprland | Native IPC; Lua when available, legacy dispatch otherwise | Live inventory and real VS Code placement on Hyprland 0.56.2; full packaged matrix pending |
-| GNOME Shell 45–51 | Bundled protocol-1 Shell extension | Contract/source tests; live GNOME and packaged Wayland/X11 validation pending |
-| KDE Plasma 6 | Bundled protocol-1 on-demand KWin script | Inventory, empty desktop, placement and missing destination tested on isolated KWin 6.7.5 Wayland; packaged/X11 validation pending |
-| macOS 27 and 26, Apple Silicon | Current-desktop launch; native Spaces controls unavailable | Targeted checks on macOS 26.6.2: browser sign-in, isolated import, live limits, Keychain and native VS Code launch; full release matrix and Spaces validation remain pending |
-| Other Linux desktops | Current-desktop launch, explicit unavailable-control message | No desktop-placement support claim |
+| Linux x86_64, Hyprland | VS Code or verified Codex app; optional desktop picker with native inventory and verified placement | Live VS Code placement on Hyprland 0.56.2 and authenticated standalone isolation passed; packaged matrix pending |
+| Linux x86_64, GNOME Shell 45–51 | Optional picker through the bundled Shell extension | Contract/source tests passed; live GNOME and packaged Wayland/X11 validation pending |
+| Linux x86_64, KDE Plasma 6 | Optional picker through an on-demand KWin script | Isolated KWin 6.7.5 Wayland inventory and placement checks passed; packaged/X11 validation pending |
+| Other Linux desktops | Current-desktop launch when placement is unavailable | No desktop-placement support claim; distribution-specific package checks pending |
+| Apple Silicon macOS 26 | VS Code or verified Codex app opens on the current desktop; no desktop picker or Spaces control | Authenticated isolation on a [Mac GitHub runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) and [native launch/package CI](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) passed; installed DMG, signing/notarization and wider functional checks pending |
 
-Linux candidate packages target x86_64. Distribution families are covered by AppImage, DEB and RPM; this does not imply testing every distribution/version. Intel Macs and Windows are outside the 1.3.1 support promise. Linux session-bus, native libraries and system credential-store dependencies must be present.
+Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux candidates use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. macOS 27, Intel Macs and Windows have no v1.3.5 validation claim. Linux requires its usual session bus, native libraries and credential-store dependencies.
 
-## Launch preferences
+## Launch settings and account data
 
-Launch settings includes a preferred folder, used as the starting location of the folder picker on both platforms. Leave it empty to use the default workspace folder. On macOS, choosing a folder launches VS Code directly without displaying desktop controls. On Linux, the desktop picker stays enabled by default; uncheck **Show desktop picker before launching** to skip it. Preferences persist across restarts. Direct launches use the existing current-desktop launch behavior.
+The first-run welcome saves platform and installed-app detection; installed apps are checked again later. When both apps are available, Launch settings offers **VS Code only**, **Codex app only**, or **Both**. **Both** shows two launch buttons. With one usable app, the choice section is hidden and the available target is selected automatically. Existing installations initially keep VS Code; a new installation with both verified apps starts with Both. An unverified standalone version cannot be selected.
 
-## macOS account and launch checks
+**Preferred folder + Browse** uses the built-in folder picker. The saved folder is its starting location on each launch; a different project can be chosen then. On Linux, **Show desktop picker** is on by default and can be turned off. The option does not appear on macOS. Mac launches continue on the current desktop after the folder choice. Executable paths and global Codex home are under Advanced.
 
-Mac GUI applications can have a restricted PATH. Codex discovery recognizes the VS Code extension's `bin/macos-aarch64/codex` and `bin/macos-x86_64/codex` directories, retaining the older `darwin-*` layouts. The sign-in link and Open browser button use the native macOS browser opener. Linux retains its existing browser action and executable search paths.
+Each account keeps its existing `profiles/<id>/codex-home` for both apps. Standalone desktop cookies and app state use a separate `desktop-data` directory for that account; VS Code keeps its separate user-data directory and extensions. The app preserves the normal browser HOME for sign-in links. A desktop sign-out stays signed out on restart and does not silently restore stale credentials from the keyring. Editing or deleting an account and cleaning its cache are blocked while either app is using it. The global auth file is not changed by an isolated launch. [Linux and Mac authenticated isolation evidence](releases/v1.3.5-auth-isolation.json)
 
-On macOS, VS Code uses a socket beneath its user-data directory, with a 103-byte path limit. Multi Codex launches the native VS Code executable using a short, owner-only runtime alias under `/tmp/multi-codex-<uid>/<profile-id>`. The alias points to the existing profile data; it is recreated after reboot and removed when the profile is deleted. Process detection recognizes the alias's canonical target. Inherited Mac extension-host entrypoint and IPC variables are removed. Linux retains its existing launch and process-identification paths.
+Managed data stays in the existing platform data directory plus `multi-codex`: normally `$XDG_DATA_HOME/multi-codex` or `~/.local/share/multi-codex` on Linux, and `~/Library/Application Support/multi-codex` on macOS. Upgrades do not relocate profiles. Global import uses a nonempty inherited `CODEX_HOME`, then the saved global-home setting, then `~/.codex`. Override paths must be absolute executable files and are passed directly, never interpreted as shell commands. Empty executable fields restore automatic discovery; changing the global home requires restarting Multi Codex.
 
-The regular Rust and frontend suites cover discovery, browser error handling, profile isolation and process arguments. Opt-in checks exercise the installed Codex CLI with a temporary copy of the current account, native Keychain with a disposable entry, and a disposable VS Code window:
+## macOS launch checks
 
-```bash
-cargo test --manifest-path tauri/src-tauri/Cargo.toml macos_live -- --ignored
-```
+Mac GUI apps can have a restricted PATH. Codex CLI discovery includes VS Code extension binaries in `bin/macos-aarch64/codex`, `bin/macos-x86_64/codex`, and older `darwin-*` layouts. It can also use the CLI bundled with the verified desktop app. The sign-in link and Open browser action use the native macOS browser opener.
 
-These checks require a signed-in local Codex installation and VS Code. They do not modify the global auth file. The VS Code check opens and closes a temporary isolated window. A debug `.app` was also checked interactively for startup and a completed browser sign-in with live limits; this does not validate signing, notarization, DMG installation, or native Spaces placement.
+VS Code and standalone Electron instances can hit macOS socket path limits with long profile paths. Multi Codex creates short, owner-only runtime aliases under `/tmp/multi-codex-<uid>/` that point to the existing profile data. The aliases are recreated after reboot, recognized during process detection, and removed when a profile is deleted. Inherited editor IPC variables are removed from child launches. Linux keeps its own launch and process-identification paths.
 
-## Desktop inventory and placement
+The [authenticated runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) used two different disposable accounts to check cold credential reuse, refresh, logout, peer isolation and signed-out restarts. The [CI run](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) exercised native Keychain, disposable VS Code startup, the real standalone desktop launch twice with Unicode/spaced private paths, a visible window, and Apple Silicon app/DMG build inspection. The CI smoke uses disposable fixtures; it is separate from the authenticated isolation run and from installing and testing a signed/notarized release DMG.
 
-The picker lists application windows, not individual browser or editor tabs. Desktop identifiers belong to the current desktop session, not permanent saved destinations. Inventories refresh every two seconds while the picker is idle. GNOME IDs survive workspace renumbering within the enabled extension session. Multiple active desktops on separate Hyprland monitors are all marked current. GNOME and KDE share virtual desktops across displays, so their desktop monitor field is unset.
+Multi Codex deliberately offers no Mac Spaces inventory or placement. This matches the requested current-desktop flow; the earlier Spaces requirement is outside v1.3.5 scope.
 
-On Hyprland, the picker includes numeric desktops 1–10, including empty destinations that the compositor creates when used, plus any other existing desktops. GNOME and KDE list the desktops provided by their integrations. Linux cards group windows by application and display locally installed app icons, names and counts. Hovering or focusing a card shows its window titles and monitor information.
+## Linux desktop inventory and placement
 
-Placement identifies a new window using structured profile process arguments. When Electron rewrites Linux process arguments, exact profile database lock files held open by a recognized VS Code process provide the fallback; recognized renderer processes can be traced to that owning process. Ambiguous matches are rejected. The destination is verified after moving the identified window. Pinned windows must be unpinned before placement to a single desktop. “Current desktop” also waits for the new window and verifies its destination when the backend supports placement. The dialog closes and returns to the main page only after successful launch completion.
+The picker lists application windows, not individual editor tabs. Desktop identifiers belong to the current session. Inventories refresh every two seconds while the picker is idle. On Hyprland it includes numbered desktops 1–10 and other existing desktops; GNOME and KDE use the desktops reported by their integrations. Window cards show local application icons, names, counts and window details.
 
-Every launch uses a unique single-folder `.code-workspace` descriptor under the existing profile's `launch-workspaces/<id>` directory. This prevents VS Code from reusing another window of the same folder despite `--new-window`. The descriptor refers to the original absolute project path and stays available for VS Code session restore. Project files are not modified or relocated. Inherited VS Code CLI routing variables are removed from the child command. [VS Code workspace format](https://code.visualstudio.com/docs/editing/workspaces/multi-root-workspaces#_workspace-file-schema)
+Placement identifies the new VS Code or Codex app window from its profile process arguments. If Electron rewrites those arguments, exact profile database locks held by a recognized process provide a fallback. Ambiguous matches are rejected. The destination is checked after moving the window. A failed move offers a retry for the already-opened window, avoiding a duplicate launch. Disabling the desktop picker uses current-desktop launch.
 
-Failed placement keeps a retry token in memory for up to 30 minutes. Retry moves the already-opened window; “Keep the opened window” accepts it without launching again. Closing the dialog discards the token and leaves the window open. A normal subsequent Launch intentionally creates a new window. Restarting Multi Codex clears retry state; inspect already-opened windows before launching again.
+VS Code opens a unique single-folder `.code-workspace` descriptor in the profile's `launch-workspaces/<id>` directory. This keeps repeated launches from reusing a window even for the same folder. The descriptor refers to the original project path; project files are not moved. [VS Code workspace format](https://code.visualstudio.com/docs/editing/workspaces/multi-root-workspaces#_workspace-file-schema)
 
-## GNOME installation
+### GNOME installation
 
-The extension is shipped in `tauri/platform/gnome/multicodex-desktops@multicodex.desktop` and included in packaged resources under `desktop-integrations/gnome`. Install from the source tree:
+The bundled extension is `tauri/platform/gnome/multicodex-desktops@multicodex.desktop`. Install it from source:
 
 ```bash
 mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/multicodex-desktops@multicodex.desktop"
@@ -52,48 +50,15 @@ cp tauri/platform/gnome/multicodex-desktops@multicodex.desktop/{metadata.json,ex
   "${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions/multicodex-desktops@multicodex.desktop/"
 ```
 
-Log out and back in, then enable it:
+Log out and back in, then run `gnome-extensions enable multicodex-desktops@multicodex.desktop` and refresh the picker. Its session-bus bridge exposes Inventory and Move on `com.multicodex.Desktops1`, protocol version 1; unsupported versions are rejected. Supported Shell metadata is an installation constraint, not proof of live validation on each version. [GNOME extension documentation](https://help.gnome.org/system-admin-guide/extensions.html)
 
-```bash
-gnome-extensions enable multicodex-desktops@multicodex.desktop
-```
+### KDE integration
 
-Refresh the picker. Its bridge exports only Inventory and Move on `com.multicodex.Desktops1`, protocol version 1. Unsupported bridge versions are rejected. The extension does not read credentials, launch commands, or expose arbitrary evaluation. Like other session-bus desktop controls, it is accessible to applications in the same user's desktop session. Supported Shell version metadata is an installation constraint, not evidence of live validation on every version. [GNOME extension documentation](https://help.gnome.org/system-admin-guide/extensions.html)
+Plasma 6 uses the bundled `tauri/platform/kde/bridge.js`. Each request loads an owner-only temporary KWin script, receives a nonce-bound inventory response, and unloads the script. No permanent plugin is installed. If KWin scripting or the session bus is unavailable, the picker reports that placement cannot be used. The isolated integration check is `bash tauri/scripts/test-kde-bridge.sh`. [KWin scripting API](https://develop.kde.org/docs/plasma/kwin/api/)
 
-## KDE integration
+## Release validation
 
-Plasma 6 exposes desktop/window controls through KWin scripting. Multi Codex embeds `tauri/platform/kde/bridge.js`, writes each request into an owner-only temporary script, loads it through KWin's session-bus API, receives a nonce-bound inventory response and unloads the script. No permanent plugin or separate window manager needs installation. If scripting/session-bus access is unavailable, the picker explains that placement is unavailable. [KWin scripting API](https://develop.kde.org/docs/plasma/kwin/api/)
-
-The isolated integration check requires KWin 6, GTK4 Python bindings, and dbus-run-session:
-
-```bash
-bash tauri/scripts/test-kde-bridge.sh
-```
-
-## macOS feasibility blocker
-
-The required feature is inventory of existing Spaces with other applications' windows, placement of a newly opened VS Code window onto a selected Space, and verification of that destination. Public Core Graphics window listing and AppKit's active-Space notification do not establish that full capability; `NSWindow.moveToActiveSpace` concerns an application's own window. No guessed desktop list, private WindowServer integration, extra window manager, or keyboard macro is substituted in this candidate.
-
-- [Core Graphics window listing](https://developer.apple.com/documentation/coregraphics/cgwindowlistcopywindowinfo(_:_:))
-- [AppKit active-Space notification](https://developer.apple.com/documentation/appkit/nsworkspace/activespacedidchangenotification)
-- [NSWindow moveToActiveSpace](https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct/movetoactivespace)
-- [Apple's current macOS versions](https://support.apple.com/en-us/109033)
-
-A real demonstration on Apple Silicon macOS 27 and 26 remains mandatory before marking either native-Spaces gate passed. If a reliable native implementation cannot satisfy it, the agreed release cannot ship without revising that requirement. Current-desktop launch is an explicitly available behavior, not completion of the Spaces requirement.
-
-## Tools and storage
-
-Managed data remains in the existing platform data directory plus `multi-codex` (normally `$XDG_DATA_HOME/multi-codex` or `~/.local/share/multi-codex` on Linux; `~/Library/Application Support/multi-codex` on macOS). Profiles remain under `profiles/<id>` with separate Codex homes, VS Code user-data directories and extensions. Upgrades do not relocate them.
-
-The global import home uses nonempty inherited `CODEX_HOME`, then a saved global-home setting, then `~/.codex`. Paths must be absolute. Launch settings saves VS Code/Codex executable overrides for custom installations. Overrides are validated as executable files and are passed directly, never evaluated as shell commands. Empty fields restore automatic discovery. Tool overrides apply immediately; changing the global home requires restarting the app. Persisted paths are owner-only; credentials are not stored in executable settings.
-
-Automatic discovery uses PATH, existing extension binaries and platform defaults, including `/Applications`, `~/Applications`, `/opt/homebrew/bin` and `/usr/local/bin` on macOS. Missing tools report a settings action. macOS process discovery uses KERN_PROCARGS2 argument boundaries rather than matching substrings in ps output. Keychain remains the macOS credential store; permission/locked-Keychain behavior still needs real-device validation.
-
-## Release procedure and evidence
-
-The tag workflow builds draft candidates only. The explicit Publish validated candidate workflow downloads the draft's exact assets and checks `docs/releases/v1.3.1-validation.json`, checksums and test evidence before publication.
-
-For every required check, record `status: passed`, exact OS/environment version, tester, timestamp and an evidence reference. Record each tested package's SHA256 in the manifest. Rebuilding or re-signing changes the artifact and requires validation of that resulting package. Do not mark a packaged check passed based on a source test or a five-second process smoke test.
+The tag workflow builds a **draft** candidate and publishes checksums with the exact assets. The separate [Publish validated candidate workflow](../.github/workflows/publish-validated.yml) checks those assets against [the v1.3.5 validation manifest](releases/v1.3.5-validation.json) before publication. The manifest must reflect the current product scope and record passed package checks with OS version, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
 
 ```bash
 cd tauri
@@ -101,6 +66,4 @@ npm run test:release-gates
 npm run check:release-gates -- /absolute/path/to/candidate-assets
 ```
 
-The second command must currently fail. Remaining blockers are tracked in the manifest. Signed macOS candidates require Developer ID certificate credentials and notarization credentials configured through GitHub repository secrets. [Tauri signing documentation](https://v2.tauri.app/distribute/sign/macos/)
-
-Functional validation on each supported environment must include login/import; credential refresh and persistence across restart; isolated profile launch; minimal PATH/Finder/Dock launch; executable overrides; Unicode/spaced paths; folder access denial; upgrade without data loss; empty/missing desktops; multiple monitors; repeated/concurrent launches; pre-existing profile windows; placement retry without duplicates; permission denial/revocation; and verified destination membership. Record failures with credential-free diagnostics. Real Mac checks must include Keychain denial and Gatekeeper/notarization after installing the DMG.
+The second command must fail until the required package evidence exists. Remaining work includes installed-package login/import, credential refresh and persistence, app launch under restricted GUI environments, path and permission cases, upgrade without profile loss, repeated/concurrent launches, and Linux desktop-placement checks on the stated environments. A signed macOS release also needs Developer ID and notarization credentials plus Gatekeeper and Keychain-denial checks on the installed DMG. [Tauri signing documentation](https://v2.tauri.app/distribute/sign/macos/)
