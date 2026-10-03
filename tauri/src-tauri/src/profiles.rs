@@ -1815,6 +1815,11 @@ fn profile_data_open_by_process(pid: u32, vscode_home: &Path, proc_root: &Path) 
     let locks = [
         home.join("Local Storage/leveldb/LOCK"),
         home.join("Service Worker/Database/LOCK"),
+        // Codex desktop uses Chromium's Default profile. Its Electron main
+        // process rewrites argv into one flattened title, but keeps this exact
+        // per-instance database lock open for the lifetime of the window.
+        home.join("Default/Local Storage/leveldb/LOCK"),
+        home.join("Default/Partitions/codex-browser-app/Service Worker/Database/LOCK"),
     ];
     // Electron's process title can replace every argv boundary. Its open profile
     // database locks still identify the user-data directory exactly; never parse
@@ -1960,6 +1965,32 @@ mod tests {
         fs::remove_file(process.join("exe")).unwrap();
         symlink("/usr/bin/backup-tool", process.join("exe")).unwrap();
         assert!(!profile_data_open_by_process(42, &profile, &proc_root));
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn identifies_standalone_electron_by_its_default_profile_lock() {
+        use std::os::unix::fs::symlink;
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("Disposable A 測試/desktop-data");
+        let lock = home.join("Default/Local Storage/leveldb/LOCK");
+        fs::create_dir_all(lock.parent().unwrap()).unwrap();
+        fs::write(&lock, b"").unwrap();
+        let process = root.path().join("proc/42");
+        fs::create_dir_all(process.join("fd")).unwrap();
+        symlink("/usr/lib/chatgpt/ChatGPT", process.join("exe")).unwrap();
+        symlink(&lock, process.join("fd/7")).unwrap();
+
+        assert!(profile_data_open_by_process(
+            42,
+            &home,
+            &root.path().join("proc")
+        ));
+        assert!(!profile_data_open_by_process(
+            42,
+            &root.path().join("Disposable A 測試 copy/desktop-data"),
+            &root.path().join("proc")
+        ));
     }
 
     #[test]
