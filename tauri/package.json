@@ -12,7 +12,7 @@
     "check:secrets": "bash scripts/check-secrets.sh",
     "test:release": "bash scripts/test-release-packaging.sh",
     "release:linux": "bash scripts/build-linux-release.sh",
-    "test:release-gates": "node --test scripts/release-gates.test.mjs",
+    "test:release-gates": "node --test scripts/release-gates.test.mjs scripts/installers.test.mjs",
     "check:release-gates": "node scripts/release-gates.mjs"
   },
   "dependencies": {

@@ -23,9 +23,12 @@ sha256_file() {
 }
 
 case "$(uname -s)" in
-  Linux) suffix=".AppImage" ;;
+  Linux)
+    [[ "$(uname -m)" == "x86_64" ]] || { printf 'Linux packages currently require x86_64.\n' >&2; exit 1; }
+    suffix=".AppImage"
+    ;;
   Darwin) suffix=".dmg" ;;
-  *) printf 'Only Arch Linux and macOS are supported.\n' >&2; exit 1 ;;
+  *) printf 'Linux x86_64 and supported macOS installations are required.\n' >&2; exit 1 ;;
 esac
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/multi-codex-update.XXXXXX")
@@ -48,7 +51,18 @@ version=${tag#v}
 if [[ "$suffix" == ".AppImage" ]]; then
   asset_name="Multi.Codex_${version}_amd64.AppImage"
 else
-  asset_name="Multi.Codex_${version}_universal.dmg"
+  major=${version%%.*}
+  minor_patch=${version#*.}
+  minor=${minor_patch%%.*}
+  if (( major > 1 || (major == 1 && minor >= 3) )); then
+    [[ "$(uname -m)" == "arm64" ]] || { printf 'Multi Codex 1.3+ supports Apple Silicon Macs. Your existing installation has not been changed.\n' >&2; exit 1; }
+    macos_major=$(sw_vers -productVersion)
+    macos_major=${macos_major%%.*}
+    (( macos_major >= 26 )) || { printf 'Multi Codex 1.3+ requires macOS 26 or newer. Your existing installation has not been changed.\n' >&2; exit 1; }
+    asset_name="Multi.Codex_${version}_aarch64.dmg"
+  else
+    asset_name="Multi.Codex_${version}_universal.dmg"
+  fi
 fi
 release_url="https://github.com/${repo}/releases/download/${tag}"
 asset_url="$release_url/$asset_name"
@@ -101,10 +115,20 @@ else
   ditto "$app_source" "$staged"
   hdiutil detach "$mount_dir" >/dev/null
   mount_dir=""
-  rm -rf "$destination"
-  mv "$staged" "$destination"
+  if (( major > 1 || (major == 1 && minor >= 3) )); then
+    codesign --verify --deep --strict "$staged"
+    spctl --assess --type execute --verbose "$staged"
+  fi
+  backup="$HOME/Applications/.Multi Codex.app.previous.$$"
+  if [[ -e "$destination" ]]; then mv "$destination" "$backup"; fi
+  if ! mv "$staged" "$destination"; then
+    [[ ! -e "$backup" ]] || mv "$backup" "$destination"
+    printf 'Could not replace Multi Codex; the previous app was restored.\n' >&2
+    exit 1
+  fi
+  rm -rf "$backup"
   executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$destination/Contents/Info.plist")
   chmod +x "$destination/Contents/MacOS/$executable"
   printf 'Installed %s at %s.\n' "$tag" "$destination"
-  open "$destination"
+  if [[ "${MULTI_CODEX_NO_LAUNCH:-0}" != "1" ]]; then open "$destination"; fi
 fi

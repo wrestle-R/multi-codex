@@ -87,6 +87,7 @@ artifact_name="Multi.Codex_${version}_amd64.AppImage"
 
 rm -rf "$bundle_dir"
 npm test
+npm run test:release-gates
 npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml

@@ -5,6 +5,7 @@ use crate::profiles::Result;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Serialize)]
@@ -25,6 +26,14 @@ struct PendingLaunch {
     created: Instant,
 }
 
+pub struct LaunchRequest<'a> {
+    pub profile: &'a str,
+    pub workspace: &'a str,
+    pub home: &'a Path,
+    pub desktop: Option<&'a str>,
+    pub retry: Option<&'a str>,
+}
+
 #[derive(Default)]
 pub struct LaunchCoordinator {
     pending: HashMap<String, PendingLaunch>,
@@ -34,9 +43,20 @@ pub trait DesktopControl {
     fn inventory(&self) -> Result<DesktopInventory>;
     fn find_window(&self, previous: &HashSet<String>, home: &Path) -> Result<String>;
     fn move_window(&self, window: &str, desktop: &str) -> Result<()>;
+    fn validate_window(&self, window: &str, home: &Path) -> Result<()>;
 }
 pub struct NativeDesktopControl;
 impl DesktopControl for NativeDesktopControl {
+    fn validate_window(&self, window: &str, home: &Path) -> Result<()> {
+        let snapshot = desktop_environment::inventory()?;
+        if snapshot.windows().iter().any(|candidate| {
+            candidate.id == window && crate::profiles::process_uses_profile(candidate.pid, home)
+        }) {
+            Ok(())
+        } else {
+            Err("The already-opened profile window is no longer available. It will not be relaunched by a placement retry.".into())
+        }
+    }
     fn inventory(&self) -> Result<DesktopInventory> {
         desktop_environment::inventory()
     }
@@ -49,20 +69,34 @@ impl DesktopControl for NativeDesktopControl {
 }
 
 impl LaunchCoordinator {
+    pub fn execute_serialized(
+        coordinator: &Mutex<Self>,
+        request: LaunchRequest<'_>,
+        launch: impl FnOnce() -> Result<()>,
+        control: &impl DesktopControl,
+    ) -> Result<LaunchResult> {
+        coordinator
+            .lock()
+            .map_err(|_| "Launch coordinator unavailable")?
+            .execute(request, launch, control)
+    }
     pub fn discard(&mut self, token: &str) {
         self.pending.remove(token);
     }
 
     pub fn execute(
         &mut self,
-        profile: &str,
-        workspace: &str,
-        home: &Path,
-        desktop: Option<&str>,
-        retry: Option<&str>,
+        request: LaunchRequest<'_>,
         launch: impl FnOnce() -> Result<()>,
         control: &impl DesktopControl,
     ) -> Result<LaunchResult> {
+        let LaunchRequest {
+            profile,
+            workspace,
+            home,
+            desktop,
+            retry,
+        } = request;
         self.pending
             .retain(|_, p| p.created.elapsed() < Duration::from_secs(1800));
         let token = if let Some(token) = retry {
@@ -127,6 +161,7 @@ impl LaunchCoordinator {
                         window
                     }
                 };
+                control.validate_window(&window, &pending.profile_home)?;
                 control.move_window(&window, destination)
             })();
             if let Err(error) = result {
@@ -156,8 +191,16 @@ mod tests {
     use std::cell::Cell;
     struct Fake {
         fail: Cell<bool>,
+        valid: Cell<bool>,
     }
     impl DesktopControl for Fake {
+        fn validate_window(&self, _: &str, _: &Path) -> Result<()> {
+            if self.valid.get() {
+                Ok(())
+            } else {
+                Err("The window was closed".into())
+            }
+        }
         fn inventory(&self) -> Result<DesktopInventory> {
             Ok(DesktopInventory {
                 protocol_version: 1,
@@ -189,19 +232,73 @@ mod tests {
         }
     }
     #[test]
+    fn concurrent_launches_use_the_production_serialization_entrypoint() {
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc, Barrier,
+        };
+        let coordinator = Arc::new(Mutex::new(LaunchCoordinator::default()));
+        let barrier = Arc::new(Barrier::new(2));
+        let active = Arc::new(AtomicUsize::new(0));
+        let maximum = Arc::new(AtomicUsize::new(0));
+        let mut threads = Vec::new();
+        for _ in 0..2 {
+            let (coordinator, barrier, active, maximum) = (
+                Arc::clone(&coordinator),
+                Arc::clone(&barrier),
+                Arc::clone(&active),
+                Arc::clone(&maximum),
+            );
+            threads.push(std::thread::spawn(move || {
+                let control = Fake {
+                    fail: Cell::new(false),
+                    valid: Cell::new(true),
+                };
+                barrier.wait();
+                LaunchCoordinator::execute_serialized(
+                    &coordinator,
+                    LaunchRequest {
+                        profile: "p",
+                        workspace: "/project",
+                        home: Path::new("/profile"),
+                        desktop: None,
+                        retry: None,
+                    },
+                    || {
+                        let current = active.fetch_add(1, Ordering::SeqCst) + 1;
+                        maximum.fetch_max(current, Ordering::SeqCst);
+                        std::thread::sleep(Duration::from_millis(30));
+                        active.fetch_sub(1, Ordering::SeqCst);
+                        Ok(())
+                    },
+                    &control,
+                )
+                .unwrap()
+            }));
+        }
+        for thread in threads {
+            assert!(thread.join().unwrap().completed);
+        }
+        assert_eq!(maximum.load(Ordering::SeqCst), 1);
+    }
+
+    #[test]
     fn retry_uses_existing_window_without_relaunching() {
         let mut coordinator = LaunchCoordinator::default();
         let control = Fake {
             fail: Cell::new(true),
+            valid: Cell::new(true),
         };
         let starts = Cell::new(0);
         let first = coordinator
             .execute(
-                "p",
-                "/project",
-                Path::new("/profile"),
-                Some("fake:12"),
-                None,
+                LaunchRequest {
+                    profile: "p",
+                    workspace: "/project",
+                    home: Path::new("/profile"),
+                    desktop: Some("fake:12"),
+                    retry: None,
+                },
                 || {
                     starts.set(starts.get() + 1);
                     Ok(())
@@ -211,14 +308,32 @@ mod tests {
             .unwrap();
         assert!(!first.completed);
         assert_eq!(first.error.as_deref(), Some("Permission denied"));
+        control.valid.set(false);
+        let unavailable = coordinator
+            .execute(
+                LaunchRequest {
+                    profile: "p",
+                    workspace: "/project",
+                    home: Path::new("/profile"),
+                    desktop: Some("fake:12"),
+                    retry: first.retry_token.as_deref(),
+                },
+                || panic!("must not relaunch"),
+                &control,
+            )
+            .unwrap();
+        assert_eq!(unavailable.error.as_deref(), Some("The window was closed"));
+        control.valid.set(true);
         control.fail.set(false);
         let next = coordinator
             .execute(
-                "p",
-                "/project",
-                Path::new("/profile"),
-                Some("fake:12"),
-                first.retry_token.as_deref(),
+                LaunchRequest {
+                    profile: "p",
+                    workspace: "/project",
+                    home: Path::new("/profile"),
+                    desktop: Some("fake:12"),
+                    retry: first.retry_token.as_deref(),
+                },
                 || panic!("must not relaunch"),
                 &control,
             )
@@ -231,25 +346,30 @@ mod tests {
         let mut coordinator = LaunchCoordinator::default();
         let control = Fake {
             fail: Cell::new(true),
+            valid: Cell::new(true),
         };
         assert!(coordinator
             .execute(
-                "p",
-                "/project",
-                Path::new("/profile"),
-                Some("fake:13"),
-                None,
+                LaunchRequest {
+                    profile: "p",
+                    workspace: "/project",
+                    home: Path::new("/profile"),
+                    desktop: Some("fake:13"),
+                    retry: None
+                },
                 || panic!("must not launch"),
                 &control
             )
             .is_err());
         assert!(coordinator
             .execute(
-                "p",
-                "/project",
-                Path::new("/profile"),
-                None,
-                Some("unknown"),
+                LaunchRequest {
+                    profile: "p",
+                    workspace: "/project",
+                    home: Path::new("/profile"),
+                    desktop: None,
+                    retry: Some("unknown")
+                },
                 || panic!("must not launch"),
                 &control
             )
@@ -260,14 +380,17 @@ mod tests {
         let mut coordinator = LaunchCoordinator::default();
         let control = Fake {
             fail: Cell::new(true),
+            valid: Cell::new(true),
         };
         let first = coordinator
             .execute(
-                "p",
-                "/project",
-                Path::new("/profile"),
-                Some("fake:12"),
-                None,
+                LaunchRequest {
+                    profile: "p",
+                    workspace: "/project",
+                    home: Path::new("/profile"),
+                    desktop: Some("fake:12"),
+                    retry: None,
+                },
                 || Ok(()),
                 &control,
             )
@@ -275,11 +398,13 @@ mod tests {
         assert!(
             coordinator
                 .execute(
-                    "p",
-                    "/project",
-                    Path::new("/profile"),
-                    None,
-                    first.retry_token.as_deref(),
+                    LaunchRequest {
+                        profile: "p",
+                        workspace: "/project",
+                        home: Path::new("/profile"),
+                        desktop: None,
+                        retry: first.retry_token.as_deref()
+                    },
                     || panic!("must not launch"),
                     &control
                 )
