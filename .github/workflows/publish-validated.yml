@@ -1,0 +1,38 @@
+name: Publish validated candidate
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing draft candidate tag
+        required: true
+        default: v2.4.0
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download candidate and verify functional release gates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$CANDIDATE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          VERSION=$(node -p 'JSON.parse(require("fs").readFileSync("tauri/package.json", "utf8")).version')
+          [[ "$CANDIDATE_TAG" == "v$VERSION" ]]
+          [[ "$(gh release view "$CANDIDATE_TAG" --json isDraft --jq '.isDraft')" == "true" ]]
+          mkdir candidate-assets
+          gh release download "$CANDIDATE_TAG" --dir candidate-assets
+          node tauri/scripts/release-gates.mjs candidate-assets
+          cd candidate-assets
+          sha256sum --check SHA256SUMS
+      - name: Publish the validated packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: |
+          gh release edit "$CANDIDATE_TAG" --draft=false --title "Multi Codex $CANDIDATE_TAG" --notes-file "docs/releases/${CANDIDATE_TAG}.md"

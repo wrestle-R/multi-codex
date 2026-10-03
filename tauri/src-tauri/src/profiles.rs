@@ -542,8 +542,9 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
-                self.set_error(id, format!("Could not launch VS Code: {error}"));
-                return Err("Could not launch VS Code".to_string());
+                let message = format!("Could not launch VS Code: {error}");
+                self.set_error(id, message.clone());
+                return Err(message);
             }
         };
 

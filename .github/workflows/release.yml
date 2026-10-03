@@ -52,6 +52,7 @@ jobs:
       - run: npm ci
       - run: npm run check:secrets
       - run: npm run test:release
+      - run: npm run test:release-gates
       - run: npm run release:linux
       - uses: actions/upload-artifact@v4
         with:
@@ -63,7 +64,9 @@ jobs:
           if-no-files-found: error
 
   macos:
-    runs-on: macos-14
+    runs-on: macos-26
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "26.0"
     defaults:
       run:
         working-directory: tauri
@@ -96,7 +99,7 @@ jobs:
           '
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: aarch64-apple-darwin
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
@@ -104,10 +107,22 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml
-      - run: npm run tauri -- build --bundles app,dmg --target universal-apple-darwin
-      - name: Inspect and smoke-test universal app bundle
+      - name: Build Apple Silicon candidate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          APP=$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          for signing_setting in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            [[ -n "${!signing_setting}" ]] || unset "$signing_setting"
+          done
+          npm run tauri -- build --bundles app,dmg --target aarch64-apple-darwin
+      - name: Inspect and smoke-test Apple Silicon app bundle
+        run: |
+          APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
           test -n "$APP"
           EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
           BINARY="$APP/Contents/MacOS/$EXECUTABLE"
@@ -115,30 +130,42 @@ jobs:
           test -f "$APP/Contents/Resources/icon.icns"
           ARCHS=$(lipo -archs "$BINARY")
           [[ " $ARCHS " == *" arm64 "* ]]
-          [[ " $ARCHS " == *" x86_64 "* ]]
+          [[ " $ARCHS " != *" x86_64 "* ]]
           TEST_HOME=$(mktemp -d)
           trap 'rm -rf "$TEST_HOME"' EXIT
-          HOME="$TEST_HOME" "$BINARY" >"$RUNNER_TEMP/multi-codex-macos.log" 2>&1 &
+          env HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_HOME/data" "$BINARY" >"$RUNNER_TEMP/multi-codex-macos.log" 2>&1 &
           PID=$!
           sleep 5
           kill -0 "$PID"
           kill "$PID"
           wait "$PID" || true
+      - name: Check signing and notarization
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          if [[ -z "$APPLE_SIGNING_IDENTITY" ]]; then
+            echo "Unsigned candidate: publication remains blocked by the release validation manifest."
+          else
+            codesign --verify --deep --strict "$APP"
+            xcrun stapler validate "$APP"
+            spctl --assess --type execute --verbose "$APP"
+          fi
       - name: Normalize DMG name
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           VERSION="${RELEASE_TAG#v}"
-          DMG=$(find src-tauri/target/universal-apple-darwin/release/bundle/dmg -type f -name '*.dmg' -print -quit)
+          DMG=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -type f -name '*.dmg' -print -quit)
           test -n "$DMG"
-          mv "$DMG" "Multi.Codex_${VERSION}_universal.dmg"
+          mv "$DMG" "Multi.Codex_${VERSION}_aarch64.dmg"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-package
           path: tauri/Multi.Codex_*_universal.dmg
           if-no-files-found: error
 
-  publish:
+  prepare-draft:
     needs: [linux, macos]
     runs-on: ubuntu-22.04
     steps:
@@ -147,7 +174,7 @@ jobs:
         with:
           path: downloaded-assets
           merge-multiple: true
-      - name: Verify and publish assets
+      - name: Prepare blocked draft candidate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -158,5 +185,12 @@ jobs:
           ((${#ASSETS[@]} == 4))
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
-          gh release create "$GITHUB_REF_NAME" "${ASSETS[@]}" --draft --title "Multi Codex $GITHUB_REF_NAME" --notes "Multi Codex for Arch Linux and macOS."
-          gh release edit "$GITHUB_REF_NAME" --draft=false
+          cd ..
+          if gh release view "$GITHUB_REF_NAME" --json isDraft >/dev/null 2>&1; then
+            [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" == "true" ]]
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+            gh release edit "$GITHUB_REF_NAME" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+          fi
+          echo "Draft created. Functional validation is required before publishing."

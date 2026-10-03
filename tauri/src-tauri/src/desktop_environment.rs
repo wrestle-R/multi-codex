@@ -85,6 +85,8 @@ struct HyprWorkspace {
 #[derive(Debug, Deserialize)]
 struct HyprClient {
     address: String,
+    #[serde(default, rename = "stableId")]
+    stable_id: Option<String>,
     pid: u32,
     class: String,
     title: String,
@@ -94,6 +96,15 @@ struct HyprClient {
     #[serde(default = "mapped_default")]
     mapped: bool,
 }
+impl HyprClient {
+    fn window_id(&self) -> String {
+        self.stable_id
+            .as_ref()
+            .map(|id| format!("hyprland-window:{id}"))
+            .unwrap_or_else(|| self.address.clone())
+    }
+}
+
 fn mapped_default() -> bool {
     true
 }
@@ -197,7 +208,7 @@ fn group_hyprland(
                 .iter()
                 .filter(|c| c.mapped && (c.workspace.id == w.id || c.pinned))
                 .map(|c| DesktopWindow {
-                    id: c.address.clone(),
+                    id: c.window_id(),
                     pid: c.pid,
                     application: c.class.clone(),
                     title: c.title.clone(),
@@ -222,12 +233,17 @@ pub fn move_window(id: &str, destination: &str) -> Result<()> {
     inventory()?.require_destination(destination)?;
     match backend() {
         "hyprland" => {
-            if !valid_address(id) {
+            let client = hypr_json::<Vec<HyprClient>>("clients")?
+                .into_iter()
+                .find(|client| client.window_id() == id)
+                .ok_or("The selected window no longer exists")?;
+            if !valid_address(&client.address) {
                 return Err("Invalid Hyprland window identifier".into());
             }
-            if hypr_json::<Vec<HyprClient>>("clients")?.iter().any(|client| client.address == id && client.pinned) {
+            if client.pinned {
                 return Err("Unpin this window before moving it to one desktop".into());
             }
+            let address = &client.address;
             let workspace = destination
                 .strip_prefix("hyprland:")
                 .and_then(|s| s.parse::<i32>().ok())
@@ -237,7 +253,7 @@ pub fn move_window(id: &str, destination: &str) -> Result<()> {
             let lua_available = crate::process::output(Command::new("hyprctl").args(["eval", "assert(type(hl.get_window)=='function'); assert(type(hl.dsp.window.move)=='function')"]), Duration::from_secs(3)).is_ok_and(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "ok");
             let output = if lua_available {
                 crate::process::output(
-                    Command::new("hyprctl").args(["eval", &move_window_lua(id, workspace)]),
+                    Command::new("hyprctl").args(["eval", &move_window_lua(address, workspace)]),
                     Duration::from_secs(3),
                 )?
             } else {
@@ -245,7 +261,7 @@ pub fn move_window(id: &str, destination: &str) -> Result<()> {
                     Command::new("hyprctl").args([
                         "dispatch",
                         "movetoworkspace",
-                        &format!("{workspace},address:{id}"),
+                        &format!("{workspace},address:{address}"),
                     ]),
                     Duration::from_secs(3),
                 )?
@@ -261,6 +277,7 @@ pub fn move_window(id: &str, destination: &str) -> Result<()> {
     let deadline = Instant::now() + WINDOW_WAIT;
     while Instant::now() < deadline {
         let snapshot = inventory()?;
+        snapshot.require_destination(destination)?;
         if snapshot
             .desktops
             .iter()
@@ -276,7 +293,14 @@ pub fn move_window(id: &str, destination: &str) -> Result<()> {
 pub fn find_new_window(previous: &HashSet<String>, vscode_home: &Path) -> Result<String> {
     let deadline = Instant::now() + WINDOW_WAIT;
     while Instant::now() < deadline {
-        let candidates: Vec<_> = inventory()?
+        let snapshot = inventory()?;
+        if !snapshot.capabilities.enumerate_windows {
+            return Err(snapshot
+                .capabilities
+                .reason
+                .unwrap_or_else(|| "Window enumeration is unavailable".into()));
+        }
+        let candidates: Vec<_> = snapshot
             .windows()
             .into_iter()
             .filter(|c| {
@@ -344,6 +368,19 @@ fn move_window_lua(address: &str, workspace: i32) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore = "requires a live Hyprland session; reads inventory only"]
+    fn live_hyprland_inventory() {
+        let inventory = hypr_inventory().unwrap();
+        assert!(inventory.capabilities.enumerate_desktops);
+        assert!(inventory.desktops.iter().any(|d| d.current));
+        println!(
+            "Verified live Hyprland inventory: {} desktops, {} windows",
+            inventory.desktops.len(),
+            inventory.windows().len()
+        );
+    }
+
     #[test]
     fn rejects_code_in_window_identifiers() {
         assert!(valid_address("0x12aB90"));
