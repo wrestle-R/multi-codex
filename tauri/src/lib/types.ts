@@ -63,7 +63,7 @@ export interface StorageUsage {
 
 export interface LaunchEnvironment {
   defaultWorkspace: string
-  hyprland: boolean
+  capabilities: DesktopCapabilities
 }
 
 export interface WorkspaceDirectory {
@@ -96,4 +96,45 @@ export interface DeviceLoginEvent {
   output?: string
   completed: boolean
   error?: string
+}
+
+export interface DesktopCapabilities {
+  backend: string
+  enumerateDesktops: boolean
+  enumerateWindows: boolean
+  moveWindows: boolean
+  reason: string | null
+}
+
+export interface DesktopWindow {
+  id: string
+  pid: number
+  application: string
+  title: string
+}
+
+export interface Desktop {
+  id: string
+  name: string
+  monitor: string | null
+  current: boolean
+  windows: DesktopWindow[]
+}
+
+export interface DesktopInventory {
+  protocolVersion: number
+  capabilities: DesktopCapabilities
+  desktops: Desktop[]
+}
+
+export interface LaunchResult {
+  completed: boolean
+  error: string | null
+  retryToken: string | null
+}
+
+export interface ExecutableSettings {
+  codePath: string | null
+  codexPath: string | null
+  globalCodexHome: string | null
 }

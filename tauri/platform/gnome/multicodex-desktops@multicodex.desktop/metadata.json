@@ -1,0 +1,16 @@
+{
+  "uuid": "multicodex-desktops@multicodex.desktop",
+  "name": "Multi Codex desktops",
+  "description": "Version 1 desktop inventory and verified window placement bridge for Multi Codex",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48",
+    "49",
+    "50",
+    "51"
+  ],
+  "version": 1,
+  "url": "https://github.com/wrestle-R/multi-codex"
+}
