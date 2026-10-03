@@ -293,3 +293,26 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
   .desktop-grid { grid-template-columns: repeat(3, 1fr); }
   .storage-summary { grid-template-columns: 1fr; }
 }
+
+/* Desktop previews reuse the app's typography and quiet surface colors. */
+.workspace-dialog { width: min(780px, calc(100vw - 2rem)); max-height: calc(100dvh - 3rem); overflow-y: auto; }
+.desktop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+.desktop-grid .desktop-preview { aspect-ratio: auto; min-height: 160px; padding: 1rem; text-align: left; display: flex; flex-direction: column; gap: 0.55rem; background: var(--card); }
+.desktop-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.desktop-preview-heading strong { overflow-wrap: anywhere; }
+.desktop-current-marker { color: var(--primary); font-size: 0.7rem; font-weight: 600; }
+.desktop-preview-meta { color: var(--muted-foreground); font-size: 0.75rem; font-weight: 400; }
+.desktop-window-list { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.35rem; max-height: 190px; overflow-y: auto; }
+.desktop-window { display: flex; flex-direction: column; gap: 0.15rem; padding-left: 0.6rem; border-left: 2px solid var(--border); }
+.desktop-window-app { font-size: 0.7rem; color: var(--muted-foreground); font-weight: 500; overflow-wrap: anywhere; }
+.desktop-window-title { font-size: 0.83rem; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.desktop-empty { padding: 1rem 0; font-size: 0.8rem; color: var(--muted-foreground); font-weight: 400; }
+.desktop-notice { margin-top: 1rem; font-size: 0.85rem; color: var(--muted-foreground); }
+.desktop-grid .desktop-selected { border-color: var(--primary); }
+.desktop-preview:disabled { cursor: default; opacity: 0.65; }
+.desktop-preview:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (max-width: 600px) { .desktop-grid { grid-template-columns: minmax(0, 1fr); } }
+.launch-settings-form { display: grid; gap: 1rem; margin-top: 1rem; }
+.launch-settings-form label { display: grid; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; }
+.launch-settings-form input { min-width: 0; width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; font-weight: 400; }
+.launch-settings-form input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

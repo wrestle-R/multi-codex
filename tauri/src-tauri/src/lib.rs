@@ -1,6 +1,11 @@
 mod desktop_environment;
 mod desktop_integration;
+mod launch;
+#[cfg(target_os = "linux")]
+mod linux_desktops;
+mod process;
 mod profiles;
+mod settings;
 mod usage;
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
@@ -22,6 +27,7 @@ type AppService = ProfileService<KeyringSecretStore, CodexCliRecognizer>;
 
 struct AppState {
     service: Arc<AppService>,
+    launches: Arc<Mutex<launch::LaunchCoordinator>>,
     desktop_integration: DesktopIntegration,
     limit_checks: Arc<Mutex<HashSet<String>>>,
     device_logins: Arc<Mutex<HashMap<String, mpsc::Sender<()>>>>,
@@ -31,7 +37,7 @@ struct AppState {
 #[serde(rename_all = "camelCase")]
 struct LaunchEnvironment {
     default_workspace: String,
-    hyprland: bool,
+    capabilities: desktop_environment::DesktopCapabilities,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -298,27 +304,70 @@ fn cancel_device_login(id: String, state: State<'_, AppState>) -> Result<(), Str
 }
 
 #[tauri::command]
+async fn get_executable_settings() -> Result<settings::ExecutableSettings, String> {
+    tauri::async_runtime::spawn_blocking(settings::load)
+        .await
+        .map_err(|_| "Could not read settings".to_string())?
+}
+
+#[tauri::command]
+async fn save_executable_settings(
+    settings: settings::ExecutableSettings,
+) -> Result<settings::ExecutableSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || crate::settings::save(settings))
+        .await
+        .map_err(|_| "Could not save settings".to_string())?
+}
+
+#[tauri::command]
+async fn get_desktop_inventory() -> Result<desktop_environment::DesktopInventory, String> {
+    tauri::async_runtime::spawn_blocking(desktop_environment::inventory)
+        .await
+        .map_err(|_| "Could not read desktops".to_string())?
+}
+
+#[tauri::command]
 async fn launch_profile(
     id: String,
     workspace: String,
-    desktop: Option<u8>,
+    desktop: Option<String>,
+    retry_token: Option<String>,
     state: State<'_, AppState>,
-) -> Result<(), String> {
-    if desktop.is_some_and(|desktop| !(1..=10).contains(&desktop)) {
-        return Err("Desktop must be between 1 and 10".to_string());
-    }
+) -> Result<launch::LaunchResult, String> {
     let service = Arc::clone(&state.service);
+    let launches = Arc::clone(&state.launches);
     tauri::async_runtime::spawn_blocking(move || {
-        let vscode_home = service.vscode_home(&id)?;
-        let previous = desktop.map(|_| desktop_environment::existing_window_addresses());
-        service.launch_profile(&id, std::path::Path::new(&workspace))?;
-        if let (Some(desktop), Some(previous)) = (desktop, previous) {
-            desktop_environment::move_new_vscode_window(&previous, &vscode_home, desktop)?;
-        }
-        Ok(())
+        // Held across snapshot, launch and placement, including retries.
+        let mut coordinator = launches
+            .lock()
+            .map_err(|_| "Launch coordinator unavailable")?;
+        let home = service.vscode_home(&id)?;
+        coordinator.execute(
+            &id,
+            &workspace,
+            &home,
+            desktop.as_deref(),
+            retry_token.as_deref(),
+            || service.launch_profile(&id, Path::new(&workspace)),
+            &launch::NativeDesktopControl,
+        )
     })
     .await
     .map_err(|_| "Could not launch the profile".to_string())?
+}
+
+#[tauri::command]
+async fn discard_placement(retry_token: String, state: State<'_, AppState>) -> Result<(), String> {
+    let launches = Arc::clone(&state.launches);
+    tauri::async_runtime::spawn_blocking(move || {
+        launches
+            .lock()
+            .map_err(|_| "Launch coordinator unavailable")?
+            .discard(&retry_token);
+        Ok(())
+    })
+    .await
+    .map_err(|_| "Could not discard placement".to_string())?
 }
 
 #[tauri::command]
@@ -357,13 +406,15 @@ async fn clear_profile_cache(id: String, state: State<'_, AppState>) -> Result<u
 }
 
 #[tauri::command]
-fn get_launch_environment() -> LaunchEnvironment {
-    LaunchEnvironment {
+async fn get_launch_environment() -> Result<LaunchEnvironment, String> {
+    tauri::async_runtime::spawn_blocking(|| LaunchEnvironment {
         default_workspace: desktop_environment::default_workspace_root()
             .to_string_lossy()
             .into_owned(),
-        hyprland: desktop_environment::is_hyprland(),
-    }
+        capabilities: desktop_environment::capabilities(),
+    })
+    .await
+    .map_err(|_| "Could not read launch environment".to_string())
 }
 
 #[tauri::command]
@@ -423,6 +474,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
             service: Arc::new(service),
+            launches: Arc::new(Mutex::new(launch::LaunchCoordinator::default())),
             desktop_integration,
             limit_checks: Arc::new(Mutex::new(HashSet::new())),
             device_logins: Arc::new(Mutex::new(HashMap::new())),
@@ -437,6 +489,10 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_desktop_inventory,
+            get_executable_settings,
+            save_executable_settings,
+            discard_placement,
             list_profiles,
             add_profile,
             import_current_profile,

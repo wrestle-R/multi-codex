@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
+import type { DesktopInventory, ExecutableSettings, LaunchResult, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
 
 const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
 
@@ -108,11 +108,12 @@ export async function listWorkspaceDirectories(path: string): Promise<WorkspaceD
   }
 }
 
-export async function launchProfile(id: string, workspace: string, desktop: number | null): Promise<void> {
-  if (isTauri) return invoke("launch_profile", { id, workspace, desktop })
+export async function launchProfile(id: string, workspace: string, desktop: string | null, retryToken: string | null = null): Promise<LaunchResult> {
+  if (isTauri) return invoke("launch_profile", { id, workspace, desktop, retryToken })
   demoProfiles = demoProfiles.map((profile) =>
     profile.id === id ? { ...profile, status: "running" } : profile,
   )
+  return { completed: true, error: null, retryToken: null }
 }
 
 export async function deleteProfile(id: string): Promise<void> {
@@ -167,7 +168,7 @@ export async function clearProfileCache(id: string): Promise<number> {
 
 export async function getLaunchEnvironment(): Promise<LaunchEnvironment> {
   if (isTauri) return invoke<LaunchEnvironment>("get_launch_environment")
-  return { defaultWorkspace: "/home/rdp/Desktop/code", hyprland: true }
+  return { defaultWorkspace: "/home/rdp/Desktop/code", capabilities: (await getDesktopInventory()).capabilities }
 }
 
 export async function getDesktopIntegrationStatus(): Promise<DesktopIntegrationStatus> {
@@ -196,4 +197,32 @@ export async function installDesktopIntegration(
     version: "development",
     source: "appimage",
   }
+}
+
+export async function getDesktopInventory(): Promise<DesktopInventory> {
+  if (isTauri) return invoke("get_desktop_inventory")
+  return {
+    protocolVersion: 1,
+    capabilities: { backend: "preview", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null },
+    desktops: [
+      { id: "preview:1", name: "Browse", monitor: "Main display", current: true, windows: [{ id: "browser", pid: 1, application: "Browser", title: "Documentation" }] },
+      { id: "preview:2", name: "Code", monitor: "Main display", current: false, windows: [{ id: "code", pid: 2, application: "Visual Studio Code", title: "Project — Visual Studio Code" }] },
+      { id: "preview:3", name: "Desktop 3", monitor: "Main display", current: false, windows: [] },
+    ],
+  }
+}
+
+export async function discardPlacement(retryToken: string): Promise<void> {
+  if (isTauri) await invoke("discard_placement", { retryToken })
+}
+
+export async function getExecutableSettings(): Promise<ExecutableSettings> {
+  if (isTauri) return invoke("get_executable_settings")
+  return JSON.parse(localStorage.getItem("multi-codex-executables") ?? '{"codePath":null,"codexPath":null,"globalCodexHome":null}')
+}
+
+export async function saveExecutableSettings(settings: ExecutableSettings): Promise<ExecutableSettings> {
+  if (isTauri) return invoke("save_executable_settings", { settings })
+  localStorage.setItem("multi-codex-executables", JSON.stringify(settings))
+  return settings
 }

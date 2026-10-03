@@ -5,6 +5,10 @@ import App, { formatStorage } from "./App"
 import type { Profile } from "./lib/types"
 
 const api = vi.hoisted(() => ({
+  getDesktopInventory: vi.fn(),
+  discardPlacement: vi.fn(),
+  getExecutableSettings: vi.fn(),
+  saveExecutableSettings: vi.fn(),
   listProfiles: vi.fn(),
   addProfile: vi.fn(),
   beginDeviceLogin: vi.fn(),
@@ -56,7 +60,18 @@ beforeEach(() => {
     ],
     checkedAt: "2026-09-05T04:30:00Z",
   })
-  api.launchProfile.mockReset().mockResolvedValue(undefined)
+  api.launchProfile.mockReset().mockResolvedValue({ completed: true, error: null, retryToken: null })
+  api.discardPlacement.mockReset().mockResolvedValue(undefined)
+  api.getExecutableSettings.mockReset().mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null })
+  api.saveExecutableSettings.mockReset().mockImplementation(async settings => settings)
+  api.getDesktopInventory.mockReset().mockResolvedValue({
+    protocolVersion: 1,
+    capabilities: { backend: "hyprland", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null },
+    desktops: [
+      { id: "hyprland:7", name: "Desktop 7", monitor: "Main display", current: false, windows: [{ id: "window", pid: 42, application: "Visual Studio Code", title: "Project — Code" }] },
+      { id: "hyprland:12", name: "Desktop 12", monitor: "Other display", current: true, windows: [] },
+    ],
+  })
   deviceLoginListener = undefined
   api.subscribeDeviceLogin.mockReset().mockImplementation(async (listener) => {
     deviceLoginListener = listener
@@ -76,7 +91,7 @@ beforeEach(() => {
     otherBytes: 1_024,
     profiles: [{ id: profile.id, name: profile.name, bytes: 9_876_542_186, reclaimableBytes: 256_000_000, running: false }],
   })
-  api.getLaunchEnvironment.mockReset().mockResolvedValue({ defaultWorkspace: "/home/rdp/Desktop/code", hyprland: true })
+  api.getLaunchEnvironment.mockReset().mockResolvedValue({ defaultWorkspace: "/home/rdp/Desktop/code", capabilities: { backend: "hyprland", enumerateDesktops: true, enumerateWindows: true, moveWindows: true, reason: null } })
   api.installDesktopIntegration.mockReset().mockResolvedValue({
     available: true,
     installed: true,
@@ -118,16 +133,69 @@ describe("Multi Codex", () => {
     expect(api.listWorkspaceDirectories).toHaveBeenCalledWith("/home/rdp/Desktop/code")
     await user.click(screen.getByRole("button", { name: "Choose this folder" }))
     await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
-    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", null))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", null, null))
   })
 
-  it("forwards a numbered Hyprland desktop after folder selection", async () => {
+  it("forwards a stable Hyprland desktop identifier after folder selection", async () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(await screen.findByRole("button", { name: "Launch" }))
     await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
-    await user.click(await screen.findByRole("button", { name: "Open on desktop 7" }))
-    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", 7))
+    await user.click(await screen.findByRole("button", { name: "Open on Desktop 7" }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", "hyprland:7", null))
+  })
+
+  it("shows window titles and empty desktops, keeping placement failures retryable", async () => {
+    const user = userEvent.setup()
+    api.launchProfile.mockResolvedValueOnce({ completed: false, error: "Permission denied", retryToken: "placement-1" })
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+    expect(await screen.findByText("Project — Code")).toBeInTheDocument()
+    expect(screen.getByText("No open windows")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Open on Desktop 7" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Permission denied")
+    expect(screen.getByRole("dialog", { name: "Choose a desktop" })).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Open on Desktop 12" }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenLastCalledWith(profile.id, "/home/rdp/Desktop/code", "hyprland:12", "placement-1"))
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose a desktop" })).not.toBeInTheDocument())
+  })
+
+  it("keeps the dialog open and disables actions while a launch is pending", async () => {
+    const user = userEvent.setup()
+    let finish: ((value: { completed: boolean; error: null; retryToken: null }) => void) | undefined
+    api.launchProfile.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+    await user.click(await screen.findByRole("button", { name: "Open on Desktop 7" }))
+    expect(screen.getByRole("dialog", { name: "Choose a desktop" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Open on Desktop 7" })).toBeDisabled()
+    finish?.({ completed: true, error: null, retryToken: null })
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Choose a desktop" })).not.toBeInTheDocument())
+  })
+
+  it("explains unavailable macOS placement and retains current-desktop launch", async () => {
+    const user = userEvent.setup()
+    api.getDesktopInventory.mockResolvedValue({ protocolVersion: 1, capabilities: { backend: "macos", enumerateDesktops: false, enumerateWindows: false, moveWindows: false, reason: "Native Spaces validation is pending" }, desktops: [] })
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Launch" }))
+    await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+    expect(await screen.findByText("Native Spaces validation is pending")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: /Current desktop/ }))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", null, null))
+  })
+
+  it("saves explicit tool paths through launch settings", async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole("button", { name: "Launch settings" }))
+    const input = await screen.findByLabelText("VS Code executable")
+    await waitFor(() => expect(input).toBeEnabled())
+    await user.type(input, "/Applications/Custom Code.app/bin/code")
+    await user.click(screen.getByRole("button", { name: "Save paths" }))
+    await waitFor(() => expect(api.saveExecutableSettings).toHaveBeenCalledWith({ codePath: "/Applications/Custom Code.app/bin/code", codexPath: null, globalCodexHome: null }))
   })
 
   it("navigates folders in the in-app picker and uses the selected directory", async () => {
@@ -143,7 +211,7 @@ describe("Multi Codex", () => {
     expect(await screen.findByText("No subfolders here. You can choose this folder.")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Choose this folder" }))
     await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
-    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code/sample-project", null))
+    await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code/sample-project", null, null))
   })
 
   it("cancels folder selection without launching or showing the desktop chooser", async () => {
