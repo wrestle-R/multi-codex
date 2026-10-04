@@ -1,0 +1,29 @@
+{
+  "tag": "v1.3.5",
+  "dmgSha256": "8c2b29fd0516bf29271b4cdf3a1b657a67bc091b023b896273d212689dcdb2b2",
+  "checks": [
+    {
+      "script": "install-app.sh",
+      "strictUnsignedRejection": true,
+      "explicitUnsignedInstall": true,
+      "installedVersion": "1.3.5",
+      "signatureIntegrity": true,
+      "accountAndChatSentinelsUnchanged": true,
+      "installedNativeStartupAndRestart": true,
+      "stagingCleaned": true
+    },
+    {
+      "script": "update-app.sh",
+      "strictUnsignedRejection": true,
+      "explicitUnsignedInstall": true,
+      "installedVersion": "1.3.5",
+      "signatureIntegrity": true,
+      "accountAndChatSentinelsUnchanged": true,
+      "installedNativeStartupAndRestart": true,
+      "stagingCleaned": true
+    }
+  ],
+  "notarization": "not available; first-open approval remains controlled by macOS",
+  "runUrl": "https://github.com/wrestle-R/multi-codex/actions/runs/37422386648",
+  "installerSourceCommit": "ecb17146b13684b4aa725b0241fbb50655c04bb3"
+}
