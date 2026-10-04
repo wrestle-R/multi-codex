@@ -1,4 +1,4 @@
-# Platform support for the 1.3.0 candidate
+# Platform support for the 1.3.1 candidate
 
 This candidate is **not cleared for publication**. The full standard-macOS desktop requirement has not passed its feasibility gate. A successful CI build is not a functional support claim.
 
@@ -10,7 +10,7 @@ This candidate is **not cleared for publication**. The full standard-macOS deskt
 | macOS 27 and 26, Apple Silicon | Current-desktop launch; native Spaces controls unavailable | No real-Mac functional validation; release blocked |
 | Other Linux desktops | Current-desktop launch, explicit unavailable-control message | No desktop-placement support claim |
 
-Linux candidate packages target x86_64. Distribution families are covered by AppImage, DEB and RPM; this does not imply testing every distribution/version. Intel Macs and Windows are outside the 1.3.0 support promise. Linux session-bus, native libraries and system credential-store dependencies must be present.
+Linux candidate packages target x86_64. Distribution families are covered by AppImage, DEB and RPM; this does not imply testing every distribution/version. Intel Macs and Windows are outside the 1.3.1 support promise. Linux session-bus, native libraries and system credential-store dependencies must be present.
 
 ## Desktop inventory and placement
 
@@ -19,6 +19,8 @@ The picker lists application windows, not individual browser or editor tabs. Des
 On Hyprland, the picker includes numeric desktops 1–10, including empty destinations that the compositor creates when used, plus any other existing desktops. GNOME and KDE list the desktops provided by their integrations. Linux cards group windows by application and display locally installed app icons, names and counts. Hovering or focusing a card shows its window titles and monitor information.
 
 Placement identifies a new window using structured profile process arguments. When Electron rewrites Linux process arguments, exact profile database lock files held open by a recognized VS Code process provide the fallback; recognized renderer processes can be traced to that owning process. Ambiguous matches are rejected. The destination is verified after moving the identified window. Pinned windows must be unpinned before placement to a single desktop. “Current desktop” also waits for the new window and verifies its destination when the backend supports placement. The dialog closes and returns to the main page only after successful launch completion.
+
+Every launch uses a unique single-folder `.code-workspace` descriptor under the existing profile's `launch-workspaces/<id>` directory. This prevents VS Code from reusing another window of the same folder despite `--new-window`. The descriptor refers to the original absolute project path and stays available for VS Code session restore. Project files are not modified or relocated. Inherited VS Code CLI routing variables are removed from the child command. [VS Code workspace format](https://code.visualstudio.com/docs/editing/workspaces/multi-root-workspaces#_workspace-file-schema)
 
 Failed placement keeps a retry token in memory for up to 30 minutes. Retry moves the already-opened window; “Keep the opened window” accepts it without launching again. Closing the dialog discards the token and leaves the window open. A normal subsequent Launch intentionally creates a new window. Restarting Multi Codex clears retry state; inspect already-opened windows before launching again.
 
@@ -71,7 +73,7 @@ Automatic discovery uses PATH, existing extension binaries and platform defaults
 
 ## Release procedure and evidence
 
-The tag workflow builds draft candidates only. The explicit Publish validated candidate workflow downloads the draft's exact assets and checks `docs/releases/v1.3.0-validation.json`, checksums and test evidence before publication.
+The tag workflow builds draft candidates only. The explicit Publish validated candidate workflow downloads the draft's exact assets and checks `docs/releases/v1.3.1-validation.json`, checksums and test evidence before publication.
 
 For every required check, record `status: passed`, exact OS/environment version, tester, timestamp and an evidence reference. Record each tested package's SHA256 in the manifest. Rebuilding or re-signing changes the artifact and requires validation of that resulting package. Do not mark a packaged check passed based on a source test or a five-second process smoke test.
 

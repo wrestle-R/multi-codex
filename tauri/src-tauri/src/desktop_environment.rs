@@ -459,7 +459,12 @@ mod tests {
         let clients = hypr_json::<Vec<HyprClient>>("clients").unwrap();
         let executable = clients
             .iter()
-            .filter(|client| client.class.to_lowercase().contains("code"))
+            .filter(|client| {
+                matches!(
+                    client.class.to_ascii_lowercase().as_str(),
+                    "com.microsoft.vscode" | "code" | "code-oss" | "codium" | "vscodium"
+                )
+            })
             .find_map(|client| std::fs::read_link(format!("/proc/{}/exe", client.pid)).ok())
             .expect("requires an installed/running VS Code binary");
         let root = tempfile::tempdir().unwrap();
@@ -468,6 +473,12 @@ mod tests {
         std::fs::create_dir_all(home.join("User")).unwrap();
         std::fs::create_dir_all(&workspace).unwrap();
         std::fs::write(home.join("User/settings.json"), r#"{"update.mode":"none","telemetry.telemetryLevel":"off","workbench.startupEditor":"none"}"#).unwrap();
+        let first_workspace = crate::profiles::create_launch_workspace(
+            root.path(),
+            home.parent().unwrap(),
+            &workspace,
+        )
+        .unwrap();
         let mut child = Command::new(&executable)
             .arg("--new-window")
             .arg("--disable-extensions")
@@ -475,15 +486,17 @@ mod tests {
             .arg(&home)
             .arg("--extensions-dir")
             .arg(root.path().join("extensions"))
-            .arg(&workspace)
+            .arg(&first_workspace)
             .env("CODEX_HOME", root.path().join("codex-home"))
             .env_remove("ELECTRON_RUN_AS_NODE")
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .spawn()
             .unwrap();
+        let mut opened = vec![];
         let result = (|| -> Result<()> {
             let window = find_new_window(&previous, &home)?;
+            opened.push(window.clone());
             let destination = (1..=10)
                 .rev()
                 .find(|id| {
@@ -505,6 +518,12 @@ mod tests {
                 .into_iter()
                 .map(|w| w.id)
                 .collect();
+            let second_workspace = crate::profiles::create_launch_workspace(
+                root.path(),
+                home.parent().unwrap(),
+                &workspace,
+            )?;
+            assert_ne!(first_workspace, second_workspace);
             Command::new(crate::profiles::resolve_command("code")?)
                 .arg("--new-window")
                 .arg("--disable-extensions")
@@ -512,7 +531,11 @@ mod tests {
                 .arg(&home)
                 .arg("--extensions-dir")
                 .arg(root.path().join("extensions"))
-                .arg(&workspace)
+                .arg(&second_workspace)
+                .env_remove("VSCODE_IPC_HOOK_CLI")
+                .env_remove("VSCODE_PID")
+                .env_remove("VSCODE_CWD")
+                .env_remove("ELECTRON_RUN_AS_NODE")
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .spawn()
@@ -520,6 +543,7 @@ mod tests {
                 .wait()
                 .map_err(|error| error.to_string())?;
             let second = find_new_window(&first_snapshot, &home)?;
+            opened.push(second.clone());
             assert_ne!(window, second);
             let occupied = before
                 .desktops
@@ -530,6 +554,23 @@ mod tests {
             println!("Verified disposable VS Code placement on empty desktop {destination} and occupied {}, including a second window of the same profile", occupied.name);
             Ok(())
         })();
+        for window in opened {
+            let Some(address) = hypr_json::<Vec<HyprClient>>("clients")
+                .ok()
+                .and_then(|clients| {
+                    clients
+                        .into_iter()
+                        .find(|client| client.window_id() == window)
+                })
+                .map(|client| client.address)
+            else {
+                continue;
+            };
+            assert!(valid_address(&address));
+            let _ = crate::process::output(Command::new("hyprctl").args([
+                "eval", &format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.close({{window=w}})) end")
+            ]), Duration::from_secs(3));
+        }
         // Terminate only the disposable main process we spawned, never a user's VS Code PID.
         let _ = child.kill();
         let _ = child.wait();
