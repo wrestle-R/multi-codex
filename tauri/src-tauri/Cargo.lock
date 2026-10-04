@@ -2215,6 +2215,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dirs",
+ "gio",
  "keyring",
  "libc",
  "serde",

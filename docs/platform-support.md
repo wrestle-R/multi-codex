@@ -4,7 +4,7 @@ This candidate is **not cleared for publication**. The full standard-macOS deskt
 
 | Environment | Desktop inventory / placement | Validation performed |
 | --- | --- | --- |
-| Hyprland | Native IPC; Lua when available, legacy dispatch otherwise | Live inventory on Hyprland 0.56.2; unit tests; full packaged placement pending |
+| Hyprland | Native IPC; Lua when available, legacy dispatch otherwise | Live inventory and real VS Code placement on Hyprland 0.56.2; full packaged matrix pending |
 | GNOME Shell 45–51 | Bundled protocol-1 Shell extension | Contract/source tests; live GNOME and packaged Wayland/X11 validation pending |
 | KDE Plasma 6 | Bundled protocol-1 on-demand KWin script | Inventory, empty desktop, placement and missing destination tested on isolated KWin 6.7.5 Wayland; packaged/X11 validation pending |
 | macOS 27 and 26, Apple Silicon | Current-desktop launch; native Spaces controls unavailable | No real-Mac functional validation; release blocked |
@@ -16,7 +16,9 @@ Linux candidate packages target x86_64. Distribution families are covered by App
 
 The picker lists application windows, not individual browser or editor tabs. Desktop identifiers belong to the current desktop session, not permanent saved destinations. Inventories refresh every two seconds while the picker is idle. GNOME IDs survive workspace renumbering within the enabled extension session. Multiple active desktops on separate Hyprland monitors are all marked current. GNOME and KDE share virtual desktops across displays, so their desktop monitor field is unset.
 
-Only existing desktops are offered. Hyprland has dynamic workspaces: an unused workspace that the compositor has not created is not fabricated as a destination. Pinned windows appear wherever appropriate, but must be unpinned before placement to a single desktop. Placement identifies a new window by its profile process arguments, rejects ambiguous matches, and verifies membership in the destination after moving it.
+On Hyprland, the picker includes numeric desktops 1–10, including empty destinations that the compositor creates when used, plus any other existing desktops. GNOME and KDE list the desktops provided by their integrations. Linux cards group windows by application and display locally installed app icons, names and counts. Hovering or focusing a card shows its window titles and monitor information.
+
+Placement identifies a new window using structured profile process arguments. When Electron rewrites Linux process arguments, exact profile database lock files held open by a recognized VS Code process provide the fallback; recognized renderer processes can be traced to that owning process. Ambiguous matches are rejected. The destination is verified after moving the identified window. Pinned windows must be unpinned before placement to a single desktop. “Current desktop” also waits for the new window and verifies its destination when the backend supports placement. The dialog closes and returns to the main page only after successful launch completion.
 
 Failed placement keeps a retry token in memory for up to 30 minutes. Retry moves the already-opened window; “Keep the opened window” accepts it without launching again. Closing the dialog discards the token and leaves the window open. A normal subsequent Launch intentionally creates a new window. Restarting Multi Codex clears retry state; inspect already-opened windows before launching again.
 

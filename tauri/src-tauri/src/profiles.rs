@@ -1310,7 +1310,96 @@ fn arguments_use_profile(arguments: &[Vec<u8>], vscode_home: &Path) -> bool {
 }
 
 pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
-    process_arguments(pid).is_some_and(|args| arguments_use_profile(&args, vscode_home))
+    if process_arguments(pid).is_some_and(|args| arguments_use_profile(&args, vscode_home)) {
+        return true;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        profile_data_open_by_process(pid, vscode_home, Path::new("/proc"))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        false
+    }
+}
+
+pub(crate) fn window_process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
+    if process_uses_profile(pid, vscode_home) {
+        return true;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Wayland may attribute an Electron surface to its GPU child. Only walk
+        // ancestors of a VS Code executable, never an arbitrary application's PID.
+        if !is_vscode_process(&Path::new("/proc").join(pid.to_string())) {
+            return false;
+        }
+        let mut current = pid;
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..16 {
+            if current <= 1 || !seen.insert(current) {
+                break;
+            }
+            let Some(parent) = fs::read_to_string(format!("/proc/{current}/status"))
+                .ok()
+                .and_then(|status| {
+                    status
+                        .lines()
+                        .find_map(|line| line.strip_prefix("PPid:")?.trim().parse::<u32>().ok())
+                })
+            else {
+                break;
+            };
+            if process_uses_profile(parent, vscode_home) {
+                return true;
+            }
+            current = parent;
+        }
+    }
+    false
+}
+
+#[cfg(target_os = "linux")]
+fn is_vscode_process(process: &Path) -> bool {
+    fs::read_link(process.join("exe"))
+        .ok()
+        .and_then(|exe| {
+            exe.file_name()
+                .map(|name| name.to_string_lossy().to_ascii_lowercase())
+        })
+        .is_some_and(|name| {
+            matches!(
+                name.as_str(),
+                "code" | "code-insiders" | "code-oss" | "codium" | "vscodium"
+            )
+        })
+}
+
+#[cfg(target_os = "linux")]
+fn profile_data_open_by_process(pid: u32, vscode_home: &Path, proc_root: &Path) -> bool {
+    let process = proc_root.join(pid.to_string());
+    if !is_vscode_process(&process) {
+        return false;
+    }
+    let Ok(home) = vscode_home.canonicalize() else {
+        return false;
+    };
+    let locks = [
+        home.join("Local Storage/leveldb/LOCK"),
+        home.join("Service Worker/Database/LOCK"),
+    ];
+    // Electron's process title can replace every argv boundary. Its open profile
+    // database locks still identify the user-data directory exactly; never parse
+    // that flattened title or use a substring to guess which profile owns it.
+    fs::read_dir(process.join("fd"))
+        .ok()
+        .is_some_and(|entries| {
+            entries.flatten().any(|entry| {
+                fs::read_link(entry.path())
+                    .ok()
+                    .is_some_and(|path| locks.contains(&path))
+            })
+        })
 }
 
 #[cfg(target_os = "linux")]
@@ -1417,6 +1506,34 @@ fn profile_process_running(vscode_home: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn identifies_rewritten_electron_titles_by_exact_open_profile_locks() {
+        use std::os::unix::fs::symlink;
+        let root = tempfile::tempdir().unwrap();
+        let profile = root.path().join("Profile A 工具/vscode-user-data");
+        fs::create_dir_all(profile.join("Local Storage/leveldb")).unwrap();
+        let lock = profile.join("Local Storage/leveldb/LOCK");
+        fs::write(&lock, "").unwrap();
+        let proc_root = root.path().join("proc");
+        let process = proc_root.join("42");
+        fs::create_dir_all(process.join("fd")).unwrap();
+        symlink("/usr/share/code/code", process.join("exe")).unwrap();
+        symlink(&lock, process.join("fd/8")).unwrap();
+        assert!(profile_data_open_by_process(42, &profile, &proc_root));
+        let other = root.path().join("Profile A 工具 copy/vscode-user-data");
+        fs::create_dir_all(&other).unwrap();
+        assert!(!profile_data_open_by_process(42, &other, &proc_root));
+        fs::remove_file(process.join("fd/8")).unwrap();
+        symlink(profile.join("notes.txt"), process.join("fd/8")).unwrap();
+        assert!(!profile_data_open_by_process(42, &profile, &proc_root));
+        fs::remove_file(process.join("fd/8")).unwrap();
+        symlink(&lock, process.join("fd/8")).unwrap();
+        fs::remove_file(process.join("exe")).unwrap();
+        symlink("/usr/bin/backup-tool", process.join("exe")).unwrap();
+        assert!(!profile_data_open_by_process(42, &profile, &proc_root));
+    }
+
     #[test]
     fn process_arguments_match_whole_paths_and_do_not_match_other_profiles() {
         let home = Path::new("/Users/A B/工具/vscode-user-data");
