@@ -12,6 +12,7 @@ pub enum LaunchMode {
     Vscode,
     Standalone,
     Both,
+    Cli,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

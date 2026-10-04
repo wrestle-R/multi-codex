@@ -81,6 +81,8 @@ jobs:
         run: |
           cargo test --manifest-path src-tauri/Cargo.toml macos_live_keychain_round_trip -- --ignored --test-threads=1
           cargo test --manifest-path src-tauri/Cargo.toml macos_live_vscode_launch_is_detected -- --ignored --test-threads=1
+      - name: Exercise isolated CLI launch in native Terminal
+        run: cargo test --manifest-path src-tauri/Cargo.toml macos_live_cli_launch_is_isolated -- --ignored --test-threads=1
       - name: Install official standalone desktop for native launch smoke
         run: |
           # Pin the official version with completed authenticated isolation evidence.
