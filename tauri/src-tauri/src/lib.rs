@@ -1,3 +1,5 @@
+#[cfg(target_os = "linux")]
+mod application_icons;
 mod desktop_environment;
 mod desktop_integration;
 mod launch;
@@ -321,7 +323,7 @@ async fn save_executable_settings(
 
 #[tauri::command]
 async fn get_desktop_inventory() -> Result<desktop_environment::DesktopInventory, String> {
-    tauri::async_runtime::spawn_blocking(desktop_environment::inventory)
+    tauri::async_runtime::spawn_blocking(desktop_environment::inventory_with_icons)
         .await
         .map_err(|_| "Could not read desktops".to_string())?
 }
