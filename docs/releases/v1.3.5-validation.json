@@ -29,7 +29,7 @@
     },
     "packaged-debian-ubuntu": {
       "status": "pending",
-      "reason": "Packaged functional validation has not been performed.",
+      "reason": "AppImage install/update and account/chat/default-login fixture preservation passed on Ubuntu. The full native installed-package checklist and DEB functional validation remain incomplete.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -97,7 +97,13 @@
     "requestedOn": "2026-10-06",
     "fullValidationChecksRemainPending": true,
     "macDistribution": "checksum-verified unsigned DMG with explicit installer opt-in; macOS retains first-open approval",
-    "signingAndNotarizationOptional": true
+    "signingAndNotarizationOptional": true,
+    "status": "published-stable",
+    "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.3.5",
+    "publishedAt": "2026-10-06T06:28:44Z",
+    "publicationRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37423934315",
+    "latestReleaseVerified": true,
+    "publicInstallerEvidence": "docs/releases/v1.3.5-publication-validation.json"
   },
   "releaseChecks": {
     "linux-build": {
