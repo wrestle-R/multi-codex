@@ -15,5 +15,10 @@
       "defaultLoginUnchanged": true
     }
   ],
-  "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks"
+  "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks",
+  "runUrl": "https://github.com/wrestle-R/multi-codex/actions/runs/37423651379",
+  "installerSourceCommit": "945a736353edc97ffb5651569aef091ac8be0e7b",
+  "testedAt": "2026-10-06T06:26:51Z",
+  "environment": "ubuntu-22.04 runner",
+  "downloadScope": "Exact original release-build asset; the draft latest-URL resolver is substituted before publication"
 }
