@@ -1986,7 +1986,10 @@ mod tests {
             assert_eq!(descriptor.extension().unwrap(), "code-workspace");
             let contents: serde_json::Value =
                 serde_json::from_slice(&fs::read(&descriptor).unwrap()).unwrap();
-            assert_eq!(contents["folders"][0]["path"], workspace.to_str().unwrap());
+            assert_eq!(
+                contents["folders"][0]["path"],
+                workspace.canonicalize().unwrap().to_str().unwrap()
+            );
             assert_eq!(
                 fs::metadata(&descriptor).unwrap().permissions().mode() & 0o777,
                 0o600
