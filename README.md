@@ -30,7 +30,9 @@ bash /tmp/update-multi-codex.sh
 
 ## Mac
 
-Apple Silicon and macOS 26 or newer. This release is not Apple-signed or notarized; the Mac commands explicitly allow the checksum-verified unsigned build. If macOS blocks first launch, follow [Apple's Open Anyway instructions](https://support.apple.com/en-us/102445).
+Apple Silicon and macOS 26 or newer. This release has no Apple Developer ID signature and is not notarized; the Mac commands explicitly allow the checksum-verified unsigned build.
+
+Open Multi Codex once. If macOS blocks it, go to **System Settings → Privacy & Security → Open Anyway**, then confirm **Open**. [Apple's first-open instructions](https://support.apple.com/en-us/102445). The installer keeps Gatekeeper and quarantine protections in place.
 
 ### Install
 
