@@ -5,6 +5,15 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum LaunchMode {
+    #[default]
+    Vscode,
+    Standalone,
+    Both,
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ExecutableSettings {
@@ -20,6 +29,8 @@ pub struct ExecutableSettings {
     pub onboarding_completed: bool,
     #[serde(default)]
     pub detected_apps: Option<crate::launch_targets::LaunchTargets>,
+    #[serde(default)]
+    pub launch_mode: LaunchMode,
 }
 
 pub fn data_root() -> Result<PathBuf> {
@@ -140,6 +151,7 @@ mod tests {
                 codex_cli_available: false,
                 standalone_installed: true,
                 standalone_verified: false,
+                standalone_version: None,
             }),
             ..Default::default()
         };
@@ -166,14 +178,17 @@ mod tests {
         )
         .unwrap();
         let mut settings = load_from(root.path()).unwrap();
+        assert_eq!(settings.launch_mode, LaunchMode::Vscode);
         assert!(!settings.hide_desktop_picker);
         assert!(settings.preferred_workspace.is_none());
         settings.hide_desktop_picker = true;
         settings.preferred_workspace = Some("/Users/test/My Projects".into());
+        settings.launch_mode = LaunchMode::Both;
         save_to(root.path(), &settings).unwrap();
         let saved = load_from(root.path()).unwrap();
         assert!(saved.hide_desktop_picker);
         assert_eq!(saved.preferred_workspace, settings.preferred_workspace);
+        assert_eq!(saved.launch_mode, LaunchMode::Both);
     }
 
     #[test]

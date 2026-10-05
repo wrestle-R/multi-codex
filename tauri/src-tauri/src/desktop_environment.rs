@@ -330,10 +330,18 @@ pub fn move_window(id: &str, destination: &str) -> Result<()> {
         }
         thread::sleep(POLL_INTERVAL);
     }
-    Err("VS Code opened, but its destination could not be verified. Retry placement without opening another window.".into())
+    Err("The app opened, but its destination could not be verified. Retry placement without opening another window.".into())
 }
 
 pub fn find_new_window(previous: &HashSet<String>, vscode_home: &Path) -> Result<String> {
+    find_profile_window(previous, vscode_home, false)
+}
+
+pub(crate) fn find_profile_window(
+    previous: &HashSet<String>,
+    profile_home: &Path,
+    reuse_existing: bool,
+) -> Result<String> {
     let deadline = Instant::now() + WINDOW_WAIT;
     while Instant::now() < deadline {
         let snapshot = inventory()?;
@@ -347,18 +355,21 @@ pub fn find_new_window(previous: &HashSet<String>, vscode_home: &Path) -> Result
             .windows()
             .into_iter()
             .filter(|c| {
-                !previous.contains(&c.id)
-                    && crate::profiles::window_process_uses_profile(c.pid, vscode_home)
+                (reuse_existing || !previous.contains(&c.id))
+                    && crate::profiles::window_process_uses_profile(c.pid, profile_home)
             })
             .collect();
         match candidates.as_slice() {
             [window] => return Ok(window.id.clone()),
-            [] => {},
-            _ => return Err("Multiple new windows match this profile. Close the extra windows and retry placement.".into()),
+            [] => {}
+            _ => return Err(
+                "Multiple windows match this profile. Close the extra windows and retry placement."
+                    .into(),
+            ),
         }
         thread::sleep(POLL_INTERVAL);
     }
-    Err("VS Code opened, but its new window could not be identified. Retry placement without opening another window.".into())
+    Err("The app opened, but its window could not be identified. Retry placement without opening another window.".into())
 }
 
 pub fn configure_main_window() {

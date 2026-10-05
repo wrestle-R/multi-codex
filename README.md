@@ -1,6 +1,6 @@
 # Multi Codex
 
-Your Codex accounts, separate VS Code windows. Keep your default login untouched.
+Your Codex accounts, your choice of VS Code or the Codex app. Keep your default login untouched.
 
 Desktop screenshots with demo accounts.
 
@@ -46,4 +46,4 @@ bash /tmp/update-multi-codex.sh
 
 Updates replace the app while preserving saved accounts and profile data. Close Multi Codex before updating. To update without launching it, use `MULTI_CODEX_NO_LAUNCH=1 bash /tmp/update-multi-codex.sh`.
 
-The scripts install the latest **public stable release**, currently v1.2.3. The 1.3.4 preview remains a draft pending [release validation](docs/releases/v1.3.4-validation.json).
+The scripts install the latest **public stable release**, currently v1.2.3. The 1.3.5 preview remains a draft pending [release validation](docs/releases/v1.3.5-validation.json). Standalone launch supports verified Codex desktop version `26.930.51102`.

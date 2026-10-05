@@ -379,6 +379,35 @@ async fn launch_profile(
 }
 
 #[tauri::command]
+async fn launch_standalone_profile(
+    id: String,
+    workspace: String,
+    desktop: Option<String>,
+    retry_token: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<launch::LaunchResult, String> {
+    let service = Arc::clone(&state.service);
+    let launches = Arc::clone(&state.launches);
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = service.desktop_home(&id)?;
+        launch::LaunchCoordinator::execute_serialized(
+            &launches,
+            launch::LaunchRequest {
+                profile: &id,
+                workspace: &workspace,
+                home: &home,
+                desktop: desktop.as_deref(),
+                retry: retry_token.as_deref(),
+            },
+            || service.launch_standalone_profile(&id, Path::new(&workspace)),
+            &launch::StandaloneDesktopControl,
+        )
+    })
+    .await
+    .map_err(|_| "Could not launch the Codex app".to_string())?
+}
+
+#[tauri::command]
 async fn discard_placement(retry_token: String, state: State<'_, AppState>) -> Result<(), String> {
     let launches = Arc::clone(&state.launches);
     tauri::async_runtime::spawn_blocking(move || {
@@ -531,6 +560,7 @@ pub fn run() {
             open_device_login_browser,
             cancel_device_login,
             launch_profile,
+            launch_standalone_profile,
             delete_profile,
             get_runtime_status,
             get_storage_usage,

@@ -5,6 +5,7 @@ import { useDialogFocus } from "./use-dialog-focus"
 
 interface WorkspaceDialogProps {
   showDesktopPicker?: boolean
+  appName?: string
   profile: Profile
   workspace: string
   busy: boolean
@@ -14,7 +15,7 @@ interface WorkspaceDialogProps {
   onChoose: (desktop: string | null) => void
 }
 
-export function WorkspaceDialog({ showDesktopPicker = true, profile, workspace, busy, error, alreadyOpened, onCancel, onChoose }: WorkspaceDialogProps) {
+export function WorkspaceDialog({ showDesktopPicker = true, appName = "VS Code", profile, workspace, busy, error, alreadyOpened, onCancel, onChoose }: WorkspaceDialogProps) {
   const titleId = useId()
   const dialogRef = useDialogFocus(onCancel, busy)
   const [inventory, setInventory] = useState<DesktopInventory | null>(null)
@@ -63,7 +64,7 @@ export function WorkspaceDialog({ showDesktopPicker = true, profile, workspace, 
       <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy}>
         <span className="eyebrow">Launch workspace</span>
         <h2 id={titleId}>Open {folder}</h2>
-        <p>{busy ? "Opening VS Code…" : `Launch with ${profile.name}.`}</p>
+        <p>{busy ? `Opening ${appName}…` : `Launch with ${profile.name}.`}</p>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="dialog-actions">
           <button className="button secondary" disabled={busy} onClick={onCancel}>Close</button>

@@ -124,6 +124,11 @@ export async function launchProfile(id: string, workspace: string, desktop: stri
   return { completed: true, error: null, retryToken: null }
 }
 
+export async function launchStandaloneProfile(id: string, workspace: string, desktop: string | null, retryToken: string | null = null): Promise<LaunchResult> {
+  if (isTauri) return invoke("launch_standalone_profile", { id, workspace, desktop, retryToken })
+  return { completed: true, error: null, retryToken: null }
+}
+
 export async function deleteProfile(id: string): Promise<void> {
   if (isTauri) return invoke("delete_profile", { id })
   demoProfiles = demoProfiles.filter((profile) => profile.id !== id)
@@ -232,7 +237,7 @@ export async function discardPlacement(retryToken: string): Promise<void> {
 
 export async function getExecutableSettings(): Promise<ExecutableSettings> {
   if (isTauri) return invoke("get_executable_settings")
-  return JSON.parse(localStorage.getItem("multi-codex-executables") ?? '{"codePath":null,"codexPath":null,"globalCodexHome":null}')
+  return JSON.parse(localStorage.getItem("multi-codex-executables") ?? '{"codePath":null,"codexPath":null,"globalCodexHome":null,"launchMode":"both"}')
 }
 
 export async function saveExecutableSettings(settings: ExecutableSettings): Promise<ExecutableSettings> {
@@ -244,5 +249,5 @@ export async function saveExecutableSettings(settings: ExecutableSettings): Prom
 // Always query the native platform and current installation state; saved detection is a snapshot.
 export async function getLaunchTargets(): Promise<LaunchTargets> {
   if (isTauri) return invoke<LaunchTargets>("get_launch_targets")
-  return { platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false }
+  return { platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true, standaloneVersion: "26.930.51102" }
 }

@@ -1,0 +1,85 @@
+{
+  "linux": {
+    "platform": "Linux",
+    "passed": true,
+    "authenticatedIsolation": "passed using real native desktop requests and UI states",
+    "differentIdentities": true,
+    "checks": [
+      {
+        "profile": "a",
+        "coldDesktopReuse": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "b",
+        "coldDesktopReuse": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "a",
+        "forcedRefreshRotatedCredential": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "b",
+        "forcedRefreshRotatedCredential": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "a",
+        "desktopLogout": true,
+        "stayedSignedOutAfterRestart": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "b",
+        "desktopLogout": true,
+        "stayedSignedOutAfterRestart": true,
+        "peerUnaffected": true
+      }
+    ],
+    "desktopVersion": "26.930.51102"
+  },
+  "macos": {
+    "platform": "Darwin",
+    "desktopVersion": "26.930.51102",
+    "passed": true,
+    "authenticatedIsolation": "passed using real native desktop requests and UI states",
+    "differentIdentities": true,
+    "checks": [
+      {
+        "profile": "a",
+        "coldDesktopReuse": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "b",
+        "coldDesktopReuse": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "a",
+        "forcedRefreshRotatedCredential": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "b",
+        "forcedRefreshRotatedCredential": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "a",
+        "desktopLogout": true,
+        "stayedSignedOutAfterRestart": true,
+        "peerUnaffected": true
+      },
+      {
+        "profile": "b",
+        "desktopLogout": true,
+        "stayedSignedOutAfterRestart": true,
+        "peerUnaffected": true
+      }
+    ],
+    "runUrl": "https://github.com/wrestle-R/multi-codex/actions/runs/37345518314"
+  }
+}

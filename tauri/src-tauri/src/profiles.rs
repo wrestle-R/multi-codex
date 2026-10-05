@@ -83,6 +83,7 @@ pub(crate) struct PendingDeviceLogin {
 struct ProfilePaths {
     codex_home: PathBuf,
     vscode_home: PathBuf,
+    desktop_home: PathBuf,
     extensions_dir: PathBuf,
 }
 
@@ -239,7 +240,9 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         };
         let mut views = Vec::with_capacity(profiles.len());
         for metadata in profiles {
-            let detected = profile_process_running(&self.profile_paths(&metadata.id)?.vscode_home);
+            let paths = self.profile_paths(&metadata.id)?;
+            let detected = profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home);
             let status = statuses
                 .get(&metadata.id)
                 .copied()
@@ -355,7 +358,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     ) -> Result<PendingDeviceLogin> {
         validate_id(profile_id)?;
         if self.is_running(profile_id)? {
-            return Err("Close this profile's VS Code window before signing in again".to_string());
+            return Err("Close this profile's app window before signing in again".to_string());
         }
         let profile = self
             .load_metadata()?
@@ -415,7 +418,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     ) -> Result<ProfileView> {
         validate_id(id)?;
         if self.is_running(id)? {
-            return Err("Close this profile's VS Code window before editing it".to_string());
+            return Err("Close this profile's app window before editing it".to_string());
         }
         let name = validate_name(&name)?;
         let notes = validate_notes(notes)?;
@@ -486,7 +489,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     pub fn delete_profile(&self, id: &str) -> Result<()> {
         validate_id(id)?;
         if self.is_running(id)? {
-            return Err("Close this profile's VS Code window before deleting it".to_string());
+            return Err("Close this profile's app window before deleting it".to_string());
         }
         let mut profiles = self.load_metadata()?;
         if !profiles.iter().any(|profile| profile.id == id) {
@@ -501,7 +504,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         }
         let paths = self.profile_paths(id)?;
         #[cfg(target_os = "macos")]
-        remove_macos_vscode_alias(&paths.vscode_home, id);
+        {
+            remove_macos_vscode_alias(&paths.vscode_home, id);
+            remove_macos_standalone_aliases(&paths, id);
+        }
         remove_managed_tree(
             &self.data_root,
             paths.codex_home.parent().unwrap_or(&paths.codex_home),
@@ -588,14 +594,79 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             let mut child = child;
             let _ = child.wait();
         });
-        self.start_profile_monitor(id, paths.vscode_home, auth_path)?;
+        self.start_profile_monitor(id, paths.vscode_home, paths.desktop_home, auth_path)?;
+        Ok(())
+    }
+
+    pub fn launch_standalone_profile(&self, id: &str, workspace: &Path) -> Result<()> {
+        let binary = crate::launch_targets::resolve_standalone()?;
+        self.launch_standalone_with_command(id, workspace, &binary)
+    }
+
+    fn launch_standalone_with_command(
+        &self,
+        id: &str,
+        workspace: &Path,
+        binary: &Path,
+    ) -> Result<()> {
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        let workspace = canonical_workspace(workspace)?;
+        let paths = self.profile_paths(id)?;
+        ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
+        ensure_private_managed_dir(&self.data_root, &paths.desktop_home)?;
+        write_codex_config(&paths.codex_home)?;
+        self.current_profile_credential(id)?;
+        #[cfg(target_os = "macos")]
+        let (codex_home, desktop_home) = {
+            let uid = unsafe { libc::geteuid() };
+            (
+                macos_vscode_alias_in(
+                    &PathBuf::from(format!("/tmp/multi-codex-codex-{uid}")),
+                    &paths.codex_home,
+                    id,
+                )?,
+                macos_vscode_alias_in(
+                    &PathBuf::from(format!("/tmp/multi-codex-desktop-{uid}")),
+                    &paths.desktop_home,
+                    id,
+                )?,
+            )
+        };
+        #[cfg(not(target_os = "macos"))]
+        let (codex_home, desktop_home) = (paths.codex_home.clone(), paths.desktop_home.clone());
+        let mut child = build_standalone_command(binary, &codex_home, &desktop_home, &workspace)
+            .spawn()
+            .map_err(|error| format!("Could not launch the Codex app: {error}"))?;
+        {
+            let mut runtime = self
+                .runtime
+                .lock()
+                .map_err(|_| "Runtime state is unavailable")?;
+            runtime
+                .statuses
+                .insert(id.to_string(), RuntimeStatus::Running);
+            runtime.errors.remove(id);
+        }
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        self.start_profile_monitor(
+            id,
+            paths.vscode_home,
+            paths.desktop_home,
+            paths.codex_home.join("auth.json"),
+        )?;
         Ok(())
     }
 
     pub fn runtime_status(&self, id: &str) -> Result<ProfileRuntime> {
         validate_id(id)?;
         let paths = self.profile_paths(id)?;
-        let detected = profile_process_running(&paths.vscode_home);
+        let detected = profile_process_running(&paths.vscode_home)
+            || profile_process_running(&paths.desktop_home);
         let runtime = self
             .runtime
             .lock()
@@ -673,9 +744,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             return Err("Profile not found".to_string());
         }
         if self.is_running(id)? {
-            return Err(
-                "Close this profile's VS Code windows before clearing its cache".to_string(),
-            );
+            return Err("Close this profile's app windows before clearing its cache".to_string());
         }
         let root = self.data_root.join("profiles").join(id);
         let reclaimed = reclaimable_size(&root)?;
@@ -705,6 +774,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(ProfilePaths {
             codex_home: base.join("codex-home"),
             vscode_home: base.join("vscode-user-data"),
+            desktop_home: base.join("desktop-data"),
             extensions_dir: base.join("vscode-extensions"),
         })
     }
@@ -713,9 +783,15 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(self.profile_paths(id)?.vscode_home)
     }
 
+    pub(crate) fn desktop_home(&self, id: &str) -> Result<PathBuf> {
+        Ok(self.profile_paths(id)?.desktop_home)
+    }
+
     fn is_running(&self, id: &str) -> Result<bool> {
         let paths = self.profile_paths(id)?;
-        if profile_process_running(&paths.vscode_home) {
+        if profile_process_running(&paths.vscode_home)
+            || profile_process_running(&paths.desktop_home)
+        {
             return Ok(true);
         }
         let runtime = self
@@ -741,7 +817,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             }
             Ok(_) | Err(_) => {}
         }
-        write_private_file(&auth_path, credential.as_bytes())
+        write_private_file(&auth_path, credential.as_bytes())?;
+        remove_private_file(&paths.codex_home.join(".multi-codex-signed-out"))
     }
 
     fn read_persisted_profile_credential(&self, id: &str) -> Result<Option<String>> {
@@ -756,8 +833,20 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     fn current_profile_credential(&self, id: &str) -> Result<String> {
         if let Some(credential) = self.read_persisted_profile_credential(id)? {
+            remove_private_file(
+                &self
+                    .profile_paths(id)?
+                    .codex_home
+                    .join(".multi-codex-signed-out"),
+            )?;
             self.secrets.set(id, &credential)?;
             return Ok(credential);
+        }
+        let paths = self.profile_paths(id)?;
+        if paths.codex_home.join(".multi-codex-signed-out").exists()
+            || profile_process_running(&paths.desktop_home)
+        {
+            return Err("This account is signed out. Sign in again from Edit before launching or checking limits.".into());
         }
         let credential = self.secrets.get(id)?;
         self.persist_profile_credential(id, &credential)?;
@@ -768,6 +857,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         &self,
         id: &str,
         vscode_home: PathBuf,
+        desktop_home: PathBuf,
         auth_path: PathBuf,
     ) -> Result<()> {
         let should_start = {
@@ -788,24 +878,38 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             let deadline = Instant::now() + Duration::from_secs(20);
             let mut detected = false;
             while Instant::now() < deadline {
-                if profile_process_running(&vscode_home) {
+                if profile_process_running(&vscode_home) || profile_process_running(&desktop_home) {
                     detected = true;
                     break;
                 }
                 std::thread::sleep(Duration::from_millis(200));
             }
             if detected {
-                while profile_process_running(&vscode_home) {
+                while profile_process_running(&vscode_home)
+                    || profile_process_running(&desktop_home)
+                {
                     std::thread::sleep(Duration::from_secs(1));
                 }
             }
             let sync = if detected {
                 match read_persisted_credential(&auth_path) {
                     Ok(credential) => secrets.set(&profile_id, &credential),
-                    Err(error) => Err(error),
+                    Err(error) => {
+                        // Retain the keyring backup, but do not silently resurrect a
+                        // deliberate desktop logout during a later usage check.
+                        if !auth_path.exists() && desktop_home.exists() {
+                            if let Some(home) = auth_path.parent() {
+                                let _ = write_private_file(
+                                    &home.join(".multi-codex-signed-out"),
+                                    b"signed-out\n",
+                                );
+                            }
+                        }
+                        Err(error)
+                    }
                 }
             } else {
-                Err("VS Code did not start an isolated profile window. The saved credential was retained.".to_string())
+                Err("The app did not start an isolated profile window. The saved credential was retained.".to_string())
             };
             if let Ok(mut state) = runtime.lock() {
                 state.monitors.remove(&profile_id);
@@ -1237,6 +1341,38 @@ fn build_vscode_command_with(
     command
 }
 
+fn build_standalone_command(
+    binary: &Path,
+    codex_home: &Path,
+    desktop_home: &Path,
+    workspace: &Path,
+) -> Command {
+    let mut command = Command::new(binary);
+    // Keep the user's HOME and browser profile; isolate Codex state and Electron
+    // data explicitly. Never forward this request to an unscoped global app.
+    for (key, _) in env::vars_os() {
+        let name = key.to_string_lossy();
+        if name.starts_with("CODEX_") || name.starts_with("OPENAI_") || name.starts_with("VSCODE_")
+        {
+            command.env_remove(key);
+        }
+    }
+    command
+        .env_remove("NODE_OPTIONS")
+        .env_remove("ELECTRON_RUN_AS_NODE")
+        .env("CODEX_HOME", codex_home)
+        .env("CODEX_SQLITE_HOME", codex_home)
+        .env("CODEX_ELECTRON_USER_DATA_PATH", desktop_home)
+        .arg(format!("--user-data-dir={}", desktop_home.display()))
+        .arg("--open-project")
+        .arg(workspace)
+        .current_dir(workspace)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    command
+}
+
 pub(crate) fn resolve_command(name: &str) -> Result<PathBuf> {
     let settings = crate::settings::load()?;
     let configured = match name {
@@ -1260,7 +1396,12 @@ pub(crate) fn resolve_command(name: &str) -> Result<PathBuf> {
 }
 
 pub(crate) fn resolve_codex_command() -> Result<PathBuf> {
-    resolve_command("codex")
+    resolve_command("codex").or_else(|error| {
+        if crate::settings::load()?.codex_path.is_some() {
+            return Err(error);
+        }
+        crate::launch_targets::bundled_standalone_cli().ok_or(error)
+    })
 }
 
 #[cfg(test)]
@@ -1424,7 +1565,31 @@ fn macos_vscode_alias(vscode_home: &Path, id: &str) -> Result<PathBuf> {
 fn remove_macos_vscode_alias(vscode_home: &Path, id: &str) {
     // Remove only our symlink, never the profile data it points to.
     let uid = unsafe { libc::geteuid() };
-    let alias = PathBuf::from(format!("/tmp/multi-codex-{uid}")).join(id);
+    remove_macos_alias(
+        &PathBuf::from(format!("/tmp/multi-codex-{uid}")),
+        vscode_home,
+        id,
+    );
+}
+
+#[cfg(target_os = "macos")]
+fn remove_macos_standalone_aliases(paths: &ProfilePaths, id: &str) {
+    let uid = unsafe { libc::geteuid() };
+    remove_macos_alias(
+        &PathBuf::from(format!("/tmp/multi-codex-codex-{uid}")),
+        &paths.codex_home,
+        id,
+    );
+    remove_macos_alias(
+        &PathBuf::from(format!("/tmp/multi-codex-desktop-{uid}")),
+        &paths.desktop_home,
+        id,
+    );
+}
+
+#[cfg(target_os = "macos")]
+fn remove_macos_alias(root: &Path, vscode_home: &Path, id: &str) {
+    let alias = root.join(id);
     if fs::canonicalize(vscode_home)
         .ok()
         .is_some_and(|target| fs::read_link(&alias).is_ok_and(|path| path == target))
@@ -1494,8 +1659,8 @@ pub(crate) fn window_process_uses_profile(pid: u32, vscode_home: &Path) -> bool 
     #[cfg(target_os = "linux")]
     {
         // Wayland may attribute an Electron surface to its GPU child. Only walk
-        // ancestors of a VS Code executable, never an arbitrary application's PID.
-        if !is_vscode_process(&Path::new("/proc").join(pid.to_string())) {
+        // ancestors of a supported profile app executable, never an arbitrary application's PID.
+        if !is_profile_app_process(&Path::new("/proc").join(pid.to_string())) {
             return false;
         }
         let mut current = pid;
@@ -1524,7 +1689,7 @@ pub(crate) fn window_process_uses_profile(pid: u32, vscode_home: &Path) -> bool 
 }
 
 #[cfg(target_os = "linux")]
-fn is_vscode_process(process: &Path) -> bool {
+fn is_profile_app_process(process: &Path) -> bool {
     fs::read_link(process.join("exe"))
         .ok()
         .and_then(|exe| {
@@ -1534,7 +1699,7 @@ fn is_vscode_process(process: &Path) -> bool {
         .is_some_and(|name| {
             matches!(
                 name.as_str(),
-                "code" | "code-insiders" | "code-oss" | "codium" | "vscodium"
+                "code" | "code-insiders" | "code-oss" | "codium" | "vscodium" | "chatgpt" | "codex"
             )
         })
 }
@@ -1542,7 +1707,7 @@ fn is_vscode_process(process: &Path) -> bool {
 #[cfg(target_os = "linux")]
 fn profile_data_open_by_process(pid: u32, vscode_home: &Path, proc_root: &Path) -> bool {
     let process = proc_root.join(pid.to_string());
-    if !is_vscode_process(&process) {
+    if !is_profile_app_process(&process) {
         return false;
     }
     let Ok(home) = vscode_home.canonicalize() else {
@@ -1976,8 +2141,119 @@ mod tests {
             service
                 .clear_profile_cache(&profile.metadata.id)
                 .unwrap_err(),
-            "Close this profile's VS Code windows before clearing its cache"
+            "Close this profile's app windows before clearing its cache"
         );
+    }
+
+    #[test]
+    fn standalone_process_blocks_mutation_even_without_launcher_runtime_state() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Desktop test")).unwrap();
+        let home = service.desktop_home(&profile.metadata.id).unwrap();
+        let mut child = Command::new("/bin/sh")
+            .args(["-c", "read line", "disposable-desktop-test"])
+            .arg(format!("--user-data-dir={}", home.display()))
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let running = service.list_profiles().unwrap()[0].status;
+        let cache_blocked = service.clear_profile_cache(&profile.metadata.id).is_err();
+        let deletion_blocked = service.delete_profile(&profile.metadata.id).is_err();
+        let edit_blocked = service
+            .update_profile(&profile.metadata.id, "Changed".into(), None, None)
+            .is_err();
+        drop(child.stdin.take());
+        let _ = child.wait();
+        assert_eq!(running, RuntimeStatus::Running);
+        assert!(cache_blocked && deletion_blocked && edit_blocked);
+        assert_eq!(service.load_metadata().unwrap()[0].name, "Desktop test");
+        assert_eq!(
+            service
+                .read_persisted_profile_credential(&profile.metadata.id)
+                .unwrap()
+                .unwrap(),
+            sample_auth()
+        );
+    }
+
+    #[test]
+    fn signed_out_marker_prevents_keyring_restore_and_reauthentication_clears_it() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Desktop test")).unwrap();
+        let home = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home;
+        fs::remove_file(home.join("auth.json")).unwrap();
+        write_private_file(&home.join(".multi-codex-signed-out"), b"signed-out\n").unwrap();
+        assert!(service
+            .current_profile_credential(&profile.metadata.id)
+            .unwrap_err()
+            .contains("signed out"));
+        assert!(!home.join("auth.json").exists());
+        assert_eq!(
+            service.secrets.get(&profile.metadata.id).unwrap(),
+            sample_auth()
+        );
+        service
+            .update_profile(
+                &profile.metadata.id,
+                profile.metadata.name,
+                Some(sample_auth()),
+                None,
+            )
+            .unwrap();
+        assert!(!home.join(".multi-codex-signed-out").exists());
+        assert_eq!(
+            service
+                .current_profile_credential(&profile.metadata.id)
+                .unwrap(),
+            sample_auth()
+        );
+    }
+
+    #[test]
+    fn standalone_launcher_reuses_auth_without_changing_global_or_vscode_data() {
+        let (temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Desktop test")).unwrap();
+        let paths = service.profile_paths(&profile.metadata.id).unwrap();
+        fs::create_dir_all(&service.global_codex_home).unwrap();
+        fs::write(
+            service.global_codex_home.join("auth.json"),
+            b"global-sentinel",
+        )
+        .unwrap();
+        let workspace = temp.path().join("Project with spaces 工具");
+        fs::create_dir(&workspace).unwrap();
+        let launcher = temp.path().join("desktop");
+        write_executable(&launcher, b"#!/bin/sh\nprintf '%s\\n' \"$CODEX_HOME\" \"$CODEX_ELECTRON_USER_DATA_PATH\" \"$CODEX_SQLITE_HOME\" \"$PWD\" \"$@\" > \"$CODEX_HOME/launch-test\"\n");
+        service
+            .launch_standalone_with_command(&profile.metadata.id, &workspace, &launcher)
+            .unwrap();
+        let output = paths.codex_home.join("launch-test");
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !output.exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let text = fs::read_to_string(output).unwrap();
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(fs::canonicalize(lines[0]).unwrap(), paths.codex_home);
+        assert_eq!(fs::canonicalize(lines[1]).unwrap(), paths.desktop_home);
+        assert_eq!(fs::canonicalize(lines[2]).unwrap(), paths.codex_home);
+        assert_eq!(lines[3], workspace.to_str().unwrap());
+        assert_eq!(lines[5], "--open-project");
+        assert_eq!(lines[6], workspace.to_str().unwrap());
+        assert!(!paths.vscode_home.exists());
+        assert_eq!(
+            fs::read(service.global_codex_home.join("auth.json")).unwrap(),
+            b"global-sentinel"
+        );
+        assert_eq!(
+            fs::read_to_string(paths.codex_home.join("auth.json")).unwrap(),
+            sample_auth()
+        );
+        #[cfg(target_os = "macos")]
+        remove_macos_standalone_aliases(&paths, &profile.metadata.id);
     }
 
     #[test]
@@ -2448,6 +2724,120 @@ mod tests {
         store.delete(&id).unwrap();
         assert_eq!(result.unwrap(), "multi-codex-test-credential");
         assert!(store.get(&id).is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "opens disposable Codex desktop windows; requires the verified desktop installation"]
+    fn macos_live_standalone_launch_is_detected() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp
+            .path()
+            .canonicalize()
+            .unwrap()
+            .join("Mac profile paths with spaces 工具");
+        let service = ProfileService::new(
+            root.join("Library/Application Support/multi-codex"),
+            root.join("global"),
+            root.join("extensions"),
+            MemorySecrets::default(),
+            AcceptAuth,
+        )
+        .unwrap();
+        fs::create_dir_all(&service.global_codex_home).unwrap();
+        fs::write(
+            service.global_codex_home.join("auth.json"),
+            b"global-sentinel",
+        )
+        .unwrap();
+        let profile = service
+            .add_profile(SaveProfileInput {
+                name: "Disposable desktop smoke".into(),
+                notes: None,
+                auth_json: r#"{"OPENAI_API_KEY":"disposable-fixture-not-a-real-key"}"#.into(),
+            })
+            .unwrap();
+        let paths = service.profile_paths(&profile.metadata.id).unwrap();
+        let original = fs::read(paths.codex_home.join("auth.json")).unwrap();
+        let workspace = root.join("Project with spaces 工具");
+        fs::create_dir_all(&workspace).unwrap();
+        let inspector_source = root.join("window.swift");
+        fs::write(&inspector_source, "import CoreGraphics\nimport Foundation\nlet pid = Int32(CommandLine.arguments[1])!\nlet windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly,.excludeDesktopElements], kCGNullWindowID) as? [[String:Any]] ?? []\nexit(windows.contains { ($0[kCGWindowOwnerPID as String] as? Int32) == pid && ($0[kCGWindowLayer as String] as? Int) == 0 } ? 0 : 1)\n").unwrap();
+        let inspector = root.join("window-inspector");
+        assert!(Command::new("/usr/bin/swiftc")
+            .arg(&inspector_source)
+            .arg("-o")
+            .arg(&inspector)
+            .status()
+            .unwrap()
+            .success());
+        assert!(
+            crate::launch_targets::bundled_standalone_cli().is_some(),
+            "Desktop-only installations must provide the bundled CLI"
+        );
+        for attempt in 1..=2 {
+            service
+                .launch_standalone_profile(&profile.metadata.id, &workspace)
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(60);
+            let mut visible = false;
+            while Instant::now() < deadline {
+                let output = Command::new("/bin/ps")
+                    .args(["-axo", "pid="])
+                    .output()
+                    .unwrap();
+                visible = String::from_utf8_lossy(&output.stdout)
+                    .lines()
+                    .filter_map(|s| s.trim().parse::<u32>().ok())
+                    .filter(|pid| process_uses_profile(*pid, &paths.desktop_home))
+                    .any(|pid| {
+                        Command::new(&inspector)
+                            .arg(pid.to_string())
+                            .status()
+                            .is_ok_and(|s| s.success())
+                    });
+                if visible {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            let listed_running =
+                service.list_profiles().unwrap()[0].status == RuntimeStatus::Running;
+            let cleanup_blocked = service.clear_profile_cache(&profile.metadata.id).is_err();
+            // Restrict termination to the fresh test profile's exact data path.
+            let output = Command::new("/bin/ps")
+                .args(["-axo", "pid="])
+                .output()
+                .unwrap();
+            for pid in String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter_map(|s| s.trim().parse::<u32>().ok())
+            {
+                if process_uses_profile(pid, &paths.desktop_home) {
+                    let _ = Command::new("/bin/kill")
+                        .args(["-TERM", &pid.to_string()])
+                        .status();
+                }
+            }
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while service.is_running(&profile.metadata.id).unwrap() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            assert!(
+                visible && listed_running && cleanup_blocked,
+                "Desktop startup {attempt} did not pass visible-window/running/cache guards"
+            );
+            assert_eq!(
+                fs::read(service.global_codex_home.join("auth.json")).unwrap(),
+                b"global-sentinel"
+            );
+            assert_eq!(
+                fs::read(paths.codex_home.join("auth.json")).unwrap(),
+                original
+            );
+            assert!(!paths.vscode_home.exists());
+        }
+        remove_macos_standalone_aliases(&paths, &profile.metadata.id);
     }
 
     #[cfg(target_os = "macos")]

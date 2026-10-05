@@ -1,6 +1,6 @@
 # Standalone isolation verification
 
-The intended launch buttons share each existing profile's `codex-home` between VS Code and the standalone app. The desktop also gets its own `desktop-data` directory, separate from `vscode-user-data`. Existing account IDs and profile locations stay unchanged. Standalone launches remain disabled until authenticated isolation passes on Linux and macOS.
+The intended launch buttons share each existing profile's `codex-home` between VS Code and the standalone app. The desktop also gets its own `desktop-data` directory, separate from `vscode-user-data`. Existing account IDs and profile locations stay unchanged. Authenticated isolation passed on Linux and macOS for desktop version `26.930.51102`. Version 1.3.5 enables standalone launches only for that verified version on Linux x86_64 and Mac Apple Silicon; unknown versions remain gated.
 
 ## Automated disposable probes
 
@@ -49,7 +49,7 @@ Stopping retains private test data for inspection. Never commit that directory, 
 - The user subsequently completed fresh sign-ins in both disposable Linux windows. Their current credentials are retained for local launch-button verification; production accounts have not been imported into the test.
 - The bundled Codex CLI also recognized a disposable desktop login using the exact same Codex home without changing its credential file.
 - [Mac GitHub runner probe 37338947965](https://github.com/wrestle-R/multi-codex/actions/runs/37338947965) passed on `macos-26`: two native Quartz-visible desktop windows, separate cookie databases and independent restarts with storage markers preserved. The sanitized report explicitly records authenticated isolation as **not tested**.
-- Authenticated macOS verification is pending. Its workflow obtains fresh device-code logins on the runner using the official CLI; no local credentials are uploaded. Device sign-in instructions are encrypted to the operator's local public key before artifact upload. Only a sanitized result report is retained after verification.
+- [Authenticated Mac runner 37345518314](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) passed on `macos-26` with desktop version `26.930.51102`: two distinct real identities, cold reuse of existing CLI-created credentials with fresh desktop data, forced refresh and credential rotation, native desktop logout and signed-out restart, with the peer unchanged. The first authenticated attempt used the wrong bundled CLI path; the second rejected reversed A/B identity labels before running isolation checks. The passing verifier matches the exact unordered pair and requires distinct identities. Its workflow obtains fresh device-code logins on the runner using the official CLI; no local credentials are uploaded. Device sign-in instructions are encrypted to the operator's local public key before artifact upload. Only a sanitized result report is retained after verification.
 - All six existing Multi Codex account IDs matched the pre-update backup, and all six existing auth files were still present after these probes.
 - This verification work does not change the installed Multi Codex executable or its saved profiles.
 
