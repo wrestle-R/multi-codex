@@ -55,6 +55,8 @@ The preview HTML lives under docs/plans and remains a design reference; v1.3.4 c
 
 ## v1.3.4 implementation boundary
 
+Repeatable standalone probe commands, interactive test instructions and current evidence are tracked in [Standalone isolation verification](standalone-isolation-verification.md). The standalone target stays disabled while authenticated checks are incomplete.
+
 VS Code remains the only enabled launcher. The app-choice section is completely absent unless both VS Code and the standalone app are detected; when both are installed it shows VS Code selected and the standalone choices disabled with the verification reason. No dual launch buttons are advertised as working. CODEX_HOME plus a separate desktop user-data directory is promising implementation evidence, but automated signed-out startup does not establish authenticated Linux/Mac isolation. No real user credentials were copied into the standalone probe.
 
 Welcome is shown only for an empty account list with incomplete setup. Existing accounts skip onboarding. Get started atomically saves setup completion and a native detection snapshot in the existing settings file; startup/settings/prelaunch query current installation state. Missing VS Code gives a recoverable installation/path message. The snapshot never overrides the detected OS.

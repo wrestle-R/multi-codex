@@ -1,0 +1,40 @@
+name: Standalone desktop isolation probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-out-macos:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official desktop into disposable Applications directory
+        run: |
+          curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/Codex.dmg -o "$RUNNER_TEMP/desktop.dmg"
+          shasum -a 256 "$RUNNER_TEMP/desktop.dmg" > "$RUNNER_TEMP/desktop-download.sha256"
+          mkdir "$RUNNER_TEMP/desktop-volume" "$RUNNER_TEMP/Applications"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/desktop-volume" "$RUNNER_TEMP/desktop.dmg"
+          APP=$(find "$RUNNER_TEMP/desktop-volume" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$APP"
+          ditto "$APP" "$RUNNER_TEMP/Applications/$(basename "$APP")"
+          hdiutil detach "$RUNNER_TEMP/desktop-volume"
+      - name: Exercise separate native windows, cookies and independent restarts
+        run: |
+          APP=$(find "$RUNNER_TEMP/Applications" -maxdepth 1 -name '*.app' -print -quit)
+          EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
+          BINARY="$APP/Contents/MacOS/$EXECUTABLE"
+          test -x "$BINARY"
+          lipo -archs "$BINARY"
+          python3 tauri/scripts/standalone-isolation.py smoke "$BINARY" --output "$RUNNER_TEMP/standalone-isolation-evidence"
+      - name: Upload sanitized signed-out probe result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-isolation-macos-signed-out
+          path: ${{ runner.temp }}/standalone-isolation-evidence/result.json
+          if-no-files-found: warn
+          retention-days: 14
