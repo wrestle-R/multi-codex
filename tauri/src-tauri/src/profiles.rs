@@ -5,13 +5,14 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::ffi::OsStr;
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, File};
 use std::io::{self, Write};
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-use std::path::{Path, PathBuf};
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+use toml_edit::{DocumentMut, Value as TomlValue};
 use uuid::Uuid;
 
 use crate::usage::{read_profile_limits, ProfileLimits};
@@ -495,6 +496,12 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !profiles.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".to_string());
         }
+        let paths = self.profile_paths(id)?;
+        let profile_root = paths.codex_home.parent().unwrap_or(&paths.codex_home);
+        // Validate the directory before changing the saved account or keyring. A
+        // linked profile must never cause another profile's files to be deleted.
+        validate_managed_tree(&self.data_root, profile_root)?;
+        let previous_profiles = profiles.clone();
         let previous_secret = self.secrets.get(id)?;
         self.secrets.delete(id)?;
         profiles.retain(|profile| profile.id != id);
@@ -502,16 +509,20 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             let _ = self.secrets.set(id, &previous_secret);
             return Err(error);
         }
-        let paths = self.profile_paths(id)?;
         #[cfg(target_os = "macos")]
         {
             remove_macos_vscode_alias(&paths.vscode_home, id);
             remove_macos_standalone_aliases(&paths, id);
         }
-        remove_managed_tree(
-            &self.data_root,
-            paths.codex_home.parent().unwrap_or(&paths.codex_home),
-        )?;
+        if let Err(error) = remove_managed_tree(&self.data_root, profile_root) {
+            let secret_restored = self.secrets.set(id, &previous_secret).is_ok();
+            let metadata_restored = self.save_metadata(&previous_profiles).is_ok();
+            return Err(if secret_restored && metadata_restored {
+                error
+            } else {
+                format!("{error}; the account record could not be fully restored")
+            });
+        }
         let mut runtime = self
             .runtime
             .lock()
@@ -978,10 +989,61 @@ fn account_tier_from_auth(auth_json: &str) -> Option<String> {
 }
 
 pub(crate) fn write_codex_config(codex_home: &Path) -> Result<()> {
-    write_private_file(
-        &codex_home.join("config.toml"),
-        b"# Managed by Multi Codex. Keep each profile's Codex login isolated.\ncli_auth_credentials_store = \"file\"\n",
-    )
+    let path = codex_home.join("config.toml");
+    let existing = match fs::symlink_metadata(&path) {
+        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
+            fs::read_to_string(&path)
+                .map_err(|error| format!("Could not read the profile Codex config: {error}"))?
+        }
+        Ok(_) => return Err("The profile Codex config is not a regular file".into()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            "# Managed by Multi Codex. Keep each profile's Codex login isolated.\n".into()
+        }
+        Err(error) => {
+            return Err(format!(
+                "Could not inspect the profile Codex config: {error}"
+            ))
+        }
+    };
+    let mut config = existing
+        .parse::<DocumentMut>()
+        .map_err(|error| format!("The profile Codex config is invalid: {error}"))?;
+    let updated = if let Some(item) = config.get_mut("cli_auth_credentials_store") {
+        if item.as_str() == Some("file") {
+            return set_owner_only_file(&path);
+        }
+        let previous = item
+            .as_value_mut()
+            .ok_or("The profile Codex credential setting must be a value")?;
+        let decoration = previous.decor().clone();
+        let mut replacement = TomlValue::from("file");
+        *replacement.decor_mut() = decoration;
+        *previous = replacement;
+        config.to_string()
+    } else {
+        // Keep a leading user comment block above the managed root-level key.
+        // Inserting through DocumentMut would move a file's opening comments below it.
+        let mut insert_at = 0;
+        for line in existing.split_inclusive('\n') {
+            if line.trim().is_empty() || line.trim_start().starts_with('#') {
+                insert_at += line.len();
+            } else {
+                break;
+            }
+        }
+        let mut updated = String::with_capacity(existing.len() + 45);
+        updated.push_str(&existing[..insert_at]);
+        if insert_at > 0 && !updated.ends_with('\n') {
+            updated.push('\n');
+        }
+        updated.push_str("cli_auth_credentials_store = \"file\"\n");
+        updated.push_str(&existing[insert_at..]);
+        updated
+            .parse::<DocumentMut>()
+            .map_err(|error| format!("Could not preserve the profile Codex config: {error}"))?;
+        updated
+    };
+    write_private_file(&path, updated.as_bytes())
 }
 
 fn canonical_workspace(workspace: &Path) -> Result<PathBuf> {
@@ -1235,21 +1297,31 @@ fn ensure_private_managed_dir(root: &Path, path: &Path) -> Result<()> {
 }
 
 pub(crate) fn write_private_file(path: &Path, bytes: &[u8]) -> Result<()> {
-    if let Some(parent) = path.parent() {
-        ensure_private_dir(parent)?;
+    let parent = path
+        .parent()
+        .ok_or("Protected file has no parent directory")?;
+    ensure_private_dir(parent)?;
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            return Err("Refusing to replace a linked or invalid protected file".into());
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(format!("Could not inspect protected file: {error}")),
     }
-    let mut file = OpenOptions::new()
-        .create(true)
-        .truncate(true)
-        .write(true)
-        .mode(0o600)
-        .open(path)
-        .map_err(|error| format!("Could not create protected file: {error}"))?;
-    file.set_permissions(fs::Permissions::from_mode(0o600))
-        .map_err(|error| format!("Could not protect file: {error}"))?;
-    file.write_all(bytes)
-        .and_then(|_| file.sync_all())
-        .map_err(|error| format!("Could not write protected file: {error}"))
+    let mut temp = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|error| format!("Could not create protected temporary file: {error}"))?;
+    temp.as_file()
+        .set_permissions(fs::Permissions::from_mode(0o600))
+        .map_err(|error| format!("Could not protect temporary file: {error}"))?;
+    temp.write_all(bytes)
+        .and_then(|_| temp.as_file().sync_all())
+        .map_err(|error| format!("Could not write protected file: {error}"))?;
+    temp.persist(path)
+        .map_err(|error| format!("Could not replace protected file: {}", error.error))?;
+    File::open(parent)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|error| format!("Could not sync protected file directory: {error}"))
 }
 
 fn remove_private_file(path: &Path) -> Result<()> {
@@ -1260,18 +1332,45 @@ fn remove_private_file(path: &Path) -> Result<()> {
     }
 }
 
-fn remove_managed_tree(root: &Path, path: &Path) -> Result<()> {
-    if !path.exists() {
-        return Ok(());
-    }
+fn validate_managed_tree(root: &Path, path: &Path) -> Result<bool> {
     let canonical_root = fs::canonicalize(root)
         .map_err(|error| format!("Could not resolve app data directory: {error}"))?;
-    let canonical_path = fs::canonicalize(path)
-        .map_err(|error| format!("Could not resolve profile directory: {error}"))?;
-    if canonical_path == canonical_root || !canonical_path.starts_with(&canonical_root) {
+    let relative = path
+        .strip_prefix(root)
+        .map_err(|_| "Refusing to delete a path outside Multi Codex data".to_string())?;
+    if relative.as_os_str().is_empty() {
         return Err("Refusing to delete a path outside Multi Codex data".to_string());
     }
-    fs::remove_dir_all(canonical_path)
+    let mut current = root.to_path_buf();
+    for component in relative.components() {
+        let Component::Normal(name) = component else {
+            return Err("Refusing to delete an invalid profile path".to_string());
+        };
+        current.push(name);
+        match fs::symlink_metadata(&current) {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+                return Err("Refusing to delete a linked or invalid profile directory".to_string());
+            }
+            Ok(_) => {}
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(format!("Could not inspect profile directory: {error}")),
+        }
+        let canonical_current = fs::canonicalize(&current)
+            .map_err(|error| format!("Could not resolve profile directory: {error}"))?;
+        if canonical_current == canonical_root || !canonical_current.starts_with(&canonical_root) {
+            return Err("Refusing to delete a path outside Multi Codex data".to_string());
+        }
+    }
+    Ok(true)
+}
+
+fn remove_managed_tree(root: &Path, path: &Path) -> Result<()> {
+    if !validate_managed_tree(root, path)? {
+        return Ok(());
+    }
+    // Remove the checked entry, not its canonical target. The Unix directory
+    // walker also avoids following symlinks found inside the tree.
+    fs::remove_dir_all(path)
         .map_err(|error| format!("Could not delete isolated profile data: {error}"))
 }
 
@@ -2128,6 +2227,67 @@ mod tests {
     }
 
     #[test]
+    fn cache_cleanup_cannot_follow_a_link_into_another_profile() {
+        let (_temp, service) = fixture();
+        let first = service.add_profile(sample_input("First")).unwrap();
+        let second = service.add_profile(sample_input("Second")).unwrap();
+        let second_home = service
+            .data_root
+            .join("profiles")
+            .join(&second.metadata.id)
+            .join("codex-home");
+        let second_credential = fs::read(second_home.join("auth.json")).unwrap();
+        let session = second_home.join("sessions/keep.jsonl");
+        fs::create_dir_all(session.parent().unwrap()).unwrap();
+        fs::write(&session, b"keep session").unwrap();
+        let first_cache = service
+            .data_root
+            .join("profiles")
+            .join(&first.metadata.id)
+            .join("vscode-user-data/CachedExtensionVSIXs");
+        fs::create_dir_all(first_cache.parent().unwrap()).unwrap();
+        symlink(&second_home, &first_cache).unwrap();
+
+        assert!(service.clear_profile_cache(&first.metadata.id).is_err());
+        assert_eq!(
+            fs::read(second_home.join("auth.json")).unwrap(),
+            second_credential
+        );
+        assert_eq!(fs::read(&session).unwrap(), b"keep session");
+        assert!(service
+            .list_profiles()
+            .unwrap()
+            .iter()
+            .any(|profile| profile.metadata.id == second.metadata.id));
+    }
+
+    #[test]
+    fn profile_deletion_rejects_a_link_before_removing_account_record() {
+        let (_temp, service) = fixture();
+        let first = service.add_profile(sample_input("First")).unwrap();
+        let second = service.add_profile(sample_input("Second")).unwrap();
+        let first_root = service.data_root.join("profiles").join(&first.metadata.id);
+        let second_root = service.data_root.join("profiles").join(&second.metadata.id);
+        let second_credential = fs::read(second_root.join("codex-home/auth.json")).unwrap();
+        fs::remove_dir_all(&first_root).unwrap();
+        symlink(&second_root, &first_root).unwrap();
+
+        assert!(service.delete_profile(&first.metadata.id).is_err());
+        assert_eq!(
+            fs::read(second_root.join("codex-home/auth.json")).unwrap(),
+            second_credential
+        );
+        assert!(service.secrets.get(&first.metadata.id).is_ok());
+        let records = service.load_metadata().unwrap();
+        assert!(records
+            .iter()
+            .any(|profile| profile.id == first.metadata.id));
+        assert!(records
+            .iter()
+            .any(|profile| profile.id == second.metadata.id));
+    }
+
+    #[test]
     fn cache_cleanup_refuses_running_profiles() {
         let (_temp, service) = fixture();
         let profile = service.add_profile(sample_input("Work")).unwrap();
@@ -2597,6 +2757,104 @@ mod tests {
             fs::read_to_string(temp.path().join("config.toml")).unwrap(),
             "# Managed by Multi Codex. Keep each profile's Codex login isolated.\ncli_auth_credentials_store = \"file\"\n"
         );
+    }
+
+    #[test]
+    fn profile_config_preserves_preferences_comments_and_sections() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        let original = "# My Codex preferences\nmodel = \"gpt-6\"\ncli_auth_credentials_store = \"keyring\" # credential setting\n\n[features]\nexperimental = true\n";
+        fs::write(&path, original).unwrap();
+        write_codex_config(temp.path()).unwrap();
+        let saved = fs::read_to_string(&path).unwrap();
+        let parsed = saved.parse::<DocumentMut>().unwrap();
+        assert_eq!(parsed["cli_auth_credentials_store"].as_str(), Some("file"));
+        assert_eq!(parsed["model"].as_str(), Some("gpt-6"));
+        assert_eq!(parsed["features"]["experimental"].as_bool(), Some(true));
+        assert!(saved.contains("# My Codex preferences"));
+        assert!(saved.contains("# credential setting"));
+        write_codex_config(temp.path()).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), saved);
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
+
+    #[test]
+    fn profile_config_adds_missing_root_setting_without_moving_header_or_tables() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        fs::write(
+            &path,
+            "# Project-specific preferences\nmodel = \"gpt-6\"\n\n[features]\nexperimental = true\n",
+        )
+        .unwrap();
+        write_codex_config(temp.path()).unwrap();
+        let saved = fs::read_to_string(&path).unwrap();
+        assert!(saved.starts_with(
+            "# Project-specific preferences\ncli_auth_credentials_store = \"file\"\n"
+        ));
+        let parsed = saved.parse::<DocumentMut>().unwrap();
+        assert_eq!(parsed["model"].as_str(), Some("gpt-6"));
+        assert_eq!(parsed["features"]["experimental"].as_bool(), Some(true));
+    }
+
+    #[test]
+    fn profile_config_rejects_invalid_or_linked_file_without_overwriting_it() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("config.toml");
+        let invalid = "[features\n";
+        fs::write(&path, invalid).unwrap();
+        assert!(write_codex_config(temp.path()).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), invalid);
+        fs::remove_file(&path).unwrap();
+
+        let outside = temp.path().join("outside-config.toml");
+        fs::write(&outside, "model = \"keep-me\"\n").unwrap();
+        symlink(&outside, &path).unwrap();
+        assert!(write_codex_config(temp.path()).is_err());
+        assert_eq!(
+            fs::read_to_string(&outside).unwrap(),
+            "model = \"keep-me\"\n"
+        );
+        assert!(fs::symlink_metadata(&path)
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+
+    #[test]
+    fn protected_file_write_is_atomic_private_and_rejects_symlink_targets() {
+        use std::io::Read;
+
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("auth.json");
+        fs::write(&path, b"previous-credential").unwrap();
+        let mut previous = File::open(&path).unwrap();
+        write_private_file(&path, b"new-credential").unwrap();
+        let mut old_contents = String::new();
+        previous.read_to_string(&mut old_contents).unwrap();
+        assert_eq!(old_contents, "previous-credential");
+        assert_eq!(fs::read(&path).unwrap(), b"new-credential");
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        let outside_auth = temp.path().join("outside-auth");
+        fs::write(&outside_auth, b"keep-auth").unwrap();
+        fs::remove_file(&path).unwrap();
+        symlink(&outside_auth, &path).unwrap();
+        assert!(write_private_file(&path, b"replacement-auth").is_err());
+        assert_eq!(fs::read(&outside_auth).unwrap(), b"keep-auth");
+
+        let outside = temp.path().join("outside-marker");
+        fs::write(&outside, b"keep-me").unwrap();
+        let marker = temp.path().join(".multi-codex-signed-out");
+        symlink(&outside, &marker).unwrap();
+        assert!(write_private_file(&marker, b"signed-out\n").is_err());
+        assert_eq!(fs::read(&outside).unwrap(), b"keep-me");
     }
 
     #[test]
