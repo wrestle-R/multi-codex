@@ -70,6 +70,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install official CLI for fresh disposable device-code sign-ins
+        run: |
+          npm install --prefix "$RUNNER_TEMP/test-cli" @openai/codex@0.160.0
+          "$RUNNER_TEMP/test-cli/node_modules/.bin/codex" --version
       - name: Validate expected test identities and install request encryption key
         run: |
           [[ "$EXPECTED_A" =~ ^[a-f0-9]{64}$ ]]
@@ -96,7 +100,7 @@ jobs:
           APP=$(find "$RUNNER_TEMP/Applications" -maxdepth 1 -name '*.app' -print -quit)
           EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
           BINARY="$APP/Contents/MacOS/$EXECUTABLE"
-          CLI="$APP/Contents/Resources/codex"
+          CLI="$RUNNER_TEMP/test-cli/node_modules/.bin/codex"
           test -x "$BINARY"
           test -x "$CLI"
           (
