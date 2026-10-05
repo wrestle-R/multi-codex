@@ -12,6 +12,10 @@ This candidate is **not cleared for publication**. The full standard-macOS deskt
 
 Linux candidate packages target x86_64. Distribution families are covered by AppImage, DEB and RPM; this does not imply testing every distribution/version. Intel Macs and Windows are outside the 1.3.1 support promise. Linux session-bus, native libraries and system credential-store dependencies must be present.
 
+## Launch preferences
+
+Launch settings includes a preferred folder, used as the starting location of the folder picker on both platforms. Leave it empty to use the default workspace folder. On macOS, choosing a folder launches VS Code directly without displaying desktop controls. On Linux, the desktop picker stays enabled by default; uncheck **Show desktop picker before launching** to skip it. Preferences persist across restarts. Direct launches use the existing current-desktop launch behavior.
+
 ## macOS account and launch checks
 
 Mac GUI applications can have a restricted PATH. Codex discovery recognizes the VS Code extension's `bin/macos-aarch64/codex` and `bin/macos-x86_64/codex` directories, retaining the older `darwin-*` layouts. The sign-in link and Open browser button use the native macOS browser opener. Linux retains its existing browser action and executable search paths.

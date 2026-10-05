@@ -336,3 +336,15 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .launch-settings-form label { display: grid; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; }
 .launch-settings-form input { min-width: 0; width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; font-weight: 400; }
 .launch-settings-form input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.launch-settings-form .desktop-picker-setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.launch-settings-form .desktop-picker-setting input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}

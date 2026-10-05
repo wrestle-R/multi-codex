@@ -4,6 +4,7 @@ import type { DesktopInventory, DesktopWindow, Profile } from "../lib/types"
 import { useDialogFocus } from "./use-dialog-focus"
 
 interface WorkspaceDialogProps {
+  showDesktopPicker?: boolean
   profile: Profile
   workspace: string
   busy: boolean
@@ -13,7 +14,7 @@ interface WorkspaceDialogProps {
   onChoose: (desktop: string | null) => void
 }
 
-export function WorkspaceDialog({ profile, workspace, busy, error, alreadyOpened, onCancel, onChoose }: WorkspaceDialogProps) {
+export function WorkspaceDialog({ showDesktopPicker = true, profile, workspace, busy, error, alreadyOpened, onCancel, onChoose }: WorkspaceDialogProps) {
   const titleId = useId()
   const dialogRef = useDialogFocus(onCancel, busy)
   const [inventory, setInventory] = useState<DesktopInventory | null>(null)
@@ -26,6 +27,7 @@ export function WorkspaceDialog({ profile, workspace, busy, error, alreadyOpened
   const folder = segments[segments.length - 1] ?? workspace
 
   useEffect(() => {
+    if (!showDesktopPicker) return
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | undefined
     async function poll() {
@@ -47,7 +49,7 @@ export function WorkspaceDialog({ profile, workspace, busy, error, alreadyOpened
     }
     void poll()
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [busy, refreshKey])
+  }, [busy, refreshKey, showDesktopPicker])
 
   const disappeared = selected !== null && inventory !== null && !inventory.desktops.some(desktop => desktop.id === selected)
   const canMove = inventory?.capabilities.moveWindows && !inventoryError
@@ -55,6 +57,21 @@ export function WorkspaceDialog({ profile, workspace, busy, error, alreadyOpened
     ?? inventory?.desktops.find(desktop => desktop.current && desktop.windows.length > 0)
     ?? inventory?.desktops.find(desktop => desktop.windows.length > 0)
     ?? inventory?.desktops[0]
+
+  if (!showDesktopPicker) return (
+    <div className="dialog-layer" role="presentation">
+      <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy}>
+        <span className="eyebrow">Launch workspace</span>
+        <h2 id={titleId}>Open {folder}</h2>
+        <p>{busy ? "Opening VS Code…" : `Launch with ${profile.name}.`}</p>
+        {error ? <p className="form-error" role="alert">{error}</p> : null}
+        <div className="dialog-actions">
+          <button className="button secondary" disabled={busy} onClick={onCancel}>Close</button>
+          {error ? <button className="button primary" disabled={busy} onClick={() => onChoose(null)}>Try again</button> : null}
+        </div>
+      </section>
+    </div>
+  )
 
   return (
     <div className="dialog-layer" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && !busy && onCancel()}>
