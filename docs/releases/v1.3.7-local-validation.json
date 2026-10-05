@@ -1,0 +1,43 @@
+{
+  "version": "1.3.7",
+  "sourceCommit": "87b404a7d3189aae7bff7c2225130ed855585b6b",
+  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37565958194",
+  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37575095291",
+  "artifacts": {
+    "Multi.Codex_1.3.7_aarch64.dmg": "1141ea8c76ef69187d1b0bcc111862b49a4e1cc9f9d98e05ff4ab89f4ad9b04b",
+    "Multi.Codex_1.3.7_amd64.deb": "0cc87016a7edf50e50a928395cde1c33aeaf9594d397b7b3d7b38ec4d3a71349",
+    "Multi.Codex-1.3.7-1.x86_64.rpm": "7a50496cc79f03cc157f9d2943fc22213c3e7db2439cf25d7e6d310203d9bb3c",
+    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "Multi.Codex_1.3.7_amd64.AppImage": "02da8880538ac4f5a56a8ee2bc89c00a4aec3cfba59917ca71e373a509559443"
+  },
+  "status": "builds-passed-installer-verification-pending",
+  "testedAt": "2026-10-07T05:22:17.276146+00:00",
+  "frontendTests": 76,
+  "rustTests": 82,
+  "websiteTests": {
+    "local": 9,
+    "macosAndLinuxCi": "https://github.com/wrestle-R/multi-codex/actions/runs/37575600054",
+    "siteSource": "4769df72e2a521788e778b21bfd4eaece32e5ad4"
+  },
+  "cliChecks": {
+    "allSixSavedAccountsRecognizedAsSignedIn": true,
+    "nativeKonsoleAccountLaunchAuthenticated": true,
+    "nativeKittyAccountLaunchAuthenticated": true,
+    "bothSelectedProfileHomesVerified": true,
+    "activeEditorAndAgentSessionsPreserved": true
+  },
+  "themeChecks": {
+    "orangeDarkPreviewBackground": "rgb(28, 27, 29)",
+    "orangeLightPreviewBackground": "rgb(245, 227, 212)",
+    "lightPreviewPreserved": true
+  },
+  "reminderChecks": {
+    "windowHours": 48,
+    "maxPerLocalCalendarDay": 2,
+    "minimumGapHours": 4,
+    "multipleCreditsAndAccountsGrouped": true,
+    "capPersistsAcrossReload": true,
+    "gapAcrossMidnightVerified": true
+  }
+}
