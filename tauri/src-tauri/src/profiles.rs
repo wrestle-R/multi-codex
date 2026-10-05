@@ -2254,7 +2254,10 @@ mod tests {
             fs::canonicalize(&workspace).unwrap()
         );
         assert_eq!(lines[5], "--open-project");
-        assert_eq!(lines[6], workspace.to_str().unwrap());
+        assert_eq!(
+            fs::canonicalize(lines[6]).unwrap(),
+            fs::canonicalize(&workspace).unwrap()
+        );
         assert!(!paths.vscode_home.exists());
         assert_eq!(
             fs::read(service.global_codex_home.join("auth.json")).unwrap(),
@@ -2766,7 +2769,9 @@ mod tests {
             .add_profile(SaveProfileInput {
                 name: "Disposable desktop smoke".into(),
                 notes: None,
-                auth_json: r#"{"OPENAI_API_KEY":"disposable-fixture-not-a-real-key"}"#.into(),
+                auth_json:
+                    r#"{"auth_mode":"apikey","OPENAI_API_KEY":"disposable-fixture-not-a-real-key"}"#
+                        .into(),
             })
             .unwrap();
         let paths = service.profile_paths(&profile.metadata.id).unwrap();
