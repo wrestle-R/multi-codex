@@ -2532,12 +2532,24 @@ mod tests {
             .filter(|pid| process_uses_profile(*pid, &paths.vscode_home))
             .collect();
         let stayed_running = !pids.is_empty();
-        let initialized_window = fs::read_dir(paths.vscode_home.join("logs"))
-            .ok()
-            .into_iter()
-            .flatten()
-            .flatten()
-            .any(|entry| entry.path().join("window1/renderer.log").is_file());
+        // Cold startup on a hosted Mac can take longer than process bootstrap.
+        // Require renderer initialization, but give the new window its own deadline.
+        let renderer_deadline = Instant::now() + Duration::from_secs(30);
+        let initialized_window = loop {
+            if fs::read_dir(paths.vscode_home.join("logs"))
+                .ok()
+                .into_iter()
+                .flatten()
+                .flatten()
+                .any(|entry| entry.path().join("window1/renderer.log").is_file())
+            {
+                break true;
+            }
+            if Instant::now() >= renderer_deadline {
+                break false;
+            }
+            std::thread::sleep(Duration::from_millis(200));
+        };
         let listed_running = service.list_profiles().unwrap()[0].status == RuntimeStatus::Running;
         for pid in pids {
             if !process_arguments(pid).is_some_and(|args| {
