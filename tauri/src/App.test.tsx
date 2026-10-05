@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   checkProfileLimits: vi.fn(),
   subscribeDeviceLogin: vi.fn(),
   launchProfile: vi.fn(),
+  launchStandaloneProfile: vi.fn(),
   deleteProfile: vi.fn(),
   getDesktopIntegrationStatus: vi.fn(),
   getLaunchEnvironment: vi.fn(),
@@ -64,6 +65,7 @@ beforeEach(() => {
     checkedAt: "2026-09-05T04:30:00Z",
   })
   api.launchProfile.mockReset().mockResolvedValue({ completed: true, error: null, retryToken: null })
+  api.launchStandaloneProfile.mockReset().mockResolvedValue({ completed: true, error: null, retryToken: null })
   api.discardPlacement.mockReset().mockResolvedValue(undefined)
   api.getExecutableSettings.mockReset().mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null })
   api.saveExecutableSettings.mockReset().mockImplementation(async settings => settings)
@@ -760,7 +762,7 @@ it("shows the isolation gate only when both apps are installed", async () => {
   expect(screen.getByRole("radio", { name: "VS Code only" })).toBeChecked()
   expect(screen.getByRole("radio", { name: "Codex app only" })).toBeDisabled()
   expect(screen.getByRole("radio", { name: "Both" })).toBeDisabled()
-  expect(screen.getByText(/awaiting account-isolation verification/)).toBeInTheDocument()
+  expect(screen.getByText(/has not passed account-isolation verification/)).toBeInTheDocument()
 })
 
 it("hides the Linux toggle during detection and on Mac after detection", async () => {
@@ -796,4 +798,64 @@ it("does not overwrite saved settings when detection fails", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("Detection unavailable")
   expect(screen.getByRole("button", { name: "Save settings" })).toBeDisabled()
   expect(api.saveExecutableSettings).not.toHaveBeenCalled()
+})
+
+it('routes both launch buttons to their own native commands', async () => {
+  const user = userEvent.setup()
+  api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, launchMode: 'both', hideDesktopPicker: true })
+  api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true })
+  render(<App />)
+  await user.click(await screen.findByRole('button', { name: 'Codex app' }))
+  await user.click(await screen.findByRole('button', { name: 'Choose this folder' }))
+  await waitFor(() => expect(api.launchStandaloneProfile).toHaveBeenCalledWith(profile.id, '/home/rdp/Desktop/code', null, null))
+  expect(api.launchProfile).not.toHaveBeenCalled()
+  await user.click(await screen.findByRole('button', { name: 'VS Code' }))
+  await user.click(await screen.findByRole('button', { name: 'Choose this folder' }))
+  await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, '/home/rdp/Desktop/code', null, null))
+})
+
+it('saves Both and updates the account buttons without restarting', async () => {
+  const user = userEvent.setup()
+  let settings = { codePath: null, codexPath: null, globalCodexHome: null, launchMode: 'vscode', hideDesktopPicker: true }
+  api.getExecutableSettings.mockImplementation(async () => settings)
+  api.saveExecutableSettings.mockImplementation(async value => { settings = value; return value })
+  api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true })
+  render(<App />)
+  await user.click(screen.getByRole('button', { name: 'Launch settings' }))
+  await user.click(await screen.findByRole('radio', { name: 'Both' }))
+  await user.click(screen.getByRole('button', { name: 'Save settings' }))
+  expect(await screen.findByRole('button', { name: 'Codex app' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'VS Code' })).toBeEnabled()
+  expect(settings.launchMode).toBe('both')
+})
+
+it('uses the only installed app on Mac and hides choices and desktops', async () => {
+  const user = userEvent.setup()
+  api.getLaunchTargets.mockResolvedValue({ platform: 'macos', vscodeInstalled: false, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true })
+  api.getLaunchEnvironment.mockResolvedValue({ defaultWorkspace: '/Users/Test/Project', capabilities: { backend: 'macos', enumerateDesktops: false, enumerateWindows: false, moveWindows: false, reason: null } })
+  render(<App />)
+  await screen.findByRole('heading', { name: 'Personal' })
+  await user.click(screen.getByRole('button', { name: 'Launch settings' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled())
+  expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Show desktop picker before launching')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Cancel' }))
+  await user.click(screen.getByRole('button', { name: 'Launch' }))
+  await user.click(await screen.findByRole('button', { name: 'Choose this folder' }))
+  await waitFor(() => expect(api.launchStandaloneProfile).toHaveBeenCalledWith(profile.id, '/Users/Test/Project', null, null))
+  expect(api.getDesktopInventory).not.toHaveBeenCalled()
+  expect(api.launchProfile).not.toHaveBeenCalled()
+})
+
+it('does not switch apps when the clicked standalone installation disappears', async () => {
+  const user = userEvent.setup()
+  api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, launchMode: 'both' })
+  api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true })
+  render(<App />)
+  await screen.findByRole('button', { name: 'Codex app' })
+  api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false })
+  await user.click(screen.getByRole('button', { name: 'Codex app' }))
+  await screen.findAllByText(/verified Codex desktop app is unavailable/)
+  expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
+  expect(api.launchProfile).not.toHaveBeenCalled()
 })
