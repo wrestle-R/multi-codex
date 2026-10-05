@@ -19,6 +19,7 @@ import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
 import { ResetCreditsDialog } from "./components/reset-credits-dialog"
 import { StorageDialog } from "./components/storage-dialog"
+import { WelcomeScreen } from "./components/welcome-screen"
 import { WorkspaceDialog } from "./components/workspace-dialog"
 import { WorkspacePickerDialog } from "./components/workspace-picker-dialog"
 import {
@@ -32,6 +33,8 @@ import {
   discardPlacement,
   getLaunchEnvironment,
   getExecutableSettings,
+  getLaunchTargets,
+  saveExecutableSettings,
   getStorageUsage,
   importCurrentProfile,
   installDesktopIntegration,
@@ -40,7 +43,7 @@ import {
   subscribeDeviceLogin,
   updateProfile,
 } from "./lib/desktop-api"
-import type { DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, LimitCheckState, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
+import type { LaunchTargets, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, LimitCheckState, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
 import { formatStorage } from "./lib/formatters"
 
 export { formatStorage } from "./lib/formatters"
@@ -77,8 +80,14 @@ export default function App() {
   const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string } | null>(null)
   const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string } | null>(null)
   const [showLaunchSettings, setShowLaunchSettings] = useState(false)
+  const [launchTargets, setLaunchTargets] = useState<LaunchTargets | null>(null)
+  const [welcomeNeeded, setWelcomeNeeded] = useState(true)
+  const [welcomeReady, setWelcomeReady] = useState(false)
+  const [welcomeBusy, setWelcomeBusy] = useState(false)
+  const [welcomeError, setWelcomeError] = useState<string | null>(null)
   const [hideDesktopPicker, setHideDesktopPicker] = useState(false)
   const [launchBusy, setLaunchBusy] = useState(false)
+  const [launchPreparationError, setLaunchPreparationError] = useState<string | null>(null)
   const [launchError, setLaunchError] = useState<string | null>(null)
   const [placementToken, setPlacementToken] = useState<string | null>(null)
   const launchLock = useRef(false)
@@ -137,6 +146,29 @@ export default function App() {
   useEffect(() => {
     void getLaunchEnvironment().then(setLaunchEnvironment).catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    let active = true
+    void Promise.all([getExecutableSettings(), getLaunchTargets()]).then(([settings, targets]) => {
+      if (!active) return
+      setLaunchTargets(targets)
+      setWelcomeNeeded(!settings.onboardingCompleted)
+    }).catch(error => { if (active) setWelcomeError(String(error)) }).finally(() => { if (active) setWelcomeReady(true) })
+    return () => { active = false }
+  }, [])
+
+  async function completeWelcome() {
+    setWelcomeBusy(true)
+    setWelcomeError(null)
+    try {
+      const [settings, detectedApps] = await Promise.all([getExecutableSettings(), getLaunchTargets()])
+      await saveExecutableSettings({ ...settings, onboardingCompleted: true, detectedApps })
+      setLaunchTargets(detectedApps)
+      setWelcomeNeeded(false)
+    } catch (error) {
+      setWelcomeError(error instanceof Error ? error.message : String(error))
+    } finally { setWelcomeBusy(false) }
+  }
 
   const refreshStorage = useCallback(async () => {
     setStorageLoading(true)
@@ -311,14 +343,21 @@ export default function App() {
   }
 
   async function handleLaunch(profile: Profile) {
+    setLaunchPreparationError(null)
     try {
       const environment = launchEnvironment ?? await getLaunchEnvironment()
       setLaunchEnvironment(environment)
+      const targets = await getLaunchTargets()
+      setLaunchTargets(targets)
+      if (!targets.vscodeInstalled) throw new Error(targets.standaloneInstalled
+        ? "Codex app detected, but isolated account launch is not verified yet. Install VS Code to launch accounts in this release."
+        : "VS Code was not found. Install it or set its executable path in Launch settings.")
       const settings = await getExecutableSettings()
       setHideDesktopPicker(environment.capabilities.backend === "macos" || Boolean(settings.hideDesktopPicker))
       setFolderRequest({ profile, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
+      setLaunchPreparationError(message)
       setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "error", error: message } : item))
     }
     await refresh()
@@ -454,6 +493,8 @@ export default function App() {
     }
   }
 
+  if (!loading && !pageError && profiles.length === 0 && welcomeReady && welcomeNeeded) return <WelcomeScreen platform={launchTargets?.platform} busy={welcomeBusy} error={welcomeError} onContinue={() => void completeWelcome()} />
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -518,6 +559,10 @@ export default function App() {
             </div>
           </div>
 
+          {launchPreparationError ? <p className="form-error" role="alert">{launchPreparationError}</p> : null}
+
+          {launchTargets && !launchTargets.vscodeInstalled ? <div className="state-panel launch-requirements" role="status"><p>{launchTargets.standaloneInstalled ? "Codex app detected. Isolated standalone launch is awaiting verification; use VS Code for now." : "Install VS Code to launch your accounts. You can also set an executable path in Launch settings."}</p></div> : null}
+
           {loading ? (
             <div className="profile-list" aria-label="Loading accounts">
               {[0, 1].map((item) => <div className="profile-row skeleton-row" key={item} />)}
@@ -577,7 +622,7 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
-      {showLaunchSettings ? <LaunchSettingsDialog isMac={launchEnvironment?.capabilities.backend === "macos"} onClose={() => setShowLaunchSettings(false)} /> : null}
+      {showLaunchSettings ? <LaunchSettingsDialog onClose={() => setShowLaunchSettings(false)} /> : null}
       {launchRequest ? (
         <WorkspaceDialog
           showDesktopPicker={!hideDesktopPicker}

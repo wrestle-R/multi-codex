@@ -4,13 +4,14 @@ import type { WorkspaceDirectoryListing } from "../lib/types"
 import { useDialogFocus } from "./use-dialog-focus"
 
 interface WorkspacePickerDialogProps {
+  purpose?: "launch" | "preference"
   initialPath: string
   busy: boolean
   onCancel: () => void
   onChoose: (path: string) => void
 }
 
-export function WorkspacePickerDialog({ initialPath, busy, onCancel, onChoose }: WorkspacePickerDialogProps) {
+export function WorkspacePickerDialog({ initialPath, busy, onCancel, onChoose, purpose = "launch" }: WorkspacePickerDialogProps) {
   const titleId = useId()
   const dialogRef = useDialogFocus(onCancel, busy)
   const navigationSequence = useRef(0)
@@ -46,12 +47,12 @@ export function WorkspacePickerDialog({ initialPath, busy, onCancel, onChoose }:
       <section ref={dialogRef} className="dialog folder-picker-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="dialog-header">
           <div>
-            <span className="eyebrow">Launch workspace</span>
+            <span className="eyebrow">{purpose === "preference" ? "Preferred folder" : "Launch workspace"}</span>
             <h2 id={titleId}>Choose a folder</h2>
           </div>
           <button className="dialog-close" type="button" aria-label="Close folder picker" disabled={busy} onClick={onCancel}>×</button>
         </div>
-        <p className="folder-picker-hint">Select a project folder for this profile. Nothing in the folder will be changed.</p>
+        <p className="folder-picker-hint">{purpose === "preference" ? "Start future folder selections here. You can choose another project each time." : "Select a project folder for this profile. Nothing in the folder will be changed."}</p>
         <div className="folder-picker-location">
           <button type="button" disabled={!parentPath || loading || busy} onClick={() => parentPath && void navigate(parentPath)}>↑ Up</button>
           <span title={listing?.path}>{listing?.path ?? initialPath}</span>

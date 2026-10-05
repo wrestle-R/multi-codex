@@ -16,6 +16,10 @@ pub struct ExecutableSettings {
     pub preferred_workspace: Option<String>,
     #[serde(default)]
     pub hide_desktop_picker: bool,
+    #[serde(default)]
+    pub onboarding_completed: bool,
+    #[serde(default)]
+    pub detected_apps: Option<crate::launch_targets::LaunchTargets>,
 }
 
 pub fn data_root() -> Result<PathBuf> {
@@ -121,6 +125,38 @@ pub fn global_codex_home(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn saves_setup_snapshot_without_changing_existing_profile_data() {
+        let root = tempfile::tempdir().unwrap();
+        let profile_dir = root.path().join("profiles/test/codex-home");
+        fs::create_dir_all(&profile_dir).unwrap();
+        fs::write(profile_dir.join("auth.json"), b"test-only-credential").unwrap();
+        fs::write(root.path().join("profiles.json"), b"test-only-metadata").unwrap();
+        let settings = ExecutableSettings {
+            onboarding_completed: true,
+            detected_apps: Some(crate::launch_targets::LaunchTargets {
+                platform: "macos".into(),
+                vscode_installed: true,
+                codex_cli_available: false,
+                standalone_installed: true,
+                standalone_verified: false,
+            }),
+            ..Default::default()
+        };
+        save_to(root.path(), &settings).unwrap();
+        let saved = load_from(root.path()).unwrap();
+        assert!(saved.onboarding_completed);
+        assert_eq!(saved.detected_apps.unwrap().platform, "macos");
+        assert_eq!(
+            fs::read(profile_dir.join("auth.json")).unwrap(),
+            b"test-only-credential"
+        );
+        assert_eq!(
+            fs::read(root.path().join("profiles.json")).unwrap(),
+            b"test-only-metadata"
+        );
+    }
+
     #[test]
     fn old_settings_keep_desktop_picker_enabled_and_new_preferences_persist() {
         let root = tempfile::tempdir().unwrap();

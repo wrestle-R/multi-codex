@@ -1,7 +1,10 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { DesktopInventory, ExecutableSettings, LaunchResult, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
+import type { LaunchTargets, DesktopInventory, ExecutableSettings, LaunchResult, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
 
-const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__)
+// Development-only demo mode lets native screenshot captures use fictional accounts.
+// Packaged builds always use native IPC; no user data is read for demo captures.
+const demoCapture = import.meta.env.DEV && new URLSearchParams(window.location.search).get("demo") === "1"
+const isTauri = typeof window !== "undefined" && Boolean(window.__TAURI_INTERNALS__) && !demoCapture
 
 let demoProfiles: Profile[] = [
   {
@@ -136,9 +139,9 @@ export async function checkProfileLimits(id: string): Promise<ProfileLimits> {
   }
   const now = Math.floor(Date.now() / 1000)
   return {
-    fiveHour: { remainingPercent: 64, resetsAt: now + 2 * 60 * 60 },
-    weekly: { remainingPercent: 81, resetsAt: now + 4 * 24 * 60 * 60 },
-    monthly: null,
+    fiveHour: profile.accountTier === "Free" ? null : { remainingPercent: id === "demo-work" ? 52 : 78, resetsAt: now + 2 * 60 * 60 },
+    weekly: profile.accountTier === "Free" ? null : { remainingPercent: id === "demo-work" ? 73 : 90, resetsAt: now + 4 * 24 * 60 * 60 },
+    monthly: profile.accountTier === "Free" ? { remainingPercent: 72, resetsAt: now + 12 * 24 * 60 * 60 } : null,
     resetCreditsAvailable: 2,
     resetCredits: [
       { id: "demo-credit-1", status: "available", resetType: "codexRateLimits", grantedAt: now - 3600, expiresAt: now + 2 * 24 * 60 * 60, title: "Usage reset" },
@@ -236,4 +239,10 @@ export async function saveExecutableSettings(settings: ExecutableSettings): Prom
   if (isTauri) return invoke("save_executable_settings", { settings })
   localStorage.setItem("multi-codex-executables", JSON.stringify(settings))
   return settings
+}
+
+// Always query the native platform and current installation state; saved detection is a snapshot.
+export async function getLaunchTargets(): Promise<LaunchTargets> {
+  if (isTauri) return invoke<LaunchTargets>("get_launch_targets")
+  return { platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false }
 }

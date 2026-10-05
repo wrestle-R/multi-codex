@@ -1,13 +1,14 @@
 import { useEffect, useRef } from "react"
 
 const focusableSelector = [
+  "summary",
   "button:not([disabled])",
   "input:not([disabled])",
   "textarea:not([disabled])",
   "[tabindex]:not([tabindex='-1'])",
 ].join(",")
 
-export function useDialogFocus(onClose: () => void, busy: boolean) {
+export function useDialogFocus(onClose: () => void, busy: boolean, active = true) {
   const dialogRef = useRef<HTMLElement>(null)
   const onCloseRef = useRef(onClose)
   const busyRef = useRef(busy)
@@ -15,6 +16,7 @@ export function useDialogFocus(onClose: () => void, busy: boolean) {
   busyRef.current = busy
 
   useEffect(() => {
+    if (!active) return
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
     const focusInitialControl = window.requestAnimationFrame(() => {
       if (!dialogRef.current?.contains(document.activeElement)) {
@@ -29,7 +31,10 @@ export function useDialogFocus(onClose: () => void, busy: boolean) {
       }
       if (event.key !== "Tab" || !dialogRef.current) return
 
-      const controls = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector))
+      const controls = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector)).filter(control => {
+        const closed = control.closest("details:not([open])")
+        return !control.closest("[hidden]") && (!closed || control.tagName === "SUMMARY")
+      })
       if (controls.length === 0) return
       const first = controls[0]
       const last = controls[controls.length - 1]
@@ -48,7 +53,7 @@ export function useDialogFocus(onClose: () => void, busy: boolean) {
       window.removeEventListener("keydown", onKeyDown)
       previousFocus?.focus()
     }
-  }, [])
+  }, [active])
 
   return dialogRef
 }

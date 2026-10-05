@@ -38,3 +38,11 @@ it("propagates native opener failures so the dialog can offer a retry", async ()
   await expect(openDeviceLoginBrowser()).rejects.toBe("Could not open the default browser")
   expect(open).not.toHaveBeenCalled()
 })
+
+it("requests current native launch targets rather than trusting saved detection", async () => {
+  const targets = { platform: "macos", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false }
+  invoke.mockResolvedValue(targets)
+  const { getLaunchTargets } = await import("./desktop-api")
+  expect(await getLaunchTargets()).toEqual(targets)
+  expect(invoke).toHaveBeenCalledWith("get_launch_targets")
+})
