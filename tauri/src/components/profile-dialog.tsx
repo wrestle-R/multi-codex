@@ -3,6 +3,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { useId, useState } from "react"
 import type { FormEvent } from "react"
 import type { Profile, ProfileDetails } from "../lib/types"
+import { openDeviceLoginBrowser } from "../lib/desktop-api"
 import { useDialogFocus } from "./use-dialog-focus"
 
 interface ProfileDialogProps {
@@ -33,6 +34,7 @@ export function ProfileDialog({
   const [name, setName] = useState(profile?.name ?? "")
   const [authJson, setAuthJson] = useState("")
   const [notes, setNotes] = useState(profile?.notes ?? "")
+  const [browserError, setBrowserError] = useState<string | null>(null)
   const dialogRef = useDialogFocus(onClose, busy && !deviceLoginActive)
   const cleanLoginOutput = stripTerminalFormatting(loginOutput ?? "")
   const signInUrl = cleanLoginOutput.match(/https:\/\/auth\.openai\.com\/codex\/device\b/)?.[0]
@@ -43,6 +45,15 @@ export function ProfileDialog({
       await navigator.clipboard.writeText(value)
     } catch {
       // Clipboard access can be unavailable in a browser preview. The text remains selectable.
+    }
+  }
+
+  async function openBrowser() {
+    setBrowserError(null)
+    try {
+      await openDeviceLoginBrowser()
+    } catch (error) {
+      setBrowserError(error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -117,14 +128,15 @@ export function ProfileDialog({
           </label>
 
           {error ? <div className="form-error" role="alert">{error}</div> : null}
+          {browserError ? <div className="form-error" role="alert">{browserError}</div> : null}
           {deviceLoginActive ? (
             <div className="device-sign-in" aria-live="polite">
               <strong>Finish sign-in in your browser</strong>
               {signInUrl ? (
                 <div className="device-sign-in-field">
                   <span>Open this link</span>
-                  <a href={signInUrl} target="_blank" rel="noreferrer">{signInUrl}</a>
-                  <div><button className="button secondary" type="button" onClick={() => void copy(signInUrl)}>Copy link</button><button className="button secondary" type="button" onClick={() => window.open(signInUrl, "_blank", "noopener,noreferrer")}>Open browser</button></div>
+                  <a href={signInUrl} target="_blank" rel="noreferrer" onClick={(event) => { event.preventDefault(); void openBrowser() }}>{signInUrl}</a>
+                  <div><button className="button secondary" type="button" onClick={() => void copy(signInUrl)}>Copy link</button><button className="button secondary" type="button" onClick={() => void openBrowser()}>Open browser</button></div>
                 </div>
               ) : null}
               {deviceCode ? (

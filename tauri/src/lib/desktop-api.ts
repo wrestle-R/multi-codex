@@ -78,6 +78,11 @@ export async function cancelDeviceLogin(id: string): Promise<void> {
   if (isTauri) return invoke("cancel_device_login", { id })
 }
 
+export async function openDeviceLoginBrowser(): Promise<void> {
+  if (isTauri && await invoke<boolean>("open_device_login_browser")) return
+  window.open("https://auth.openai.com/codex/device", "_blank", "noopener,noreferrer")
+}
+
 export async function subscribeDeviceLogin(listener: (event: DeviceLoginEvent) => void): Promise<() => void> {
   if (!isTauri) return () => undefined
   const { listen } = await import("@tauri-apps/api/event")

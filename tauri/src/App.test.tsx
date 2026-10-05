@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   listProfiles: vi.fn(),
   addProfile: vi.fn(),
   beginDeviceLogin: vi.fn(),
+  openDeviceLoginBrowser: vi.fn(),
   cancelDeviceLogin: vi.fn(),
   listWorkspaceDirectories: vi.fn(),
   clearProfileCache: vi.fn(),
@@ -45,6 +46,7 @@ beforeEach(() => {
   api.listProfiles.mockReset().mockResolvedValue([profile])
   api.addProfile.mockReset().mockResolvedValue(profile)
   api.beginDeviceLogin.mockReset().mockResolvedValue("device-login")
+  api.openDeviceLoginBrowser.mockReset().mockResolvedValue(undefined)
   api.cancelDeviceLogin.mockReset().mockResolvedValue(undefined)
   api.listWorkspaceDirectories.mockReset().mockImplementation(async (path: string) => ({ path, parentPath: "/home/rdp/Desktop", directories: [] }))
   api.clearProfileCache.mockReset().mockResolvedValue(256_000_000)
@@ -301,6 +303,21 @@ describe("Multi Codex", () => {
     await user.click(screen.getByRole("button", { name: "Close" }))
     await waitFor(() => expect(api.cancelDeviceLogin).toHaveBeenCalledWith("device-login"))
     expect(screen.queryByRole("dialog", { name: "Add account" })).not.toBeInTheDocument()
+  })
+
+  it("shows a recoverable error when the native browser cannot open", async () => {
+    api.openDeviceLoginBrowser.mockRejectedValue(new Error("Could not open the default browser"))
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole("heading", { name: "Personal" })
+    await user.click(screen.getByRole("button", { name: "Add account" }))
+    await user.type(screen.getByLabelText("Profile name"), "Work")
+    await user.click(screen.getByRole("button", { name: "Get sign-in code" }))
+    await waitFor(() => expect(deviceLoginListener).toBeDefined())
+    deviceLoginListener?.({ id: "device-login", output: "https://auth.openai.com/codex/device TEST-1234", completed: false })
+    await user.click(await screen.findByRole("button", { name: "Open browser" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not open the default browser")
+    expect(screen.getByRole("link", { name: "https://auth.openai.com/codex/device" })).toBeInTheDocument()
   })
 
   it("shows saved notes without obsolete manual usage fields", async () => {

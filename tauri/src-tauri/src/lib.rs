@@ -168,6 +168,25 @@ fn emit_device_login(app: &tauri::AppHandle, event: DeviceLoginEvent) {
 }
 
 #[tauri::command]
+async fn open_device_login_browser() -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        tauri::async_runtime::spawn_blocking(|| {
+            let output = process::output(
+                Command::new("/usr/bin/open").arg("https://auth.openai.com/codex/device"),
+                Duration::from_secs(5),
+            )?;
+            if !output.status.success() {
+                return Err("Could not open the default browser. Copy the sign-in link and open it manually.".into());
+            }
+            Ok(true)
+        }).await.map_err(|_| "Could not open the default browser".to_string())?
+    }
+    #[cfg(not(target_os = "macos"))]
+    Ok(false)
+}
+
+#[tauri::command]
 fn begin_device_login(
     name: String,
     notes: Option<String>,
@@ -501,6 +520,7 @@ pub fn run() {
             update_profile,
             validate_auth,
             begin_device_login,
+            open_device_login_browser,
             cancel_device_login,
             launch_profile,
             delete_profile,
