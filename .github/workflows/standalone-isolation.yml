@@ -2,12 +2,30 @@ name: Standalone desktop isolation probe
 
 on:
   workflow_dispatch:
+    inputs:
+      authenticated:
+        description: Run real account refresh/logout checks with fresh device-code logins
+        type: boolean
+        default: false
+      expected_a:
+        description: SHA-256 identity fingerprint for disposable account A
+        type: string
+        default: ""
+      expected_b:
+        description: SHA-256 identity fingerprint for disposable account B
+        type: string
+        default: ""
+      device_public_key:
+        description: Base64 RSA public key for encrypted device-code instructions
+        type: string
+        default: ""
 
 permissions:
   contents: read
 
 jobs:
   signed-out-macos:
+    if: ${{ !inputs.authenticated }}
     runs-on: macos-26
     timeout-minutes: 15
     steps:
@@ -36,5 +54,99 @@ jobs:
         with:
           name: standalone-isolation-macos-signed-out
           path: ${{ runner.temp }}/standalone-isolation-evidence/result.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  authenticated-macos:
+    if: ${{ inputs.authenticated }}
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      EXPECTED_A: ${{ inputs.expected_a }}
+      EXPECTED_B: ${{ inputs.expected_b }}
+      AUTH_PUBLIC_KEY: ${{ inputs.device_public_key }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate expected test identities and install request encryption key
+        run: |
+          [[ "$EXPECTED_A" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_B" =~ ^[a-f0-9]{64}$ ]]
+          test "$EXPECTED_A" != "$EXPECTED_B"
+          python3 - <<'PY'
+          import os, base64
+          from pathlib import Path
+          key = base64.b64decode(os.environ['AUTH_PUBLIC_KEY'], validate=True)
+          (Path(os.environ['RUNNER_TEMP']) / 'device-public.pem').write_bytes(key)
+          PY
+          openssl pkey -pubin -in "$RUNNER_TEMP/device-public.pem" -noout
+      - name: Install official desktop into disposable Applications directory
+        run: |
+          curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/Codex.dmg -o "$RUNNER_TEMP/desktop.dmg"
+          mkdir "$RUNNER_TEMP/desktop-volume" "$RUNNER_TEMP/Applications"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/desktop-volume" "$RUNNER_TEMP/desktop.dmg"
+          APP=$(find "$RUNNER_TEMP/desktop-volume" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$APP"
+          ditto "$APP" "$RUNNER_TEMP/Applications/$(basename "$APP")"
+          hdiutil detach "$RUNNER_TEMP/desktop-volume"
+      - name: Start disposable authentication verifier
+        run: |
+          APP=$(find "$RUNNER_TEMP/Applications" -maxdepth 1 -name '*.app' -print -quit)
+          EXECUTABLE=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")
+          BINARY="$APP/Contents/MacOS/$EXECUTABLE"
+          CLI="$APP/Contents/Resources/codex"
+          test -x "$BINARY"
+          test -x "$CLI"
+          (
+            set +e
+            python3 -B tauri/scripts/standalone-auth-verification.py --binary "$BINARY" --device-login "$CLI" --device-request-key "$RUNNER_TEMP/device-public.pem" --expected-a "$EXPECTED_A" --expected-b "$EXPECTED_B" --output "$RUNNER_TEMP/standalone-auth-evidence"
+            AUTH_RESULT=$?
+            printf '%s\n' "$AUTH_RESULT" > "$RUNNER_TEMP/verification-exit-status"
+          ) > "$RUNNER_TEMP/private-verification.log" 2>&1 < /dev/null &
+      - name: Wait for encrypted account A instructions
+        run: |
+          for attempt in $(seq 1 120); do
+            test ! -f "$RUNNER_TEMP/verification-exit-status" || exit 1
+            test ! -f "$RUNNER_TEMP/standalone-auth-evidence/signin-a.encrypted" || exit 0
+            sleep 2
+          done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-device-signin-a-encrypted
+          path: ${{ runner.temp }}/standalone-auth-evidence/signin-a.encrypted
+          retention-days: 1
+      - name: Wait for encrypted account B instructions
+        run: |
+          for attempt in $(seq 1 540); do
+            test ! -f "$RUNNER_TEMP/verification-exit-status" || exit 1
+            test ! -f "$RUNNER_TEMP/standalone-auth-evidence/signin-b.encrypted" || exit 0
+            sleep 2
+          done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-device-signin-b-encrypted
+          path: ${{ runner.temp }}/standalone-auth-evidence/signin-b.encrypted
+          retention-days: 1
+      - name: Wait for authenticated desktop verification
+        run: |
+          for attempt in $(seq 1 900); do
+            if test -f "$RUNNER_TEMP/verification-exit-status"; then
+              cat "$RUNNER_TEMP/standalone-auth-evidence/result.json"
+              test "$(cat "$RUNNER_TEMP/verification-exit-status")" = 0
+              exit $?
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Upload sanitized authenticated result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: standalone-auth-macos-result
+          path: ${{ runner.temp }}/standalone-auth-evidence/result.json
           if-no-files-found: warn
           retention-days: 14

@@ -13,11 +13,29 @@ import os
 from pathlib import Path
 import signal
 import subprocess
+import struct
 import sys
 import tempfile
 import time
 
 MARKER = "multi-codex-disposable-desktop-v1"
+
+
+def desktop_version(binary):
+    for archive in (binary.parent / "resources/app.asar", binary.parent.parent / "Resources/app.asar"):
+        if not archive.is_file():
+            continue
+        with archive.open("rb") as source:
+            header = struct.unpack("<4I", source.read(16))
+            if header[3] > 32 * 1024 * 1024:
+                raise RuntimeError("Desktop package header is unexpectedly large")
+            tree = json.loads(source.read(header[3]))
+            entry = tree["files"]["package.json"]
+            if entry.get("unpacked") or entry["size"] > 65536:
+                raise RuntimeError("Desktop package metadata is unavailable")
+            source.seek(8 + header[1] + int(entry["offset"]))
+            return json.loads(source.read(entry["size"]))["version"]
+    raise RuntimeError("Desktop package metadata was not found")
 
 
 def write_json(path, data):
@@ -61,8 +79,11 @@ def launch(root, state, name):
     destination = root / name / "private-startup.log" if state.get("captureLogs", True) else Path(os.devnull)
     with destination.open("ab") as log:
         state.setdefault("logOffsets", {})[name] = log.tell()
+        arguments = [state["binary"], "--user-data-dir=" + str(root / name / "desktop-data")]
+        if state.get("inspectable", False):
+            arguments.extend(["--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1"])
         process = subprocess.Popen(
-            [state["binary"], "--user-data-dir=" + str(root / name / "desktop-data")],
+            arguments,
             env=environment(root, name), cwd=root / name, stdin=subprocess.DEVNULL,
             stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     state["pids"][name] = process.pid
@@ -161,15 +182,15 @@ exit(visible ? 0 : 1)
     return binary
 
 
-def create(binary, capture_logs=True):
+def create(binary, capture_logs=True, directory=None):
     binary = binary.resolve(strict=True)
     if not os.access(binary, os.X_OK):
         raise RuntimeError("Desktop binary is not executable")
     # Short /tmp roots also avoid macOS Unix socket limits with Unicode paths.
-    root = Path(tempfile.mkdtemp(prefix="mc-desktop-測試 ", dir="/tmp")).resolve()
+    root = Path(tempfile.mkdtemp(prefix="mc-desktop-測試 ", dir=directory or "/tmp")).resolve()
     root.chmod(0o700)
     state = {"marker": MARKER, "root": str(root), "binary": str(binary), "pids": {},
-             "captureLogs": capture_logs}
+             "captureLogs": capture_logs, "inspectable": not capture_logs}
     write_json(root / "probe.json", state)
     for name in ("a", "b"):
         for directory in (".codex", "desktop-data", "config", "data", "cache"):
@@ -192,6 +213,7 @@ def main():
     for command in ("start", "smoke"):
         child = commands.add_parser(command)
         child.add_argument("binary", type=Path)
+        child.add_argument("--directory", type=Path)
         if command == "smoke":
             child.add_argument("--output", type=Path, required=True)
     for command in ("status", "checkpoint", "check", "restart", "stop"):
@@ -201,7 +223,7 @@ def main():
             child.add_argument("profile", choices=("a", "b"))
     args = parser.parse_args()
     if args.command in ("start", "smoke"):
-        root, state = create(args.binary, capture_logs=args.command == "smoke")
+        root, state = create(args.binary, capture_logs=args.command == "smoke", directory=args.directory)
         if args.command == "start":
             print(root)
             print("Two disposable windows started. Sign into different TEST accounts only.")
