@@ -11,7 +11,7 @@
     "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
     "Multi.Codex_1.3.7_amd64.AppImage": "02da8880538ac4f5a56a8ee2bc89c00a4aec3cfba59917ca71e373a509559443"
   },
-  "status": "builds-passed-installer-verification-pending",
+  "status": "installer-and-local-package-checks-passed",
   "testedAt": "2026-10-07T05:22:17.276146+00:00",
   "frontendTests": 76,
   "rustTests": 82,
@@ -39,5 +39,46 @@
     "multipleCreditsAndAccountsGrouped": true,
     "capPersistsAcrossReload": true,
     "gapAcrossMidnightVerified": true
+  },
+  "installerRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37575974153",
+  "packagedNativeChecks": {
+    "appImageSha256": "02da8880538ac4f5a56a8ee2bc89c00a4aec3cfba59917ca71e373a509559443",
+    "runs": [
+      {
+        "startup": 1,
+        "visibleNativeWindow": true,
+        "savedAccountVisible": true,
+        "themePickerVisible": true,
+        "maximizedWithoutFullscreen": true
+      },
+      {
+        "startup": 2,
+        "visibleNativeWindow": true,
+        "savedAccountVisible": true,
+        "themePickerVisible": true,
+        "maximizedWithoutFullscreen": true
+      }
+    ],
+    "accountChatAndDefaultLoginSentinelsUnchanged": true,
+    "scope": "Disposable native Arch/Hyprland package startup and restart; no authenticated sign-in"
+  },
+  "localInstallerChecks": {
+    "tag": "v1.3.7",
+    "appImageSha256": "02da8880538ac4f5a56a8ee2bc89c00a4aec3cfba59917ca71e373a509559443",
+    "checks": [
+      {
+        "script": "install-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      },
+      {
+        "script": "update-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      }
+    ],
+    "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks"
   }
 }
