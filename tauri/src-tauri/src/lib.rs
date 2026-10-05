@@ -3,6 +3,7 @@ mod application_icons;
 mod desktop_environment;
 mod desktop_integration;
 mod launch;
+mod launch_targets;
 #[cfg(target_os = "linux")]
 mod linux_desktops;
 mod process;
@@ -465,6 +466,13 @@ async fn check_profile_limits(
 }
 
 #[tauri::command]
+async fn get_launch_targets() -> Result<launch_targets::LaunchTargets, String> {
+    tauri::async_runtime::spawn_blocking(launch_targets::detect)
+        .await
+        .map_err(|_| "Could not detect installed applications".to_string())
+}
+
+#[tauri::command]
 fn get_desktop_integration_status(
     state: State<'_, AppState>,
 ) -> Result<DesktopIntegrationStatus, String> {
@@ -528,6 +536,7 @@ pub fn run() {
             get_storage_usage,
             clear_profile_cache,
             get_launch_environment,
+            get_launch_targets,
             list_workspace_directories,
             check_profile_limits,
             get_desktop_integration_status,

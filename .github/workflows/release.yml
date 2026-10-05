@@ -107,6 +107,14 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Install disposable native VS Code test dependency
+        run: |
+          curl --fail --location --retry 3 https://update.code.visualstudio.com/latest/darwin-arm64/stable -o "$RUNNER_TEMP/vscode.zip"
+          ditto -xk "$RUNNER_TEMP/vscode.zip" /Applications
+      - name: Exercise native Keychain and isolated VS Code startup
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml macos_live_keychain_round_trip -- --ignored --test-threads=1
+          cargo test --manifest-path src-tauri/Cargo.toml macos_live_vscode_launch_is_detected -- --ignored --test-threads=1
       - name: Build Apple Silicon candidate
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -131,14 +139,7 @@ jobs:
           ARCHS=$(lipo -archs "$BINARY")
           [[ " $ARCHS " == *" arm64 "* ]]
           [[ " $ARCHS " != *" x86_64 "* ]]
-          TEST_HOME=$(mktemp -d)
-          trap 'rm -rf "$TEST_HOME"' EXIT
-          env HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_HOME/data" "$BINARY" >"$RUNNER_TEMP/multi-codex-macos.log" 2>&1 &
-          PID=$!
-          sleep 5
-          kill -0 "$PID"
-          kill "$PID"
-          wait "$PID" || true
+          python3 scripts/macos-smoke.py "$BINARY"
       - name: Check signing and notarization
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -164,6 +165,14 @@ jobs:
           name: macos-package
           path: tauri/Multi.Codex_*_aarch64.dmg
           if-no-files-found: error
+
+      - name: Upload macOS startup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-startup-evidence-${{ github.workflow }}
+          path: ${{ runner.temp }}/multi-codex-macos-evidence/
+          if-no-files-found: warn
 
   prepare-draft:
     needs: [linux, macos]
