@@ -7,10 +7,24 @@ This candidate is **not cleared for publication**. The full standard-macOS deskt
 | Hyprland | Native IPC; Lua when available, legacy dispatch otherwise | Live inventory and real VS Code placement on Hyprland 0.56.2; full packaged matrix pending |
 | GNOME Shell 45–51 | Bundled protocol-1 Shell extension | Contract/source tests; live GNOME and packaged Wayland/X11 validation pending |
 | KDE Plasma 6 | Bundled protocol-1 on-demand KWin script | Inventory, empty desktop, placement and missing destination tested on isolated KWin 6.7.5 Wayland; packaged/X11 validation pending |
-| macOS 27 and 26, Apple Silicon | Current-desktop launch; native Spaces controls unavailable | No real-Mac functional validation; release blocked |
+| macOS 27 and 26, Apple Silicon | Current-desktop launch; native Spaces controls unavailable | Targeted checks on macOS 26.6.2: browser sign-in, isolated import, live limits, Keychain and native VS Code launch; full release matrix and Spaces validation remain pending |
 | Other Linux desktops | Current-desktop launch, explicit unavailable-control message | No desktop-placement support claim |
 
 Linux candidate packages target x86_64. Distribution families are covered by AppImage, DEB and RPM; this does not imply testing every distribution/version. Intel Macs and Windows are outside the 1.3.1 support promise. Linux session-bus, native libraries and system credential-store dependencies must be present.
+
+## macOS account and launch checks
+
+Mac GUI applications can have a restricted PATH. Codex discovery recognizes the VS Code extension's `bin/macos-aarch64/codex` and `bin/macos-x86_64/codex` directories, retaining the older `darwin-*` layouts. The sign-in link and Open browser button use the native macOS browser opener. Linux retains its existing browser action and executable search paths.
+
+On macOS, VS Code uses a socket beneath its user-data directory, with a 103-byte path limit. Multi Codex launches the native VS Code executable using a short, owner-only runtime alias under `/tmp/multi-codex-<uid>/<profile-id>`. The alias points to the existing profile data; it is recreated after reboot and removed when the profile is deleted. Process detection recognizes the alias's canonical target. Inherited Mac extension-host entrypoint and IPC variables are removed. Linux retains its existing launch and process-identification paths.
+
+The regular Rust and frontend suites cover discovery, browser error handling, profile isolation and process arguments. Opt-in checks exercise the installed Codex CLI with a temporary copy of the current account, native Keychain with a disposable entry, and a disposable VS Code window:
+
+```bash
+cargo test --manifest-path tauri/src-tauri/Cargo.toml macos_live -- --ignored
+```
+
+These checks require a signed-in local Codex installation and VS Code. They do not modify the global auth file. The VS Code check opens and closes a temporary isolated window. A debug `.app` was also checked interactively for startup and a completed browser sign-in with live limits; this does not validate signing, notarization, DMG installation, or native Spaces placement.
 
 ## Desktop inventory and placement
 

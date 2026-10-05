@@ -500,6 +500,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             return Err(error);
         }
         let paths = self.profile_paths(id)?;
+        #[cfg(target_os = "macos")]
+        remove_macos_vscode_alias(&paths.vscode_home, id);
         remove_managed_tree(
             &self.data_root,
             paths.codex_home.parent().unwrap_or(&paths.codex_home),
@@ -543,7 +545,16 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let mut command = build_vscode_command_with(
             code,
             &paths.codex_home,
-            &paths.vscode_home,
+            &{
+                #[cfg(target_os = "macos")]
+                {
+                    macos_vscode_alias(&paths.vscode_home, id)?
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    paths.vscode_home.clone()
+                }
+            },
             &paths.extensions_dir,
             &launch_workspace,
         );
@@ -1196,6 +1207,16 @@ fn build_vscode_command_with(
     extensions_dir: &Path,
     workspace: &Path,
 ) -> Command {
+    #[cfg(target_os = "macos")]
+    let native_code = fs::canonicalize(code).ok().and_then(|cli| {
+        if !cli.ends_with("Contents/Resources/app/bin/code") {
+            return None;
+        }
+        let native = cli.ancestors().nth(4)?.join("MacOS/Code");
+        is_executable_file(&native).then_some(native)
+    });
+    #[cfg(target_os = "macos")]
+    let code = native_code.as_deref().unwrap_or(code);
     let mut command = Command::new(code);
     command
         .arg("--new-window")
@@ -1209,6 +1230,10 @@ fn build_vscode_command_with(
         .env_remove("VSCODE_PID")
         .env_remove("VSCODE_CWD")
         .env_remove("ELECTRON_RUN_AS_NODE");
+    #[cfg(target_os = "macos")]
+    command
+        .env_remove("VSCODE_ESM_ENTRYPOINT")
+        .env_remove("VSCODE_IPC_HOOK");
     command
 }
 
@@ -1320,6 +1345,13 @@ fn find_extension_codex(home: &Path) -> Option<PathBuf> {
 }
 
 fn find_extension_codex_for_platform(home: &Path, platform: &str) -> Option<PathBuf> {
+    // Extension package suffixes (darwin-arm64) differ from the bundled CLI
+    // directories (macos-aarch64). Keep the old layouts as fallbacks.
+    let directories: &[&str] = match platform {
+        "darwin-arm64" => &["macos-aarch64", "darwin-arm64"],
+        "darwin-x86_64" => &["macos-x86_64", "darwin-x86_64"],
+        _ => std::slice::from_ref(&platform),
+    };
     let extensions = home.join(".vscode/extensions");
     let mut versions = fs::read_dir(&extensions)
         .into_iter()
@@ -1337,7 +1369,11 @@ fn find_extension_codex_for_platform(home: &Path, platform: &str) -> Option<Path
     versions
         .into_iter()
         .rev()
-        .map(|extension| extension.join("bin").join(platform).join("codex"))
+        .flat_map(|extension| {
+            directories
+                .iter()
+                .map(move |directory| extension.join("bin").join(directory).join("codex"))
+        })
         .find(|candidate| is_executable_file(candidate))
 }
 
@@ -1345,12 +1381,96 @@ fn arguments_use_profile(arguments: &[Vec<u8>], vscode_home: &Path) -> bool {
     let expected = vscode_home.as_os_str().as_encoded_bytes();
     // Electron can rewrite argv and leave the user-data path as a standalone
     // argument. Match whole arguments, never substrings or a flattened ps line.
-    arguments.iter().any(|arg| {
+    let exact = arguments.iter().any(|arg| {
         arg == expected
             || arg
                 .strip_prefix(b"--user-data-dir=")
                 .is_some_and(|value| value == expected)
-    })
+    });
+    #[cfg(target_os = "macos")]
+    {
+        if exact {
+            return true;
+        }
+        let Ok(expected) = fs::canonicalize(vscode_home) else {
+            return false;
+        };
+        arguments.iter().any(|arg| {
+            let value = arg.strip_prefix(b"--user-data-dir=").unwrap_or(arg);
+            std::str::from_utf8(value)
+                .ok()
+                .and_then(|path| fs::canonicalize(path).ok())
+                .is_some_and(|path| path == expected)
+        })
+    }
+    #[cfg(not(target_os = "macos"))]
+    exact
+}
+
+#[cfg(target_os = "macos")]
+fn macos_vscode_alias(vscode_home: &Path, id: &str) -> Result<PathBuf> {
+    // Darwin sockets are limited to 103 bytes. Keep durable data in its
+    // original location and give VS Code a short, private runtime alias.
+    // SAFETY: geteuid has no arguments and does not mutate memory.
+    let uid = unsafe { libc::geteuid() };
+    macos_vscode_alias_in(
+        &PathBuf::from(format!("/tmp/multi-codex-{uid}")),
+        vscode_home,
+        id,
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn remove_macos_vscode_alias(vscode_home: &Path, id: &str) {
+    // Remove only our symlink, never the profile data it points to.
+    let uid = unsafe { libc::geteuid() };
+    let alias = PathBuf::from(format!("/tmp/multi-codex-{uid}")).join(id);
+    if fs::canonicalize(vscode_home)
+        .ok()
+        .is_some_and(|target| fs::read_link(&alias).is_ok_and(|path| path == target))
+    {
+        let _ = fs::remove_file(alias);
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn macos_vscode_alias_in(root: &Path, vscode_home: &Path, id: &str) -> Result<PathBuf> {
+    use std::os::unix::fs::{symlink, MetadataExt};
+    validate_id(id)?;
+    match fs::create_dir(root) {
+        Ok(()) => {}
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+        Err(error) => {
+            return Err(format!(
+                "Could not create the Mac launch directory: {error}"
+            ))
+        }
+    }
+    let metadata =
+        fs::symlink_metadata(root).map_err(|_| "Could not inspect the Mac launch directory")?;
+    // SAFETY: geteuid only returns the current effective user ID.
+    if !metadata.is_dir()
+        || metadata.file_type().is_symlink()
+        || metadata.uid() != unsafe { libc::geteuid() }
+    {
+        return Err(
+            "The Mac launch directory must be a directory owned by the current user".into(),
+        );
+    }
+    set_owner_only_dir(root)?;
+    let target = fs::canonicalize(vscode_home)
+        .map_err(|_| "Could not resolve the profile data directory")?;
+    let alias = root.join(id);
+    match fs::symlink_metadata(&alias) {
+        Ok(metadata)
+            if metadata.file_type().is_symlink()
+                && fs::read_link(&alias).is_ok_and(|path| path == target) => {}
+        Ok(_) => return Err("The Mac profile launch alias points to unexpected data".into()),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => symlink(target, &alias)
+            .map_err(|error| format!("Could not create the Mac profile launch alias: {error}"))?,
+        Err(_) => return Err("Could not inspect the Mac profile launch alias".into()),
+    }
+    Ok(alias)
 }
 
 pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
@@ -1608,6 +1728,25 @@ mod tests {
         assert_eq!(args.len(), 3);
         assert_eq!(args[2], b"/Users/A B/profile");
         assert!(parse_macos_arguments(&raw[..5]).is_none());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_detects_live_profile_process_with_spaces() {
+        let temp = tempfile::tempdir().unwrap();
+        let home = temp.path().join("A B/工具/vscode-user-data");
+        let mut child = Command::new("/bin/sh")
+            .args(["-c", "read line", "multi-codex-process-test"])
+            .arg(format!("--user-data-dir={}", home.display()))
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        let matched = process_uses_profile(child.id(), &home);
+        let other_matched = process_uses_profile(child.id(), &temp.path().join("other"));
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(matched);
+        assert!(!other_matched);
     }
 
     use std::collections::HashMap;
@@ -2117,6 +2256,48 @@ mod tests {
         }
     }
 
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_launch_uses_native_app_instead_of_detached_cli() {
+        let temp = tempfile::tempdir().unwrap();
+        let contents = temp.path().join("Visual Studio Code.app/Contents");
+        let cli = contents.join("Resources/app/bin/code");
+        let native = contents.join("MacOS/Code");
+        write_executable(&cli, b"#!/bin/sh\nexit 0\n");
+        write_executable(&native, b"native");
+        let command = build_vscode_command_with(
+            &cli,
+            Path::new("/codex"),
+            Path::new("/data"),
+            Path::new("/extensions"),
+            Path::new("/workspace"),
+        );
+        assert_eq!(
+            command.get_program(),
+            native.canonicalize().unwrap().as_os_str()
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_launch_clears_inherited_electron_entrypoint() {
+        let command = build_vscode_command_with(
+            Path::new("/code"),
+            Path::new("/codex"),
+            Path::new("/data"),
+            Path::new("/extensions"),
+            Path::new("/workspace"),
+        );
+        for key in ["VSCODE_ESM_ENTRYPOINT", "VSCODE_IPC_HOOK"] {
+            assert!(
+                command
+                    .get_envs()
+                    .any(|(name, value)| name == key && value.is_none()),
+                "{key} must not route the new app into the parent extension host"
+            );
+        }
+    }
+
     #[test]
     fn profile_config_forces_file_based_credentials() {
         let temp = tempfile::tempdir().unwrap();
@@ -2194,6 +2375,242 @@ mod tests {
         assert_eq!(
             error,
             "Codex CLI was not found. Install Codex or the OpenAI VS Code extension, then reopen Multi Codex"
+        );
+    }
+
+    #[test]
+    fn finds_current_macos_extension_layouts() {
+        for (platform, directory) in [
+            ("darwin-arm64", "macos-aarch64"),
+            ("darwin-x86_64", "macos-x86_64"),
+        ] {
+            let temp = tempfile::tempdir().unwrap();
+            let binary = temp
+                .path()
+                .join(".vscode/extensions/openai.chatgpt-26.930.51102/bin")
+                .join(directory)
+                .join("codex");
+            write_executable(&binary, b"codex");
+            assert_eq!(
+                find_extension_codex_for_platform(temp.path(), platform),
+                Some(binary)
+            );
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "requires a local Codex installation and signed-in account"]
+    fn macos_live_import_and_limits_use_isolated_credentials() {
+        let home = dirs::home_dir().unwrap();
+        let source = crate::settings::global_codex_home(
+            &home,
+            env::var_os("CODEX_HOME"),
+            &crate::settings::load().unwrap(),
+        )
+        .unwrap()
+        .join("auth.json");
+        let original = fs::read(&source).unwrap();
+        let temp = tempfile::tempdir().unwrap();
+        let global = temp.path().join("global");
+        fs::create_dir(&global).unwrap();
+        write_private_file(&global.join("auth.json"), &original).unwrap();
+        let service = ProfileService::new(
+            temp.path().join("data"),
+            global,
+            home.join(".vscode/extensions"),
+            MemorySecrets::default(),
+            CodexCliRecognizer,
+        )
+        .unwrap();
+        let profile = service
+            .import_current("Mac smoke test".into(), None)
+            .unwrap();
+        assert_eq!(service.list_profiles().unwrap().len(), 1);
+        let paths = service.profile_paths(&profile.metadata.id).unwrap();
+        crate::usage::read_profile_limits(&paths.codex_home).unwrap();
+        service.delete_profile(&profile.metadata.id).unwrap();
+        assert!(service.list_profiles().unwrap().is_empty());
+        assert!(
+            fs::read(source).unwrap() == original,
+            "Global credentials changed"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "requires access to the native macOS Keychain"]
+    fn macos_live_keychain_round_trip() {
+        let id = Uuid::new_v4().to_string();
+        let store = KeyringSecretStore;
+        store.set(&id, "multi-codex-test-credential").unwrap();
+        let result = store.get(&id);
+        store.delete(&id).unwrap();
+        assert_eq!(result.unwrap(), "multi-codex-test-credential");
+        assert!(store.get(&id).is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "opens and closes a disposable native VS Code window"]
+    fn macos_live_vscode_launch_is_detected() {
+        let temp = tempfile::tempdir().unwrap();
+        // macOS exposes /var as a symlink to /private/var; VS Code normalizes
+        // its user-data path. Use canonical test paths like the installed app.
+        let root = temp.path().canonicalize().unwrap();
+        let service = ProfileService::new(
+            root.join("data"),
+            root.join("global"),
+            root.join("extensions"),
+            MemorySecrets::default(),
+            AcceptAuth,
+        )
+        .unwrap();
+        let workspace = temp.path().join("Mac workspace with spaces");
+        fs::create_dir(&workspace).unwrap();
+        let profile = service
+            .add_profile(sample_input("Mac launch test"))
+            .unwrap();
+        let paths = service.profile_paths(&profile.metadata.id).unwrap();
+        let code = resolve_command("code").unwrap();
+        let native = build_vscode_command_with(
+            &code,
+            &paths.codex_home,
+            &paths.vscode_home,
+            &paths.extensions_dir,
+            &workspace,
+        )
+        .get_program()
+        .to_string_lossy()
+        .replace('\'', "'\\''");
+        let quiet_launcher = root.join("quiet-code");
+        write_executable(
+            &quiet_launcher,
+            format!("#!/bin/sh\nexec '{native}' \"$@\" >/dev/null 2>&1\n").as_bytes(),
+        );
+        service
+            .launch_profile_with_command(&profile.metadata.id, &workspace, &quiet_launcher)
+            .unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(15);
+        let mut pids = Vec::new();
+        while pids.is_empty() && std::time::Instant::now() < deadline {
+            let output = Command::new("/bin/ps")
+                .args(["-axo", "pid="])
+                .output()
+                .unwrap();
+            pids = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .filter_map(|line| line.trim().parse::<u32>().ok())
+                .filter(|pid| process_uses_profile(*pid, &paths.vscode_home))
+                .filter(|pid| {
+                    process_arguments(*pid).is_some_and(|args| {
+                        args.first().is_some_and(|arg| {
+                            String::from_utf8_lossy(arg).contains(".app/Contents/MacOS/")
+                        }) && !args
+                            .iter()
+                            .any(|arg| String::from_utf8_lossy(arg).ends_with("/out/cli.js"))
+                    })
+                })
+                .collect();
+            if pids.is_empty() {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
+        let detected = !pids.is_empty();
+        // A briefly spawned Electron process can still exit before showing a
+        // window (for example with an inherited extension-host entrypoint).
+        std::thread::sleep(Duration::from_secs(3));
+        // The CLI bootstraps a separate main PID; inspect the current process
+        // inventory rather than assuming the first PID stays alive.
+        let output = Command::new("/bin/ps")
+            .args(["-axo", "pid="])
+            .output()
+            .unwrap();
+        pids = String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .filter_map(|line| line.trim().parse::<u32>().ok())
+            .filter(|pid| process_uses_profile(*pid, &paths.vscode_home))
+            .collect();
+        let stayed_running = !pids.is_empty();
+        let initialized_window = fs::read_dir(paths.vscode_home.join("logs"))
+            .ok()
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|entry| entry.path().join("window1/renderer.log").is_file());
+        let listed_running = service.list_profiles().unwrap()[0].status == RuntimeStatus::Running;
+        for pid in pids {
+            if !process_arguments(pid).is_some_and(|args| {
+                args.first()
+                    .is_some_and(|arg| arg.ends_with(b"/MacOS/Code"))
+            }) {
+                continue;
+            }
+            Command::new("/bin/kill")
+                .args(["-TERM", &pid.to_string()])
+                .status()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            while process_uses_profile(pid, &paths.vscode_home) && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+        remove_macos_vscode_alias(&paths.vscode_home, &profile.metadata.id);
+        assert!(detected, "Native VS Code profile process was not found");
+        assert!(
+            stayed_running,
+            "Native VS Code exited before window startup"
+        );
+        assert!(
+            initialized_window,
+            "VS Code did not initialize a renderer window"
+        );
+        assert!(listed_running, "Launched profile was not listed as running");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_alias_preserves_profile_data_and_rejects_wrong_targets() {
+        let temp = tempfile::tempdir().unwrap();
+        let data = temp.path().join("profile data");
+        fs::create_dir(&data).unwrap();
+        fs::write(data.join("settings"), b"saved").unwrap();
+        let root = temp.path().join("runtime");
+        let id = Uuid::new_v4().to_string();
+        let alias = macos_vscode_alias_in(&root, &data, &id).unwrap();
+        assert_eq!(fs::read(alias.join("settings")).unwrap(), b"saved");
+        assert!(arguments_use_profile(
+            &[format!("--user-data-dir={}", alias.display()).into_bytes()],
+            &data
+        ));
+        assert_eq!(macos_vscode_alias_in(&root, &data, &id).unwrap(), alias);
+        fs::remove_file(&alias).unwrap();
+        symlink(temp.path(), &alias).unwrap();
+        assert!(macos_vscode_alias_in(&root, &data, &id).is_err());
+        let malicious_root = temp.path().join("linked runtime");
+        symlink(&root, &malicious_root).unwrap();
+        assert!(macos_vscode_alias_in(&malicious_root, &data, &id).is_err());
+        assert_eq!(fs::read(data.join("settings")).unwrap(), b"saved");
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn resolves_current_macos_extension_without_shell_path() {
+        let temp = tempfile::tempdir().unwrap();
+        let directory = if cfg!(target_arch = "aarch64") {
+            "macos-aarch64"
+        } else {
+            "macos-x86_64"
+        };
+        let binary = temp
+            .path()
+            .join(".vscode/extensions/openai.chatgpt-26.930.51102/bin")
+            .join(directory)
+            .join("codex");
+        write_executable(&binary, b"#!/bin/sh\nexit 0\n");
+        assert_eq!(
+            resolve_command_with("codex", Some(OsStr::new("/usr/bin:/bin")), temp.path()),
+            Some(binary)
         );
     }
 
