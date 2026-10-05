@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real disposable desktop auth checks. Never copies production credentials to a runner."""
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -104,8 +105,10 @@ class LoginServer:
                 continue
             if message.get("method") == "account/login/completed":
                 assert message["params"].get("success"), "Disposable device-code sign-in failed"
+                account = self.request("account/read", {"refreshToken": False}).get("account")
+                assert account and account.get("type") == "chatgpt" and account.get("email"), "Device sign-in did not produce a ChatGPT identity"
                 print(f"Test account {name.upper()} sign-in completed.", flush=True)
-                return
+                return hashlib.sha256(account["email"].lower().encode()).hexdigest()
         raise RuntimeError("Disposable device-code sign-in was not completed")
 
     def close(self):
@@ -119,13 +122,18 @@ class LoginServer:
 
 def checks(root, state, expected, report):
     identity = {}
+    report["nativeIdentityFingerprints"] = identity
     for name in ("a", "b"):
         value = desktop(root, name)
         assert value["accountType"] == "chatgpt" and value["identityHash"], "Two real ChatGPT logins are required"
         identity[name] = value["identityHash"]
-        assert expected[name] is None or expected[name] == identity[name], "Test account does not match expected identity"
         wait_account(root, name, identity[name])
     assert identity["a"] != identity["b"], "Test accounts must have different identities"
+    if all(expected.values()):
+        assert set(identity.values()) == set(expected.values()), "Desktop identities do not match the two expected disposable accounts"
+    else:
+        for name in ("a", "b"):
+            assert expected[name] is None or expected[name] == identity[name], "Test account does not match expected identity"
     report["differentIdentities"] = True
     report["checks"] = []
     # A fresh desktop cache must accept the pre-existing Codex-home credentials.
@@ -196,24 +204,22 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     try:
         if args.device_login:
+            report["deviceLoginFingerprints"] = {}
             for name in ("a", "b"):
                 server = LoginServer(args.device_login, root, name)
                 try:
-                    server.login(name, args.output, args.device_request_key)
+                    identity = server.login(name, args.output, args.device_request_key)
+                    report["deviceLoginFingerprints"][name] = identity
+                    if args.expected_a and args.expected_b:
+                        assert identity in (args.expected_a, args.expected_b), "Device sign-in is not one of the two expected disposable accounts"
+                    if name == "b":
+                        assert identity != report["deviceLoginFingerprints"]["a"], "Both device sign-ins used the same account; two different disposable accounts are required"
                 finally:
                     server.close()
                 probe.stop(root, state, name)
                 probe.launch(root, state, name)
                 # Login is fresh for this runner. Desktop must pick up that exact home.
-                deadline = time.monotonic() + 90
-                while time.monotonic() < deadline:
-                    try:
-                        value = desktop(root, name)
-                        if value["identityHash"]:
-                            break
-                    except (RuntimeError, subprocess.TimeoutExpired):
-                        pass
-                    time.sleep(.5)
+                wait_account(root, name, identity)
         checks(root, state, {"a": args.expected_a, "b": args.expected_b}, report)
     except Exception as error:
         report["failure"] = str(error)
