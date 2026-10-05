@@ -31,6 +31,7 @@ import {
   getDesktopIntegrationStatus,
   discardPlacement,
   getLaunchEnvironment,
+  getExecutableSettings,
   getStorageUsage,
   importCurrentProfile,
   installDesktopIntegration,
@@ -76,6 +77,7 @@ export default function App() {
   const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string } | null>(null)
   const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string } | null>(null)
   const [showLaunchSettings, setShowLaunchSettings] = useState(false)
+  const [hideDesktopPicker, setHideDesktopPicker] = useState(false)
   const [launchBusy, setLaunchBusy] = useState(false)
   const [launchError, setLaunchError] = useState<string | null>(null)
   const [placementToken, setPlacementToken] = useState<string | null>(null)
@@ -312,7 +314,9 @@ export default function App() {
     try {
       const environment = launchEnvironment ?? await getLaunchEnvironment()
       setLaunchEnvironment(environment)
-      setFolderRequest({ profile, initialPath: environment.defaultWorkspace })
+      const settings = await getExecutableSettings()
+      setHideDesktopPicker(environment.capabilities.backend === "macos" || Boolean(settings.hideDesktopPicker))
+      setFolderRequest({ profile, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setProfiles((current) => current.map((item) => item.id === profile.id ? { ...item, status: "error", error: message } : item))
@@ -326,7 +330,9 @@ export default function App() {
     setFolderRequest(null)
     setLaunchError(null)
     setPlacementToken(null)
-    setLaunchRequest({ profile: request.profile, workspace })
+    const launch = { profile: request.profile, workspace }
+    setLaunchRequest(launch)
+    if (hideDesktopPicker) await completeLaunch(null, launch)
   }
 
   function cancelLaunch() {
@@ -337,9 +343,8 @@ export default function App() {
     setLaunchError(null)
   }
 
-  async function completeLaunch(desktop: string | null) {
-    if (!launchRequest || launchLock.current) return
-    const request = launchRequest
+  async function completeLaunch(desktop: string | null, request = launchRequest) {
+    if (!request || launchLock.current) return
     launchLock.current = true
     setLaunchBusy(true)
     setLaunchError(null)
@@ -572,9 +577,10 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
-      {showLaunchSettings ? <LaunchSettingsDialog onClose={() => setShowLaunchSettings(false)} /> : null}
+      {showLaunchSettings ? <LaunchSettingsDialog isMac={launchEnvironment?.capabilities.backend === "macos"} onClose={() => setShowLaunchSettings(false)} /> : null}
       {launchRequest ? (
         <WorkspaceDialog
+          showDesktopPicker={!hideDesktopPicker}
           profile={launchRequest.profile}
           workspace={launchRequest.workspace}
           busy={launchBusy}
