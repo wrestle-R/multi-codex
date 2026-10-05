@@ -143,6 +143,14 @@ export interface ExecutableSettings {
   onboardingCompleted?: boolean
   detectedApps?: LaunchTargets | null
   launchMode?: LaunchMode
+  cliTerminal?: TerminalId
+}
+
+export type TerminalId = "automatic" | "terminal" | "kitty" | "ghostty" | "konsole" | "gnomeTerminal" | "xfceTerminal" | "alacritty" | "foot" | "xterm"
+export interface TerminalOption {
+  id: TerminalId
+  label: string
+  available: boolean
 }
 
 export type LaunchTarget = "vscode" | "standalone" | "cli"

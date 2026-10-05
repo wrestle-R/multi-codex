@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
-import type { LaunchTargets, DesktopInventory, ExecutableSettings, LaunchResult, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
+import type { TerminalOption, LaunchTargets, DesktopInventory, ExecutableSettings, LaunchResult, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
 
 // Development-only demo mode lets native screenshot captures use fictional accounts.
 // Packaged builds always use native IPC; no user data is read for demo captures.
@@ -253,6 +253,16 @@ export async function discardPlacement(retryToken: string): Promise<void> {
 export async function getExecutableSettings(): Promise<ExecutableSettings> {
   if (isTauri) return invoke("get_executable_settings")
   return JSON.parse(localStorage.getItem("multi-codex-executables") ?? '{"codePath":null,"codexPath":null,"globalCodexHome":null,"launchMode":"both"}')
+}
+
+export async function getTerminalOptions(): Promise<TerminalOption[]> {
+  if (isTauri) return invoke("get_terminal_options")
+  return [
+    { id: "automatic", label: "Automatic", available: true },
+    { id: "konsole", label: "Konsole", available: true },
+    { id: "kitty", label: "Kitty", available: true },
+    { id: "ghostty", label: "Ghostty", available: false },
+  ]
 }
 
 export async function saveExecutableSettings(settings: ExecutableSettings): Promise<ExecutableSettings> {

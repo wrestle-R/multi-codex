@@ -8,6 +8,10 @@ Your Codex accounts, your choice of VS Code, the Codex app, or CLI. Keep your de
 
 Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.6**.
 
+Launch settings includes a **CLI terminal** selector for installed terminals, including Kitty and Ghostty. CLI launches use the selected account’s saved sign-in; install a complete Codex CLI rather than selecting the VS Code extension helper.
+
+Expiring usage resets appear in a small reminder at the top when they have **48 hours or less** remaining. Qualifying resets are grouped across accounts. Reminders appear at most **twice per local day**, at least **four hours apart**, with the limit preserved after restarting the app.
+
 ## Add an account
 
 Click **Add account** and choose one of three options:
