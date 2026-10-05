@@ -1,11 +1,18 @@
 {
   "schemaVersion": 1,
   "version": "1.3.6",
-  "artifacts": {},
+  "artifacts": {
+    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "Multi.Codex_1.3.6_aarch64.dmg": "f254a163cb215c8c796cd3dfbf25cf1756eb134f45a3a0e304c8c304e21c57bd",
+    "Multi.Codex_1.3.6_amd64.AppImage": "0b125aa41b69ca8adca555637ea08a91e068e039bb8124bf156a30d77f49b98e",
+    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "Multi.Codex_1.3.6_amd64.deb": "83bd5ab8453e3d7e6ce277201860cf5ddcb8e65eabaff5dae71a7f4e3e0d767b",
+    "Multi.Codex-1.3.6-1.x86_64.rpm": "fa875702ae47b779e568dfa2e6c91f05bfede096053b457626df9d3bddfb7175"
+  },
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
-      "reason": "Broader installed-package validation has not been performed for this release.",
+      "reason": "Exact-package installer and/or native startup/restart checks passed. Broader installed-package checklist remains incomplete; see the current installer and native validation reports.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -22,7 +29,7 @@
     },
     "packaged-debian-ubuntu": {
       "status": "pending",
-      "reason": "Broader installed-package validation has not been performed for this release.",
+      "reason": "Exact-package installer and/or native startup/restart checks passed. Broader installed-package checklist remains incomplete; see the current installer and native validation reports.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -38,7 +45,7 @@
     },
     "packaged-arch": {
       "status": "pending",
-      "reason": "Broader installed-package validation has not been performed for this release.",
+      "reason": "Exact-package installer and/or native startup/restart checks passed. Broader installed-package checklist remains incomplete; see the current installer and native validation reports.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -86,36 +93,69 @@
     }
   },
   "publication": {
-    "status": "draft-pending-validation",
+    "status": "validated-awaiting-publication",
     "requestedOn": "2026-10-07",
     "fullValidationChecksRemainPending": true,
     "signingAndNotarizationOptional": true,
-    "macDistribution": "checksum-verified unsigned DMG with explicit installer opt-in"
+    "macDistribution": "checksum-verified unsigned DMG with explicit installer opt-in",
+    "authenticatedStandaloneEvidenceCarriedForward": true
   },
   "releaseChecks": {
     "linux-build": {
-      "status": "pending",
-      "reason": "Candidate verification has not completed."
+      "status": "passed",
+      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37563021224; tests: https://github.com/wrestle-R/multi-codex/actions/runs/37562655635",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T02:49:17.488499+00:00"
     },
     "macos-build": {
-      "status": "pending",
-      "reason": "Candidate verification has not completed."
+      "status": "passed",
+      "environment": "macOS 26 Apple Silicon GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37563021224; tests: https://github.com/wrestle-R/multi-codex/actions/runs/37562655635",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T02:49:17.488499+00:00"
     },
     "linux-installer": {
-      "status": "pending",
-      "reason": "Candidate verification has not completed."
+      "status": "passed",
+      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37563569940",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T02:49:17.488499+00:00"
     },
     "macos-installer": {
-      "status": "pending",
-      "reason": "Candidate verification has not completed."
+      "status": "passed",
+      "environment": "macOS 26 Apple Silicon GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37563569940",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T02:49:17.488499+00:00"
     },
     "linux-isolation": {
-      "status": "pending",
-      "reason": "Candidate verification has not completed."
+      "status": "passed",
+      "environment": "Linux x86_64; Codex desktop 26.930.51102",
+      "evidence": "docs/releases/v1.3.5-auth-isolation.json",
+      "testedAt": "2026-10-06T00:05:50+05:30",
+      "testedBy": "Codex automation with user sign-in",
+      "carriedForwardFrom": "v1.3.5",
+      "scope": "Prior authenticated two-account standalone isolation for unchanged desktop version 26.930.51102 and standalone command construction. Current release additionally passed isolated CLI/home and native process guards; authenticated sign-in was not repeated.",
+      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37562655635"
     },
     "macos-isolation": {
-      "status": "pending",
-      "reason": "Candidate verification has not completed."
+      "status": "passed",
+      "environment": "Apple Silicon Mac; Codex desktop 26.930.51102",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37345518314",
+      "testedAt": "2026-10-06T00:05:50+05:30",
+      "testedBy": "Codex automation with user sign-in",
+      "carriedForwardFrom": "v1.3.5",
+      "scope": "Prior authenticated two-account standalone isolation for unchanged desktop version 26.930.51102 and standalone command construction. Current release additionally passed isolated CLI/home and native process guards; authenticated sign-in was not repeated.",
+      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37562655635"
     }
+  },
+  "nativeCli": {
+    "status": "passed",
+    "environment": "macOS 26 Apple Silicon native Terminal; Linux/macOS CLI path and process-guard tests",
+    "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37562655635",
+    "testedBy": "GitHub Actions",
+    "testedAt": "2026-10-07T02:49:17.488499+00:00",
+    "scope": "Disposable CLI fixture, including spaced/Unicode paths, both isolated homes, deletion/cache guards, unchanged peer/default credentials and temporary launch-file cleanup."
   }
 }
