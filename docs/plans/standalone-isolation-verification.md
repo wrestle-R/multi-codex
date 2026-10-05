@@ -46,6 +46,9 @@ Stopping retains private test data for inspection. Never commit that directory, 
 - A second local smoke attempt was interrupted by a desktop exiting; this is not a passing result. The initial result remains the current signed-out evidence.
 - During interactive setup, `/tmp` reached its quota and Node console writes raised `UNKNOWN: unknown error, write`. The earlier stopped signed-out probe was removed after checking it had no credentials or running desktop processes. Interactive test windows were restarted with logging redirected to `/dev/null`; the first disposable login's auth file was preserved byte for byte.
 - Two interactive windows are running; one disposable login is present. Authenticated Linux and Mac refresh/logout isolation remain pending.
+- The bundled Codex CLI recognized that disposable desktop login using the exact same Codex home; its status check left the credential file byte-for-byte unchanged. This shows desktop-created credentials are usable by the CLI, not yet that desktop startup automatically accepts every existing VS Code credential.
+- [Mac GitHub runner probe 37338947965](https://github.com/wrestle-R/multi-codex/actions/runs/37338947965) passed on `macos-26`: two native Quartz-visible desktop windows, separate cookie databases and independent restarts with storage markers preserved. The sanitized report explicitly records authenticated isolation as **not tested**.
+- All six existing Multi Codex account IDs matched the pre-update backup, and all six existing auth files were still present after these probes.
 - This verification work does not change the installed Multi Codex executable or its saved profiles.
 
 ## Public documentation and implementation boundary
