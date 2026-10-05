@@ -368,7 +368,7 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .welcome-brand .brand-mark { transform: scale(1.65); }
 .welcome-content h1 { font-size: clamp(2.2rem,4vw,2.9rem); line-height: 1.08; letter-spacing: -.025em; margin: 1rem 0; }
 .welcome-content > p { color: var(--muted-foreground); font-size: 1.15rem; margin: .8rem 0 1.5rem; }
-.welcome-content .button { min-width: 180px; justify-content: space-between; gap: 2rem; }
+.welcome-content .button { display: inline-flex; align-items: center; min-width: 180px; justify-content: space-between; gap: 2rem; }
 .welcome-content small { display: block; color: var(--muted-foreground); font-size: .75rem; margin-top: 1rem; }
 .welcome-footer { color: var(--muted-foreground); font-size: .78rem; }
 @keyframes welcome-entry { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
