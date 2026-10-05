@@ -2,6 +2,8 @@
 
 Your Codex accounts, separate VS Code windows. Keep your default login untouched.
 
+Desktop screenshots with demo accounts.
+
 ![Multi Codex — light theme](tauri/public/light_screenshot.png)
 
 ![Multi Codex — dark theme](tauri/public/dark_screenshot.png)
@@ -44,4 +46,4 @@ bash /tmp/update-multi-codex.sh
 
 Updates replace the app while preserving saved accounts and profile data. Close Multi Codex before updating. To update without launching it, use `MULTI_CODEX_NO_LAUNCH=1 bash /tmp/update-multi-codex.sh`.
 
-The scripts install the latest **public stable release**, currently v1.2.3. The 1.3.3 preview remains a draft pending [release validation](docs/releases/v1.3.3-validation.json).
+The scripts install the latest **public stable release**, currently v1.2.3. The 1.3.4 preview remains a draft pending [release validation](docs/releases/v1.3.4-validation.json).
