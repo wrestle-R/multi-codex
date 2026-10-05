@@ -2550,6 +2550,20 @@ mod tests {
             }
             std::thread::sleep(Duration::from_millis(200));
         };
+        if !initialized_window {
+            // This fixture uses only synthetic credentials. Keep startup diagnostics
+            // in the job log before its temporary directory is removed.
+            for entry in fs::read_dir(paths.vscode_home.join("logs"))
+                .ok()
+                .into_iter()
+                .flatten()
+                .flatten()
+            {
+                if let Ok(log) = fs::read_to_string(entry.path().join("main.log")) {
+                    eprintln!("Disposable VS Code startup log:\n{log}");
+                }
+            }
+        }
         let listed_running = service.list_profiles().unwrap()[0].status == RuntimeStatus::Running;
         for pid in pids {
             if !process_arguments(pid).is_some_and(|args| {
