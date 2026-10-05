@@ -9,7 +9,9 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
+#[cfg(any(target_os = "linux", test))]
+use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use toml_edit::{DocumentMut, Value as TomlValue};
@@ -582,16 +584,34 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 .map(|arg| format!("'{}'", arg.replace('\'', "'\\''")))
                 .collect::<Vec<_>>()
                 .join(" ");
-            let script = format!(
-                "tell application \"Terminal\"\nactivate\ndo script {}\nend tell",
-                serde_json::to_string(&shell).map_err(|e| e.to_string())?
-            );
-            let output = crate::process::output(
-                Command::new("/usr/bin/osascript").arg("-e").arg(script),
-                Duration::from_secs(10),
+            // Launch Services opens a private command file without requiring
+            // Apple Events automation permission. It contains paths, no secrets,
+            // and removes itself before executing the isolated CLI.
+            let script = paths
+                .codex_home
+                .join(format!("cli-launch-{}.command", Uuid::new_v4()));
+            write_private_file(
+                &script,
+                format!("#!/bin/sh\nrm -f -- \"$0\"\nexec {shell}\n").as_bytes(),
             )?;
+            fs::set_permissions(&script, fs::Permissions::from_mode(0o700))
+                .map_err(|_| "Could not prepare the Terminal launch file".to_string())?;
+            let output = crate::process::output(
+                Command::new("/usr/bin/open")
+                    .args(["-a", "Terminal"])
+                    .arg(&script),
+                Duration::from_secs(10),
+            );
+            let output = match output {
+                Ok(output) => output,
+                Err(error) => {
+                    let _ = fs::remove_file(&script);
+                    return Err(error);
+                }
+            };
             if !output.status.success() {
-                return Err("Could not open Terminal. Check macOS Automation permissions.".into());
+                let _ = fs::remove_file(&script);
+                return Err("Could not open Terminal for this account.".into());
             }
             Ok(())
         }
@@ -3260,6 +3280,11 @@ mod tests {
             )
         );
         assert!(detected && running && deletion.is_err() && cleanup.is_err());
+        assert!(!fs::read_dir(&paths.codex_home).unwrap().any(|entry| entry
+            .unwrap()
+            .path()
+            .extension()
+            .is_some_and(|extension| extension == "command")));
         assert_eq!(
             fs::read(paths.codex_home.join("auth.json")).unwrap(),
             original
