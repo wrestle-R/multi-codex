@@ -6,10 +6,10 @@ import { join } from 'node:path'
 import { createHash } from 'node:crypto'
 import { evaluate, requiredChecks } from './release-gates.mjs'
 
-test('blocks missing native Mac validation even when other checks pass', () => {
+test('blocks missing packaged Mac validation even when other checks pass', () => {
   const checks = Object.fromEntries(requiredChecks.map(id => [id, { status: 'passed', evidence: 'record', osVersion: 'exact version', testedBy: 'tester', testedAt: '2026-10-03T00:00:00Z' }]))
-  checks['native-spaces-macos-27'] = { status: 'blocked', reason: 'No verified native placement' }
-  assert.ok(evaluate({ version: '1.3.0', schemaVersion: 1, checks, artifacts: {} }, '1.3.0').some(error => error.includes('No verified native placement')))
+  checks['packaged-macos-27-arm64'] = { status: 'blocked', reason: 'No validated packaged app' }
+  assert.ok(evaluate({ version: '1.3.0', schemaVersion: 1, checks, artifacts: {} }, '1.3.0').some(error => error.includes('No validated packaged app')))
 })
 
 test('requires the exact packages that were functionally tested', () => {

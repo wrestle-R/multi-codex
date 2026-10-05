@@ -2,7 +2,7 @@
 
 Your Codex accounts, your choice of VS Code or the Codex app. Keep your default login untouched.
 
-Desktop screenshots with demo accounts.
+Screenshots from the running Linux desktop app with fictional demo accounts.
 
 ![Multi Codex — light theme](tauri/public/light_screenshot.png)
 
