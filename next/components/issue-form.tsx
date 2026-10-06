@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { githubReportLink, issuePlatforms, issueRepository, type IssueReport } from "@/lib/issue-report"
 
 const blank: IssueReport = { title: "", platform: "Linux", version: "", description: "", steps: "", expected: "" }
@@ -12,6 +12,10 @@ export function IssueForm() {
   const [created, setCreated] = useState<{ number: number; url: string } | null>(null)
   const inFlight = useRef(false)
   const resultRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (created) resultRef.current?.focus()
+  }, [created])
 
   function update(key: keyof IssueReport, value: string) {
     setReport(previous => ({ ...previous, [key]: value }))
@@ -33,8 +37,6 @@ export function IssueForm() {
       }
       if (!Number.isSafeInteger(data.number) || data.number <= 0 || data.url !== `${issueRepository}/issues/${data.number}`) throw new Error("Invalid issue link")
       setCreated(data)
-      // The confirmation replaces the form; announce it and move keyboard focus there.
-      requestAnimationFrame(() => resultRef.current?.focus())
     } catch {
       setError("We could not confirm the submission. Your text is still here. Check existing issues before trying again.")
     } finally {
