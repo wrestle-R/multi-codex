@@ -10,7 +10,7 @@
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
-      "reason": "Packaged functional validation has not been performed.",
+      "reason": "Real DMG install/update, signature integrity and installed native startup/restart passed with private account/chat fixtures. Full real-account, permission-failure and Keychain-denial cases remain pending; see v1.3.5-installer-validation.json.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -18,7 +18,7 @@
     },
     "macos-signing-notarization": {
       "status": "pending",
-      "reason": "Packaged functional validation has not been performed.",
+      "reason": "No Apple Developer ID or notarization credentials are configured. The explicit checksum-verified unsigned install and local ad-hoc signature path passed native tests; Apple signing/notarization remains pending.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -88,5 +88,11 @@
       "testedAt": null,
       "evidence": null
     }
+  },
+  "publication": {
+    "decision": "publish at the repository owner\u2019s explicit request with available test evidence",
+    "requestedOn": "2026-10-06",
+    "fullValidationChecksRemainPending": true,
+    "macDistribution": "checksum-verified unsigned DMG with explicit installer opt-in; macOS retains first-open approval"
   }
 }

@@ -8,9 +8,7 @@ Screenshots from the running Linux desktop app with fictional demo accounts.
 
 ![Multi Codex — dark theme](tauri/public/dark_screenshot.png)
 
-Install and update always download the [latest published stable release](https://github.com/wrestle-R/multi-codex/releases/latest) for your platform. The commands are not pinned to a version.
-
-The screenshots show the v1.3.5 preview, which is still a draft pending [release validation](docs/releases/v1.3.5-readiness.md). The commands below will download it once it is published as the latest stable release.
+Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.5**.
 
 ## Linux
 
@@ -19,37 +17,37 @@ AppImage for Linux x86_64. See [platform support](docs/platform-support.md) for 
 ### Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
+curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.sh -o /tmp/install-multi-codex.sh
 bash /tmp/install-multi-codex.sh
 ```
 
 ### Update
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
+curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.sh -o /tmp/update-multi-codex.sh
 bash /tmp/update-multi-codex.sh
 ```
 
 ## Mac
 
-The scripts choose the Mac installer automatically. The 2.4.x candidates require Apple Silicon and macOS 26 or newer.
+Apple Silicon and macOS 26 or newer. This release is not Apple-signed or notarized; the Mac commands explicitly allow the checksum-verified unsigned build. If macOS blocks first launch, follow [Apple's Open Anyway instructions](https://support.apple.com/en-us/102445).
 
 ### Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-bash /tmp/install-multi-codex.sh
+curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.sh -o /tmp/install-multi-codex.sh
+MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
 ```
 
 ### Update
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-bash /tmp/update-multi-codex.sh
+curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.sh -o /tmp/update-multi-codex.sh
+MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
 ```
 
-Updates replace the app while preserving saved accounts and profile data. Close Multi Codex before updating. To update without launching it, use `MULTI_CODEX_NO_LAUNCH=1 bash /tmp/update-multi-codex.sh`.
+Updates replace the app while preserving saved accounts and profile data. Close Multi Codex before updating. To update without launching it, add `MULTI_CODEX_NO_LAUNCH=1` to the command.
 
-Standalone launch in the v1.3.5 preview supports verified Codex desktop version `26.930.51102`.
+Standalone launch supports verified Codex desktop version `26.930.51102`. See [tested platforms and remaining validation](docs/platform-support.md).
 
 Install the Codex extension in each isolated VS Code profile before using Codex there.

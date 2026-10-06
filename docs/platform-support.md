@@ -1,6 +1,6 @@
-# Platform support for the v1.3.5 candidate
+# Platform support for v1.3.5
 
-v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Code launcher. The candidate is still a **draft**: authenticated isolation and native startup checks passed, while packaged functional validation, distribution coverage, and Apple signing/notarization remain open. A passing source or CI smoke test does not validate an installed release package.
+v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Code launcher. It is published at the repository owner's request with the testing recorded below. Authenticated isolation and native startup checks passed; broader package/distribution coverage and Apple signing/notarization remain open. The Mac release requires explicit unsigned-install opt-in and may require first-open approval in macOS Privacy & Security.
 
 | Environment | Launch and desktop behavior | Evidence and remaining limits |
 | --- | --- | --- |
@@ -8,9 +8,9 @@ v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Cod
 | Linux x86_64, GNOME Shell 45–51 | Optional picker through the bundled Shell extension | Contract/source tests passed; live GNOME and packaged Wayland/X11 validation pending |
 | Linux x86_64, KDE Plasma 6 | Optional picker through an on-demand KWin script | Isolated KWin 6.7.5 Wayland inventory and placement checks passed; packaged/X11 validation pending |
 | Other Linux desktops | Current-desktop launch when placement is unavailable | No desktop-placement support claim; distribution-specific package checks pending |
-| Apple Silicon macOS 26 | VS Code or verified Codex app opens on the current desktop; no desktop picker or Spaces control | Authenticated isolation on a [Mac GitHub runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) and [native launch/package CI](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) passed; installed DMG, signing/notarization and wider functional checks pending |
+| Apple Silicon macOS 26 | VS Code or verified Codex app opens on the current desktop; no desktop picker or Spaces control | Authenticated isolation on a [Mac GitHub runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) and [native launch/package CI](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) passed; [real DMG install/update and native startup/restart](https://github.com/wrestle-R/multi-codex/actions/runs/37422386648) passed with account/chat fixtures; signing/notarization and wider functional checks pending |
 
-Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux candidates use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. macOS 27, Intel Macs and Windows have no v1.3.5 validation claim. Linux requires its usual session bus, native libraries and credential-store dependencies.
+Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux releases use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. macOS 27, Intel Macs and Windows have no v1.3.5 validation claim. Linux requires its usual session bus, native libraries and credential-store dependencies.
 
 ## Launch settings and account data
 
@@ -58,7 +58,7 @@ Plasma 6 uses the bundled `tauri/platform/kde/bridge.js`. Each request loads an 
 
 ## Release validation
 
-The tag workflow builds a **draft** candidate and publishes checksums with the exact assets. The separate [Publish validated candidate workflow](../.github/workflows/publish-validated.yml) checks those assets against [the v1.3.5 validation manifest](releases/v1.3.5-validation.json) before publication. The manifest must reflect the current product scope and record passed package checks with OS version, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
+The tag workflow initially builds a draft and publishes checksums with the exact assets and matching install/update scripts. v1.3.5 is published at the owner's explicit request with its completed tests and remaining limitations documented. The separate [Publish validated candidate workflow](../.github/workflows/publish-validated.yml) still requires every check in [the validation manifest](releases/v1.3.5-validation.json) for fully validated publication. The manifest records actual outcomes with OS version, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
 
 ```bash
 cd tauri
