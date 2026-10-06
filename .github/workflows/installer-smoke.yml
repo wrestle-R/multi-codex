@@ -1,0 +1,46 @@
+name: Released installer verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release whose exact DMG should be installed
+        required: true
+        default: v1.3.5
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check installer regressions
+        run: |
+          bash -n scripts/install-app.sh scripts/update-app.sh
+          node --test tauri/scripts/installers.test.mjs
+      - name: Download exact candidate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$CANDIDATE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          mkdir "$RUNNER_TEMP/installer-assets"
+          gh release download "$CANDIDATE_TAG" --dir "$RUNNER_TEMP/installer-assets" --pattern '*_aarch64.dmg' --pattern SHA256SUMS
+      - name: Install and update the real DMG in disposable profiles
+        env:
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: python3 tauri/scripts/macos-installer-smoke.py "$RUNNER_TEMP/installer-assets" "$CANDIDATE_TAG"
+      - name: Upload native installer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer-evidence
+          path: |
+            ${{ runner.temp }}/multi-codex-macos-installer-evidence/
+            ${{ runner.temp }}/multi-codex-macos-evidence/
+          if-no-files-found: warn

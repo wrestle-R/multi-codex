@@ -37,6 +37,9 @@ cleanup() {
   if [[ -n "$mount_dir" ]]; then
     hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
   fi
+  if [[ -n "${staged:-}" ]]; then
+    rm -rf "$staged"
+  fi
   rm -rf "$work_dir"
 }
 trap cleanup EXIT
@@ -115,9 +118,38 @@ else
   ditto "$app_source" "$staged"
   hdiutil detach "$mount_dir" >/dev/null
   mount_dir=""
+  executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$staged/Contents/Info.plist")
+  if [[ -z "$executable" || "$executable" == */* || ! -x "$staged/Contents/MacOS/$executable" ]]; then
+    printf 'The verified DMG does not contain a valid app executable. Your existing installation has not been changed.\n' >&2
+    exit 1
+  fi
   if (( major > 1 || (major == 1 && minor >= 3) )); then
-    codesign --verify --deep --strict "$staged"
-    spctl --assess --type execute --verbose "$staged"
+    signature_details=$(codesign --display --verbose=2 "$staged" 2>&1 || true)
+    allow_unsigned_mac=0
+    if [[ "$signature_details" != *"Authority="* ]]; then
+      if [[ "${MULTI_CODEX_ALLOW_UNSIGNED_MAC:-0}" != "1" ]]; then
+        printf 'This Mac build has no Apple Developer ID signature. Your existing installation has not been changed. Use the unsigned-release Mac command in the README.\n' >&2
+        exit 1
+      fi
+      allow_unsigned_mac=1
+    fi
+    if ! codesign --verify --deep --strict "$staged"; then
+      if (( ! allow_unsigned_mac )); then
+        printf 'Mac signature verification failed. Your existing installation has not been changed. For this unsigned release, use the Mac command in the README.\n' >&2
+        exit 1
+      fi
+      # Apple Silicon requires a code signature. Sign only the verified staged
+      # unsigned app locally; an identified developer signature is never replaced.
+      codesign --force --deep --sign - "$staged"
+      codesign --verify --deep --strict "$staged"
+    fi
+    if ! spctl --assess --type execute --verbose "$staged"; then
+      if (( ! allow_unsigned_mac )); then
+        printf 'Mac approval verification failed. Your existing installation has not been changed.\n' >&2
+        exit 1
+      fi
+      printf 'Installing the checksum-verified app without Apple notarization. If macOS blocks first launch, use System Settings > Privacy & Security > Open Anyway for Multi Codex.\n'
+    fi
   fi
   backup="$HOME/Applications/.Multi Codex.app.previous.$$"
   if [[ -e "$destination" ]]; then mv "$destination" "$backup"; fi
@@ -127,8 +159,6 @@ else
     exit 1
   fi
   rm -rf "$backup"
-  executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$destination/Contents/Info.plist")
-  chmod +x "$destination/Contents/MacOS/$executable"
-  printf 'Installed %s at %s.\n' "$tag" "$destination"
+  printf 'Installed %s at %s. Your Multi Codex profile data was not modified.\n' "$tag" "$destination"
   if [[ "${MULTI_CODEX_NO_LAUNCH:-0}" != "1" ]]; then open "$destination"; fi
 fi
