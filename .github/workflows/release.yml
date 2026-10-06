@@ -205,6 +205,8 @@ jobs:
           cd release-assets
           mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
           ((${#ASSETS[@]} == 4))
+          cp ../scripts/install-app.sh ../scripts/update-app.sh .
+          ASSETS+=(./install-app.sh ./update-app.sh)
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
           cd ..
