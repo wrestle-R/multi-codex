@@ -33,6 +33,7 @@ esac
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/multi-codex-update.XXXXXX")
 mount_dir=""
+staged=""
 cleanup() {
   if [[ -n "$mount_dir" ]]; then
     hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
