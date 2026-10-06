@@ -79,6 +79,6 @@ print("Visible native window confirmed")
         "fixtureHashesUnchanged": {str(path.relative_to(home)): hashlib.sha256(contents).hexdigest()
                                    for path, contents in fixtures.items()},
         "authenticatedDesktopIsolation": "not tested",
-        "signingAndNotarization": "separate release gate",
+        "signingAndNotarization": "optional; not verified by this startup smoke test",
     }, indent=2) + "\n")
 print("Packaged Mac window, restart, empty GUI PATH, Unicode paths and data preservation passed")
