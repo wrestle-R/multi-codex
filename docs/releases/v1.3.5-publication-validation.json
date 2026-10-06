@@ -1,0 +1,50 @@
+{
+  "tag": "v1.3.5",
+  "latestUrlResolvesTo": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.3.5",
+  "draft": false,
+  "prerelease": false,
+  "allSixPublishedAssetDigestsMatch": true,
+  "linuxPublicInstallers": [
+    {
+      "script": "install-app.sh",
+      "downloadedFromLatest": true,
+      "scriptSha256": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+      "exactAppImageInstalled": true,
+      "sixAccountAndChatFixturesPreserved": true,
+      "defaultLoginPreserved": true,
+      "temporaryDownloadsCleaned": true,
+      "launched": false
+    },
+    {
+      "script": "update-app.sh",
+      "downloadedFromLatest": true,
+      "scriptSha256": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+      "exactAppImageInstalled": true,
+      "sixAccountAndChatFixturesPreserved": true,
+      "defaultLoginPreserved": true,
+      "temporaryDownloadsCleaned": true,
+      "launched": false
+    }
+  ],
+  "temporaryTestHomesRemoved": true,
+  "testedAt": "2026-10-06T06:29:44.105431+00:00",
+  "environment": "Arch Linux x86_64; kernel 7.2.8-arch1-2",
+  "scope": "Live public README Linux downloads and real filesystem install/update; Mac native installation and startup are verified separately on macos-26",
+  "limitations": [
+    "Developer ID signing and notarization were not performed",
+    "End-user quarantined first-open approval was not automated",
+    "The full Linux distribution/desktop and installed Mac functional matrix remain unfinished"
+  ],
+  "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.3.5",
+  "publishedAt": "2026-10-06T06:28:44Z",
+  "publicationRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37423934315",
+  "publicationSourceCommit": "8df29b68b5fd21d64352c9d6d55cf0839969111a",
+  "signingPolicyCiRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37423644661",
+  "signingPolicyCiSourceCommit": "945a736353edc97ffb5651569aef091ac8be0e7b",
+  "localProductionSafety": {
+    "savedAccountRecordsPresent": 6,
+    "installedAppStillMatchesReleasedAppImage": true,
+    "existingFullBackupPresent": true,
+    "installerTestsUsedOnlyDisposableHomes": true
+  }
+}
