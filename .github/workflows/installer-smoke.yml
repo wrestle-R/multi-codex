@@ -13,6 +13,52 @@ permissions:
   actions: read
 
 jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tauri/scripts/installers.test.mjs
+      - name: Retrieve checksum-verified AppImage build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$CANDIDATE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          source_run_id=$(python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          assert 'v' + report['version'] == os.environ['CANDIDATE_TAG']
+          print(report['releaseRun'].rsplit('/', 1)[1])
+          PY
+          )
+          [[ "$source_run_id" =~ ^[0-9]+$ ]]
+          mkdir "$RUNNER_TEMP/installer-assets"
+          gh run download "$source_run_id" --name linux-packages --dir "$RUNNER_TEMP/installer-assets"
+          python3 - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          assets = Path(os.environ['RUNNER_TEMP']) / 'installer-assets'
+          name = f"Multi.Codex_{report['version']}_amd64.AppImage"
+          source = next(assets.rglob(name))
+          expected = report['artifacts'][name]
+          assert hashlib.sha256(source.read_bytes()).hexdigest() == expected
+          if source != assets / name:
+              shutil.copyfile(source, assets / name)
+          (assets / 'SHA256SUMS').write_text(f'{expected}  {name}\n')
+          PY
+      - name: Install and update the actual AppImage without changing account data
+        env:
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: python3 tauri/scripts/linux-installer-smoke.py "$RUNNER_TEMP/installer-assets" "$CANDIDATE_TAG" "$RUNNER_TEMP/linux-installer-result.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer-evidence
+          path: ${{ runner.temp }}/linux-installer-result.json
   macos:
     runs-on: macos-26
     steps:

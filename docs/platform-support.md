@@ -1,6 +1,6 @@
 # Platform support for v1.3.5
 
-v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Code launcher. It is published at the repository owner's request with the testing recorded below. Authenticated isolation and native startup checks passed; broader package/distribution coverage and Apple signing/notarization remain open. The Mac release requires explicit unsigned-install opt-in and may require first-open approval in macOS Privacy & Security.
+v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Code launcher. Builds, installer verification, authenticated isolation and native startup checks passed; broader package/distribution coverage remains open. Apple Developer ID signing and notarization are optional and were not performed for this release. The Mac release requires explicit unsigned-install opt-in and may require first-open approval in macOS Privacy & Security.
 
 | Environment | Launch and desktop behavior | Evidence and remaining limits |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Plasma 6 uses the bundled `tauri/platform/kde/bridge.js`. Each request loads an 
 
 ## Release validation
 
-The tag workflow initially builds a draft and publishes checksums with the exact assets and matching install/update scripts. v1.3.5 is published at the owner's explicit request with its completed tests and remaining limitations documented. The separate [Publish validated candidate workflow](../.github/workflows/publish-validated.yml) still requires every check in [the validation manifest](releases/v1.3.5-validation.json) for fully validated publication. The manifest records actual outcomes with OS version, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
+The tag workflow initially builds a draft and uploads checksums with the exact assets and matching install/update scripts. The [Publish tested release workflow](../.github/workflows/publish-validated.yml) requires the six `releaseChecks` in [the validation manifest](releases/v1.3.5-validation.json): Linux/Mac builds, installer verification and authenticated account isolation. It also downloads and verifies all four packages and both installer scripts against the recorded hashes before publishing as the latest stable release. The manifest records actual outcomes with environment, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
 
 ```bash
 cd tauri
@@ -66,4 +66,8 @@ npm run test:release-gates
 npm run check:release-gates -- /absolute/path/to/candidate-assets
 ```
 
-The second command must fail until the required package evidence exists. Remaining work includes installed-package login/import, credential refresh and persistence, app launch under restricted GUI environments, path and permission cases, upgrade without profile loss, repeated/concurrent launches, and Linux desktop-placement checks on the stated environments. A signed macOS release also needs Developer ID and notarization credentials plus Gatekeeper and Keychain-denial checks on the installed DMG. [Tauri signing documentation](https://v2.tauri.app/distribute/sign/macos/)
+Publication requires those passed checks and exact asset bytes. Broader installed-package login/import, permission and Keychain-denial cases, concurrent sessions and the full Linux distribution/desktop matrix remain unfinished. They can be checked separately with `npm run check:release-gates -- --full-validation /absolute/path/to/candidate-assets`; that command currently fails because those tests are incomplete.
+
+Developer ID signing and notarization are optional, including in the broader functional check. The build workflow keeps the `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` and `APPLE_SIGNING_IDENTITY` secrets available for signing, and `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID` for notarization. Without them it builds an unsigned release. When configured, signature/notarization verification runs; errors in that configured path are not silently treated as success. [Tauri signing documentation](https://v2.tauri.app/distribute/sign/macos/)
+
+For the unsigned release, use the README's explicit Mac installer opt-in. After trying to open the installed app, approve it through **System Settings → Privacy & Security → Open Anyway**, then confirm **Open** if macOS requests approval. The installer never disables Gatekeeper or automatically removes quarantine. [Apple's first-open instructions](https://support.apple.com/en-us/102445)

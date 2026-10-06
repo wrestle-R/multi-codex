@@ -1,11 +1,11 @@
-name: Publish validated candidate
+name: Publish tested release
 on:
   workflow_dispatch:
     inputs:
       tag:
         description: Existing draft candidate tag
         required: true
-        default: v1.3.1
+        default: v1.3.5
 permissions:
   contents: write
 jobs:
@@ -35,4 +35,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CANDIDATE_TAG: ${{ inputs.tag }}
         run: |
-          gh release edit "$CANDIDATE_TAG" --draft=false --title "Multi Codex $CANDIDATE_TAG" --notes-file "docs/releases/${CANDIDATE_TAG}.md"
+          gh release edit "$CANDIDATE_TAG" --draft=false --prerelease=false --latest --title "Multi Codex $CANDIDATE_TAG" --notes-file "docs/releases/${CANDIDATE_TAG}.md"
