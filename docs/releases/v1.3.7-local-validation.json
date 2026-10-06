@@ -11,14 +11,15 @@
     "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
     "Multi.Codex_1.3.7_amd64.AppImage": "02da8880538ac4f5a56a8ee2bc89c00a4aec3cfba59917ca71e373a509559443"
   },
-  "status": "installer-and-local-package-checks-passed",
-  "testedAt": "2026-10-07T05:22:17.276146+00:00",
+  "status": "published-installed-and-verified",
+  "testedAt": "2026-10-07T05:33:24.717285+00:00",
   "frontendTests": 76,
   "rustTests": 82,
   "websiteTests": {
     "local": 9,
     "macosAndLinuxCi": "https://github.com/wrestle-R/multi-codex/actions/runs/37575600054",
-    "siteSource": "4769df72e2a521788e778b21bfd4eaece32e5ad4"
+    "siteSource": "4769df72e2a521788e778b21bfd4eaece32e5ad4",
+    "live": 9
   },
   "cliChecks": {
     "allSixSavedAccountsRecognizedAsSignedIn": true,
@@ -80,5 +81,36 @@
       }
     ],
     "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks"
-  }
+  },
+  "publicationRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37576313561",
+  "installedNativeChecks": {
+    "status": "passed",
+    "nativeInstalledWindowVisible": true,
+    "savedAccountsVisible": 6,
+    "cliLaunchControls": 6,
+    "themePickerVisible": true,
+    "savedTerminal": "kitty",
+    "desktopIntegrationVersion": "1.3.7",
+    "maximizedWithoutFullscreen": true,
+    "installedAppImageSha256": "02da8880538ac4f5a56a8ee2bc89c00a4aec3cfba59917ca71e373a509559443",
+    "activeEditorAndAgentProcessesPreserved": true,
+    "scope": "Installed v1.3.7 native UI probe with existing real accounts on Arch/Hyprland; desktop launcher updated through app integration; application left running."
+  },
+  "localUpgrade": {
+    "status": "passed",
+    "dataPreservation": {
+      "savedAccounts": 6,
+      "accountIdsUnchanged": true,
+      "protectedFiles": 550,
+      "missingFiles": 0,
+      "changedFiles": 0,
+      "conversationPrefixesPreserved": true,
+      "credentialsAndSettingsUnchanged": true
+    },
+    "installedChecksumMatchesPublishedAsset": true,
+    "backupRetained": true,
+    "previousAppImageRetained": true,
+    "note": "Compared against the immediate pre-upgrade baseline; intentional CLI executable and terminal preference changes were backed up separately."
+  },
+  "websiteValidation": "docs/releases/v1.3.7-website-validation.json"
 }
