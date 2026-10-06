@@ -24,6 +24,9 @@
     }
   ],
   "notarization": "not available; first-open approval remains controlled by macOS",
-  "runUrl": "https://github.com/wrestle-R/multi-codex/actions/runs/37422386648",
-  "installerSourceCommit": "ecb17146b13684b4aa725b0241fbb50655c04bb3"
+  "runUrl": "https://github.com/wrestle-R/multi-codex/actions/runs/37423651379",
+  "installerSourceCommit": "945a736353edc97ffb5651569aef091ac8be0e7b",
+  "testedAt": "2026-10-06T06:26:51Z",
+  "environment": "Apple Silicon macos-26 runner",
+  "downloadScope": "Exact original release-build asset; the draft latest-URL resolver is substituted before publication"
 }

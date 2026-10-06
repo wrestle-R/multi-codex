@@ -116,16 +116,16 @@
     },
     "linux-installer": {
       "status": "passed",
-      "environment": "Linux 7.2.8-arch1-2",
-      "evidence": "docs/releases/v1.3.5-linux-installer-validation.json",
-      "testedAt": "2026-10-06T06:21:26.649702+00:00",
-      "testedBy": "Codex local execution"
+      "environment": "ubuntu-22.04 runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37423651379",
+      "testedAt": "2026-10-06T06:26:51Z",
+      "testedBy": "GitHub Actions"
     },
     "macos-installer": {
       "status": "passed",
       "environment": "Apple Silicon macos-26 runner",
-      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37422386648",
-      "testedAt": "2026-10-06T06:13:02Z",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37423651379",
+      "testedAt": "2026-10-06T06:26:51Z",
       "testedBy": "GitHub Actions"
     },
     "linux-isolation": {
