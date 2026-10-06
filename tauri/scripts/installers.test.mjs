@@ -80,7 +80,7 @@ fi
       for (const [expectedChecksum, expectedStatus] of [['0'.repeat(64), 1], [checksum, 0]]) {
         writeFileSync(destination, 'previous app')
         const result = spawnSync('/bin/bash', [join(root, 'scripts', script)], {
-          env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: task, TMPDIR: temporary, MULTI_CODEX_NO_LAUNCH: '1', MOCK_CHECKSUM: expectedChecksum, MOCK_PAYLOAD: payload },
+          env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: task, TMPDIR: temporary, MULTI_CODEX_NO_LAUNCH: '1', MOCK_CHECKSUM: expectedChecksum, MOCK_PAYLOAD: payload, staged: profileDir },
           encoding: 'utf8',
         })
         assert.equal(result.status, expectedStatus, result.stderr)
