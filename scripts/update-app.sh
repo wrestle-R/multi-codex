@@ -104,7 +104,9 @@ if [[ "$suffix" == ".AppImage" ]]; then
 else
   mount_dir="$work_dir/dmg"
   mkdir "$mount_dir"
-  hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$work_dir/$asset_name" >/dev/null
+  # The bundled repository license must be accepted when mounting the DMG
+  # without a terminal. Feed one answer rather than an unbounded yes process.
+  hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$work_dir/$asset_name" <<< 'Y' >/dev/null
   app_source="$mount_dir/Multi Codex.app"
   if [[ ! -d "$app_source" ]]; then
     hdiutil detach "$mount_dir" >/dev/null
@@ -113,7 +115,7 @@ else
   fi
   mkdir -p "$HOME/Applications"
   destination="$HOME/Applications/Multi Codex.app"
-  staged="$HOME/Applications/.Multi Codex.app.new.$$"
+  staged="$HOME/Applications/.Multi Codex.app.new.$$.app"
   rm -rf "$staged"
   ditto "$app_source" "$staged"
   hdiutil detach "$mount_dir" >/dev/null

@@ -68,6 +68,7 @@ else:
         strict = subprocess.run(["/bin/bash", str(repository / "scripts" / script)], env=env,
                                 capture_output=True, text=True, timeout=180)
         assert strict.returncode != 0, "Unsigned install must require explicit opt-in"
+        assert "no Apple Developer ID signature" in strict.stderr, strict.stderr
         assert previous.read_bytes() == b"previous app", "Rejected install replaced the previous app"
         assert not list((fixture / "Applications").glob(".Multi Codex.app.new.*")), "Rejected staging was not cleaned"
         for path, contents in protected.items():
