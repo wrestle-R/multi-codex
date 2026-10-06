@@ -13,8 +13,8 @@
     "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
     "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60"
   },
-  "status": "packages-checksummed-installer-checks-pending",
-  "testedAt": "2026-10-07T06:25:14.392061+00:00",
+  "status": "ready-for-publication",
+  "testedAt": "2026-10-07T06:27:37.645742+00:00",
   "frontendTests": 78,
   "rustTests": {
     "passed": 82,
@@ -32,5 +32,46 @@
     "protectedFiles": 552,
     "previousAppImageRetained": true,
     "earlierFullBackupRetained": true
+  },
+  "installerRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37581402014",
+  "packagedNativeChecks": {
+    "appImageSha256": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
+    "runs": [
+      {
+        "startup": 1,
+        "visibleNativeWindow": true,
+        "savedAccountVisible": true,
+        "themePickerVisible": true,
+        "maximizedWithoutFullscreen": true
+      },
+      {
+        "startup": 2,
+        "visibleNativeWindow": true,
+        "savedAccountVisible": true,
+        "themePickerVisible": true,
+        "maximizedWithoutFullscreen": true
+      }
+    ],
+    "accountChatAndDefaultLoginSentinelsUnchanged": true,
+    "scope": "Disposable native Arch/Hyprland package startup and restart; no authenticated sign-in"
+  },
+  "localInstallerChecks": {
+    "tag": "v1.3.8",
+    "appImageSha256": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
+    "checks": [
+      {
+        "script": "install-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      },
+      {
+        "script": "update-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      }
+    ],
+    "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks"
   }
 }
