@@ -1,0 +1,48 @@
+{
+  "version": "1.3.5",
+  "sourceCommit": "f1312509b6ecf9e6bc650dc1ab64eac527873526",
+  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37413567375",
+  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37413915283",
+  "os": "Arch Linux rolling; kernel 7.2.8-arch1-2",
+  "desktop": "Hyprland 0.56.2",
+  "testedAt": "2026-10-06T04:47:14.113848+00:00",
+  "artifacts": {
+    "Multi.Codex-1.3.5-1.x86_64.rpm": "2b698111d992da7371712076c501ce1dae6b5451690bc2a3073c80258b982b08",
+    "Multi.Codex_1.3.5_aarch64.dmg": "8c2b29fd0516bf29271b4cdf3a1b657a67bc091b023b896273d212689dcdb2b2",
+    "Multi.Codex_1.3.5_amd64.AppImage": "58bc6aa1f85f18c94e18b72533e741590d5a968551de79d0e7ca9058af672fce",
+    "Multi.Codex_1.3.5_amd64.deb": "0f113ec1cebf01bbad47d886e52cdcf21658ae4f545c2b62a7c491846446b54b"
+  },
+  "packagedLocalChecks": {
+    "nativeUiBothButtons": true,
+    "sameDisposableAccountBothApps": true,
+    "liveLimitsRequest": true,
+    "vscodeRepeatCreatesSecondWindow": true,
+    "standaloneRepeatReusesProcessAndWindow": true,
+    "selectedDesktopPlacement9And10": true,
+    "desktopPickerOffCurrentDesktopPlacement": true,
+    "allThreeSavedLaunchModes": true,
+    "preferredFolderBuiltInBrowse": true,
+    "preferencesAndBothButtonsPersistAfterRestart": true,
+    "runningProfileDeleteBlockedAfterLauncherRestart": true
+  },
+  "limits": [
+    "This is a local AppImage functional check, not the full distribution/desktop matrix.",
+    "VS Code test profiles include the official Codex extension; a fresh isolated VS Code profile needs that extension installed.",
+    "Separate authenticated desktop identities passed the earlier Linux and Mac checks; the final package button checks use the remaining signed-in disposable account.",
+    "Mac signing/notarization and broader installed-package validation remain pending."
+  ],
+  "upgradeChecks": {
+    "savedProfiles": 6,
+    "authFiles": 6,
+    "criticalFilesUnchangedAfterStartup": true,
+    "defaultCodexFilesUnchanged": true,
+    "accountFilesUnchangedAfterSettingsSave": true,
+    "visibleLaunchButtons": {
+      "vscode": 6,
+      "standalone": 6
+    },
+    "preferredFolderAndDesktopPreferencePreserved": true,
+    "consistentSqliteSnapshots": 33,
+    "fullBackupCreated": true
+  }
+}

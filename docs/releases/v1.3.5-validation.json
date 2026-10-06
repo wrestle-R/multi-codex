@@ -1,7 +1,12 @@
 {
   "schemaVersion": 1,
   "version": "1.3.5",
-  "artifacts": {},
+  "artifacts": {
+    "Multi.Codex-1.3.5-1.x86_64.rpm": "2b698111d992da7371712076c501ce1dae6b5451690bc2a3073c80258b982b08",
+    "Multi.Codex_1.3.5_aarch64.dmg": "8c2b29fd0516bf29271b4cdf3a1b657a67bc091b023b896273d212689dcdb2b2",
+    "Multi.Codex_1.3.5_amd64.AppImage": "58bc6aa1f85f18c94e18b72533e741590d5a968551de79d0e7ca9058af672fce",
+    "Multi.Codex_1.3.5_amd64.deb": "0f113ec1cebf01bbad47d886e52cdcf21658ae4f545c2b62a7c491846446b54b"
+  },
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
@@ -37,7 +42,7 @@
     },
     "packaged-arch": {
       "status": "pending",
-      "reason": "Packaged functional validation has not been performed.",
+      "reason": "Final AppImage buttons, live limits, preferences, restart, running-profile deletion guard and data-preserving six-profile upgrade passed on Arch. The full installed-package checklist remains incomplete; see v1.3.5-local-validation.json.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -45,7 +50,7 @@
     },
     "hyprland-placement": {
       "status": "pending",
-      "reason": "Packaged functional validation has not been performed.",
+      "reason": "Final AppImage current/selected desktop placement, standalone reuse and VS Code new-window behavior passed on Hyprland 0.56.2. Packaged failed-placement retry and multiple-monitor scenarios remain open.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
