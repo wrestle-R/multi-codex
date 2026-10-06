@@ -118,7 +118,7 @@ export function WorkspaceDialog({ showDesktopPicker = true, appName = "VS Code",
         </div> : null}
         {!loading && canMove && inventory?.desktops.length === 0 ? <p className="desktop-notice">No desktops are currently available.</p> : null}
         {error ? <p className="form-error" role="alert">{error}{alreadyOpened ? " Your window is already open. Select a desktop to retry placement." : ""}</p> : null}
-        {busy ? <p className="desktop-notice" role="status">{alreadyOpened ? "Retrying placement…" : "Opening VS Code and verifying destination…"}</p> : null}
+        {busy ? <p className="desktop-notice" role="status">{alreadyOpened ? "Retrying placement…" : `Opening ${appName} and verifying destination…`}</p> : null}
         <div className="dialog-actions desktop-picker-actions">
           <span className="desktop-finish-note">Closes automatically when your window is ready.</span>
           <button className="button secondary" type="button" disabled={busy} onClick={() => setRefreshKey(key => key + 1)}>Refresh desktops</button>
