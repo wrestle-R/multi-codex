@@ -1,0 +1,187 @@
+{
+  "status": "passed",
+  "validatedAt": "2026-10-07T13:02:05.162470+00:00",
+  "sourceCommit": "15e1d3fb540566a644bab3f09b5bcddf0487896d",
+  "scope": "Website issue reporting directly into wrestle-R/multi-codex",
+  "production": {
+    "url": "https://multi-codex.vercel.app",
+    "formUrl": "https://multi-codex.vercel.app/issues",
+    "deploymentId": "dpl_AwGr498WifZTxzuoxako2CEgSxKC",
+    "project": "multi-codex",
+    "status": "READY",
+    "prebuilt": true,
+    "stagedContentVerifiedBeforePromotion": true,
+    "errorLogScan": "No error logs returned for this deployment in the preceding 15 minutes"
+  },
+  "local": {
+    "productionBuild": "passed",
+    "typecheck": "passed",
+    "checks": 42,
+    "durationSeconds": 16.2,
+    "retries": 0,
+    "confirmationFocusRegressionChecks": 9,
+    "focusRegressionRetries": 0,
+    "engines": [
+      "Chromium",
+      "WebKit",
+      "mobile Chromium"
+    ],
+    "githubSubmission": {
+      "url": "https://github.com/wrestle-R/multi-codex/issues/2",
+      "number": 2,
+      "errors": [],
+      "contentVerified": true,
+      "closed": true
+    },
+    "visualScenarios": [
+      {
+        "engine": "chromium",
+        "theme": "light",
+        "width": 1280,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "chromium",
+        "theme": "light",
+        "width": 768,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "chromium",
+        "theme": "light",
+        "width": 320,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "chromium",
+        "theme": "dark",
+        "width": 1280,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "chromium",
+        "theme": "dark",
+        "width": 768,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "chromium",
+        "theme": "dark",
+        "width": 320,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "webkit",
+        "theme": "light",
+        "width": 1280,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "webkit",
+        "theme": "light",
+        "width": 768,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "webkit",
+        "theme": "light",
+        "width": 320,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "webkit",
+        "theme": "dark",
+        "width": 1280,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "webkit",
+        "theme": "dark",
+        "width": 768,
+        "noOverflow": true,
+        "noPageErrors": true
+      },
+      {
+        "engine": "webkit",
+        "theme": "dark",
+        "width": 320,
+        "noOverflow": true,
+        "noPageErrors": true
+      }
+    ]
+  },
+  "ci": {
+    "url": "https://github.com/wrestle-R/multi-codex/actions/runs/37588612452",
+    "conclusion": "success",
+    "attempt": 2,
+    "jobs": {
+      "linux": "passed on rerun",
+      "macos": "passed",
+      "docs-site (ubuntu-22.04)": "passed without retries",
+      "docs-site (macos-26)": "passed without retries"
+    },
+    "websiteChecksPerRunner": 42,
+    "settingsBrowserScenariosPerRunner": 8,
+    "completedBeforeDeployment": true,
+    "linuxInitialFailure": {
+      "test": "usage::tests::protocol_timeout_is_bounded_and_sanitized",
+      "observed": "The existing temporary CLI test process could not spawn; expected timeout instead received CLI-required error. The underlying OS error was sanitized.",
+      "followUp": "Both protocol tests passed locally, then the unchanged Linux job passed on rerun with 82 Rust tests. No application source changed."
+    }
+  },
+  "live": {
+    "checks": 42,
+    "durationSeconds": 34.7,
+    "retries": 0,
+    "status": "passed",
+    "uiSubmissionResponses": "Mocked; vendor challenge is isolated in UI tests",
+    "realGithubSubmission": {
+      "number": 3,
+      "url": "https://github.com/wrestle-R/multi-codex/issues/3",
+      "responseStatus": 201,
+      "submissions": 1,
+      "verificationMethod": "Authenticated Vercel CLI through deployed production API",
+      "automationBypass": true,
+      "errors": [],
+      "contentVerified": true,
+      "closed": true
+    },
+    "botProtection": {
+      "untrustedHeadlessBrowser": "403; no GitHub issue created",
+      "challengeScript": "200; browser sent challenge header",
+      "positiveIntegrationMethod": "Authenticated Vercel CLI automation path, using the deployed API and real GitHub write",
+      "limitation": "A connected interactive browser was unavailable; an untrusted human browser submission was not directly verified. No bot protection or Trusted Sources settings changed."
+    }
+  },
+  "credentials": {
+    "storage": "GITHUB_ISSUES_TOKEN in Vercel Production only",
+    "serverOnly": true,
+    "trackedAndPublicBuildScan": "passed; credential absent",
+    "temporaryLocalCredentialRemovedAfterVerification": true
+  },
+  "behavior": [
+    "Responsive issue form in light and dark mode",
+    "Title, platform, app version, description, reproduction steps and expected behavior become a structured GitHub issue",
+    "Required public-report consent and honeypot",
+    "Fixed target repository; bounded input and same-origin validation",
+    "BotID Basic enabled; server rejects failed verification",
+    "One GitHub creation attempt per submission; disabled pending form prevents duplicate clicks",
+    "Working issue link and keyboard-focused confirmation",
+    "Errors preserve report text and offer a prefilled GitHub fallback"
+  ],
+  "initialConfirmationRace": {
+    "ciUrl": "https://github.com/wrestle-R/multi-codex/actions/runs/37586767474",
+    "observed": "Confirmation focus assertion passed only on retry in the first issue-form build.",
+    "resolution": "Move focus after React commits the confirmation DOM. Final website CI passed without retries. The first build was superseded before assigning the public alias."
+  }
+}
