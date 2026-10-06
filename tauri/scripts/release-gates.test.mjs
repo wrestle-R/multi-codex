@@ -8,7 +8,7 @@ import { evaluate, requiredChecks } from './release-gates.mjs'
 
 test('blocks missing packaged Mac validation even when other checks pass', () => {
   const checks = Object.fromEntries(requiredChecks.map(id => [id, { status: 'passed', evidence: 'record', osVersion: 'exact version', testedBy: 'tester', testedAt: '2026-10-03T00:00:00Z' }]))
-  checks['packaged-macos-27-arm64'] = { status: 'blocked', reason: 'No validated packaged app' }
+  checks['packaged-macos-26-arm64'] = { status: 'blocked', reason: 'No validated packaged app' }
   assert.ok(evaluate({ version: '1.3.0', schemaVersion: 1, checks, artifacts: {} }, '1.3.0').some(error => error.includes('No validated packaged app')))
 })
 

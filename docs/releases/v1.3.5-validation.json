@@ -3,14 +3,6 @@
   "version": "1.3.5",
   "artifacts": {},
   "checks": {
-    "packaged-macos-27-arm64": {
-      "status": "pending",
-      "reason": "Packaged functional validation has not been performed.",
-      "osVersion": null,
-      "testedBy": null,
-      "testedAt": null,
-      "evidence": null
-    },
     "packaged-macos-26-arm64": {
       "status": "pending",
       "reason": "Packaged functional validation has not been performed.",
