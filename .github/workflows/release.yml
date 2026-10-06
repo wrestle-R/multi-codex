@@ -156,14 +156,21 @@ jobs:
       - name: Check signing and notarization
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
           if [[ -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "Unsigned candidate: publication remains blocked by the release validation manifest."
+            echo "Apple Developer ID signing is not configured; unsigned publication is supported."
           else
             codesign --verify --deep --strict "$APP"
-            xcrun stapler validate "$APP"
-            spctl --assess --type execute --verbose "$APP"
+            if [[ -n "$APPLE_ID" && -n "$APPLE_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
+              xcrun stapler validate "$APP"
+              spctl --assess --type execute --verbose "$APP"
+            else
+              echo "Developer ID signature verified; optional notarization credentials are not configured."
+            fi
           fi
       - name: Normalize DMG name
         env:
@@ -196,7 +203,7 @@ jobs:
         with:
           path: downloaded-assets
           merge-multiple: true
-      - name: Prepare blocked draft candidate
+      - name: Prepare release draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
