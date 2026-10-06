@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   macos:
@@ -30,7 +31,30 @@ jobs:
         run: |
           [[ "$CANDIDATE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           mkdir "$RUNNER_TEMP/installer-assets"
-          gh release download "$CANDIDATE_TAG" --dir "$RUNNER_TEMP/installer-assets" --pattern '*_aarch64.dmg' --pattern SHA256SUMS
+          if ! gh release download "$CANDIDATE_TAG" --dir "$RUNNER_TEMP/installer-assets" --pattern '*_aarch64.dmg' --pattern SHA256SUMS; then
+            # Read-only tokens cannot see private drafts. Retrieve the same DMG
+            # from its original build and verify the recorded release hash.
+            source_run_id=$(python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          assert 'v' + report['version'] == os.environ['CANDIDATE_TAG']
+          print(report['releaseRun'].rsplit('/', 1)[1])
+          PY
+            )
+            [[ "$source_run_id" =~ ^[0-9]+$ ]]
+            gh run download "$source_run_id" --name macos-package --dir "$RUNNER_TEMP/installer-assets"
+            python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          assets = Path(os.environ['RUNNER_TEMP']) / 'installer-assets'
+          name = f"Multi.Codex_{report['version']}_aarch64.dmg"
+          expected = report['artifacts'][name]
+          assert hashlib.sha256((assets / name).read_bytes()).hexdigest() == expected
+          (assets / 'SHA256SUMS').write_text(f'{expected}  {name}\n')
+          PY
+          fi
       - name: Install and update the real DMG in disposable profiles
         env:
           CANDIDATE_TAG: ${{ inputs.tag }}
