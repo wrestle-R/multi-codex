@@ -1,4 +1,14 @@
 import { test, expect, type Page } from "@playwright/test"
+
+test.beforeEach(async ({ page }) => {
+  // These UI tests mock submission responses. Keep the vendor challenge local too;
+  // real BotID and GitHub integration is verified separately on the deployment.
+  await page.route(/\/a-4-a\/c\.js(?:\?|$)/, route => route.fulfill({
+    contentType: "application/javascript",
+    body: "window.V_C.push({b:1})",
+  }))
+})
+
 async function fillReport(page: Page) {
   await page.getByLabel("A short title").fill("CLI closes immediately")
   await page.getByRole("combobox", { name: "Platform" }).selectOption("Linux")
