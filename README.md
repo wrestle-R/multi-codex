@@ -2,11 +2,13 @@
 
 Your Codex accounts, your choice of VS Code, the Codex app, or CLI. Keep your default login untouched.
 
+[Website and docs](https://multi-codex.vercel.app) · [Quick start](https://multi-codex.vercel.app/docs) · [Changelog](https://multi-codex.vercel.app/releases)
+
 <img src="tauri/public/accounts_screenshot.png" alt="Multi Codex — accounts" width="100%" />
 
 <img src="tauri/public/workspace_screenshot.png" alt="Multi Codex — workspace and desktop selection" width="100%" />
 
-Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.6**.
+Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.7**.
 
 Launch settings includes a **CLI terminal** selector for installed terminals, including Kitty and Ghostty. CLI launches use the selected account’s saved sign-in; install a complete Codex CLI rather than selecting the VS Code extension helper.
 
