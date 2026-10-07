@@ -12,7 +12,7 @@
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Exact DMG installer and native startup/restart checks passed. Broader installed-package validation remains incomplete; see the installer runner evidence.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -29,7 +29,7 @@
     },
     "packaged-debian-ubuntu": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Exact AppImage install/update checks passed on Ubuntu. Broader DEB installed-package validation remains incomplete.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -45,7 +45,7 @@
     },
     "packaged-arch": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Exact AppImage startup/restart and install/update fixtures passed. Broader installed-package validation remains incomplete; see the local validation report.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -93,7 +93,7 @@
     }
   },
   "publication": {
-    "status": "installer-validation-pending",
+    "status": "ready-for-publication",
     "requestedOn": "2026-10-07",
     "fullValidationChecksRemainPending": true,
     "signingAndNotarizationOptional": true,
@@ -115,12 +115,18 @@
       "testedAt": "2026-10-07T06:25:14.392061+00:00"
     },
     "linux-installer": {
-      "status": "pending",
-      "reason": "Current candidate verification has not completed."
+      "status": "passed",
+      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37581402014",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T06:27:37.645742+00:00"
     },
     "macos-installer": {
-      "status": "pending",
-      "reason": "Current candidate verification has not completed."
+      "status": "passed",
+      "environment": "macOS 26 Apple Silicon GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37581402014",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T06:27:37.645742+00:00"
     },
     "linux-isolation": {
       "status": "passed",
