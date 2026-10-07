@@ -40,9 +40,13 @@ h1, h2, h3, p { margin-top: 0; }
 .site-header { position: sticky; top: 0; z-index: 10; background: var(--header); border-bottom: 1px solid var(--line); backdrop-filter: blur(14px); }
 .nav-shell { display: flex; align-items: center; justify-content: space-between; gap: 28px; min-height: 90px; max-width: 1360px; margin: 0 auto; padding: 0 48px; }
 .brand { display: inline-flex; align-items: center; gap: 12px; font-size: 23px; font-weight: 700; letter-spacing: -.7px; white-space: nowrap; }
-.brand-icon { position: relative; display: grid; place-items: center; width: 39px; height: 39px; border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 20px; line-height: 1; letter-spacing: -2px; padding-right: 5px; }
-.brand-icon > span { position: absolute; top: 4px; right: 4px; color: var(--sand); font-size: 15px; }
-.brand-icon.small { width: 32px; height: 32px; font-size: 16px; }
+.brand-icon { position: relative; display: inline-grid; place-items: center; width: 39px; height: 39px; flex: 0 0 auto; }
+.brand-icon > span { position: absolute; width: 60%; height: 60%; border: 2px solid var(--ink); border-radius: 7px; }
+.brand-icon > span:first-child { transform: translate(-4px, -4px); opacity: .34; }
+.brand-icon > span:nth-child(2) { transform: translate(4px, 4px); border-color: var(--sage); }
+.brand-icon i { position: relative; z-index: 1; font: 700 12px/1 var(--font-display), sans-serif; font-style: normal; letter-spacing: 0; }
+.brand-icon.small i { font-size: 10px; }
+.brand-icon.small { width: 32px; height: 32px; }
 .nav-links { display: flex; align-items: center; gap: 32px; margin-left: auto; color: var(--nav-copy); font-size: 15px; }
 .nav-links a:hover { color: var(--sage); }
 .nav-download { display: inline-flex; gap: 22px; align-items: center; padding: 11px 17px; border: 1px solid var(--control-border); border-radius: 6px; font-size: 14px; font-weight: 500; }
@@ -105,7 +109,7 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .site-footer .brand { color: var(--ink); font-size: 19px; }
 .site-footer > div { display: flex; gap: 20px; margin-left: auto; }
 .site-footer p { width: 100%; margin: 0; font-size: 11px; }
-.docs-layout { display: grid; grid-template-columns: 210px minmax(0, 780px); justify-content: space-between; gap: 65px; padding-top: 70px; padding-bottom: 60px; }
+.docs-layout { display: grid; grid-template-columns: 185px minmax(0, 880px); justify-content: start; gap: 48px; padding-top: 70px; padding-bottom: 60px; }
 .docs-sidebar { position: sticky; top: 135px; align-self: start; }
 .docs-sidebar nav { display: grid; gap: 7px; margin: 25px 0 30px; }
 .docs-sidebar nav a { padding: 8px 0; color: var(--muted); font-size: 14px; }
@@ -246,4 +250,53 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
   .release-version { font-size: 22px; }
   .release-timeline .release-entry h2 { font-size: 25px; line-height: 1.2; }
   .release-timeline .release-entry li { font-size: 14px; }
+}
+
+/* Match the portfolio’s circular theme curtain, including its reverse reveal. */
+.theme-transition::view-transition-old(root),
+.theme-transition::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+.theme-transition::view-transition-group(root) {
+  animation: none;
+}
+
+.theme-transition::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+.theme-transition::view-transition-old(root) {
+  z-index: 1;
+}
+
+.theme-transition::view-transition-new(root) {
+  z-index: 2;
+  clip-path: circle(0px at var(--theme-transition-x) var(--theme-transition-y));
+  animation: theme-curtain-reveal 960ms cubic-bezier(0.55, 0, 0.8, 1) both;
+}
+
+.theme-transition[data-theme-reveal='contract']::view-transition-old(root) {
+  z-index: 2;
+  animation: theme-curtain-reveal 960ms cubic-bezier(0.55, 0, 0.8, 1) reverse both;
+}
+
+.theme-transition[data-theme-reveal='contract']::view-transition-new(root) {
+  z-index: 1;
+  clip-path: none;
+  animation: none;
+}
+
+@keyframes theme-curtain-reveal {
+  from {
+    clip-path: circle(0px at var(--theme-transition-x) var(--theme-transition-y));
+  }
+  to {
+    clip-path: circle(var(--theme-transition-radius) at var(--theme-transition-x) var(--theme-transition-y));
+  }
+}
+
+.theme-transition * {
+  transition: none !important;
 }

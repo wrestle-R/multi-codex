@@ -13,6 +13,12 @@ Playwright checks the production build on desktop Chromium, desktop WebKit and m
 
 Deploy from this directory to the dedicated `multi-codex` Vercel project after local and macOS/Linux CI checks pass. Run `vercel project inspect multi-codex --scope russeldanielpaul-gmailcoms-projects` here before deployment to confirm the intended team/project. `.vercel` is ignored. Download links resolve to GitHub’s latest stable packages; the current app version is in `lib/site.ts`.
 
+## Appearance
+
+The header and footer use the overlapping terminal mark from the desktop app (`tauri/src/components/brand-mark.tsx`), with a matching SVG favicon. The documentation sidebar keeps a 48px gap on wide screens and stacks above the content on mobile.
+
+The theme button matches the portfolio's circular curtain: alternate expanding/contracting reveals, 960ms duration and `cubic-bezier(0.55, 0, 0.8, 1)`. Reduced motion and browsers without View Transitions switch immediately. Saved theme choices and matching documentation screenshots still persist between pages and visits.
+
 ## Release timeline
 
 `/releases` shows all published GitHub releases, newest first, with publication dates, improvements, permalinks and original release-note links. Curated entries live in `lib/releases.ts`; update that file when publishing a release, then build and redeploy. Draft validation candidates are excluded. Older highlights are checked against the commits between published tags where GitHub notes contain only a platform description. Displayed dates use UTC consistently.
