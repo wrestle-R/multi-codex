@@ -1,0 +1,15 @@
+{
+  "version": "1.3.6",
+  "sourceCommit": "316ca9232431469d9f79c2859fb02166206f01d6",
+  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37562655635",
+  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37563021224",
+  "artifacts": {
+    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "Multi.Codex_1.3.6_aarch64.dmg": "f254a163cb215c8c796cd3dfbf25cf1756eb134f45a3a0e304c8c304e21c57bd",
+    "Multi.Codex_1.3.6_amd64.AppImage": "0b125aa41b69ca8adca555637ea08a91e068e039bb8124bf156a30d77f49b98e",
+    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "Multi.Codex_1.3.6_amd64.deb": "83bd5ab8453e3d7e6ce277201860cf5ddcb8e65eabaff5dae71a7f4e3e0d767b",
+    "Multi.Codex-1.3.6-1.x86_64.rpm": "fa875702ae47b779e568dfa2e6c91f05bfede096053b457626df9d3bddfb7175"
+  },
+  "status": "candidate-built-local-checks-pending"
+}
