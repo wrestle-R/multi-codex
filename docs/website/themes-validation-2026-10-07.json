@@ -1,0 +1,119 @@
+{
+  "status": "passed",
+  "validatedAt": "2026-10-07T07:02:30.998004+00:00",
+  "sourceCommit": "4c5e8c224e801ff3919568e58931909a919d92dd",
+  "scope": "Website documentation, theme control and theme-matched demo screenshots",
+  "production": {
+    "url": "https://multi-codex.vercel.app",
+    "docsUrl": "https://multi-codex.vercel.app/docs#launching",
+    "deploymentId": "dpl_3AV4o3oJMdKo3eubpyu2o8HhCLyu",
+    "project": "multi-codex",
+    "status": "READY",
+    "prebuilt": true,
+    "stagedDocsContentVerifiedBeforePromotion": true,
+    "errorLogScan": "No errors returned for this deployment in the preceding 15 minutes"
+  },
+  "local": {
+    "productionBuild": "passed",
+    "browserTests": 18,
+    "themeTestsAfterFinalWaitAdjustment": 9,
+    "engines": [
+      "Chromium",
+      "WebKit",
+      "mobile Chromium"
+    ],
+    "visualScenarios": [
+      {
+        "engine": "chromium",
+        "theme": "light",
+        "width": 1280,
+        "copyContrast": 5.059906904966954,
+        "codeContrast": 7.951884033666883
+      },
+      {
+        "engine": "chromium",
+        "theme": "light",
+        "width": 390,
+        "copyContrast": 5.059906904966954,
+        "codeContrast": 7.951884033666883
+      },
+      {
+        "engine": "chromium",
+        "theme": "dark",
+        "width": 1280,
+        "copyContrast": 9.483442551266979,
+        "codeContrast": 11.360797964172757
+      },
+      {
+        "engine": "chromium",
+        "theme": "dark",
+        "width": 390,
+        "copyContrast": 9.483442551266979,
+        "codeContrast": 11.360797964172757
+      },
+      {
+        "engine": "webkit",
+        "theme": "light",
+        "width": 1280,
+        "copyContrast": 5.059906904966954,
+        "codeContrast": 7.951884033666883
+      },
+      {
+        "engine": "webkit",
+        "theme": "light",
+        "width": 390,
+        "copyContrast": 5.059906904966954,
+        "codeContrast": 7.951884033666883
+      },
+      {
+        "engine": "webkit",
+        "theme": "dark",
+        "width": 1280,
+        "copyContrast": 9.483442551266979,
+        "codeContrast": 11.360797964172757
+      },
+      {
+        "engine": "webkit",
+        "theme": "dark",
+        "width": 390,
+        "copyContrast": 9.483442551266979,
+        "codeContrast": 11.360797964172757
+      }
+    ]
+  },
+  "ci": {
+    "url": "https://github.com/wrestle-R/multi-codex/actions/runs/37584071390",
+    "conclusion": "success",
+    "jobs": {
+      "linux": "passed",
+      "macos": "passed",
+      "docs-site (ubuntu-22.04)": "passed",
+      "docs-site (macos-26)": "passed"
+    },
+    "websiteTestsPerRunner": 18,
+    "settingsBrowserScenariosPerRunner": 8,
+    "completedBeforeDeployment": true
+  },
+  "live": {
+    "browserTests": 18,
+    "durationSeconds": 16,
+    "retries": 0,
+    "status": "passed"
+  },
+  "behavior": [
+    "Desktop selection explicitly Linux-only for supported VS Code and Codex desktop launches",
+    "macOS launches after folder selection; CLI uses chosen terminal",
+    "Website defaults to system light/dark preference until a manual choice",
+    "Manual choice persists across routes and reloads",
+    "Theme switching still works when browser storage is blocked",
+    "Account and workspace screenshots match the selected theme",
+    "Documentation reflects installed-only terminal options"
+  ],
+  "initialCiFailure": {
+    "url": "https://github.com/wrestle-R/multi-codex/actions/runs/37583581841",
+    "causeObserved": "Mobile screenshot request still pending when the five-second image-load assertion expired on macOS",
+    "resolution": "Scroll the lazy image into view and allow up to 20 seconds for image download; image must still load with nonzero natural width",
+    "finalCiPassedWithoutTestRetries": true
+  },
+  "screenshots": "Real app components in development demo mode with fictional accounts; no native account data read"
+}
