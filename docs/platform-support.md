@@ -1,6 +1,6 @@
-# Platform support for v1.3.5
+# Platform support for v1.3.6
 
-v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Code launcher. Builds, installer verification, authenticated isolation and native startup checks passed; broader package/distribution coverage remains open. Apple Developer ID signing and notarization are optional and were not performed for this release. The Mac release requires explicit unsigned-install opt-in and may require first-open approval in macOS Privacy & Security.
+v1.3.6 adds isolated CLI launch, a color theme picker, plan ordering and automatic usage refresh. Linux and [macOS 26 Apple Silicon CI](https://github.com/wrestle-R/multi-codex/actions/runs/37562655635) passed, including native Mac Terminal, Keychain, VS Code, standalone launch and packaged startup/restart checks. Release packages undergo exact-asset installer verification before publication; broader package/distribution coverage remains open. Apple Developer ID signing and notarization are optional and are not configured. The Mac release requires explicit unsigned-install opt-in and may require first-open approval in macOS Privacy & Security.
 
 | Environment | Launch and desktop behavior | Evidence and remaining limits |
 | --- | --- | --- |
@@ -10,19 +10,21 @@ v1.3.5 adds a standalone Codex app launch option to the existing isolated VS Cod
 | Other Linux desktops | Current-desktop launch when placement is unavailable | No desktop-placement support claim; distribution-specific package checks pending |
 | Apple Silicon macOS 26 | VS Code or verified Codex app opens on the current desktop; no desktop picker or Spaces control | Authenticated isolation on a [Mac GitHub runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) and [native launch/package CI](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) passed; [real DMG install/update and native startup/restart](https://github.com/wrestle-R/multi-codex/actions/runs/37423651379) passed with account/chat fixtures; signing/notarization and wider functional checks pending |
 
-Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux releases use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. macOS 27, Intel Macs and Windows have no v1.3.5 validation claim. Linux requires its usual session bus, native libraries and credential-store dependencies.
+Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux releases use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. macOS 27, Intel Macs and Windows have no validation claim. Linux requires its usual session bus, native libraries and credential-store dependencies.
 
 ## Launch settings and account data
 
-The first-run welcome saves platform and installed-app detection; installed apps are checked again later. When both apps are available, Launch settings offers **VS Code only**, **Codex app only**, or **Both**. **Both** shows two launch buttons. With one usable app, the choice section is hidden and the available target is selected automatically. Existing installations initially keep VS Code; a new installation with both verified apps starts with Both. An unverified standalone version cannot be selected.
+The first-run welcome saves platform and installed-app detection; installed apps are checked again later. Launch settings offers **VS Code**, **Codex**, **All available** and **CLI only**, disabling unavailable targets. The CLI button appears alongside the selected apps whenever a CLI is available. Existing launch preferences remain in place, and an unverified standalone version cannot be selected.
 
 **Preferred folder + Browse** uses the built-in folder picker. The saved folder is its starting location on each launch; a different project can be chosen then. On Linux, **Show desktop picker** is on by default and can be turned off. The option does not appear on macOS. Mac launches continue on the current desktop after the folder choice. Executable paths and global Codex home are under Advanced.
 
-Each account keeps its existing `profiles/<id>/codex-home` for both apps. Standalone desktop cookies and app state use a separate `desktop-data` directory for that account; VS Code keeps its separate user-data directory and extensions. The app preserves the normal browser HOME for sign-in links. A desktop sign-out stays signed out on restart and does not silently restore stale credentials from the keyring. Editing or deleting an account and cleaning its cache are blocked while either app is using it. The global auth file is not changed by an isolated launch. [Linux and Mac authenticated isolation evidence](releases/v1.3.5-auth-isolation.json)
+Each account keeps its existing `profiles/<id>/codex-home` for VS Code, standalone and CLI launches. Standalone desktop cookies and app state use a separate `desktop-data` directory for that account; VS Code keeps its separate user-data directory and extensions. The app preserves the normal browser HOME for sign-in links. A desktop sign-out stays signed out on restart and does not silently restore stale credentials from the keyring. Editing or deleting an account and cleaning its cache are blocked while an app or CLI is using it. The global auth file is not changed by an isolated launch. [Linux and Mac authenticated isolation evidence](releases/v1.3.5-auth-isolation.json)
 
 Managed data stays in the existing platform data directory plus `multi-codex`: normally `$XDG_DATA_HOME/multi-codex` or `~/.local/share/multi-codex` on Linux, and `~/Library/Application Support/multi-codex` on macOS. Upgrades do not relocate profiles. Global import uses a nonempty inherited `CODEX_HOME`, then the saved global-home setting, then `~/.codex`. Override paths must be absolute executable files and are passed directly, never interpreted as shell commands. Empty executable fields restore automatic discovery; changing the global home requires restarting Multi Codex.
 
 ## macOS launch checks
+
+CLI launch opens a private, owner-only `.command` file through Launch Services, without Apple Events automation permission. The file contains paths rather than credentials and removes itself before starting the CLI. Credential overrides are cleared before selecting the account's isolated Codex and SQLite homes. A [native Terminal check](https://github.com/wrestle-R/multi-codex/actions/runs/37562655635) covers spaced/Unicode paths, profile process detection, deletion/cache guards, and unchanged peer/default credentials. Linux supports Konsole, GNOME Terminal, XFCE Terminal or xterm. CLI launch skips the desktop picker on both platforms.
 
 Mac GUI apps can have a restricted PATH. Codex CLI discovery includes VS Code extension binaries in `bin/macos-aarch64/codex`, `bin/macos-x86_64/codex`, and older `darwin-*` layouts. It can also use the CLI bundled with the verified desktop app. The sign-in link and Open browser action use the native macOS browser opener.
 
@@ -30,7 +32,7 @@ VS Code and standalone Electron instances can hit macOS socket path limits with 
 
 The [authenticated runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) used two different disposable accounts to check cold credential reuse, refresh, logout, peer isolation and signed-out restarts. The [CI run](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) exercised native Keychain, disposable VS Code startup, the real standalone desktop launch twice with Unicode/spaced private paths, a visible window, and Apple Silicon app/DMG build inspection. The CI smoke uses disposable fixtures; it is separate from the authenticated isolation run and from installing and testing a signed/notarized release DMG.
 
-Multi Codex deliberately offers no Mac Spaces inventory or placement. This matches the requested current-desktop flow; the earlier Spaces requirement is outside v1.3.5 scope.
+Multi Codex deliberately offers no Mac Spaces inventory or placement. This matches the requested current-desktop flow; the earlier Spaces requirement is outside the current scope.
 
 ## Linux desktop inventory and placement
 
@@ -58,7 +60,7 @@ Plasma 6 uses the bundled `tauri/platform/kde/bridge.js`. Each request loads an 
 
 ## Release validation
 
-The tag workflow initially builds a draft and uploads checksums with the exact assets and matching install/update scripts. The [Publish tested release workflow](../.github/workflows/publish-validated.yml) requires the six `releaseChecks` in [the validation manifest](releases/v1.3.5-validation.json): Linux/Mac builds, installer verification and authenticated account isolation. It also downloads and verifies all four packages and both installer scripts against the recorded hashes before publishing as the latest stable release. The manifest records actual outcomes with environment, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
+The tag workflow initially builds a draft and uploads checksums with the exact assets and matching install/update scripts. The [Publish tested release workflow](../.github/workflows/publish-validated.yml) requires the six `releaseChecks` in [the validation manifest](releases/v1.3.6-validation.json): Linux/Mac builds, installer verification and authenticated account isolation. It also downloads and verifies all four packages and both installer scripts against the recorded hashes before publishing as the latest stable release. The manifest records actual outcomes with environment, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
 
 ```bash
 cd tauri
