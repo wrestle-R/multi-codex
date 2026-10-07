@@ -8,7 +8,7 @@ Your Codex accounts, your choice of VS Code, the Codex app, or CLI. Keep your de
 
 <img src="tauri/public/workspace_screenshot.png" alt="Multi Codex — workspace and desktop selection" width="100%" />
 
-Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.7**.
+Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.8**.
 
 Launch settings includes a **CLI terminal** selector for installed terminals, including Kitty and Ghostty. CLI launches use the selected account’s saved sign-in; install a complete Codex CLI rather than selecting the VS Code extension helper.
 

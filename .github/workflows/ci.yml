@@ -138,6 +138,26 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium webkit
       - run: npm test
+      - name: Check settings menu and layout in Chromium and WebKit
+        env:
+          SETTINGS_EVIDENCE_DIR: ${{ runner.temp }}/multi-codex-settings-evidence
+        run: |
+          npm ci --prefix ../tauri
+          npm run dev --prefix ../tauri -- --host 127.0.0.1 > "$RUNNER_TEMP/settings-vite.log" 2>&1 &
+          settings_server_pid=$!
+          trap 'kill "$settings_server_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:1420/ > /dev/null; then break; fi
+            sleep 0.5
+          done
+          node ../tauri/scripts/settings-browser-check.cjs
+      - name: Upload settings browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: settings-browser-evidence-${{ matrix.os }}
+          path: ${{ runner.temp }}/multi-codex-settings-evidence/
+          if-no-files-found: ignore
       - name: Upload browser failure evidence
         if: failure()
         uses: actions/upload-artifact@v4

@@ -6,7 +6,7 @@ on:
       tag:
         description: Release whose exact DMG should be installed
         required: true
-        default: v1.3.7
+        default: v1.3.8
 
 permissions:
   contents: read

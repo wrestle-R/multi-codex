@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react"
 import { getExecutableSettings, getLaunchEnvironment, getLaunchTargets, getTerminalOptions, saveExecutableSettings } from "../lib/desktop-api"
-import type { ExecutableSettings, LaunchTargets, TerminalId, TerminalOption } from "../lib/types"
+import type { ExecutableSettings, LaunchTargets, TerminalOption } from "../lib/types"
+import { TerminalPicker } from "./terminal-picker"
 import { useDialogFocus } from "./use-dialog-focus"
 import { WorkspacePickerDialog } from "./workspace-picker-dialog"
 
@@ -44,30 +45,32 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="dialog-layer" role="presentation" onMouseDown={event => event.target === event.currentTarget && !busy && onClose()}>
       <section ref={dialogRef} className="dialog launch-settings-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-        <span className="eyebrow">Launch settings</span>
-        <h2 id={titleId}>Folders and launching</h2>
-        <p className="settings-intro">A few preferences, just for you.</p>
+        <header className="settings-header">
+          <div><span className="eyebrow">Launch settings</span><h2 id={titleId}>Folders and launching</h2><p className="settings-intro">Make yourself at home.</p></div>
+          <button type="button" className="dialog-close" aria-label="Close launch settings" disabled={busy} onClick={onClose}><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></button>
+        </header>
         <form onSubmit={event => void save(event)} className="launch-settings-form">
+          <div className="settings-body">
+          <section className="settings-section" aria-label="Workspace preferences">
+          <div className="settings-section-heading"><h3>Workspace</h3><p>Start in the right place.</p></div>
           <div className="preferred-folder-control">
             <label>Preferred folder<input value={settings.preferredWorkspace ?? ""} disabled={loading || busy} placeholder={defaultFolder || "Default workspace folder"} onChange={event => setSettings(value => ({ ...value, preferredWorkspace: event.target.value || null }))} /></label>
             <button type="button" className="button secondary" disabled={loading || busy || !defaultFolder} onClick={() => setBrowsing(true)}>Browse</button>
           </div>
-          <p className="desktop-notice">The folder picker will start here.</p>
+          <p className="settings-help">The folder picker will start here.</p>
+          </section>
+          <section className="settings-section" aria-label="Launch preferences">
+          <div className="settings-section-heading"><h3>Launching</h3><p>Your apps, your terminal.</p></div>
           {targets ? <fieldset className="launch-app-options">
             <legend>Open accounts with</legend>
             <div className="launch-app-choices">
               {([['vscode', 'VS Code'], ['standalone', 'Codex'], ['both', 'All available'], ['cli', 'CLI only']] as const).map(([mode, label]) => <label key={mode}><input type="radio" name="launch-app" checked={(settings.launchMode ?? 'vscode') === mode} disabled={loading || busy || (mode === 'standalone' && !targets.standaloneVerified) || (mode === 'cli' && !targets.codexCliAvailable) || (mode === 'vscode' && !targets.vscodeInstalled)} onChange={() => setSettings(value => ({ ...value, launchMode: mode }))} /> {label}</label>)}
             </div>
-            <p className="desktop-notice">{!targets.standaloneInstalled || targets.standaloneVerified ? "CLI appears alongside your chosen apps when installed. Each uses your isolated account." : `Codex ${targets.standaloneVersion ?? 'version'} has not passed account-isolation verification. Choose an available option below.`}</p>
+            <p className="settings-help">{!targets.standaloneInstalled || targets.standaloneVerified ? "Each app opens with your isolated account." : `Codex ${targets.standaloneVersion ?? 'version'} has not passed account-isolation verification.`}</p>
           </fieldset> : null}
-          <label>CLI terminal
-            <select value={settings.cliTerminal ?? "automatic"} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, cliTerminal: event.target.value as TerminalId }))}>
-              {terminals.map(terminal => <option key={terminal.id} value={terminal.id} disabled={!terminal.available && terminal.id !== (settings.cliTerminal ?? "automatic")}>{terminal.label}{terminal.available ? "" : " (not installed)"}</option>)}
-              {settings.cliTerminal && !terminals.some(terminal => terminal.id === settings.cliTerminal) ? <option value={settings.cliTerminal}>{settings.cliTerminal} (unavailable on this platform)</option> : null}
-            </select>
-          </label>
-          <p className="desktop-notice">Choose an installed terminal for CLI launches. Uses your selected account’s saved sign-in. Automatic uses the first supported terminal found.</p>
+          <TerminalPicker value={settings.cliTerminal ?? "automatic"} options={terminals} disabled={loading || busy || !targets} onChange={cliTerminal => setSettings(value => ({ ...value, cliTerminal }))} />
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
+          </section>
           <details className="advanced-settings">
             <summary>Advanced <span>Executable paths and Codex home</span></summary>
             <div className="advanced-settings-fields">
@@ -79,6 +82,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
             </div>
           </details>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
+          </div>
           <div className="dialog-actions"><button type="button" className="button secondary" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="button primary" disabled={loading || busy || !targets}>{busy ? "Saving…" : "Save settings"}</button></div>
         </form>
       </section>
