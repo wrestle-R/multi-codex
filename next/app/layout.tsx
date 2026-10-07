@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <a href="#main" className="skip-link">Skip to content</a>
     <header className="site-header"><nav className="nav-shell" aria-label="Main navigation">
       <Link className="brand" href="/" aria-label="Multi Codex home"><span className="brand-icon" aria-hidden="true">M<span>+</span></span><span>Multi Codex</span></Link>
-      <div className="nav-links"><Link href="/docs">Docs</Link><Link href="/releases">Changelog</Link><a href={repository}>GitHub <span aria-hidden="true">↗</span></a></div>
+      <div className="nav-links"><Link href="/docs">Docs</Link><Link href="/releases">Changelog</Link><Link href="/issues">Report an issue</Link><a href={repository}>GitHub <span aria-hidden="true">↗</span></a></div>
       <div className="nav-actions"><ThemeToggle /><a className="nav-download" href={latestRelease}>Download <span aria-hidden="true">↓</span></a></div>
     </nav></header>
     {children}
