@@ -9,7 +9,7 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use toml_edit::{DocumentMut, Value as TomlValue};
@@ -243,7 +243,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         for metadata in profiles {
             let paths = self.profile_paths(&metadata.id)?;
             let detected = profile_process_running(&paths.vscode_home)
-                || profile_process_running(&paths.desktop_home);
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home);
             let status = statuses
                 .get(&metadata.id)
                 .copied()
@@ -532,6 +533,70 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(())
     }
 
+    pub fn launch_cli_profile(&self, id: &str, workspace: &Path) -> Result<()> {
+        let codex = resolve_codex_command()?;
+        self.launch_cli_profile_with_command(id, workspace, &codex)
+    }
+
+    fn launch_cli_profile_with_command(
+        &self,
+        id: &str,
+        workspace: &Path,
+        codex: &Path,
+    ) -> Result<()> {
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        self.current_profile_credential(id)?;
+        let workspace = canonical_workspace(workspace)?;
+        let paths = self.profile_paths(id)?;
+        let args = cli_arguments(codex, &paths.codex_home, &workspace);
+        #[cfg(target_os = "linux")]
+        {
+            for (terminal, flag) in [
+                ("konsole", "-e"),
+                ("gnome-terminal", "--"),
+                ("xfce4-terminal", "-x"),
+                ("xterm", "-e"),
+            ] {
+                if let Ok(binary) = resolve_command(terminal) {
+                    Command::new(binary)
+                        .arg(flag)
+                        .args(&args)
+                        .current_dir(&workspace)
+                        .stdin(Stdio::null())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                        .map_err(|e| format!("Could not open terminal: {e}"))?;
+                    return Ok(());
+                }
+            }
+            Err("Install Konsole, GNOME Terminal, XFCE Terminal or xterm to launch the CLI.".into())
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let shell = args
+                .iter()
+                .map(|arg| format!("'{}'", arg.replace('\'', "'\\''")))
+                .collect::<Vec<_>>()
+                .join(" ");
+            let script = format!(
+                "tell application \"Terminal\"\nactivate\ndo script {}\nend tell",
+                serde_json::to_string(&shell).map_err(|e| e.to_string())?
+            );
+            let output = crate::process::output(
+                Command::new("/usr/bin/osascript").arg("-e").arg(script),
+                Duration::from_secs(10),
+            )?;
+            if !output.status.success() {
+                return Err("Could not open Terminal. Check macOS Automation permissions.".into());
+            }
+            Ok(())
+        }
+    }
+
     pub fn launch_profile(&self, id: &str, workspace: &Path) -> Result<()> {
         let code = resolve_command("code")?;
         self.launch_profile_with_command(id, workspace, &code)
@@ -677,7 +742,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         validate_id(id)?;
         let paths = self.profile_paths(id)?;
         let detected = profile_process_running(&paths.vscode_home)
-            || profile_process_running(&paths.desktop_home);
+            || profile_process_running(&paths.desktop_home)
+            || profile_process_running(&paths.codex_home);
         let runtime = self
             .runtime
             .lock()
@@ -802,6 +868,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let paths = self.profile_paths(id)?;
         if profile_process_running(&paths.vscode_home)
             || profile_process_running(&paths.desktop_home)
+            || profile_process_running(&paths.codex_home)
         {
             return Ok(true);
         }
@@ -856,6 +923,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let paths = self.profile_paths(id)?;
         if paths.codex_home.join(".multi-codex-signed-out").exists()
             || profile_process_running(&paths.desktop_home)
+            || profile_process_running(&paths.codex_home)
         {
             return Err("This account is signed out. Sign in again from Edit before launching or checking limits.".into());
         }
@@ -1044,6 +1112,40 @@ pub(crate) fn write_codex_config(codex_home: &Path) -> Result<()> {
         updated
     };
     write_private_file(&path, updated.as_bytes())
+}
+
+fn cli_arguments(codex: &Path, home: &Path, workspace: &Path) -> Vec<String> {
+    // Terminal applications may inherit the launcher's credential overrides.
+    // Remove those before selecting the account's private homes.
+    let mut removed = std::collections::BTreeSet::from([
+        "OPENAI_API_KEY".to_string(),
+        "OPENAI_BASE_URL".to_string(),
+        "OPENAI_ORG_ID".to_string(),
+        "OPENAI_ORGANIZATION".to_string(),
+        "CODEX_API_KEY".to_string(),
+        "CODEX_HOME".to_string(),
+        "CODEX_SQLITE_HOME".to_string(),
+        "CODEX_ELECTRON_USER_DATA_PATH".to_string(),
+        "NODE_OPTIONS".to_string(),
+        "ELECTRON_RUN_AS_NODE".to_string(),
+    ]);
+    removed.extend(env::vars_os().filter_map(|(key, _)| {
+        let name = key.to_string_lossy();
+        (name.starts_with("CODEX_") || name.starts_with("OPENAI_") || name.starts_with("VSCODE_"))
+            .then(|| name.into_owned())
+    }));
+    let mut args = vec!["/usr/bin/env".into()];
+    for name in removed {
+        args.extend(["-u".into(), name]);
+    }
+    args.extend([
+        format!("CODEX_HOME={}", home.display()),
+        format!("CODEX_SQLITE_HOME={}", home.display()),
+        codex.to_string_lossy().into_owned(),
+        "-C".into(),
+        workspace.to_string_lossy().into_owned(),
+    ]);
+    args
 }
 
 fn canonical_workspace(workspace: &Path) -> Result<PathBuf> {
@@ -1738,6 +1840,23 @@ fn macos_vscode_alias_in(root: &Path, vscode_home: &Path, id: &str) -> Result<Pa
 }
 
 pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
+    if vscode_home
+        .file_name()
+        .is_some_and(|name| name == "codex-home")
+    {
+        let expected = format!("CODEX_HOME={}", vscode_home.display());
+        #[cfg(target_os = "linux")]
+        let environment = fs::read(format!("/proc/{pid}/environ")).ok();
+        #[cfg(target_os = "macos")]
+        let environment = macos_process_info(pid);
+        if environment.is_some_and(|bytes| {
+            bytes
+                .split(|byte| *byte == 0)
+                .any(|entry| entry == expected.as_bytes())
+        }) {
+            return true;
+        }
+    }
     if process_arguments(pid).is_some_and(|args| arguments_use_profile(&args, vscode_home)) {
         return true;
     }
@@ -1849,6 +1968,11 @@ fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
 
 #[cfg(target_os = "macos")]
 fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
+    parse_macos_arguments(&macos_process_info(pid)?)
+}
+
+#[cfg(target_os = "macos")]
+fn macos_process_info(pid: u32) -> Option<Vec<u8>> {
     // KERN_PROCARGS2 preserves argument boundaries, including spaces and Unicode.
     let mut mib = [
         libc::CTL_KERN,
@@ -1888,7 +2012,7 @@ fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
         return None;
     }
     bytes.truncate(size);
-    parse_macos_arguments(&bytes)
+    Some(bytes)
 }
 
 #[cfg(any(target_os = "macos", test))]
@@ -2093,6 +2217,58 @@ mod tests {
         )
         .unwrap();
         (temp, service)
+    }
+
+    #[test]
+    fn cli_process_blocks_profile_deletion_and_cache_cleanup() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("CLI test")).unwrap();
+        let paths = service.profile_paths(&profile.metadata.id).unwrap();
+        let mut child = Command::new("/bin/sh")
+            .args(["-c", "read line"])
+            .env("CODEX_HOME", &paths.codex_home)
+            .stdin(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let detected = service.list_profiles().unwrap()[0].status;
+        let deletion = service.delete_profile(&profile.metadata.id);
+        let cleanup = service.clear_profile_cache(&profile.metadata.id);
+        drop(child.stdin.take());
+        child.wait().unwrap();
+        assert_eq!(detected, RuntimeStatus::Running);
+        assert!(deletion.is_err());
+        assert!(cleanup.is_err());
+    }
+
+    #[test]
+    fn cli_launch_preserves_paths_and_isolates_both_homes() {
+        let temp = tempfile::tempdir().unwrap();
+        let workspace = temp.path().join("Client's workspace 工具");
+        let home = temp.path().join("isolated account");
+        fs::create_dir_all(&workspace).unwrap();
+        fs::create_dir_all(&home).unwrap();
+        let codex = temp.path().join("fake codex");
+        write_executable(&codex, b"#!/bin/sh\ntest -z \"${OPENAI_API_KEY+x}\" || exit 1\ntest -z \"${CODEX_API_KEY+x}\" || exit 1\nprintf '%s\\n' \"$CODEX_HOME\" \"$CODEX_SQLITE_HOME\" \"$1\" \"$2\" > cli-capture\n");
+        let terminal = temp.path().join("fake terminal");
+        write_executable(&terminal, b"#!/bin/sh\nshift\nexec \"$@\"\n");
+        let status = Command::new(&terminal)
+            .arg("-e")
+            .args(cli_arguments(&codex, &home, &workspace))
+            .env("OPENAI_API_KEY", "inherited-test-sentinel")
+            .env("CODEX_API_KEY", "inherited-test-sentinel")
+            .current_dir(&workspace)
+            .status()
+            .unwrap();
+        assert!(status.success());
+        assert_eq!(
+            fs::read_to_string(workspace.join("cli-capture")).unwrap(),
+            format!(
+                "{}\n{}\n-C\n{}\n",
+                home.display(),
+                home.display(),
+                workspace.display()
+            )
+        );
     }
 
     fn sample_auth() -> String {
@@ -3014,6 +3190,84 @@ mod tests {
         assert!(
             fs::read(source).unwrap() == original,
             "Global credentials changed"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    #[ignore = "opens a disposable native Terminal tab"]
+    fn macos_live_cli_launch_is_isolated() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp
+            .path()
+            .canonicalize()
+            .unwrap()
+            .join("Client's paths 工具");
+        let service = ProfileService::new(
+            root.join("data"),
+            root.join("global"),
+            root.join("extensions"),
+            MemorySecrets::default(),
+            AcceptAuth,
+        )
+        .unwrap();
+        fs::create_dir_all(&service.global_codex_home).unwrap();
+        fs::write(
+            service.global_codex_home.join("auth.json"),
+            b"global-sentinel",
+        )
+        .unwrap();
+        let profile = service.add_profile(sample_input("Terminal smoke")).unwrap();
+        let peer = service.add_profile(sample_input("Untouched peer")).unwrap();
+        let paths = service.profile_paths(&profile.metadata.id).unwrap();
+        let peer_auth = service
+            .profile_paths(&peer.metadata.id)
+            .unwrap()
+            .codex_home
+            .join("auth.json");
+        let original = fs::read(paths.codex_home.join("auth.json")).unwrap();
+        let peer_original = fs::read(&peer_auth).unwrap();
+        let workspace = root.join("Project's folder 工具");
+        fs::create_dir_all(&workspace).unwrap();
+        let codex = root.join("fake codex");
+        write_executable(&codex, b"#!/bin/sh\ntest -z \"${OPENAI_API_KEY+x}\" || exit 1\ntest -z \"${CODEX_API_KEY+x}\" || exit 1\nprintf '%s\\n' \"$$\" \"$CODEX_HOME\" \"$CODEX_SQLITE_HOME\" \"$1\" \"$2\" > \"$2/cli-capture\"\nexec /bin/sleep 30\n");
+        service
+            .launch_cli_profile_with_command(&profile.metadata.id, &workspace, &codex)
+            .unwrap();
+        let capture = workspace.join("cli-capture");
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !capture.exists() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let captured = fs::read_to_string(capture).expect("Terminal did not run the isolated CLI");
+        let pid = captured.lines().next().unwrap().parse::<u32>().unwrap();
+        let detected = process_uses_profile(pid, &paths.codex_home);
+        let running = service.list_profiles().unwrap()[0].status == RuntimeStatus::Running;
+        let deletion = service.delete_profile(&profile.metadata.id);
+        let cleanup = service.clear_profile_cache(&profile.metadata.id);
+        // Kill only the PID written by this disposable fixture.
+        Command::new("/bin/kill")
+            .args(["-TERM", &pid.to_string()])
+            .status()
+            .unwrap();
+        assert_eq!(
+            captured,
+            format!(
+                "{pid}\n{}\n{}\n-C\n{}\n",
+                paths.codex_home.display(),
+                paths.codex_home.display(),
+                workspace.display()
+            )
+        );
+        assert!(detected && running && deletion.is_err() && cleanup.is_err());
+        assert_eq!(
+            fs::read(paths.codex_home.join("auth.json")).unwrap(),
+            original
+        );
+        assert_eq!(fs::read(peer_auth).unwrap(), peer_original);
+        assert_eq!(
+            fs::read(service.global_codex_home.join("auth.json")).unwrap(),
+            b"global-sentinel"
         );
     }
 

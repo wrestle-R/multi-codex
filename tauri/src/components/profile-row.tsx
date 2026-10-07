@@ -1,7 +1,6 @@
 import {
   Delete02Icon,
   Edit02Icon,
-  PlayIcon,
   Refresh01Icon,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -87,49 +86,56 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
               <strong>{limits.data.resetCreditsAvailable ?? "Unavailable"}</strong>
               <small>{limits.data.resetCreditsAvailable == null ? "No details" : "View expiry"}</small>
             </button>
+            <span className="limits-freshness" title={new Date(limits.data.checkedAt).toLocaleString()}>
+              {limits.loading ? "Updating usage…" : limits.error ? "Showing last saved usage" : `Updated ${new Date(limits.data.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+            </span>
           </div>
         ) : null}
         {limits?.error ? <p className="inline-error limits-error">{limits.error}</p> : null}
         {profile.error ? <p className="inline-error">{profile.error}</p> : null}
       </div>
       <div className="profile-actions">
-        <button
-          className="button secondary limits-button"
-          type="button"
-          title={supportsLimits ? `Check live limits for ${profile.name}` : "Live limits require a ChatGPT account"}
-          disabled={!supportsLimits || limits?.loading}
-          onClick={() => onCheckLimits(profile)}
-        >
-          <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
-          {supportsLimits ? limits?.loading ? "Checking" : limits?.data ? "Refresh" : "Check limits" : "Unavailable"}
-        </button>
-        <button
-          className="icon-button"
-          type="button"
-          title={`Edit ${profile.name}`}
-          aria-label={`Edit ${profile.name}`}
-          onClick={() => onEdit(profile)}
-        >
-          <HugeiconsIcon icon={Edit02Icon} size={19} strokeWidth={1.8} />
-        </button>
-        <button
-          className="icon-button danger-button"
-          type="button"
-          title={`Delete ${profile.name}`}
-          aria-label={`Delete ${profile.name}`}
-          onClick={() => onDelete(profile)}
-        >
-          <HugeiconsIcon icon={Delete02Icon} size={19} strokeWidth={1.8} />
-        </button>
-        {launchTargets.map(target => <button
-          key={target}
-          className={`button ${launchTargets.length > 1 && target === 'vscode' ? 'secondary' : 'primary'} launch-button`}
-          type="button"
-          onClick={() => onLaunch(profile, target)}
-        >
-          <HugeiconsIcon icon={PlayIcon} size={18} strokeWidth={1.8} />
-          {launchTargets.length > 1 ? target === 'vscode' ? 'VS Code' : 'Codex app' : 'Launch'}
-        </button>)}
+        <div className="profile-management">
+          <button
+            className={`button secondary limits-button${limits?.loading ? " is-refreshing" : ""}`}
+            type="button"
+            title={supportsLimits ? `Check live limits for ${profile.name}` : "Live limits require a ChatGPT account"}
+            disabled={!supportsLimits || limits?.loading}
+            onClick={() => onCheckLimits(profile)}
+          >
+            <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
+            {supportsLimits ? limits?.loading ? "Checking" : limits?.data ? "Refresh" : "Check limits" : "Unavailable"}
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            title={`Edit ${profile.name}`}
+            aria-label={`Edit ${profile.name}`}
+            onClick={() => onEdit(profile)}
+          >
+            <HugeiconsIcon icon={Edit02Icon} size={19} strokeWidth={1.8} />
+          </button>
+          <button
+            className="icon-button danger-button"
+            type="button"
+            title={`Delete ${profile.name}`}
+            aria-label={`Delete ${profile.name}`}
+            onClick={() => onDelete(profile)}
+          >
+            <HugeiconsIcon icon={Delete02Icon} size={19} strokeWidth={1.8} />
+          </button>
+        </div>
+        <div className="profile-launchers">
+          {launchTargets.map(target => <button
+            key={target}
+            className={`button ${launchTargets.length > 1 && target !== 'standalone' ? 'secondary' : 'primary'} launch-button`}
+            type="button"
+            onClick={() => onLaunch(profile, target)}
+          >
+            {target === 'cli' ? <span className="terminal-glyph" aria-hidden="true">›_</span> : target === 'vscode' ? <img className="launch-logo" src="/logos/vscode.svg" alt="" aria-hidden="true" /> : <span className="launch-logo codex-logo" aria-hidden="true" />}
+            {target === 'cli' ? 'CLI' : target === 'vscode' ? 'VS Code' : 'Codex'}
+          </button>)}
+        </div>
       </div>
     </article>
   )

@@ -379,6 +379,25 @@ async fn launch_profile(
 }
 
 #[tauri::command]
+async fn launch_cli_profile(
+    id: String,
+    workspace: String,
+    state: State<'_, AppState>,
+) -> Result<launch::LaunchResult, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || {
+        service.launch_cli_profile(&id, Path::new(&workspace))?;
+        Ok(launch::LaunchResult {
+            completed: true,
+            error: None,
+            retry_token: None,
+        })
+    })
+    .await
+    .map_err(|_| "Could not launch the CLI".to_string())?
+}
+
+#[tauri::command]
 async fn launch_standalone_profile(
     id: String,
     workspace: String,
@@ -543,7 +562,9 @@ pub fn run() {
                 let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
                 window.set_icon(icon)?;
             }
-            desktop_environment::configure_main_window();
+            if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
+                desktop_environment::configure_main_window(config.width, config.height);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -560,6 +581,7 @@ pub fn run() {
             open_device_login_browser,
             cancel_device_login,
             launch_profile,
+            launch_cli_profile,
             launch_standalone_profile,
             delete_profile,
             get_runtime_status,

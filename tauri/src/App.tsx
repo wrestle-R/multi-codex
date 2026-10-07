@@ -1,3 +1,7 @@
+import { orderProfilesByPlan } from "./lib/profile-order"
+import { useProfileLimits } from "./components/use-profile-limits"
+import { ThemePicker } from "./components/theme-picker"
+import { initialColorTheme, type ColorTheme } from "./lib/themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import {
@@ -26,7 +30,6 @@ import {
   addProfile,
   beginDeviceLogin,
   cancelDeviceLogin,
-  checkProfileLimits,
   clearProfileCache,
   deleteProfile,
   getDesktopIntegrationStatus,
@@ -39,12 +42,13 @@ import {
   importCurrentProfile,
   installDesktopIntegration,
   launchProfile,
+  launchCliProfile,
   launchStandaloneProfile,
   listProfiles,
   subscribeDeviceLogin,
   updateProfile,
 } from "./lib/desktop-api"
-import type { LaunchMode, LaunchTarget, LaunchTargets, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, LimitCheckState, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
+import type { LaunchMode, LaunchTarget, LaunchTargets, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, ProfileStorageUsage, StorageUsage } from "./lib/types"
 import { formatStorage } from "./lib/formatters"
 
 export { formatStorage } from "./lib/formatters"
@@ -53,13 +57,13 @@ type Theme = "light" | "dark"
 
 function enabledLaunchTargets(apps: LaunchTargets | null, mode: LaunchMode): LaunchTarget[] {
   if (!apps) return ['vscode']
-  if (apps.vscodeInstalled && apps.standaloneInstalled) {
-    if (!apps.standaloneVerified) return mode === 'standalone' ? [] : ['vscode']
-    return mode === 'both' ? ['vscode', 'standalone'] : [mode]
+  const targets: LaunchTarget[] = []
+  if (mode !== 'cli') {
+    if (apps.vscodeInstalled && (mode !== 'standalone' || !apps.standaloneInstalled)) targets.push('vscode')
+    if (apps.standaloneVerified && (mode !== 'vscode' || !apps.vscodeInstalled)) targets.push('standalone')
   }
-  if (apps.vscodeInstalled) return ['vscode']
-  if (apps.standaloneInstalled && apps.standaloneVerified) return ['standalone']
-  return []
+  if (apps.codexCliAvailable) targets.push('cli')
+  return targets
 }
 
 function initialTheme(): Theme {
@@ -77,6 +81,8 @@ export default function App() {
   const [dialogError, setDialogError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [theme, setTheme] = useState<Theme>(initialTheme)
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(initialColorTheme)
+  const explicitMode = useRef(["light", "dark"].includes(localStorage.getItem("multi-codex-theme") ?? ""))
   const [integrationStatus, setIntegrationStatus] = useState<DesktopIntegrationStatus | null>(null)
   const [showIntegration, setShowIntegration] = useState(false)
   const [integrationBusy, setIntegrationBusy] = useState(false)
@@ -106,8 +112,7 @@ export default function App() {
   const [placementToken, setPlacementToken] = useState<string | null>(null)
   const launchLock = useRef(false)
   const [creditsTarget, setCreditsTarget] = useState<{ profile: Profile; limits: ProfileLimits } | null>(null)
-  const [limitChecks, setLimitChecks] = useState<Record<string, LimitCheckState>>({})
-  const [refreshingAllLimits, setRefreshingAllLimits] = useState(false)
+  const { limitChecks, refreshingAllLimits, handleCheckLimits, handleRefreshAllLimits } = useProfileLimits(profiles, !loading && !pageError)
   const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
   const deviceLoginRef = useRef<typeof deviceLogin>(null)
   const refreshPromiseRef = useRef<Promise<void> | null>(null)
@@ -215,13 +220,29 @@ export default function App() {
   }, [refreshStorage])
 
   const applyTheme = useCallback((next: Theme) => {
+    explicitMode.current = true
     setTheme(next)
     document.documentElement.classList.toggle("dark", next === "dark")
     document.documentElement.dataset.theme = next
     localStorage.setItem("multi-codex-theme", next)
   }, [])
 
-  useEffect(() => { applyTheme(theme) }, [applyTheme, theme])
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark")
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+  useEffect(() => {
+    const system = window.matchMedia("(prefers-color-scheme: dark)")
+    const followSystem = (event: MediaQueryListEvent) => {
+      if (!explicitMode.current) setTheme(event.matches ? "dark" : "light")
+    }
+    system.addEventListener("change", followSystem)
+    return () => system.removeEventListener("change", followSystem)
+  }, [])
+  useEffect(() => {
+    document.documentElement.dataset.palette = colorTheme
+    localStorage.setItem("multi-codex-color-theme", colorTheme)
+  }, [colorTheme])
 
   const toggleTheme = useCallback((source: HTMLElement | null = null) => {
     const next: Theme = theme === "dark" ? "light" : "dark"
@@ -296,6 +317,8 @@ export default function App() {
     return () => unlisten?.()
   }, [refresh])
 
+  const orderedProfiles = useMemo(() => orderProfilesByPlan(profiles), [profiles])
+
   const chatGptProfiles = useMemo(
     () => profiles.filter((profile) => profile.authMode.toLowerCase() === "chatgpt"),
     [profiles],
@@ -368,6 +391,7 @@ export default function App() {
       setLaunchTargets(targets)
       if (target === 'vscode' && !targets.vscodeInstalled) throw new Error("VS Code was not found. Install it or set its executable path in Launch settings.")
       if (target === 'standalone' && (!targets.standaloneInstalled || !targets.standaloneVerified)) throw new Error("The verified Codex desktop app is unavailable. Reopen Launch settings to check the installed apps.")
+      if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Launch settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
       setHideDesktopPicker(environment.capabilities.backend === "macos" || Boolean(settings.hideDesktopPicker))
@@ -388,7 +412,7 @@ export default function App() {
     setPlacementToken(null)
     const launch = { profile: request.profile, target: request.target, workspace }
     setLaunchRequest(launch)
-    if (hideDesktopPicker) await completeLaunch(null, launch)
+    if (hideDesktopPicker || request.target === "cli") await completeLaunch(null, launch)
   }
 
   function cancelLaunch() {
@@ -405,7 +429,7 @@ export default function App() {
     setLaunchBusy(true)
     setLaunchError(null)
     try {
-      const result = await (request.target === 'standalone' ? launchStandaloneProfile : launchProfile)(request.profile.id, request.workspace, desktop, placementToken)
+      const result = request.target === 'cli' ? await launchCliProfile(request.profile.id, request.workspace) : await (request.target === 'standalone' ? launchStandaloneProfile : launchProfile)(request.profile.id, request.workspace, desktop, placementToken)
       if (result.completed) {
         setLaunchRequest(null)
         setPlacementToken(null)
@@ -419,34 +443,6 @@ export default function App() {
       launchLock.current = false
       setLaunchBusy(false)
       await refresh()
-    }
-  }
-
-  async function handleCheckLimits(profile: Profile) {
-    if (limitChecks[profile.id]?.loading) return
-    setLimitChecks((current) => ({
-      ...current,
-      [profile.id]: { ...current[profile.id], loading: true, error: undefined },
-    }))
-    try {
-      const data = await checkProfileLimits(profile.id)
-      setLimitChecks((current) => ({ ...current, [profile.id]: { loading: false, data } }))
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      setLimitChecks((current) => ({
-        ...current,
-        [profile.id]: { ...current[profile.id], loading: false, error: message },
-      }))
-    }
-  }
-
-  async function handleRefreshAllLimits() {
-    if (refreshingAllLimits || chatGptProfiles.length === 0) return
-    setRefreshingAllLimits(true)
-    try {
-      await Promise.all(chatGptProfiles.map((profile) => handleCheckLimits(profile)))
-    } finally {
-      setRefreshingAllLimits(false)
     }
   }
 
@@ -524,6 +520,7 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
+            <ThemePicker value={colorTheme} onChange={setColorTheme} />
             <button className="button secondary" type="button" onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
             <button className="storage-status" type="button" title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
@@ -558,11 +555,11 @@ export default function App() {
               <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
               {refreshingAllLimits ? "Refreshing all" : "Refresh all"}
             </button>
-            <button className="button primary header-button" type="button" onClick={openAdd}>
-              <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
-              Add account
-            </button>
           </div>
+          <button className="button primary header-button" type="button" onClick={openAdd}>
+            <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
+            Add account
+          </button>
         </div>
       </header>
 
@@ -590,7 +587,7 @@ export default function App() {
             <div className="state-panel empty-state"><BrandMark /><h2>No accounts yet</h2><p>Add an auth JSON or import your current Codex account.</p><button className="button primary" type="button" onClick={openAdd}>Add your first account</button></div>
           ) : (
             <div className="profile-list">
-              {profiles.map((profile) => (
+              {orderedProfiles.map((profile) => (
                 <ProfileRow
                   key={profile.id}
                   profile={profile}
@@ -648,8 +645,8 @@ export default function App() {
       }} /> : null}
       {launchRequest ? (
         <WorkspaceDialog
-          showDesktopPicker={!hideDesktopPicker}
-          appName={launchRequest.target === 'standalone' ? 'Codex app' : 'VS Code'}
+          showDesktopPicker={!hideDesktopPicker && launchRequest.target !== "cli"}
+          appName={launchRequest.target === 'cli' ? 'CLI' : launchRequest.target === 'standalone' ? 'Codex' : 'VS Code'}
           profile={launchRequest.profile}
           workspace={launchRequest.workspace}
           busy={launchBusy}

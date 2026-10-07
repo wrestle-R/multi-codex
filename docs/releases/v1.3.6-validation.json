@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "version": "1.3.6",
+  "artifacts": {},
+  "checks": {
+    "packaged-macos-26-arm64": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "macos-signing-notarization": {
+      "status": "pending",
+      "reason": "Optional; no Apple Developer ID signature or notarization is configured.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null,
+      "requiredForPublication": false
+    },
+    "packaged-debian-ubuntu": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-fedora": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-arch": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "hyprland-placement": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "gnome-wayland-placement": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "gnome-x11-placement": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "kde-wayland-placement": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "kde-x11-placement": {
+      "status": "pending",
+      "reason": "Broader installed-package validation has not been performed for this release.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    }
+  },
+  "publication": {
+    "status": "draft-pending-validation",
+    "requestedOn": "2026-10-07",
+    "fullValidationChecksRemainPending": true,
+    "signingAndNotarizationOptional": true,
+    "macDistribution": "checksum-verified unsigned DMG with explicit installer opt-in"
+  },
+  "releaseChecks": {
+    "linux-build": {
+      "status": "pending",
+      "reason": "Candidate verification has not completed."
+    },
+    "macos-build": {
+      "status": "pending",
+      "reason": "Candidate verification has not completed."
+    },
+    "linux-installer": {
+      "status": "pending",
+      "reason": "Candidate verification has not completed."
+    },
+    "macos-installer": {
+      "status": "pending",
+      "reason": "Candidate verification has not completed."
+    },
+    "linux-isolation": {
+      "status": "pending",
+      "reason": "Candidate verification has not completed."
+    },
+    "macos-isolation": {
+      "status": "pending",
+      "reason": "Candidate verification has not completed."
+    }
+  }
+}
