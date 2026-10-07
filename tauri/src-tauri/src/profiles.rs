@@ -10,7 +10,7 @@ use std::io::{self, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
-#[cfg(any(target_os = "linux", test))]
+#[cfg(test)]
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -536,7 +536,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     pub fn launch_cli_profile(&self, id: &str, workspace: &Path) -> Result<()> {
-        let codex = resolve_codex_command()?;
+        let codex = resolve_interactive_codex_command()?;
         self.launch_cli_profile_with_command(id, workspace, &codex)
     }
 
@@ -554,31 +554,16 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let workspace = canonical_workspace(workspace)?;
         let paths = self.profile_paths(id)?;
         let args = cli_arguments(codex, &paths.codex_home, &workspace);
+        let (terminal, binary) = crate::terminals::choose(crate::settings::load()?.cli_terminal)?;
         #[cfg(target_os = "linux")]
         {
-            for (terminal, flag) in [
-                ("konsole", "-e"),
-                ("gnome-terminal", "--"),
-                ("xfce4-terminal", "-x"),
-                ("xterm", "-e"),
-            ] {
-                if let Ok(binary) = resolve_command(terminal) {
-                    Command::new(binary)
-                        .arg(flag)
-                        .args(&args)
-                        .current_dir(&workspace)
-                        .stdin(Stdio::null())
-                        .stdout(Stdio::null())
-                        .stderr(Stdio::null())
-                        .spawn()
-                        .map_err(|e| format!("Could not open terminal: {e}"))?;
-                    return Ok(());
-                }
-            }
-            Err("Install Konsole, GNOME Terminal, XFCE Terminal or xterm to launch the CLI.".into())
+            crate::terminals::launch(terminal, &binary, &args, &workspace)
         }
         #[cfg(target_os = "macos")]
         {
+            if terminal != crate::terminals::Terminal::Terminal {
+                return crate::terminals::launch(terminal, &binary, &args, &workspace);
+            }
             let shell = args
                 .iter()
                 .map(|arg| format!("'{}'", arg.replace('\'', "'\\''")))
@@ -1625,6 +1610,60 @@ pub(crate) fn resolve_codex_command() -> Result<PathBuf> {
     })
 }
 
+// The VS Code extension's helper binary supports app-server calls but can lack
+// the local package needed for an interactive CLI. Keep its discovery for usage
+// queries while choosing a complete installation for terminal launches.
+pub(crate) fn resolve_interactive_codex_command() -> Result<PathBuf> {
+    let settings = crate::settings::load()?;
+    if let Some(path) = settings.codex_path {
+        let path = PathBuf::from(path);
+        if is_executable_file(&path) && !is_extension_cli(&path) {
+            return Ok(path);
+        }
+        return Err("The saved Codex executable is unavailable or belongs to the VS Code extension. Install the full Codex CLI and update its path in Launch settings.".into());
+    }
+    let home = dirs::home_dir().unwrap_or_default();
+    interactive_codex_with(env::var_os("PATH").as_deref(), &home)
+        .or_else(crate::launch_targets::bundled_standalone_cli)
+        .ok_or_else(|| "A complete Codex CLI installation is required. Install the Codex CLI and set its executable path in Launch settings.".into())
+}
+
+fn is_extension_cli(path: &Path) -> bool {
+    path.components().any(|part| {
+        part.as_os_str()
+            .to_string_lossy()
+            .starts_with("openai.chatgpt-")
+    }) || fs::canonicalize(path).is_ok_and(|canonical| {
+        canonical.components().any(|part| {
+            part.as_os_str()
+                .to_string_lossy()
+                .starts_with("openai.chatgpt-")
+        })
+    })
+}
+
+fn interactive_codex_with(path: Option<&OsStr>, home: &Path) -> Option<PathBuf> {
+    let paths = path
+        .map(env::split_paths)
+        .into_iter()
+        .flatten()
+        .map(|directory| directory.join("codex"));
+    #[cfg(target_os = "macos")]
+    let platform_paths = [
+        PathBuf::from("/opt/homebrew/bin/codex"),
+        PathBuf::from("/usr/local/bin/codex"),
+    ];
+    #[cfg(target_os = "linux")]
+    let platform_paths: [PathBuf; 0] = [];
+    paths
+        .chain([
+            home.join(".local/bin/codex"),
+            home.join(".npm-global/bin/codex"),
+        ])
+        .chain(platform_paths)
+        .find(|candidate| is_executable_file(candidate) && !is_extension_cli(candidate))
+}
+
 #[cfg(test)]
 fn require_codex_command(path: Option<&OsStr>, home: &Path) -> Result<PathBuf> {
     resolve_command_with("codex", path, home).ok_or_else(|| {
@@ -2258,6 +2297,27 @@ mod tests {
         assert_eq!(detected, RuntimeStatus::Running);
         assert!(deletion.is_err());
         assert!(cleanup.is_err());
+    }
+
+    #[test]
+    fn interactive_cli_skips_extension_helpers_and_symlinks_to_them() {
+        let root = tempfile::tempdir().unwrap();
+        let extension_dir = root.path().join("openai.chatgpt-test/bin");
+        let alias_dir = root.path().join("aliases");
+        let installed = root.path().join(".local/bin/codex");
+        fs::create_dir_all(&extension_dir).unwrap();
+        fs::create_dir_all(&alias_dir).unwrap();
+        fs::create_dir_all(installed.parent().unwrap()).unwrap();
+        let extension = extension_dir.join("codex");
+        write_executable(&extension, b"#!/bin/sh\nexit 0\n");
+        std::os::unix::fs::symlink(&extension, alias_dir.join("codex")).unwrap();
+        let paths = env::join_paths([&alias_dir, &extension_dir]).unwrap();
+        assert!(interactive_codex_with(Some(&paths), root.path()).is_none());
+        write_executable(&installed, b"#!/bin/sh\nexit 0\n");
+        assert_eq!(
+            interactive_codex_with(Some(&paths), root.path()).unwrap(),
+            installed
+        );
     }
 
     #[test]

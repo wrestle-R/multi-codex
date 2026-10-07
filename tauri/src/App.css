@@ -325,8 +325,8 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 
 .launch-settings-form { display: grid; gap: 1rem; margin-top: 1rem; }
 .launch-settings-form label { display: grid; gap: 0.45rem; font-size: 0.85rem; font-weight: 600; }
-.launch-settings-form input { min-width: 0; width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; font-weight: 400; }
-.launch-settings-form input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.launch-settings-form input, .launch-settings-form select { min-width: 0; width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; color: var(--foreground); background: var(--card); font: inherit; font-weight: 400; }
+.launch-settings-form input:focus-visible, .launch-settings-form select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 .launch-settings-form .desktop-picker-setting {
   display: flex;
@@ -497,6 +497,7 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .theme-preview-rose { --preview-bg: #f0dfe5; --preview-accent: #945368; --preview-surface: #fff5f8; }
 .theme-preview-plum { --preview-bg: #e9def1; --preview-accent: #775588; --preview-surface: #faf5ff; }
 .theme-preview-orange { --preview-bg: #f5e3d4; --preview-accent: #e98c52; --preview-surface: #fff9f4; }
+.dark .theme-preview-orange { --preview-bg: #1c1b1d; --preview-accent: #ed965b; --preview-surface: #252525; }
 @media (max-width: 1100px) { .theme-popover { left: 0; right: auto; } }
 @media (prefers-reduced-motion: reduce) { .theme-popover { animation: none; } }
 
@@ -509,3 +510,20 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .limits-freshness { grid-column: 1 / -1; color: var(--muted-foreground); font-size: .65rem; margin-top: .1rem; }
 .is-refreshing svg { animation: usage-refresh 1s linear infinite; }
 @keyframes usage-refresh { to { transform: rotate(360deg); } }
+
+.reset-reminder { position: fixed; top: 88px; right: 20px; z-index: 50; display: flex; align-items: flex-start; gap: 12px; width: min(380px, calc(100vw - 32px)); padding: 16px; border: 1px solid color-mix(in oklab, var(--primary) 30%, var(--border)); border-radius: 14px; color: var(--foreground); background: var(--card); box-shadow: var(--shadow); animation: reminder-enter 180ms ease-out; }
+.reset-reminder-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 auto; color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, var(--card)); border-radius: 10px; }
+.reset-reminder-content { flex: 1; min-width: 0; }
+.reset-reminder-content strong { font-size: .91rem; font-weight: 600; }
+.reset-reminder-content p { margin: 6px 0; color: var(--muted-foreground); font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
+.reset-reminder-next { font-size: .73rem; color: var(--muted-foreground); }
+.reset-reminder-view { display: flex; align-items: center; gap: 10px; padding: 0; margin-top: 12px; color: var(--primary); background: transparent; font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; }
+.reset-reminder-close { padding: 0 3px; color: var(--muted-foreground); background: transparent; font-size: 1.25rem; line-height: 1; cursor: pointer; }
+.reset-reminder-accounts { display: grid; gap: 4px; max-height: 200px; overflow-y: auto; margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.reset-reminder-accounts button { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 7px; color: var(--foreground); background: var(--muted); font: inherit; font-size: .78rem; text-align: left; cursor: pointer; }
+.reset-reminder-accounts button > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.reset-reminder-accounts small { color: var(--muted-foreground); white-space: nowrap; }
+.reset-reminder button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@keyframes reminder-enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 780px) { .reset-reminder { top: 16px; right: 16px; } }
+@media (prefers-reduced-motion: reduce) { .reset-reminder { animation: none; } }

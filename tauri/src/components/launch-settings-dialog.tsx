@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react"
-import { getExecutableSettings, getLaunchEnvironment, getLaunchTargets, saveExecutableSettings } from "../lib/desktop-api"
-import type { ExecutableSettings, LaunchTargets } from "../lib/types"
+import { getExecutableSettings, getLaunchEnvironment, getLaunchTargets, getTerminalOptions, saveExecutableSettings } from "../lib/desktop-api"
+import type { ExecutableSettings, LaunchTargets, TerminalId, TerminalOption } from "../lib/types"
 import { useDialogFocus } from "./use-dialog-focus"
 import { WorkspacePickerDialog } from "./workspace-picker-dialog"
 
@@ -8,6 +8,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   const titleId = useId()
   const [settings, setSettings] = useState<ExecutableSettings>({ codePath: null, codexPath: null, globalCodexHome: null })
   const [targets, setTargets] = useState<LaunchTargets | null>(null)
+  const [terminals, setTerminals] = useState<TerminalOption[]>([])
   const [defaultFolder, setDefaultFolder] = useState("")
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -16,11 +17,12 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   const dialogRef = useDialogFocus(onClose, busy, !browsing)
   useEffect(() => {
     let active = true
-    void Promise.all([getExecutableSettings(), getLaunchTargets(), getLaunchEnvironment()])
-      .then(([value, apps, environment]) => {
+    void Promise.all([getExecutableSettings(), getLaunchTargets(), getLaunchEnvironment(), getTerminalOptions()])
+      .then(([value, apps, environment, terminalOptions]) => {
         if (!active) return
         setSettings(value)
         setTargets(apps)
+        setTerminals(terminalOptions)
         setDefaultFolder(environment.defaultWorkspace)
       })
       .catch(error => { if (active) setError(String(error)) })
@@ -58,6 +60,13 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
             </div>
             <p className="desktop-notice">{!targets.standaloneInstalled || targets.standaloneVerified ? "CLI appears alongside your chosen apps when installed. Each uses your isolated account." : `Codex ${targets.standaloneVersion ?? 'version'} has not passed account-isolation verification. Choose an available option below.`}</p>
           </fieldset> : null}
+          <label>CLI terminal
+            <select value={settings.cliTerminal ?? "automatic"} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, cliTerminal: event.target.value as TerminalId }))}>
+              {terminals.map(terminal => <option key={terminal.id} value={terminal.id} disabled={!terminal.available && terminal.id !== (settings.cliTerminal ?? "automatic")}>{terminal.label}{terminal.available ? "" : " (not installed)"}</option>)}
+              {settings.cliTerminal && !terminals.some(terminal => terminal.id === settings.cliTerminal) ? <option value={settings.cliTerminal}>{settings.cliTerminal} (unavailable on this platform)</option> : null}
+            </select>
+          </label>
+          <p className="desktop-notice">Choose an installed terminal for CLI launches. Uses your selected account’s saved sign-in. Automatic uses the first supported terminal found.</p>
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
           <details className="advanced-settings">
             <summary>Advanced <span>Executable paths and Codex home</span></summary>

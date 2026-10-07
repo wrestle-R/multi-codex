@@ -32,6 +32,8 @@ pub struct ExecutableSettings {
     pub detected_apps: Option<crate::launch_targets::LaunchTargets>,
     #[serde(default)]
     pub launch_mode: LaunchMode,
+    #[serde(default)]
+    pub cli_terminal: crate::terminals::Terminal,
 }
 
 pub fn data_root() -> Result<PathBuf> {
@@ -185,11 +187,13 @@ mod tests {
         settings.hide_desktop_picker = true;
         settings.preferred_workspace = Some("/Users/test/My Projects".into());
         settings.launch_mode = LaunchMode::Both;
+        settings.cli_terminal = crate::terminals::Terminal::Kitty;
         save_to(root.path(), &settings).unwrap();
         let saved = load_from(root.path()).unwrap();
         assert!(saved.hide_desktop_picker);
         assert_eq!(saved.preferred_workspace, settings.preferred_workspace);
         assert_eq!(saved.launch_mode, LaunchMode::Both);
+        assert_eq!(saved.cli_terminal, crate::terminals::Terminal::Kitty);
     }
 
     #[test]

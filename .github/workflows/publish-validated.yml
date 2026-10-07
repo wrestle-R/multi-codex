@@ -5,7 +5,7 @@ on:
       tag:
         description: Existing draft candidate tag
         required: true
-        default: v1.3.6
+        default: v1.3.7
 permissions:
   contents: write
 jobs:
