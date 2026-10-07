@@ -1,14 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "1.3.8",
-  "artifacts": {
-    "Multi.Codex-1.3.8-1.x86_64.rpm": "ae65539f917b9567200c089fd576b04703fa71caeff571af2524e5127865c2a3",
-    "Multi.Codex_1.3.8_aarch64.dmg": "037a168d174e0dfd63dff65493a983794e09d633435db4799298fd7ca7f78988",
-    "Multi.Codex_1.3.8_amd64.AppImage": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
-    "Multi.Codex_1.3.8_amd64.deb": "ae6b5384aecfddcb70a2ab1a9c7897953ec496cb781ac39f8cac28d235a7d802",
-    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
-    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60"
-  },
+  "artifacts": {},
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
@@ -109,32 +102,20 @@
   },
   "releaseChecks": {
     "linux-build": {
-      "status": "passed",
-      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
-      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37580025237; tests: https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
-      "testedBy": "GitHub Actions",
-      "testedAt": "2026-10-07T06:25:14.392061+00:00"
+      "status": "pending",
+      "reason": "Package build and exact-package verification are pending."
     },
     "macos-build": {
-      "status": "passed",
-      "environment": "macOS 26 Apple Silicon GitHub runner",
-      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37580025237; tests: https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
-      "testedBy": "GitHub Actions",
-      "testedAt": "2026-10-07T06:25:14.392061+00:00"
+      "status": "pending",
+      "reason": "Package build and exact-package verification are pending."
     },
     "linux-installer": {
-      "status": "passed",
-      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
-      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37581402014",
-      "testedBy": "GitHub Actions",
-      "testedAt": "2026-10-07T06:27:37.645742+00:00"
+      "status": "pending",
+      "reason": "Package build and exact-package verification are pending."
     },
     "macos-installer": {
-      "status": "passed",
-      "environment": "macOS 26 Apple Silicon GitHub runner",
-      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37581402014",
-      "testedBy": "GitHub Actions",
-      "testedAt": "2026-10-07T06:27:37.645742+00:00"
+      "status": "pending",
+      "reason": "Package build and exact-package verification are pending."
     },
     "linux-isolation": {
       "status": "passed",

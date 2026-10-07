@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
@@ -197,6 +198,7 @@ jobs:
           if-no-files-found: warn
 
   prepare-draft:
+    if: github.event_name != 'workflow_dispatch'
     needs: [linux, macos]
     runs-on: ubuntu-22.04
     steps:

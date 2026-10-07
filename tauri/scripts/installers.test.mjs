@@ -21,6 +21,8 @@ for (const script of ['install-app.sh', 'update-app.sh']) {
         ['Linux', 'x86_64', '', 'v1.3.0', 'Multi.Codex_1.3.0_amd64.AppImage', 56],
         ['Linux', 'aarch64', '', 'v1.3.0', null, 1],
         ['Darwin', 'arm64', '27.0.1', 'v1.3.0', 'Multi.Codex_1.3.0_aarch64.dmg', 56],
+        ['Darwin', 'arm64', '26.0', 'v2.0.0', 'Multi.Codex_2.0.0_aarch64.dmg', 56],
+        ['Darwin', 'x86_64', '15.0', 'v1.0.2', 'Multi.Codex_1.0.2_universal.dmg', 56],
         ['Darwin', 'arm64', '25.0', 'v1.3.0', null, 1],
         ['Darwin', 'x86_64', '26.0', 'v1.3.0', null, 1],
         ['Darwin', 'x86_64', '15.0', 'v1.2.3', 'Multi.Codex_1.2.3_universal.dmg', 56],
