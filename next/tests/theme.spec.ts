@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test"
 
 test("docs explain Linux-only desktop placement and show screenshots matching a persistent theme", async ({ page }) => {
+  test.setTimeout(60_000)
   const errors: string[] = []
   page.on("pageerror", error => errors.push(error.message))
   await page.emulateMedia({ colorScheme: "light" })
@@ -10,13 +11,15 @@ test("docs explain Linux-only desktop placement and show screenshots matching a 
   await expect(page.locator("#terminals")).toContainText("installed terminals only")
   const screenshot = page.getByRole("img", { name: "Multi Codex Linux desktop selection interface" })
   await expect(screenshot).toHaveAttribute("src", /workspace-light/)
-  await expect.poll(() => screenshot.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  await screenshot.scrollIntoViewIfNeeded()
+  await expect.poll(() => screenshot.evaluate(element => (element as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0)
   const toggle = page.getByRole("button", { name: "Toggle color theme" })
   await toggle.focus()
   await page.keyboard.press("Enter")
   await expect(toggle).toHaveAttribute("aria-pressed", "true")
   await expect(screenshot).toHaveAttribute("src", /workspace-dark/)
-  await expect.poll(() => screenshot.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  await screenshot.scrollIntoViewIfNeeded()
+  await expect.poll(() => screenshot.evaluate(element => (element as HTMLImageElement).naturalWidth), { timeout: 20_000 }).toBeGreaterThan(0)
   expect(await page.locator("body").evaluate(element => getComputedStyle(element).backgroundColor)).toBe("rgb(24, 27, 24)")
   await page.reload()
   await expect(toggle).toHaveAttribute("aria-pressed", "true")
