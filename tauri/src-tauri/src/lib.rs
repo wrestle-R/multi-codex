@@ -2,6 +2,7 @@
 mod application_icons;
 mod desktop_environment;
 mod desktop_integration;
+mod extension_accounts;
 mod launch;
 mod launch_targets;
 #[cfg(target_os = "linux")]
@@ -11,6 +12,8 @@ mod profiles;
 mod settings;
 mod terminals;
 mod usage;
+
+pub use extension_accounts::run_account_helper;
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
