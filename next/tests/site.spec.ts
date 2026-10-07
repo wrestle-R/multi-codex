@@ -1,5 +1,34 @@
 import { test, expect } from "@playwright/test"
 
+test("release timeline includes every published version with an improvement and its original notes", async ({ page }) => {
+  const tags = ["v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
+  await page.goto("/releases")
+  const timeline = page.getByRole("list", { name: "Release history" })
+  const entries = timeline.locator(":scope > li")
+  await expect(entries).toHaveCount(tags.length)
+  expect(await entries.evaluateAll(elements => elements.map(element => element.id))).toEqual(tags)
+  let previous = Infinity
+  for (const [index, tag] of tags.entries()) {
+    const entry = entries.nth(index)
+    const published = Date.parse((await entry.locator("time").getAttribute("datetime"))!)
+    expect(Number.isFinite(published) && published <= previous).toBe(true)
+    previous = published
+    await expect(entry.getByRole("heading", { level: 2 })).not.toHaveText("")
+    expect(await entry.locator("article li").count()).toBeGreaterThanOrEqual(1)
+    await expect(entry.getByRole("link", { name: `Full release notes for ${tag} ↗` })).toHaveAttribute("href", `https://github.com/wrestle-R/multi-codex/releases/tag/${tag}`)
+  }
+  await expect(entries.first()).toContainText("Latest release")
+  await expect(entries.last()).toContainText("The beginning")
+  await timeline.getByRole("link", { name: "v0.1.0 permalink", exact: true }).click()
+  await expect(page).toHaveURL(/#v0\.1\.0$/)
+  for (const theme of ["dark", "light"]) {
+    await page.getByRole("button", { name: "Toggle color theme" }).click()
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme)
+    await page.setViewportSize({ width: 320, height: 800 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  }
+})
+
 test("showcase, docs and changelog navigate with working release links and no horizontal overflow", async ({ page }) => {
   const errors: string[] = []
   page.on("pageerror", error => errors.push(error.message))

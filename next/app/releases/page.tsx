@@ -1,20 +1,42 @@
 import type { Metadata } from "next"
+import { releaseHistory } from "../../lib/releases"
 import { latestRelease, repository, version } from "../../lib/site"
-export const metadata: Metadata = { title: "Releases" }
+
+export const metadata: Metadata = {
+  title: "Releases",
+  description: "Follow Multi Codex from its first release to today. Every published version, with the improvements it brought.",
+}
+
+const releaseDate = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
+
 export default function Releases() {
   return <main id="main" className="release-page page-width">
-    <p className="eyebrow">A LITTLE BETTER, EVERY RELEASE</p><h1>What’s new.</h1><p className="page-description">Small improvements that make room for your work.</p>
-    <article className="release-entry">
-      <div className="release-meta"><span className="release-pill"><span className="status-dot" />v{version}</span><time dateTime="2026-10-07">October 7, 2026</time></div>
-      <div><h2>A little more room.</h2><ul>
-        <li><strong>A cleaner terminal picker.</strong> Automatic and installed terminals appear in a menu that matches your theme, with a checkmark for your selection.</li>
-        <li><strong>Settings that breathe.</strong> Workspace and Launching have their own sections. Save and Cancel stay visible while advanced options scroll.</li>
-        <li><strong>Keyboard friendly.</strong> Use arrows, Home/End, typing, Enter and Escape to choose a terminal.</li>
-        <li><strong>Your preferences stay yours.</strong> Removed terminals are explained without silently changing a saved choice. Account data and existing paths stay intact.</li>
-      </ul><div className="release-actions"><a className="button primary" href={latestRelease}>Download latest ↓</a><a className="text-link" href={`${repository}/releases/tag/v${version}`}>Full release notes ↗</a></div></div>
-    </article>
-    <article className="release-entry"><div className="release-meta"><span>v1.3.7</span><time dateTime="2026-10-07">October 7, 2026</time></div><div><h2>Your terminal. Timely reminders.</h2><p>Choose a CLI terminal, launch a complete CLI with your selected account, and see grouped reminders for resets expiring within 48 hours. The Orange preview matches dark mode.</p><a className="text-link" href={`${repository}/releases/tag/v1.3.7`}>Read the release notes ↗</a></div></article>
-    <article className="release-entry"><div className="release-meta"><span>v1.3.6</span><time dateTime="2026-10-07">October 7, 2026</time></div><div><h2>A CLI for every account.</h2><p>Account-row CLI launch, isolated account homes, automatic usage refresh, plan ordering and six color palettes in light and dark.</p><a className="text-link" href={`${repository}/releases/tag/v1.3.6`}>Read the release notes ↗</a></div></article>
+    <p className="eyebrow">A LITTLE BETTER, EVERY RELEASE</p>
+    <h1>What’s new.</h1>
+    <p className="page-description">From the first workspace to the one you use today. Every published release, and what it made better.</p>
+    <div className="release-history-summary">
+      <span>{releaseHistory.length} published releases</span>
+      <span>Newest first · Since September 2026</span>
+      <a className="text-link" href={`${repository}/releases`}>Browse on GitHub ↗</a>
+    </div>
+    <ol className="release-timeline" role="list" aria-label="Release history">
+      {releaseHistory.map((release, index) => <li className={`release-entry${index === 0 ? " release-current" : ""}`} id={release.tag} key={release.tag}>
+        <div className="release-meta">
+          <a className="release-version" href={`#${release.tag}`}>{release.tag}<span className="sr-only"> permalink</span></a>
+          <time dateTime={release.publishedAt}>{releaseDate.format(new Date(release.publishedAt))}</time>
+          {index === 0 && <span className="release-pill"><span className="status-dot" />Latest release</span>}
+          {index === releaseHistory.length - 1 && <span className="release-origin">The beginning</span>}
+        </div>
+        <article aria-labelledby={`${release.tag}-title`}>
+          <h2 id={`${release.tag}-title`}>{release.title}</h2>
+          <ul>{release.highlights.map(highlight => <li key={highlight}>{highlight}</li>)}</ul>
+          <div className="release-actions">
+            {index === 0 && <a className="button primary" href={latestRelease}>Download latest ↓</a>}
+            <a className="text-link" href={`${repository}/releases/tag/${release.tag}`}>Full release notes<span className="sr-only"> for {release.tag}</span> ↗</a>
+          </div>
+        </article>
+      </li>)}
+    </ol>
     <div className="doc-note"><strong>Release verification</strong><p>Mac/Linux builds and installer checks are tracked separately from broader platform validation. The Mac package remains unsigned and unnotarized.</p><a href={`${repository}/blob/main/docs/releases/v${version}-validation.json`}>View the validation manifest →</a></div>
   </main>
 }
