@@ -22,3 +22,9 @@ BASE_URL=https://multi-codex.vercel.app npx playwright test tests/site.spec.ts t
 ```
 
 Local WebKit cannot start on this host because legacy shared libraries are missing. WebKit coverage passed on both CI runners.
+
+## Published packages
+
+[Package builds](https://github.com/wrestle-R/multi-codex/actions/runs/37732606176) and [exact-package installer checks](https://github.com/wrestle-R/multi-codex/actions/runs/37734192047) passed for v1.3.8. The DEB package metadata and installed Mac bundle report 1.3.8. Linux install/update preserved account, conversation and default-login fixtures; Mac install/update also passed native startup/restart and signature-integrity checks. All six published package/script digests and the checksum manifest match the recorded files.
+
+Broader distro and desktop coverage remains tracked separately in the release manifest.
