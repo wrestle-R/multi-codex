@@ -9,6 +9,7 @@ mod linux_desktops;
 mod process;
 mod profiles;
 mod settings;
+mod terminals;
 mod usage;
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
@@ -326,6 +327,11 @@ fn cancel_device_login(id: String, state: State<'_, AppState>) -> Result<(), Str
 }
 
 #[tauri::command]
+async fn get_terminal_options() -> Vec<terminals::TerminalOption> {
+    terminals::options()
+}
+
+#[tauri::command]
 async fn get_executable_settings() -> Result<settings::ExecutableSettings, String> {
     tauri::async_runtime::spawn_blocking(settings::load)
         .await
@@ -570,6 +576,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_desktop_inventory,
             get_executable_settings,
+            get_terminal_options,
             save_executable_settings,
             discard_placement,
             list_profiles,

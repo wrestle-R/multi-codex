@@ -5,6 +5,8 @@ import type { Profile } from "../lib/types"
 
 export function useProfileLimits(profiles: Profile[], ready: boolean) {
   const [limitChecks, setLimitChecks] = useState(readLimitsCache)
+  const latestProfiles = useRef(profiles)
+  useEffect(() => { latestProfiles.current = profiles }, [profiles])
   const started = useRef(new Set<string>())
   const requests = useRef(new Map<string, Promise<void>>())
   const handleCheckLimits = useCallback((profile: Profile): Promise<void> => {
@@ -36,6 +38,19 @@ export function useProfileLimits(profiles: Profile[], ready: boolean) {
   useEffect(() => {
     if (ready) saveLimitsCache(limitChecks, new Set(profiles.map(profile => profile.id)))
   }, [limitChecks, profiles, ready])
+  useEffect(() => {
+    if (!ready) return
+    const refreshVisible = () => {
+      if (document.visibilityState !== "hidden") void Promise.all(latestProfiles.current.map(handleCheckLimits))
+    }
+    // Refresh expiry details while open, and after returning from the background.
+    const timer = window.setInterval(refreshVisible, 15 * 60_000)
+    document.addEventListener("visibilitychange", refreshVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", refreshVisible)
+    }
+  }, [ready, handleCheckLimits])
   const refreshingAllLimits = profiles.some(profile => limitChecks[profile.id]?.loading)
   const handleRefreshAllLimits = () => Promise.all(profiles.map(handleCheckLimits))
   return { limitChecks, refreshingAllLimits, handleCheckLimits, handleRefreshAllLimits }

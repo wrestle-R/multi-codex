@@ -23,7 +23,7 @@ pub fn detect() -> LaunchTargets {
     LaunchTargets {
         platform: platform.into(),
         vscode_installed: crate::profiles::resolve_command("code").is_ok(),
-        codex_cli_available: crate::profiles::resolve_codex_command().is_ok(),
+        codex_cli_available: crate::profiles::resolve_interactive_codex_command().is_ok(),
         standalone_installed: desktop.is_some(),
         standalone_verified: verified_version(platform, std::env::consts::ARCH, version.as_deref()),
         standalone_version: version,

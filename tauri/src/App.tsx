@@ -21,6 +21,7 @@ import { LaunchSettingsDialog } from "./components/launch-settings-dialog"
 import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
 import { ProfileDialog } from "./components/profile-dialog"
 import { ProfileRow } from "./components/profile-row"
+import { ResetExpiryReminder } from "./components/reset-expiry-reminder"
 import { ResetCreditsDialog } from "./components/reset-credits-dialog"
 import { StorageDialog } from "./components/storage-dialog"
 import { WelcomeScreen } from "./components/welcome-screen"
@@ -510,6 +511,7 @@ export default function App() {
 
   return (
     <main className="app-shell">
+      <ResetExpiryReminder profiles={profiles} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand-block">

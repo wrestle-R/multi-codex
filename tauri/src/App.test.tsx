@@ -28,6 +28,7 @@ const api = vi.hoisted(() => ({
   getDesktopIntegrationStatus: vi.fn(),
   getLaunchEnvironment: vi.fn(),
   getLaunchTargets: vi.fn(),
+  getTerminalOptions: vi.fn(),
   getStorageUsage: vi.fn(),
   installDesktopIntegration: vi.fn(),
 }))
@@ -47,6 +48,7 @@ let deviceLoginListener: ((event: { id: string; output?: string; completed: bool
 
 beforeEach(() => {
   localStorage.clear()
+  api.getTerminalOptions.mockReset().mockResolvedValue([{ id: "automatic", label: "Automatic", available: true }, { id: "konsole", label: "Konsole", available: true }, { id: "kitty", label: "Kitty", available: true }, { id: "ghostty", label: "Ghostty", available: false }])
   api.listProfiles.mockReset().mockResolvedValue([profile])
   api.addProfile.mockReset().mockResolvedValue(profile)
   api.beginDeviceLogin.mockReset().mockResolvedValue("device-login")
@@ -978,4 +980,51 @@ it("orders displayed accounts Pro, Plus, Go, then Free without changing same-pla
   expect([...document.querySelectorAll(".profile-heading h2")].map(heading => heading.textContent)).toEqual([
     "Pro account", "Plus account", "Go account", "Free one", "Free two",
   ])
+})
+
+
+it("saves a selected CLI terminal without changing the account or executable settings", async () => {
+  const user = userEvent.setup()
+  api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: "/home/test/.local/bin/codex", globalCodexHome: null, cliTerminal: "konsole", launchMode: "cli" })
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  const terminal = await screen.findByRole("combobox", { name: "CLI terminal" })
+  await waitFor(() => expect(terminal).toHaveValue("konsole"))
+  expect(screen.getByRole("option", { name: "Ghostty (not installed)" })).toBeDisabled()
+  await user.selectOptions(terminal, "kitty")
+  await user.click(screen.getByRole("button", { name: "Save settings" }))
+  expect(api.saveExecutableSettings).toHaveBeenCalledWith(expect.objectContaining({ cliTerminal: "kitty", codexPath: "/home/test/.local/bin/codex", launchMode: "cli" }))
+})
+
+it("preserves a saved terminal preference when it is no longer installed", async () => {
+  const user = userEvent.setup()
+  api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, cliTerminal: "ghostty" })
+  render(<App />)
+  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  const terminal = await screen.findByRole("combobox", { name: "CLI terminal" })
+  await waitFor(() => expect(terminal).toHaveValue("ghostty"))
+  await user.click(screen.getByRole("button", { name: "Save settings" }))
+  expect(api.saveExecutableSettings).toHaveBeenCalledWith(expect.objectContaining({ cliTerminal: "ghostty" }))
+})
+
+it("groups expiring resets at the top, opens account details, and keeps the dismissal limit after remount", async () => {
+  const user = userEvent.setup()
+  const now = Date.now()
+  api.listProfiles.mockResolvedValue([profile, { ...profile, id: "second", name: "Work" }])
+  api.checkProfileLimits.mockResolvedValue({ fiveHour: null, weekly: null, monthly: null, resetCreditsAvailable: 2, resetCredits: [
+    { id: "soon", status: "available", expiresAt: (now + 60 * 60_000) / 1000, grantedAt: 0, resetType: "codexRateLimits" },
+    { id: "tomorrow", status: "available", expiresAt: (now + 36 * 60 * 60_000) / 1000, grantedAt: 0, resetType: "codexRateLimits" },
+  ], checkedAt: new Date(now).toISOString() })
+  const first = render(<App />)
+  const reminder = await screen.findByRole("complementary", { name: "Expiring usage resets" })
+  expect(within(reminder).getByText("4 resets across 2 accounts expire within 48 hours.")).toBeInTheDocument()
+  await user.click(within(reminder).getByRole("button", { name: "View resets" }))
+  await user.click(within(reminder).getByRole("button", { name: /Work/ }))
+  expect(await screen.findByRole("dialog", { name: "Reset credits" })).toBeInTheDocument()
+  expect(screen.queryByRole("complementary", { name: "Expiring usage resets" })).not.toBeInTheDocument()
+  first.unmount()
+  render(<App />)
+  await screen.findByRole("heading", { name: "Work" })
+  await new Promise(resolve => setTimeout(resolve, 300))
+  expect(screen.queryByRole("complementary", { name: "Expiring usage resets" })).not.toBeInTheDocument()
 })
