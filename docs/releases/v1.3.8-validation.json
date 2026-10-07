@@ -1,11 +1,18 @@
 {
   "schemaVersion": 1,
   "version": "1.3.8",
-  "artifacts": {},
+  "artifacts": {
+    "Multi.Codex-1.3.8-1.x86_64.rpm": "892987581fc3012c6dc794ecac6de96bfc69acc06dc67775aeae11be6d80ff39",
+    "Multi.Codex_1.3.8_aarch64.dmg": "932e3c25542b5dc6a4b245662cd3230833926c724feb9c43c32a5852b9c52dc7",
+    "Multi.Codex_1.3.8_amd64.AppImage": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
+    "Multi.Codex_1.3.8_amd64.deb": "9103af905832c4d6edb523856585002f0c3a4b00065e960384ef245fb490bc38",
+    "install-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d",
+    "update-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d"
+  },
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
-      "reason": "Exact DMG installer and native startup/restart checks passed. Broader installed-package validation remains incomplete; see the installer runner evidence.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -22,7 +29,7 @@
     },
     "packaged-debian-ubuntu": {
       "status": "pending",
-      "reason": "Exact AppImage install/update checks passed on Ubuntu. Broader DEB installed-package validation remains incomplete.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -30,7 +37,7 @@
     },
     "packaged-fedora": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -38,7 +45,7 @@
     },
     "packaged-arch": {
       "status": "pending",
-      "reason": "Exact AppImage startup/restart and install/update fixtures passed. Broader installed-package validation remains incomplete; see the local validation report.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -46,7 +53,7 @@
     },
     "hyprland-placement": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -54,7 +61,7 @@
     },
     "gnome-wayland-placement": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -62,7 +69,7 @@
     },
     "gnome-x11-placement": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -70,7 +77,7 @@
     },
     "kde-wayland-placement": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -78,7 +85,7 @@
     },
     "kde-x11-placement": {
       "status": "pending",
-      "reason": "Not yet validated for this release.",
+      "reason": "Broader installed-package and desktop validation remains pending; build and installer checks are tracked separately.",
       "osVersion": null,
       "testedBy": null,
       "testedAt": null,
@@ -93,21 +100,24 @@
     "authenticatedStandaloneEvidenceCarriedForward": true,
     "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.3.8",
     "publishedAt": "2026-10-07T06:27:55Z",
-    "latestReleaseVerifiedAt": "2026-10-07T06:39:55.743810+00:00",
-    "publishRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37581616717",
-    "localUpgrade": "passed",
-    "dataPreservation": "docs/releases/v1.3.8-local-validation.json",
     "website": "https://multi-codex.vercel.app",
-    "websiteValidation": "docs/releases/v1.3.8-website-validation.json"
+    "websiteValidation": "docs/releases/v1.3.8-website-validation.json",
+    "packageBuildRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176"
   },
   "releaseChecks": {
     "linux-build": {
-      "status": "pending",
-      "reason": "Package build and exact-package verification are pending."
+      "status": "passed",
+      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-08T05:37:41Z"
     },
     "macos-build": {
-      "status": "pending",
-      "reason": "Package build and exact-package verification are pending."
+      "status": "passed",
+      "environment": "macOS 26 Apple Silicon GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-08T05:34:00Z"
     },
     "linux-installer": {
       "status": "pending",
@@ -125,7 +135,7 @@
       "testedBy": "Codex automation with user sign-in",
       "carriedForwardFrom": "v1.3.5",
       "scope": "Carried authenticated evidence for unchanged standalone desktop version and backend launch construction; this release changes the frontend settings layout and terminal picker.",
-      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595"
+      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37732607598"
     },
     "macos-isolation": {
       "status": "passed",
@@ -135,7 +145,7 @@
       "testedBy": "Codex automation with user sign-in",
       "carriedForwardFrom": "v1.3.5",
       "scope": "Carried authenticated evidence for unchanged standalone desktop version and backend launch construction; this release changes the frontend settings layout and terminal picker.",
-      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595"
+      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37732607598"
     }
   },
   "settingsValidation": "docs/releases/v1.3.8-settings-validation.json"

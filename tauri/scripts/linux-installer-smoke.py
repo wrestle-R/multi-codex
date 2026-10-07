@@ -60,7 +60,7 @@ else:
         checks.append({"script": script, "exactReleasedAppImageInstalled": True,
                        "accountAndChatSentinelsUnchanged": True, "defaultLoginUnchanged": True})
 report = {"tag": tag, "appImageSha256": expected, "checks": checks,
-          "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks"}
+          "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"}
 output = Path(sys.argv[3])
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(json.dumps(report, indent=2) + "\n")
