@@ -3262,7 +3262,14 @@ mod tests {
         let captured = fs::read_to_string(capture).expect("Terminal did not run the isolated CLI");
         let pid = captured.lines().next().unwrap().parse::<u32>().unwrap();
         let detected = process_uses_profile(pid, &paths.codex_home);
-        let running = service.list_profiles().unwrap()[0].status == RuntimeStatus::Running;
+        let running = service
+            .list_profiles()
+            .unwrap()
+            .into_iter()
+            .find(|listed| listed.metadata.id == profile.metadata.id)
+            .unwrap()
+            .status
+            == RuntimeStatus::Running;
         let deletion = service.delete_profile(&profile.metadata.id);
         let cleanup = service.clear_profile_cache(&profile.metadata.id);
         // Kill only the PID written by this disposable fixture.
@@ -3279,7 +3286,11 @@ mod tests {
                 workspace.display()
             )
         );
-        assert!(detected && running && deletion.is_err() && cleanup.is_err());
+        assert!(
+            detected && running && deletion.is_err() && cleanup.is_err(),
+            "CLI guards: detected={detected}, running={running}, deletion_blocked={}, cleanup_blocked={}",
+            deletion.is_err(), cleanup.is_err()
+        );
         assert!(!fs::read_dir(&paths.codex_home).unwrap().any(|entry| entry
             .unwrap()
             .path()
