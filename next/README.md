@@ -11,7 +11,13 @@ npm run dev
 
 Playwright checks the production build on desktop Chromium, desktop WebKit and mobile Chromium. Before the first test run, use `npx playwright install chromium webkit` (Linux may also need browser system dependencies).
 
-Deploy from this directory to the dedicated `multi-codex` Vercel project after local and macOS/Linux CI checks pass. Run `vercel project inspect` here before deployment to confirm the intended team/project. `.vercel` is ignored. Release links resolve to GitHub’s latest stable packages; the displayed changelog version is in `lib/site.ts`.
+Deploy from this directory to the dedicated `multi-codex` Vercel project after local and macOS/Linux CI checks pass. Run `vercel project inspect multi-codex --scope russeldanielpaul-gmailcoms-projects` here before deployment to confirm the intended team/project. `.vercel` is ignored. Download links resolve to GitHub’s latest stable packages; the current app version is in `lib/site.ts`.
+
+## Release timeline
+
+`/releases` shows all published GitHub releases, newest first, with publication dates, improvements, permalinks and original release-note links. Curated entries live in `lib/releases.ts`; update that file when publishing a release, then build and redeploy. Draft validation candidates are excluded. Older highlights are checked against the commits between published tags where GitHub notes contain only a platform description. Displayed dates use UTC consistently.
+
+Editing website summaries changes the website after redeployment. Editing GitHub release titles or notes is a separate operation. Renaming a tag does not change the version inside an already-built application; a new app version requires matching package metadata, rebuilt assets and validation.
 
 ## Issue submissions
 
