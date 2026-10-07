@@ -1,0 +1,21 @@
+{
+  "appImageSha256": "0b125aa41b69ca8adca555637ea08a91e068e039bb8124bf156a30d77f49b98e",
+  "runs": [
+    {
+      "startup": 1,
+      "visibleNativeWindow": true,
+      "savedAccountVisible": true,
+      "themePickerVisible": true,
+      "maximizedWithoutFullscreen": true
+    },
+    {
+      "startup": 2,
+      "visibleNativeWindow": true,
+      "savedAccountVisible": true,
+      "themePickerVisible": true,
+      "maximizedWithoutFullscreen": true
+    }
+  ],
+  "accountChatAndDefaultLoginSentinelsUnchanged": true,
+  "scope": "Disposable native Arch/Hyprland package startup and restart; no authenticated sign-in"
+}
