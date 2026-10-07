@@ -18,6 +18,22 @@ async function fillReport(page: Page) {
   await page.getByLabel("What did you expect?").fill("The terminal stays open.")
   await page.getByRole("checkbox").check()
 }
+test("slow JavaScript loading cannot discard an early report edit", async ({ page }) => {
+  let releaseScripts: () => void = () => {}
+  const scriptsReady = new Promise<void>(resolve => { releaseScripts = resolve })
+  await page.route(/\/_next\/static\/.*\.js(?:\?|$)/, async route => { await scriptsReady; await route.continue() })
+  await page.route("**/api/issues", route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Direct submission is temporarily unavailable." }) }))
+  await page.goto("/issues", { waitUntil: "commit" })
+  await expect(page.getByLabel("A short title")).toBeDisabled()
+  await expect(page.getByRole("button", { name: "Submit issue", exact: true })).toBeDisabled()
+  await expect(page.getByRole("link", { name: "Open on GitHub instead" })).toBeVisible()
+  releaseScripts()
+  await fillReport(page)
+  await page.getByRole("button", { name: "Submit issue", exact: true }).click()
+  await expect(page.getByRole("form", { name: "Report an issue" }).getByRole("alert")).toContainText("Direct submission is temporarily unavailable.")
+  await expect(page.getByLabel("A short title")).toHaveValue("CLI closes immediately")
+})
+
 test("issue form submits once and displays the GitHub link in the selected theme", async ({ page }) => {
   let submissions = 0
   await page.route("**/api/issues", async route => { submissions++; expect(route.request().postDataJSON()).toMatchObject({ title: "CLI closes immediately", platform: "Linux", publicConsent: true, website: "" }); await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ number: 42, url: "https://github.com/wrestle-R/multi-codex/issues/42" }) }) })

@@ -6,12 +6,16 @@ import { githubReportLink, issuePlatforms, issueRepository, type IssueReport } f
 const blank: IssueReport = { title: "", platform: "Linux", version: "", description: "", steps: "", expected: "" }
 
 export function IssueForm() {
+  const [ready, setReady] = useState(false)
   const [report, setReport] = useState<IssueReport>(blank)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState("")
   const [created, setCreated] = useState<{ number: number; url: string } | null>(null)
   const inFlight = useRef(false)
   const resultRef = useRef<HTMLDivElement>(null)
+
+  // Keep the server-rendered controls inert until React can retain edits.
+  useEffect(() => { setReady(true) }, [])
 
   useEffect(() => {
     if (created) resultRef.current?.focus()
@@ -49,7 +53,7 @@ export function IssueForm() {
 
   return <form className="issue-form" onSubmit={submit} aria-label="Report an issue" aria-busy={sending}>
     <div className="issue-form-heading"><span className="section-index">THE DETAILS</span><p><span aria-hidden="true">*</span> Required fields</p></div>
-    <fieldset disabled={sending}>
+    <fieldset disabled={!ready || sending}>
       <div className="issue-field"><label htmlFor="issue-title">A short title <span aria-hidden="true">*</span></label><input id="issue-title" name="title" value={report.title} onChange={event => update("title", event.target.value)} required minLength={5} maxLength={160} placeholder="CLI closes when I launch an account" /></div>
       <div className="issue-field-row"><div className="issue-field"><label htmlFor="issue-platform">Platform <span aria-hidden="true">*</span></label><select id="issue-platform" name="platform" value={report.platform} onChange={event => update("platform", event.target.value)} required>{issuePlatforms.map(platform => <option key={platform}>{platform}</option>)}</select></div><div className="issue-field"><label htmlFor="issue-version">App version <span className="optional">Optional</span></label><input id="issue-version" name="version" value={report.version} onChange={event => update("version", event.target.value)} maxLength={80} placeholder="e.g. 1.3.8" /></div></div>
       <div className="issue-field"><label htmlFor="issue-description">What happened? <span aria-hidden="true">*</span></label><textarea id="issue-description" name="description" value={report.description} onChange={event => update("description", event.target.value)} required minLength={20} maxLength={6000} rows={5} placeholder="Describe the problem and any error you saw." /></div>
@@ -59,7 +63,7 @@ export function IssueForm() {
       <label className="issue-consent"><input type="checkbox" name="publicConsent" required /><span>I understand this report will be published publicly on GitHub.</span></label>
     </fieldset>
     {error ? <div className="issue-error" role="alert"><p>{error}</p><a href={`${issueRepository}/issues`}>Check existing issues ↗</a></div> : null}
-    <div className="issue-submit"><button className="button primary" type="submit" disabled={sending}>{sending ? "Submitting…" : "Submit issue"}<span aria-hidden="true">↗</span></button><a className="text-link" href={githubReportLink(report)}>Open on GitHub instead</a></div>
+    <div className="issue-submit"><button className="button primary" type="submit" disabled={!ready || sending}>{sending ? "Submitting…" : "Submit issue"}<span aria-hidden="true">↗</span></button><a className="text-link" href={githubReportLink(report)}>Open on GitHub instead</a></div>
     <p className="issue-form-footnote">After submission, you’ll get a link to your issue. You don’t need a GitHub account to send this form.</p>
   </form>
 }
