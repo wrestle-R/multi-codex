@@ -6,7 +6,7 @@ Your Codex accounts, your choice of VS Code, the Codex app, or CLI. Keep your de
 
 <img src="tauri/public/workspace_screenshot.png" alt="Multi Codex — workspace and desktop selection" width="100%" />
 
-Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.5**.
+Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.6**.
 
 ## Add an account
 
