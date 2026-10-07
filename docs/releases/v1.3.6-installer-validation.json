@@ -1,0 +1,27 @@
+{
+  "tag": "v1.3.6",
+  "dmgSha256": "f254a163cb215c8c796cd3dfbf25cf1756eb134f45a3a0e304c8c304e21c57bd",
+  "checks": [
+    {
+      "script": "install-app.sh",
+      "strictUnsignedRejection": true,
+      "explicitUnsignedInstall": true,
+      "installedVersion": "1.3.6",
+      "signatureIntegrity": true,
+      "accountAndChatSentinelsUnchanged": true,
+      "installedNativeStartupAndRestart": true,
+      "stagingCleaned": true
+    },
+    {
+      "script": "update-app.sh",
+      "strictUnsignedRejection": true,
+      "explicitUnsignedInstall": true,
+      "installedVersion": "1.3.6",
+      "signatureIntegrity": true,
+      "accountAndChatSentinelsUnchanged": true,
+      "installedNativeStartupAndRestart": true,
+      "stagingCleaned": true
+    }
+  ],
+  "notarization": "not available; first-open approval remains controlled by macOS"
+}
