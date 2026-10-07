@@ -1,0 +1,132 @@
+{
+  "status": "passed",
+  "scenarios": 8,
+  "runs": [
+    {
+      "engine": "chromium",
+      "mode": "light",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "chromium",
+      "mode": "dark",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "chromium",
+      "mode": "light",
+      "viewport": {
+        "width": 480,
+        "height": 520
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "chromium",
+      "mode": "dark",
+      "viewport": {
+        "width": 480,
+        "height": 520
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "webkit",
+      "mode": "light",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "webkit",
+      "mode": "dark",
+      "viewport": {
+        "width": 1180,
+        "height": 820
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "webkit",
+      "mode": "light",
+      "viewport": {
+        "width": 480,
+        "height": 520
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    },
+    {
+      "engine": "webkit",
+      "mode": "dark",
+      "viewport": {
+        "width": 480,
+        "height": 520
+      },
+      "installedOptionsOnly": true,
+      "menuUnclipped": true,
+      "keyboardAndEscape": true,
+      "advancedFooterReachable": true,
+      "unrelatedPreferencesPreserved": true,
+      "noPageErrors": true
+    }
+  ],
+  "version": "1.3.8",
+  "testedAt": "2026-10-07T06:17:33.365154+00:00",
+  "scope": "Actual settings frontend in browser demo mode using fictional preferences, with no native IPC or real account access.",
+  "ci": {
+    "run": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
+    "macos26": {
+      "status": "passed",
+      "scenarios": 8
+    },
+    "ubuntu2204": {
+      "status": "passed",
+      "scenarios": 8
+    }
+  }
+}

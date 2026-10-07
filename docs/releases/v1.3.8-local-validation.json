@@ -1,0 +1,36 @@
+{
+  "version": "1.3.8",
+  "sourceCommit": "c41444f3026b5726d0b5dd2e6a0e27c02838aa4b",
+  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
+  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37580025237",
+  "releaseBuildAttempt": 2,
+  "releaseRetryNote": "The first Linux attempt failed to spawn the disposable timeout-test CLI. The targeted and full local Rust suites passed; the unchanged release job passed on its rerun. Mac passed on the first attempt.",
+  "artifacts": {
+    "Multi.Codex-1.3.8-1.x86_64.rpm": "ae65539f917b9567200c089fd576b04703fa71caeff571af2524e5127865c2a3",
+    "Multi.Codex_1.3.8_aarch64.dmg": "037a168d174e0dfd63dff65493a983794e09d633435db4799298fd7ca7f78988",
+    "Multi.Codex_1.3.8_amd64.AppImage": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
+    "Multi.Codex_1.3.8_amd64.deb": "ae6b5384aecfddcb70a2ab1a9c7897953ec496cb781ac39f8cac28d235a7d802",
+    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60"
+  },
+  "status": "packages-checksummed-installer-checks-pending",
+  "testedAt": "2026-10-07T06:25:14.392061+00:00",
+  "frontendTests": 78,
+  "rustTests": {
+    "passed": 82,
+    "environmentSpecificIgnored": 3
+  },
+  "releaseAndInstallerRegressionChecks": 6,
+  "settingsBrowserChecks": "docs/releases/v1.3.8-settings-validation.json",
+  "websiteTests": {
+    "local": 9,
+    "eachMacAndLinuxCiRunner": 9,
+    "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595"
+  },
+  "preUpgradeBackup": {
+    "savedAccounts": 6,
+    "protectedFiles": 552,
+    "previousAppImageRetained": true,
+    "earlierFullBackupRetained": true
+  }
+}

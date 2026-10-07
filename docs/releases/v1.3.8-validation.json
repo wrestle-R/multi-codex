@@ -1,7 +1,14 @@
 {
   "schemaVersion": 1,
   "version": "1.3.8",
-  "artifacts": {},
+  "artifacts": {
+    "Multi.Codex-1.3.8-1.x86_64.rpm": "ae65539f917b9567200c089fd576b04703fa71caeff571af2524e5127865c2a3",
+    "Multi.Codex_1.3.8_aarch64.dmg": "037a168d174e0dfd63dff65493a983794e09d633435db4799298fd7ca7f78988",
+    "Multi.Codex_1.3.8_amd64.AppImage": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
+    "Multi.Codex_1.3.8_amd64.deb": "ae6b5384aecfddcb70a2ab1a9c7897953ec496cb781ac39f8cac28d235a7d802",
+    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
+    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60"
+  },
   "checks": {
     "packaged-macos-26-arm64": {
       "status": "pending",
@@ -86,7 +93,7 @@
     }
   },
   "publication": {
-    "status": "validation-pending",
+    "status": "installer-validation-pending",
     "requestedOn": "2026-10-07",
     "fullValidationChecksRemainPending": true,
     "signingAndNotarizationOptional": true,
@@ -94,12 +101,18 @@
   },
   "releaseChecks": {
     "linux-build": {
-      "status": "pending",
-      "reason": "Current candidate verification has not completed."
+      "status": "passed",
+      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37580025237; tests: https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T06:25:14.392061+00:00"
     },
     "macos-build": {
-      "status": "pending",
-      "reason": "Current candidate verification has not completed."
+      "status": "passed",
+      "environment": "macOS 26 Apple Silicon GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37580025237; tests: https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-07T06:25:14.392061+00:00"
     },
     "linux-installer": {
       "status": "pending",
@@ -116,7 +129,8 @@
       "testedAt": "2026-10-06T00:05:50+05:30",
       "testedBy": "Codex automation with user sign-in",
       "carriedForwardFrom": "v1.3.5",
-      "scope": "Carried authenticated evidence for unchanged standalone desktop version and backend launch construction; this release changes the frontend settings layout and terminal picker."
+      "scope": "Carried authenticated evidence for unchanged standalone desktop version and backend launch construction; this release changes the frontend settings layout and terminal picker.",
+      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595"
     },
     "macos-isolation": {
       "status": "passed",
@@ -125,7 +139,9 @@
       "testedAt": "2026-10-06T00:05:50+05:30",
       "testedBy": "Codex automation with user sign-in",
       "carriedForwardFrom": "v1.3.5",
-      "scope": "Carried authenticated evidence for unchanged standalone desktop version and backend launch construction; this release changes the frontend settings layout and terminal picker."
+      "scope": "Carried authenticated evidence for unchanged standalone desktop version and backend launch construction; this release changes the frontend settings layout and terminal picker.",
+      "currentRegressionEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595"
     }
-  }
+  },
+  "settingsValidation": "docs/releases/v1.3.8-settings-validation.json"
 }
