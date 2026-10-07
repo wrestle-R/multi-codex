@@ -22,3 +22,10 @@ tauri/src-tauri/target/
 tauri/src-tauri/gen/schemas/
 .DS_Store
 *.log
+next/node_modules/
+next/.next/
+next/.vercel/
+next/test-results/
+next/playwright-report/
+next/tsconfig.tsbuildinfo
+.vercel/
