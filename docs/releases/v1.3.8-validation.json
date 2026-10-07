@@ -93,11 +93,19 @@
     }
   },
   "publication": {
-    "status": "ready-for-publication",
+    "status": "published-stable",
     "requestedOn": "2026-10-07",
     "fullValidationChecksRemainPending": true,
     "signingAndNotarizationOptional": true,
-    "authenticatedStandaloneEvidenceCarriedForward": true
+    "authenticatedStandaloneEvidenceCarriedForward": true,
+    "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.3.8",
+    "publishedAt": "2026-10-07T06:27:55Z",
+    "latestReleaseVerifiedAt": "2026-10-07T06:39:55.743810+00:00",
+    "publishRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37581616717",
+    "localUpgrade": "passed",
+    "dataPreservation": "docs/releases/v1.3.8-local-validation.json",
+    "website": "https://multi-codex.vercel.app",
+    "websiteValidation": "docs/releases/v1.3.8-website-validation.json"
   },
   "releaseChecks": {
     "linux-build": {
