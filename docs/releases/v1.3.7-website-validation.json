@@ -1,0 +1,55 @@
+{
+  "status": "passed",
+  "testedAt": "2026-10-07T05:33:24.717285+00:00",
+  "project": "multi-codex",
+  "publicUrl": "https://multi-codex.vercel.app",
+  "deploymentId": "dpl_He8Rh2wrNp2ewpUkJuZwU6recqYs",
+  "deploymentStatus": "READY",
+  "productionPromoted": true,
+  "deploymentProtectionRetained": true,
+  "sourceFolder": "next",
+  "localProductionBuild": "passed",
+  "localBrowserChecks": {
+    "passed": 9,
+    "projects": [
+      "desktop Chromium",
+      "desktop WebKit",
+      "mobile Chromium"
+    ]
+  },
+  "ci": {
+    "run": "https://github.com/wrestle-R/multi-codex/actions/runs/37575600054",
+    "macos26": "passed",
+    "ubuntu2204": "passed",
+    "passedPerRunner": 9,
+    "completedBeforeDeployment": true
+  },
+  "liveBrowserChecks": {
+    "passed": 9,
+    "projects": [
+      "desktop Chromium",
+      "desktop WebKit",
+      "mobile Chromium"
+    ],
+    "coverage": [
+      "navigation and release links",
+      "mobile and desktop overflow",
+      "exact install and update command copying",
+      "platform selection and Mac unsigned opt-in",
+      "sanitized screenshots",
+      "troubleshooting disclosure controls",
+      "missing-page handling"
+    ]
+  },
+  "guestHttpChecks": {
+    "/": 200,
+    "/docs": 200,
+    "/releases": 200,
+    "/fonts/bricolage-LICENSE.txt": 200,
+    "/fonts/outfit-LICENSE.txt": 200
+  },
+  "vercelErrorLogScan": {
+    "sinceMinutes": 15,
+    "matchingErrorEntries": 0
+  }
+}
