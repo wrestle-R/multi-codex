@@ -37,6 +37,16 @@ let demoProfiles: Profile[] = [
     accountTier: "Go",
     status: "idle",
   },
+  {
+    id: "demo-lab",
+    name: "Lab",
+    authMode: "ChatGPT",
+    notes: "Long-running experiments",
+    createdAt: "2026-09-05T09:00:00Z",
+    updatedAt: "2026-09-05T09:00:00Z",
+    accountTier: "Pro",
+    status: "idle",
+  },
 ]
 
 const wait = () => new Promise((resolve) => window.setTimeout(resolve, 120))
@@ -126,6 +136,11 @@ export async function launchProfile(id: string, workspace: string, desktop: stri
 
 export async function launchStandaloneProfile(id: string, workspace: string, desktop: string | null, retryToken: string | null = null): Promise<LaunchResult> {
   if (isTauri) return invoke("launch_standalone_profile", { id, workspace, desktop, retryToken })
+  return { completed: true, error: null, retryToken: null }
+}
+
+export async function launchCliProfile(id: string, workspace: string): Promise<LaunchResult> {
+  if (isTauri) return invoke("launch_cli_profile", { id, workspace })
   return { completed: true, error: null, retryToken: null }
 }
 

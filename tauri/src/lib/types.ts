@@ -145,7 +145,7 @@ export interface ExecutableSettings {
   launchMode?: LaunchMode
 }
 
-export type LaunchTarget = "vscode" | "standalone"
+export type LaunchTarget = "vscode" | "standalone" | "cli"
 export type LaunchMode = LaunchTarget | "both"
 
 export interface LaunchTargets {

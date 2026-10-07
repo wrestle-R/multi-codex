@@ -372,7 +372,7 @@ pub(crate) fn find_profile_window(
     Err("The app opened, but its window could not be identified. Retry placement without opening another window.".into())
 }
 
-pub fn configure_main_window() {
+pub fn configure_main_window(width: f64, height: f64) {
     if backend() != "hyprland" {
         return;
     }
@@ -385,7 +385,7 @@ pub fn configure_main_window() {
                     if valid_address(&client.address) {
                         let _ = crate::process::output(
                             Command::new("hyprctl")
-                                .args(["eval", &main_window_lua(&client.address)]),
+                                .args(["eval", &main_window_lua(&client.address, width, height)]),
                             Duration::from_secs(3),
                         );
                     }
@@ -412,8 +412,17 @@ fn valid_address(address: &str) -> bool {
         .strip_prefix("0x")
         .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_hexdigit()))
 }
-fn main_window_lua(address: &str) -> String {
-    format!("local w=hl.get_window('address:{address}'); assert(w); hl.dispatch(hl.dsp.window.fullscreen({{mode='fullscreen',action='set',window=w}}))")
+fn main_window_lua(address: &str, width: f64, height: f64) -> String {
+    // Keep a normal restore size, then maximize while retaining window decorations.
+    // Hyprland needs its own maximize request rather than true fullscreen.
+    format!(
+        "local w=hl.get_window('address:{address}'); assert(w); \
+         hl.dispatch(hl.dsp.window.fullscreen_state({{internal=0,client=0,window=w}})); \
+         hl.dispatch(hl.dsp.window.float({{action='set',window=w}})); \
+         hl.dispatch(hl.dsp.window.resize({{x={width},y={height},relative=false,window=w}})); \
+         hl.dispatch(hl.dsp.window.center({{window=w}})); \
+         hl.dispatch(hl.dsp.window.fullscreen({{mode='maximized',action='set',window=w}}))"
+    )
 }
 fn move_window_lua(address: &str, workspace: i32) -> String {
     format!("local w=hl.get_window('address:{address}'); assert(w); hl.dispatch(hl.dsp.window.move({{workspace={workspace},follow=true,window=w}}))")

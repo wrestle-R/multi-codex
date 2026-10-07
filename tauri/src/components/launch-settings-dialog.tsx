@@ -51,12 +51,12 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
             <button type="button" className="button secondary" disabled={loading || busy || !defaultFolder} onClick={() => setBrowsing(true)}>Browse</button>
           </div>
           <p className="desktop-notice">The folder picker will start here.</p>
-          {targets?.vscodeInstalled && targets.standaloneInstalled ? <fieldset className="launch-app-options">
+          {targets ? <fieldset className="launch-app-options">
             <legend>Open accounts with</legend>
             <div className="launch-app-choices">
-              {([['vscode', 'VS Code only'], ['standalone', 'Codex app only'], ['both', 'Both']] as const).map(([mode, label]) => <label key={mode}><input type="radio" name="launch-app" checked={(settings.launchMode ?? 'vscode') === mode} disabled={loading || busy || (mode !== 'vscode' && !targets.standaloneVerified)} onChange={() => setSettings(value => ({ ...value, launchMode: mode }))} /> {label}</label>)}
+              {([['vscode', 'VS Code'], ['standalone', 'Codex'], ['both', 'All available'], ['cli', 'CLI only']] as const).map(([mode, label]) => <label key={mode}><input type="radio" name="launch-app" checked={(settings.launchMode ?? 'vscode') === mode} disabled={loading || busy || (mode === 'standalone' && !targets.standaloneVerified) || (mode === 'cli' && !targets.codexCliAvailable) || (mode === 'vscode' && !targets.vscodeInstalled)} onChange={() => setSettings(value => ({ ...value, launchMode: mode }))} /> {label}</label>)}
             </div>
-            <p className="desktop-notice">{targets.standaloneVerified ? "Both apps detected. Each opens with your account’s isolated profile." : `Codex app ${targets.standaloneVersion ?? 'version'} has not passed account-isolation verification. VS Code is available.`}</p>
+            <p className="desktop-notice">{!targets.standaloneInstalled || targets.standaloneVerified ? "CLI appears alongside your chosen apps when installed. Each uses your isolated account." : `Codex ${targets.standaloneVersion ?? 'version'} has not passed account-isolation verification. Choose an available option below.`}</p>
           </fieldset> : null}
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
           <details className="advanced-settings">

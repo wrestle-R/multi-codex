@@ -1,14 +1,22 @@
 # Multi Codex
 
-Your Codex accounts, your choice of VS Code or the Codex app. Keep your default login untouched.
+Your Codex accounts, your choice of VS Code, the Codex app, or CLI. Keep your default login untouched.
 
-Screenshots from the running Linux desktop app with fictional demo accounts.
+<img src="tauri/public/accounts_screenshot.png" alt="Multi Codex — accounts" width="100%" />
 
-![Multi Codex — light theme](tauri/public/light_screenshot.png)
-
-![Multi Codex — dark theme](tauri/public/dark_screenshot.png)
+<img src="tauri/public/workspace_screenshot.png" alt="Multi Codex — workspace and desktop selection" width="100%" />
 
 Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.5**.
+
+## Add an account
+
+Click **Add account** and choose one of three options:
+
+- **Sign in with browser** — use the sign-in link and one-time code to connect another account.
+- **Paste JSON** — paste the contents of an existing Codex `auth.json` file.
+- **Import current** — save a copy of your current Codex login without changing the original.
+
+Accounts appear in plan order: **Pro → Plus → Go → Free**. Usage limits refresh automatically when the app opens.
 
 ## Linux
 
