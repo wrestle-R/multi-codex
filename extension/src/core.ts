@@ -5,3 +5,4 @@ export * from './bridge';
 export * from './client';
 export * from './accounts';
 export * from './stdio-tap';
+export * from './platform';

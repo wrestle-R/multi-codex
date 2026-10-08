@@ -1,0 +1,142 @@
+name: VS Code extension packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - extension/**
+      - tauri/src-tauri/**
+      - .github/workflows/extension.yml
+  pull_request:
+    paths:
+      - extension/**
+      - tauri/src-tauri/**
+      - .github/workflows/extension.yml
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    name: ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: linux-x64
+            vscode: linux-x64
+          - os: macos-26
+            target: darwin-arm64
+            vscode: darwin-arm64
+          - os: macos-26-intel
+            target: darwin-x64
+            vscode: darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+    defaults:
+      run:
+        working-directory: extension
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            extension/package-lock.json
+            tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+      - name: Build the native account helper
+        run: |
+          npm ci --prefix ../tauri
+          npm --prefix ../tauri run build
+          npm ci
+          npm run build:helper
+          npm run build
+      - name: Install pinned official VS Code and Codex into disposable directories
+        env:
+          VSCODE_PLATFORM: ${{ matrix.vscode }}
+        run: |
+          curl --fail --location --retry 3 --max-time 300 "https://update.code.visualstudio.com/1.140.0/$VSCODE_PLATFORM/stable" -o "$RUNNER_TEMP/vscode.archive"
+          mkdir "$RUNNER_TEMP/vscode" "$RUNNER_TEMP/codex-extensions"
+          if [[ "$RUNNER_OS" == 'macOS' ]]; then
+            ditto -xk "$RUNNER_TEMP/vscode.archive" "$RUNNER_TEMP/vscode"
+            code_binary="$RUNNER_TEMP/vscode/Visual Studio Code.app/Contents/MacOS/Electron"
+            code_cli="$RUNNER_TEMP/vscode/Visual Studio Code.app/Contents/Resources/app/bin/code"
+          else
+            tar -xzf "$RUNNER_TEMP/vscode.archive" -C "$RUNNER_TEMP/vscode" --strip-components=1
+            code_binary="$RUNNER_TEMP/vscode/code"
+            code_cli="$RUNNER_TEMP/vscode/bin/code"
+          fi
+          "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --install-extension openai.chatgpt@26.1002.51308 --force
+          codex_extension=$(find "$RUNNER_TEMP/codex-extensions" -maxdepth 1 -type d -name 'openai.chatgpt-*' -print -quit)
+          test -n "$codex_extension"
+          export codex_extension
+          codex_engine=$(node --input-type=module -e 'import { createRequire } from "node:module"; const { bundledEnginePath } = createRequire(import.meta.url)("./dist/core.cjs"); console.log(await bundledEnginePath(process.env.codex_extension));')
+          test -x "$codex_engine"
+          "$codex_engine" --version
+          echo "MULTI_CODEX_TEST_VSCODE=$code_binary" >> "$GITHUB_ENV"
+          echo "MULTI_CODEX_TEST_EXTENSION=$codex_extension" >> "$GITHUB_ENV"
+          echo "MULTI_CODEX_TEST_ENGINE=$codex_engine" >> "$GITHUB_ENV"
+      - name: Test protocol, activity guards, rollback and native account storage
+        run: npm test
+      - name: Verify native macOS Keychain access
+        if: runner.os == 'macOS'
+        run: cargo test --manifest-path ../tauri/src-tauri/Cargo.toml macos_live_keychain_round_trip -- --ignored --test-threads=1
+      - name: Package the platform-specific pre-release
+        env:
+          PACKAGE_TARGET: ${{ matrix.target }}
+        run: |
+          npm run package -- --target "$PACKAGE_TARGET" --pre-release --out "multi-codex-$PACKAGE_TARGET-0.1.0.vsix"
+          mkdir "$RUNNER_TEMP/packaged-extension"
+          unzip -q "multi-codex-$PACKAGE_TARGET-0.1.0.vsix" -d "$RUNNER_TEMP/packaged-extension"
+          test -x "$RUNNER_TEMP/packaged-extension/extension/bin/multi-codex-account-helper"
+          if [[ "$RUNNER_OS" == 'macOS' ]]; then
+            codesign --verify --strict "$RUNNER_TEMP/packaged-extension/extension/bin/multi-codex-account-helper"
+            otool -L "$RUNNER_TEMP/packaged-extension/extension/bin/multi-codex-account-helper"
+          fi
+          echo "MULTI_CODEX_TEST_DEVELOPMENT_PATH=$RUNNER_TEMP/packaged-extension/extension" >> "$GITHUB_ENV"
+      - name: Test packaged live attachment without reloading VS Code or Codex
+        run: |
+          if [[ "$RUNNER_OS" == 'Linux' ]]; then
+            xvfb-run -a env MULTI_CODEX_TEST_LIVE_ATTACH=1 node scripts/test-vscode.mjs
+          else
+            MULTI_CODEX_TEST_LIVE_ATTACH=1 node scripts/test-vscode.mjs
+          fi
+          cp .test-results/vscode-result.json .test-results/packaged-live-attachment.json
+      - name: Test packaged isolated startup and project account restoration
+        run: |
+          if [[ "$RUNNER_OS" == 'Linux' ]]; then
+            xvfb-run -a node scripts/test-vscode.mjs
+          else
+            node scripts/test-vscode.mjs
+          fi
+          cp .test-results/vscode-result.json .test-results/packaged-startup.json
+      - name: Check extension dependency advisories
+        run: npm audit --audit-level=low
+      - name: Upload tested installable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-${{ matrix.target }}
+          path: extension/multi-codex-${{ matrix.target }}-0.1.0.vsix
+          if-no-files-found: error
+      - name: Upload synthetic test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-evidence-${{ matrix.target }}
+          path: extension/.test-results/
+          if-no-files-found: warn

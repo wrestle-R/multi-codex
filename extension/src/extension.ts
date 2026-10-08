@@ -10,15 +10,12 @@ import { JsonLines, RpcPeer } from './protocol';
 import { withAccountBackend } from './worker';
 import { CodexBridge } from './bridge';
 import { findCodexBackend, tapBackend } from './stdio-tap';
+import { bundledEnginePath } from './platform';
 
 function dataDirectory() {
   if (process.platform === 'darwin') return join(homedir(), 'Library', 'Application Support', 'multi-codex');
   if (process.platform === 'linux') return join(process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'multi-codex');
-  throw new Error('This local preview supports Linux and macOS. Windows support needs a native account helper.');
-}
-function bundledEngine(extension: vscode.Extension<any>) {
-  const architecture = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
-  return join(extension.extensionPath, 'bin', `${process.platform}-${architecture}`, 'codex');
+  throw new Error('Multi Codex supports local Linux and macOS. Windows is not supported by this release.');
 }
 function quote(value: string) { return `'${value.replace(/'/g, `'"'"'`)}'`; }
 
@@ -84,7 +81,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const desktopSettings = await readFile(join(root, 'executables.json'), 'utf8').then(text => JSON.parse(text)).catch(() => ({}));
     globalHome = settings.get<string>('globalCodexHome') || process.env.CODEX_HOME || desktopSettings.globalCodexHome || join(homedir(), '.codex');
     if (!isAbsolute(root) || !isAbsolute(globalHome)) throw new Error('Account storage and Codex home paths must be absolute.');
-    engine = bundledEngine(codex); await access(engine);
+    engine = await bundledEnginePath(codex.extensionPath);
     runtimeRoot = join(context.globalStorageUri.fsPath, 'runtime');
     helper = join(context.extensionPath, 'bin', 'multi-codex-account-helper'); await access(helper);
     await mkdir(root, { recursive: true, mode: 0o700 }); await mkdir(runtimeRoot, { recursive: true, mode: 0o700 });

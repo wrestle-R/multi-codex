@@ -3,9 +3,14 @@
   "displayName": "Multi Codex",
   "description": "Manage Codex accounts and switch the current Codex panel without reloading VS Code.",
   "version": "0.1.0",
-  "publisher": "multi-codex-local",
+  "publisher": "russeldanielpaul",
   "private": true,
   "license": "MIT",
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#15241f",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/wrestle-R/multi-codex.git",
