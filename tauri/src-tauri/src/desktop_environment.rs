@@ -108,6 +108,10 @@ struct HyprClient {
     workspace: HyprWorkspace,
     #[serde(default)]
     pinned: bool,
+    #[serde(default)]
+    floating: bool,
+    #[serde(default)]
+    fullscreen: u8,
     #[serde(default = "mapped_default")]
     mapped: bool,
 }
@@ -372,7 +376,7 @@ pub(crate) fn find_profile_window(
     Err("The app opened, but its window could not be identified. Retry placement without opening another window.".into())
 }
 
-pub fn configure_main_window(width: f64, height: f64) {
+pub fn configure_main_window() {
     if backend() != "hyprland" {
         return;
     }
@@ -381,15 +385,23 @@ pub fn configure_main_window(width: f64, height: f64) {
         let deadline = Instant::now() + WINDOW_WAIT;
         while Instant::now() < deadline {
             if let Ok(clients) = hypr_json::<Vec<HyprClient>>("clients") {
-                if let Some(client) = clients.into_iter().find(|client| client.pid == pid) {
+                if let Some(client) = clients
+                    .into_iter()
+                    .find(|client| client.pid == pid && client.mapped)
+                {
+                    if !client.floating && client.fullscreen == 1 {
+                        return;
+                    }
                     if valid_address(&client.address) {
                         let _ = crate::process::output(
                             Command::new("hyprctl")
-                                .args(["eval", &main_window_lua(&client.address, width, height)]),
+                                .args(["eval", &main_window_lua(&client.address)]),
                             Duration::from_secs(3),
                         );
                     }
-                    return;
+                    // The first map can precede GTK's maximize request. Verify
+                    // compositor state on the next poll rather than assuming
+                    // the first command took effect.
                 }
             }
             thread::sleep(POLL_INTERVAL);
@@ -412,15 +424,13 @@ fn valid_address(address: &str) -> bool {
         .strip_prefix("0x")
         .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_hexdigit()))
 }
-fn main_window_lua(address: &str, width: f64, height: f64) -> String {
-    // Keep a normal restore size, then maximize while retaining window decorations.
-    // Hyprland needs its own maximize request rather than true fullscreen.
+fn main_window_lua(address: &str) -> String {
+    // A floating maximize leaves a popup-sized restore state when another app
+    // takes the workspace. Keep the launcher tiled underneath its maximize.
     format!(
         "local w=hl.get_window('address:{address}'); assert(w); \
          hl.dispatch(hl.dsp.window.fullscreen_state({{internal=0,client=0,window=w}})); \
-         hl.dispatch(hl.dsp.window.float({{action='set',window=w}})); \
-         hl.dispatch(hl.dsp.window.resize({{x={width},y={height},relative=false,window=w}})); \
-         hl.dispatch(hl.dsp.window.center({{window=w}})); \
+         hl.dispatch(hl.dsp.window.float({{action='unset',window=w}})); \
          hl.dispatch(hl.dsp.window.fullscreen({{mode='maximized',action='set',window=w}}))"
     )
 }
