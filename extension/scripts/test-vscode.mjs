@@ -8,6 +8,8 @@ import { createServer } from 'node:net';
 import { chromium } from 'playwright-core';
 import { inspectWebview } from './webview-inspector.mjs';
 import { cleanupFixture } from './cleanup-fixture.mjs';
+import { createRequire } from 'node:module';
+const { bundledEnginePath } = createRequire(import.meta.url)('../dist/core.cjs');
 
 async function discoverExtension() {
   if (process.env.MULTI_CODEX_TEST_EXTENSION) return process.env.MULTI_CODEX_TEST_EXTENSION;
@@ -22,8 +24,11 @@ async function discoverExtension() {
 }
 const extension = await discoverExtension();
 const packageInfo = JSON.parse(await readFile(join(extension, 'package.json'), 'utf8'));
-const code = process.env.MULTI_CODEX_TEST_VSCODE || '/usr/share/code/code';
+const code = process.env.MULTI_CODEX_TEST_VSCODE || (process.platform === 'darwin'
+  ? '/Applications/Visual Studio Code.app/Contents/MacOS/Electron' : '/usr/share/code/code');
 const developmentPath = process.env.MULTI_CODEX_TEST_DEVELOPMENT_PATH || resolve('.');
+const developmentManifest = JSON.parse(await readFile(join(developmentPath, 'package.json'), 'utf8'));
+const extensionId = `${developmentManifest.publisher}.${developmentManifest.name}`;
 const liveAttach = process.env.MULTI_CODEX_TEST_LIVE_ATTACH === '1';
 const portProbe = createServer(); await new Promise(resolve => portProbe.listen(0, '127.0.0.1', resolve));
 const debugPort = portProbe.address().port; await new Promise(resolve => portProbe.close(resolve));
@@ -52,7 +57,7 @@ for (const [index, label] of ['A', 'B'].entries()) {
 }
 await writeFile(join(storage, 'profiles.json'), JSON.stringify(profiles), { mode: 0o600 });
 await mkdir(runtimeRoot);
-const bundledEngine = join(extension, 'bin', `${process.platform}-${process.arch === 'arm64' ? 'aarch64' : 'x86_64'}`, 'codex');
+const bundledEngine = await bundledEnginePath(extension);
 const configPath = join(runtimeRoot, 'bridge-config.json');
 await writeFile(configPath, JSON.stringify({ engine: bundledEngine, helper: join(developmentPath, 'bin/multi-codex-account-helper'), dataRoot: storage, globalHome, runtimeRoot }), { mode: 0o600 });
 const wrapper = join(runtimeRoot, 'codex-bridge');
@@ -66,16 +71,17 @@ await writeFile(join(testRoot, 'user-data', 'User', 'settings.json'), JSON.strin
   'extensions.autoCheckUpdates': false, 'workbench.startupEditor': 'none',
 }));
 // The extension's storage root is fixed by VS Code; point discovery at the same fixture runtime.
-const ownStorage = join(testRoot, 'user-data', 'User', 'globalStorage', 'multi-codex-local.multi-codex');
+const ownStorage = join(testRoot, 'user-data', 'User', 'globalStorage', extensionId);
 await mkdir(ownStorage, { recursive: true }); await symlink(runtimeRoot, join(ownStorage, 'runtime'));
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('CODEX_') && !key.startsWith('OPENAI_')));
 delete env.ELECTRON_RUN_AS_NODE; delete env.VSCODE_IPC_HOOK_CLI; delete env.VSCODE_PID;
 const child = spawn(code, ['--user-data-dir', join(testRoot, 'user-data'), '--extensions-dir', join(testRoot, 'extensions'),
   '--extensionDevelopmentPath=' + developmentPath, '--extensionTestsPath=' + resolve('dist/vscode-tests.cjs'),
-  '--skip-welcome', '--skip-release-notes', '--disable-gpu', '--no-sandbox', '--ozone-platform=x11', `--remote-debugging-port=${debugPort}`,
+  '--skip-welcome', '--skip-release-notes', '--disable-gpu',
+  ...(process.platform === 'linux' ? ['--no-sandbox', '--ozone-platform=x11'] : []), `--remote-debugging-port=${debugPort}`,
   '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows',
   '--enable-proposed-api=openai.chatgpt', join(testRoot, 'workspace')],
-  { env: { ...env, MULTI_CODEX_TEST_MODE: '1', MULTI_CODEX_UI_TEST: '1', MULTI_CODEX_TEST_LIVE_ATTACH: liveAttach ? '1' : '0', MULTI_CODEX_VSCODE_TEST_ROOT: testRoot, CODEX_HOME: globalHome }, stdio: ['ignore', 'pipe', 'pipe'] });
+  { env: { ...env, MULTI_CODEX_TEST_MODE: '1', MULTI_CODEX_TEST_EXTENSION_ID: extensionId, MULTI_CODEX_UI_TEST: '1', MULTI_CODEX_TEST_LIVE_ATTACH: liveAttach ? '1' : '0', MULTI_CODEX_VSCODE_TEST_ROOT: testRoot, CODEX_HOME: globalHome }, stdio: ['ignore', 'pipe', 'pipe'] });
 let diagnostics = '';
 for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { diagnostics = (diagnostics + chunk.toString()).slice(-30000); });
 const polling = setInterval(async () => {
@@ -129,6 +135,9 @@ try {
   report.panelStayedMounted = true;
   report.statusBarAccountVerified = true;
   report.liveAttachment = liveAttach;
+  report.platform = process.platform;
+  report.architecture = process.arch;
+  report.extensionId = extensionId;
   if (liveAttach && await readFile(join(globalHome, 'auth.json'), 'utf8') !== originalAuth) throw new Error('Live attachment changed the original login');
   report.originalLoginUnchanged = liveAttach ? true : null; // The startup case is covered by the persistence test.
   await writeFile('.test-results/vscode-result.json', JSON.stringify(report, null, 2));
