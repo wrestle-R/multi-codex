@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, writeFile, readFile, readdir, symlink, stat, access, rm } from 'node:fs/promises';
 import { tmpdir, homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -25,7 +25,10 @@ async function discoverExtension() {
 const extension = await discoverExtension();
 const packageInfo = JSON.parse(await readFile(join(extension, 'package.json'), 'utf8'));
 const code = process.env.MULTI_CODEX_TEST_VSCODE || (process.platform === 'darwin'
-  ? '/Applications/Visual Studio Code.app/Contents/MacOS/Electron' : '/usr/share/code/code');
+  ? join('/Applications/Visual Studio Code.app/Contents/MacOS', execFileSync('/usr/libexec/PlistBuddy',
+    ['-c', 'Print :CFBundleExecutable', '/Applications/Visual Studio Code.app/Contents/Info.plist'], { encoding: 'utf8' }).trim())
+  : '/usr/share/code/code');
+await access(code);
 const developmentPath = process.env.MULTI_CODEX_TEST_DEVELOPMENT_PATH || resolve('.');
 const developmentManifest = JSON.parse(await readFile(join(developmentPath, 'package.json'), 'utf8'));
 const extensionId = `${developmentManifest.publisher}.${developmentManifest.name}`;
