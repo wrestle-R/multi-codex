@@ -16,16 +16,19 @@ export async function run() {
   assert.ok(extensionId, 'The test harness must provide the packaged extension ID');
   const extension = vscode.extensions.getExtension(extensionId)!;
   const api = await extension.activate();
+  const saved = await waitFor<any>(() => api.getState(), value => value.accounts.length === 2);
+  checks.push('Desktop accounts discovered despite inherited managed CODEX_HOME');
   await vscode.commands.executeCommand('chatgpt.openSidebar');
   if (process.env.MULTI_CODEX_TEST_LIVE_ATTACH === '1') {
     const before = api.testBackendInfo();
     assert.ok(before.pid, 'The original Codex backend must already be running');
-    await Promise.all([api.enableSwitching(), api.enableSwitching()]);
+    await api.switchAccount(saved.accounts.find((account: any) => account.name === 'Account A').id);
     const after = await api.getState();
     assert.equal(after.bridge.backendPid, before.pid, 'Initial attachment restarted Codex');
     assert.equal(after.activationId, before.activationId, 'Initial attachment reactivated Multi Codex');
     assert.equal(after.extensionHostPid, before.hostPid, 'Initial attachment restarted the extension host');
     checks.push('Attached to an already-running official Codex backend without restarting either extension or VS Code');
+    checks.push('First account selection connected automatically without an Enable switching button');
   }
   const initial = await waitFor<any>(() => api.getState(), value => !!value.bridge?.ready && value.accounts.length === 2);
   const activationId = initial.activationId; const hostPid = initial.extensionHostPid;
@@ -77,6 +80,12 @@ export async function run() {
   await assert.rejects(() => api.switchAccount('00000000-0000-4000-8000-000000000000'), /not found/);
   assert.equal((await api.getState()).bridge.selectedId, b.id);
   checks.push('Missing account leaves the previous verified account active');
+  await vscode.commands.executeCommand('multiCodex.checkAccountUsage', b);
   await vscode.commands.executeCommand('workbench.view.extension.multiCodex');
+  if (process.env.MULTI_CODEX_UI_TEST === '1') {
+    await writeFile(join(root, 'ui-phase.json'), JSON.stringify({ label: 'accounts-list Account B', accountsPanel: true }));
+    await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === 'accounts-list Account B');
+    checks.push('Native account list shows saved accounts and inline usage without welcome buttons');
+  }
   await writeFile(join(root, 'result.json'), JSON.stringify({ passed: true, checks, hostPid, backendPid, activationId, bridgeInstanceId }, null, 2));
 }

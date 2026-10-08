@@ -56,9 +56,13 @@ const profiles = [];
 for (const [index, label] of ['A', 'B'].entries()) {
   const id = randomUUID(); const home = join(storage, 'profiles', id, 'codex-home'); await mkdir(home, { recursive: true, mode: 0o700 });
   await writeFile(join(home, 'auth.json'), JSON.stringify(syntheticAuth(`synthetic-account-${label.toLowerCase()}`)), { mode: 0o600 });
+  await writeFile(join(home, 'config.toml'), fixture.config, { mode: 0o600 });
   profiles.push({ id, name: `Account ${label}`, authMode: 'ChatGPT', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
 }
 await writeFile(join(storage, 'profiles.json'), JSON.stringify(profiles), { mode: 0o600 });
+// Reproduce app-launched Code: desktop metadata supplies the global home while
+// the extension host inherits a managed account's CODEX_HOME.
+await writeFile(join(storage, 'executables.json'), JSON.stringify({ globalCodexHome: globalHome }), { mode: 0o600 });
 await mkdir(runtimeRoot);
 const bundledEngine = await bundledEnginePath(extension);
 const configPath = join(runtimeRoot, 'bridge-config.json');
@@ -67,7 +71,7 @@ const wrapper = join(runtimeRoot, 'codex-bridge');
 const quote = value => `'${value.replace(/'/g, `'"'"'`)}'`;
 await writeFile(wrapper, `#!/bin/sh\nexport ELECTRON_RUN_AS_NODE=1\nexec ${quote(code)} ${quote(join(developmentPath, 'dist/bridge-main.cjs'))} --bridge-config ${quote(configPath)} "$@"\n`, { mode: 0o700 });
 await writeFile(join(testRoot, 'user-data', 'User', 'settings.json'), JSON.stringify({
-  'multiCodex.dataDirectory': storage, 'multiCodex.globalCodexHome': globalHome,
+  'multiCodex.dataDirectory': storage,
   ...(!liveAttach ? { 'chatgpt.cliExecutable': wrapper } : {}), 'chatgpt.openOnStartup': true,
   'chatgpt.apiEndpoint': 'localhost',
   'security.workspace.trust.enabled': false, 'telemetry.telemetryLevel': 'off', 'extensions.autoUpdate': false,
@@ -84,7 +88,7 @@ const child = spawn(code, ['--user-data-dir', join(testRoot, 'user-data'), '--ex
   ...(process.platform === 'linux' ? ['--no-sandbox', '--ozone-platform=x11'] : []), `--remote-debugging-port=${debugPort}`,
   '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--disable-backgrounding-occluded-windows',
   '--enable-proposed-api=openai.chatgpt', join(testRoot, 'workspace')],
-  { env: { ...env, MULTI_CODEX_TEST_MODE: '1', MULTI_CODEX_TEST_EXTENSION_ID: extensionId, MULTI_CODEX_UI_TEST: '1', MULTI_CODEX_TEST_LIVE_ATTACH: liveAttach ? '1' : '0', MULTI_CODEX_VSCODE_TEST_ROOT: testRoot, CODEX_HOME: globalHome }, stdio: ['ignore', 'pipe', 'pipe'] });
+  { env: { ...env, MULTI_CODEX_TEST_MODE: '1', MULTI_CODEX_TEST_EXTENSION_ID: extensionId, MULTI_CODEX_UI_TEST: '1', MULTI_CODEX_TEST_LIVE_ATTACH: liveAttach ? '1' : '0', MULTI_CODEX_VSCODE_TEST_ROOT: testRoot, CODEX_HOME: join(storage, 'profiles', profiles[0].id, 'codex-home') }, stdio: ['ignore', 'pipe', 'pipe'] });
 let diagnostics = '';
 for (const stream of [child.stdout, child.stderr]) stream.on('data', chunk => { diagnostics = (diagnostics + chunk.toString()).slice(-30000); });
 const polling = setInterval(async () => {
@@ -115,6 +119,11 @@ const uiPolling = setInterval(async () => {
     }
     const expectedLabel = phase.label.includes('Account A') ? 'Account A' : 'Account B';
     if (!frames.some(frame => !frame.targetId && frame.text?.includes(expectedLabel))) return;
+    if (phase.accountsPanel) {
+      const visible = await page.locator('[role="treeitem"]').allTextContents();
+      if (!visible.some(text => text.includes('Account A')) || !visible.some(text => text.includes('Account B') && text.includes('90%'))) return;
+      if (await page.getByText('Enable switching', { exact: true }).count() || await page.getByText('Add an account', { exact: true }).count()) throw new Error('Large welcome buttons are still present');
+    }
     await page.screenshot({ path: `.test-results/panel-${phase.label.replace(/[^a-zA-Z0-9-]/g, '-')}.png` });
     uiPhases.push({ label: phase.label, frames });
     await writeFile('.test-results/panel-observations.json', JSON.stringify(uiPhases, null, 2));
@@ -137,6 +146,7 @@ try {
   if (new Set(targets).size !== 1) throw new Error('The Codex panel was recreated');
   report.panelStayedMounted = true;
   report.statusBarAccountVerified = true;
+  report.accountsPanelVerified = uiPhases.some(phase => phase.label === 'accounts-list Account B');
   report.liveAttachment = liveAttach;
   report.platform = process.platform;
   report.architecture = process.arch;
