@@ -62,7 +62,8 @@ for (const [index, label] of ['A', 'B'].entries()) {
 await writeFile(join(storage, 'profiles.json'), JSON.stringify(profiles), { mode: 0o600 });
 // Reproduce app-launched Code: desktop metadata supplies the global home while
 // the extension host inherits a managed account's CODEX_HOME.
-await writeFile(join(storage, 'executables.json'), JSON.stringify({ globalCodexHome: globalHome }), { mode: 0o600 });
+// Exercise a visible initial storage error and repair it from the test extension.
+await writeFile(join(storage, 'executables.json'), 'incomplete desktop settings', { mode: 0o600 });
 await mkdir(runtimeRoot);
 const bundledEngine = await bundledEnginePath(extension);
 const configPath = join(runtimeRoot, 'bridge-config.json');

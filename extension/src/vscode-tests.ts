@@ -16,7 +16,16 @@ export async function run() {
   assert.ok(extensionId, 'The test harness must provide the packaged extension ID');
   const extension = vscode.extensions.getExtension(extensionId)!;
   const api = await extension.activate();
+  const failedStorage = await api.getState();
+  assert.equal(failedStorage.accounts.length, 0);
+  assert.match(failedStorage.panelMessage, /Could not read Multi Codex desktop settings/);
+  await writeFile(join(root, 'data', 'executables.json'), JSON.stringify({ globalCodexHome: join(root, 'global-home') }));
+  await api.refreshAccounts();
   const saved = await waitFor<any>(() => api.getState(), value => value.accounts.length === 2);
+  assert.equal(saved.activationId, failedStorage.activationId);
+  assert.equal(saved.extensionHostPid, failedStorage.extensionHostPid);
+  assert.equal(saved.storageError, '');
+  checks.push('Visible storage error recovered with Refresh without restarting the extension or VS Code');
   checks.push('Desktop accounts discovered despite inherited managed CODEX_HOME');
   await vscode.commands.executeCommand('chatgpt.openSidebar');
   if (process.env.MULTI_CODEX_TEST_LIVE_ATTACH === '1') {
@@ -80,6 +89,11 @@ export async function run() {
   await assert.rejects(() => api.switchAccount('00000000-0000-4000-8000-000000000000'), /not found/);
   assert.equal((await api.getState()).bridge.selectedId, b.id);
   checks.push('Missing account leaves the previous verified account active');
+  await api.testStopAccountHelper();
+  await api.refreshAccounts();
+  await verifyStable();
+  assert.equal((await api.getState()).accounts.length, 2);
+  checks.push('Account discovery recovered after helper termination while Codex stayed running');
   await vscode.commands.executeCommand('multiCodex.checkAccountUsage', b);
   await vscode.commands.executeCommand('workbench.view.extension.multiCodex');
   if (process.env.MULTI_CODEX_UI_TEST === '1') {
