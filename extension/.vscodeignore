@@ -1,0 +1,13 @@
+node_modules/**
+src/**
+tests/**
+scripts/**
+.test-results/**
+dist/**/*.map
+dist/core.cjs
+dist/vscode-tests.cjs
+package-lock.json
+tsconfig.json
+verification.json
+.gitignore
+*.vsix
