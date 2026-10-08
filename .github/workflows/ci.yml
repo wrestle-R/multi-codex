@@ -45,6 +45,12 @@ jobs:
       - run: npm run build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Build and test the local VS Code extension
+        run: |
+          npm ci --prefix ../extension
+          npm --prefix ../extension run build:helper
+          npm --prefix ../extension test
+          npm --prefix ../extension run package -- --target linux-x64
       - run: npm run check:secrets
 
   macos:

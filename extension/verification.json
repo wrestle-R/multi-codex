@@ -1,0 +1,164 @@
+{
+  "passed": true,
+  "artifact": "multi-codex-linux-x64-0.1.0.vsix",
+  "sha256": "a5c09e078c61410cc7e860b6d57ceb75cab316f95e254dece4ca74ca1bdefe73",
+  "testEnvironment": {
+    "vscode": "1.140.0",
+    "platform": "linux-x64",
+    "syntheticAccounts": true,
+    "localService": true,
+    "disposableOfficialExtensionFixture": true,
+    "packagedVsixTest": true,
+    "optimizedNativeHelper": true
+  },
+  "liveAttachmentRuns": [
+    {
+      "passed": true,
+      "checks": [
+        "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Missing account leaves the previous verified account active"
+      ],
+      "hostPid": 213330,
+      "backendPid": 213527,
+      "activationId": "ec008a80-f6d3-4418-8952-6f06a07df3ca",
+      "bridgeInstanceId": "20e0bd78-1dc7-4b6d-96f1-1a4d0e716e3d",
+      "codexVersion": "26.1002.51308",
+      "panelPhases": [
+        "1-Account A",
+        "2-Account B",
+        "3-Account A",
+        "continued-Account B"
+      ],
+      "generationAccounts": [
+        "synthetic-account-a",
+        "synthetic-account-b"
+      ],
+      "panelStayedMounted": true,
+      "statusBarAccountVerified": true,
+      "liveAttachment": true,
+      "originalLoginUnchanged": true
+    },
+    {
+      "passed": true,
+      "checks": [
+        "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Missing account leaves the previous verified account active"
+      ],
+      "hostPid": 214629,
+      "backendPid": 214668,
+      "activationId": "947452a8-b0ff-47f3-ae1b-2fd5bec4027e",
+      "bridgeInstanceId": "08eaf8b0-c01e-4d92-b424-77b24450aa68",
+      "codexVersion": "26.930.61225",
+      "panelPhases": [
+        "1-Account A",
+        "2-Account B",
+        "3-Account A",
+        "continued-Account B"
+      ],
+      "generationAccounts": [
+        "synthetic-account-a",
+        "synthetic-account-b"
+      ],
+      "panelStayedMounted": true,
+      "statusBarAccountVerified": true,
+      "liveAttachment": true,
+      "originalLoginUnchanged": true
+    }
+  ],
+  "isolatedStartupRun": {
+    "passed": true,
+    "checks": [
+      "Selected Account A",
+      "Selected Account B",
+      "Selected Account A",
+      "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+      "Usage read through the official bundled backend",
+      "Switch rejected during an actual in-progress Codex turn",
+      "Switch allowed after the actual turn completed",
+      "Existing chat continued after switching accounts without creating a new thread",
+      "Missing account leaves the previous verified account active"
+    ],
+    "hostPid": 217228,
+    "backendPid": 217275,
+    "activationId": "b29ad86d-0305-4c91-b303-95cfdb919168",
+    "bridgeInstanceId": "fe719d4c-d2af-44bd-9691-2e82edc7e045",
+    "codexVersion": "26.1002.51308",
+    "panelPhases": [
+      "0-Account A",
+      "1-Account B",
+      "2-Account A",
+      "continued-Account B"
+    ],
+    "generationAccounts": [
+      "synthetic-account-a",
+      "synthetic-account-b"
+    ],
+    "panelStayedMounted": true,
+    "statusBarAccountVerified": true,
+    "liveAttachment": false,
+    "originalLoginUnchanged": null
+  },
+  "unitTests": {
+    "passed": 26,
+    "failed": 0,
+    "skipped": 0
+  },
+  "rustTests": {
+    "passed": 85,
+    "failed": 0,
+    "ignored": 3
+  },
+  "desktopUiTests": {
+    "passed": 78,
+    "failed": 0
+  },
+  "launcherWindow": {
+    "passed": true,
+    "before": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "afterLaunch": {
+      "floating": false,
+      "fullscreen": 0,
+      "size": [
+        949,
+        569
+      ]
+    },
+    "afterClose": {
+      "floating": false,
+      "fullscreen": 0,
+      "size": [
+        949,
+        1148
+      ]
+    },
+    "temporaryData": true
+  },
+  "npmAudit": {
+    "vulnerabilities": 0,
+    "packager": "@vscode/vsce 4.0.0"
+  },
+  "publishing": "Deferred; no Microsoft account or publisher created"
+}

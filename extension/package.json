@@ -1,0 +1,196 @@
+{
+  "name": "multi-codex",
+  "displayName": "Multi Codex",
+  "description": "Manage Codex accounts and switch the current Codex panel without reloading VS Code.",
+  "version": "0.1.0",
+  "publisher": "multi-codex-local",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wrestle-R/multi-codex.git",
+    "directory": "extension"
+  },
+  "homepage": "https://github.com/wrestle-R/multi-codex/tree/main/extension",
+  "bugs": "https://github.com/wrestle-R/multi-codex/issues",
+  "icon": "resources/icon.png",
+  "keywords": [
+    "codex",
+    "accounts",
+    "multi-codex"
+  ],
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "main": "./dist/extension.cjs",
+  "extensionDependencies": [
+    "openai.chatgpt"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "multiCodex.enableSwitching",
+        "title": "Enable Account Switching",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.disableSwitching",
+        "title": "Disable Account Switching",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.addAccount",
+        "title": "Add Account",
+        "category": "Multi Codex",
+        "icon": "$(add)"
+      },
+      {
+        "command": "multiCodex.pickAccount",
+        "title": "Choose Account",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.switchAccount",
+        "title": "Switch Account",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.refreshAccounts",
+        "title": "Refresh Accounts",
+        "category": "Multi Codex",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "multiCodex.refreshUsage",
+        "title": "Check Usage",
+        "category": "Multi Codex",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "multiCodex.checkAccountUsage",
+        "title": "Check This Account's Usage",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.renameAccount",
+        "title": "Rename Account",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.removeAccount",
+        "title": "Remove Account",
+        "category": "Multi Codex"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "multiCodex",
+          "title": "Multi Codex",
+          "icon": "resources/accounts.svg"
+        }
+      ]
+    },
+    "views": {
+      "multiCodex": [
+        {
+          "id": "multiCodex.accounts",
+          "name": "Accounts"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "multiCodex.accounts",
+        "contents": "Manage accounts in this window.\n[Add an account](command:multiCodex.addAccount)\n[Enable switching](command:multiCodex.enableSwitching)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "multiCodex.addAccount",
+          "when": "view == multiCodex.accounts",
+          "group": "navigation@1"
+        },
+        {
+          "command": "multiCodex.refreshAccounts",
+          "when": "view == multiCodex.accounts",
+          "group": "navigation@2"
+        },
+        {
+          "command": "multiCodex.refreshUsage",
+          "when": "view == multiCodex.accounts",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "multiCodex.checkAccountUsage",
+          "when": "view == multiCodex.accounts && viewItem == multiCodexAccount"
+        },
+        {
+          "command": "multiCodex.renameAccount",
+          "when": "view == multiCodex.accounts && viewItem == multiCodexAccount"
+        },
+        {
+          "command": "multiCodex.removeAccount",
+          "when": "view == multiCodex.accounts && viewItem == multiCodexAccount"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Multi Codex",
+      "properties": {
+        "multiCodex.dataDirectory": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "restricted": true,
+          "description": "Optional absolute account data directory. Defaults to the desktop app's existing data directory."
+        },
+        "multiCodex.globalCodexHome": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "restricted": true,
+          "description": "Optional absolute Codex home used for importing the current login and configuration."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc --noEmit && node scripts/build.mjs",
+    "build:helper": "node scripts/build-helper.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:engine": "node scripts/probe-engine.mjs",
+    "test:vscode": "npm run build && node scripts/test-vscode.mjs",
+    "package": "npm run build && vsce package",
+    "test:attachment": "npm run build && MULTI_CODEX_TEST_LIVE_ATTACH=1 node scripts/test-vscode.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "@types/vscode": "^1.100.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.25.0",
+    "playwright-core": "^1.56.1",
+    "typescript": "~5.9.3"
+  }
+}

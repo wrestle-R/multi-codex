@@ -1,0 +1,47 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { createRequire } from 'node:module';
+import { syntheticAuth } from './fixtures/local-service.mjs';
+const { AccountClient } = createRequire(import.meta.url)('../dist/core.cjs');
+const engine = process.env.MULTI_CODEX_TEST_ENGINE;
+test('native storage supports standalone add/import, shared discovery and cross-process leases', { skip: !engine }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-native-test-')); const home = join(root, 'default');
+  await mkdir(home); const authJson = JSON.stringify(syntheticAuth('synthetic-account-a'));
+  await writeFile(join(home, 'auth.json'), authJson);
+  const helper = resolve('bin/multi-codex-account-helper'); const data = join(root, 'data');
+  const first = new AccountClient(helper, engine, data, home); const second = new AccountClient(helper, engine, data, home);
+  try {
+    assert.deepEqual(await first.list(), []);
+    await first.request('accounts/add', { name: 'Standalone account', authJson });
+    await second.request('accounts/import', { name: 'Imported current account' });
+    let profiles = await first.list(); assert.equal(profiles.length, 2);
+    const active = profiles.find(profile => profile.name === 'Standalone account');
+    assert.deepEqual(await second.credential(active.id), JSON.parse(authJson));
+    assert.equal(await readFile(join(home, 'auth.json'), 'utf8'), authJson, 'Import changed the default login');
+    await first.request('accounts/lease', { id: active.id }); await second.request('accounts/lease', { id: active.id });
+    await assert.rejects(() => second.request('accounts/delete', { id: active.id }), /running|open|close/i);
+    await first.request('accounts/release', { id: active.id });
+    await assert.rejects(() => first.request('accounts/delete', { id: active.id }), /running|open|close/i);
+    await second.request('accounts/release', { id: active.id });
+    await first.request('accounts/lockCredential', { id: active.id });
+    await assert.rejects(() => second.request('accounts/lockCredential', { id: active.id }), /refreshing/);
+    await assert.rejects(() => second.request('accounts/delete', { id: active.id }), /close/i);
+    await first.request('accounts/unlockCredential', { id: active.id });
+    await first.request('accounts/rename', { id: active.id, name: 'Renamed account' });
+    assert.equal((await second.list()).find(p => p.id === active.id).name, 'Renamed account');
+    await Promise.all(Array.from({ length: 4 }, (_, i) => (i % 2 ? first : second).request('accounts/add', { name: `Concurrent ${i}`, authJson })));
+    assert.equal((await first.list()).length, 6);
+    const cold = new AccountClient(helper, engine, data, home);
+    try { await cold.request('accounts/delete', { id: active.id }); }
+    finally { cold.dispose(); }
+    assert.equal((await second.list()).length, 5, 'A fresh helper could not remove a persisted account');
+  } finally {
+    for (const profile of await first.list().catch(() => [])) { await first.request('accounts/release', { id: profile.id }).catch(() => {}); await second.request('accounts/release', { id: profile.id }).catch(() => {}); }
+    for (const profile of await first.list().catch(() => [])) { await first.request('accounts/unlockCredential', { id: profile.id }).catch(() => {}); await second.request('accounts/unlockCredential', { id: profile.id }).catch(() => {}); }
+    for (const profile of await first.list().catch(() => [])) await first.request('accounts/delete', { id: profile.id }).catch(() => {});
+    first.dispose(); second.dispose(); await rm(root, { recursive: true, force: true });
+  }
+});
