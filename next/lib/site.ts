@@ -1,5 +1,6 @@
 export const repository = "https://github.com/wrestle-R/multi-codex"
 export const latestRelease = `${repository}/releases/latest`
+export const vscodeMarketplace = "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex"
 export const version = "1.3.8"
 export const installCommand = (platform: "linux" | "mac", update = false) => {
   const action = update ? "update" : "install"

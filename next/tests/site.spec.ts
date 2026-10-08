@@ -1,5 +1,23 @@
 import { test, expect } from "@playwright/test"
 
+test("extension installation links use the public Marketplace and explain shared accounts", async ({ page }) => {
+  const publicUrl = "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex"
+  await page.goto("/")
+  await expect(page.getByRole("link", { name: "Get VS Code extension" })).toHaveAttribute("href", publicUrl)
+  await expect(page.getByRole("link", { name: "Install from Marketplace" })).toHaveAttribute("href", publicUrl)
+  await expect(page.locator("#vscode")).toContainText("Intel and Apple Silicon")
+  await page.getByRole("link", { name: "Extension setup and compatibility" }).click()
+  await expect(page).toHaveURL(/\/docs#vscode$/)
+  await expect(page.locator("#vscode")).toContainText("saved accounts appear automatically")
+  await expect(page.locator("#vscode")).toContainText("connects switching automatically")
+  await expect(page.getByRole("link", { name: "Install the pre-release" })).toHaveAttribute("href", publicUrl)
+  await expect(page.locator('a[href*="/manage/publishers/"]')).toHaveCount(0)
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+  }
+})
+
 test("changelog groups selected updates by series and preserves version links and permalinks", async ({ page }) => {
   const tags = ["v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
   await page.goto("/releases")
