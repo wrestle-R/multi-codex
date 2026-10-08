@@ -113,9 +113,9 @@ jobs:
         env:
           PACKAGE_TARGET: ${{ matrix.target }}
         run: |
-          npm run package -- --target "$PACKAGE_TARGET" --pre-release --out "multi-codex-$PACKAGE_TARGET-0.1.0.vsix"
+          npm run package -- --target "$PACKAGE_TARGET" --pre-release --out "multi-codex-$PACKAGE_TARGET-0.1.1.vsix"
           mkdir "$RUNNER_TEMP/packaged-extension"
-          unzip -q "multi-codex-$PACKAGE_TARGET-0.1.0.vsix" -d "$RUNNER_TEMP/packaged-extension"
+          unzip -q "multi-codex-$PACKAGE_TARGET-0.1.1.vsix" -d "$RUNNER_TEMP/packaged-extension"
           test -x "$RUNNER_TEMP/packaged-extension/extension/bin/multi-codex-account-helper"
           if [[ "$RUNNER_OS" == 'macOS' ]]; then
             codesign --verify --strict "$RUNNER_TEMP/packaged-extension/extension/bin/multi-codex-account-helper"
@@ -144,7 +144,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: extension-${{ matrix.target }}
-          path: extension/multi-codex-${{ matrix.target }}-0.1.0.vsix
+          path: extension/multi-codex-${{ matrix.target }}-0.1.1.vsix
           if-no-files-found: error
       - name: Upload synthetic test evidence
         if: always()

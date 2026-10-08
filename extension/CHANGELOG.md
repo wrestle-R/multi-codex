@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-10-08
+
+- Fix desktop account discovery when VS Code inherits a managed profile's `CODEX_HOME`, including symlinked paths.
+- Replace the large welcome buttons with a native account list, compact toolbar actions and visible loading/error states.
+- Connect switching automatically when an account is selected, preserving the existing activity guards and current window.
+- Show usage beside account rows and recover account loading after a failed helper startup.
+
 ## 0.1.0 — 2026-10-08
 
 Initial Linux x64 and macOS (Apple Silicon and Intel, macOS 26+) pre-release.
