@@ -1,5 +1,7 @@
 # VS Code account switching and launcher: local verification
 
+This records the original Linux preview before the Marketplace release. For the subsequent Linux and native macOS packages, see [Marketplace release verification](extension-marketplace-verification-2026-10-08.json). The artifact hash and test counts below belong to this earlier preview.
+
 The Linux x64 preview attaches to an already-running official Codex backend and switches accounts without reloading VS Code, reactivating either extension, recreating the panel, restarting the backend, or creating another chat. **Initial ChatGPT attachment also needs no restart on the two verified Codex builds.** This uses a private Node compatibility hook and an experimental backend authentication API, not a public Codex extension API.
 
 The artifact is `extension/multi-codex-linux-x64-0.1.0.vsix`, packaged with an optimized native helper. SHA256: `a5c09e078c61410cc7e860b6d57ceb75cab316f95e254dece4ca74ca1bdefe73`. The VSIX was extracted; both runtime bundles and the helper matched the build byte-for-byte. That extracted package passed the actual VS Code checks below.
@@ -47,4 +49,4 @@ The Codex tests use synthetic credentials and loopback authentication/usage/mode
 
 Live OAuth, real refresh-token rotation, cloud conversations, organization permissions and real quota enforcement need separate verification. Codex does not expose every queue held in the UI; clear UI-local queued follow-ups before switching. Unknown/opaque queue notifications block switching conservatively. Live attachment supports ChatGPT accounts; API keys require the isolated wrapper on a later normal startup. Unsupported or ambiguous host builds are refused without automatically reloading VS Code. macOS, Windows, remote environments and other Codex versions are not certified by this result. Older installed desktop releases do not understand extension account leases; use the updated desktop source when editing shared accounts concurrently.
 
-The work is split into three source commits. Marketplace publishing is deferred at the owner's request; no Microsoft account or publisher was created and no extension was uploaded there. See [installation and compatibility](../extension/README.md), [summarized test evidence](../extension/verification.json), and [publishing requirements](extension-publishing.md).
+The original work was split into three source commits. Marketplace publishing was deferred at that stage; publication was subsequently authorized under the existing publisher `russeldanielpaul`. See [installation and compatibility](../extension/README.md), [summarized local test evidence](../extension/verification.json), and [publishing requirements](extension-publishing.md).

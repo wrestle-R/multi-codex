@@ -153,3 +153,4 @@ jobs:
           name: extension-evidence-${{ matrix.target }}
           path: extension/.test-results/
           if-no-files-found: warn
+          include-hidden-files: true

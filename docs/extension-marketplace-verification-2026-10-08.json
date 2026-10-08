@@ -1,0 +1,331 @@
+{
+  "releaseVersion": "0.1.0",
+  "extensionId": "russeldanielpaul.multi-codex",
+  "sourceCommit": "6dbcdf77672b2f9959a9c934244bee092db021cc",
+  "nativeVerificationRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37801308012",
+  "appVerificationRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37801307997",
+  "nativeVerificationPassed": true,
+  "packages": [
+    {
+      "file": "multi-codex-darwin-arm64-0.1.0.vsix",
+      "sha256": "944d38213375616ebced3ed4831afb32404313d6daa494f16bac3812d0a00e8a",
+      "target": "darwin-arm64"
+    },
+    {
+      "file": "multi-codex-darwin-x64-0.1.0.vsix",
+      "sha256": "d1c4bfb66839469624f90de2a5167c3b183d76851edcfe3e12bc3d1d565ba30d",
+      "target": "darwin-x64"
+    },
+    {
+      "file": "multi-codex-linux-x64-0.1.0.vsix",
+      "sha256": "783eb5210fb10f86573f99b1bca590314c5ea80a6d986f14e54e5df306de2f39",
+      "target": "linux-x64"
+    }
+  ],
+  "platforms": {
+    "linux-x64": {
+      "unitTestsPassed": 27,
+      "nativeKeychainTestPassed": null,
+      "packagedRuns": [
+        {
+          "passed": true,
+          "checks": [
+            "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+            "Selected Account A",
+            "Selected Account B",
+            "Selected Account A",
+            "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+            "Usage read through the official bundled backend",
+            "Switch rejected during an actual in-progress Codex turn",
+            "Switch allowed after the actual turn completed",
+            "Existing chat continued after switching accounts without creating a new thread",
+            "Missing account leaves the previous verified account active"
+          ],
+          "hostPid": 12370,
+          "backendPid": 12523,
+          "activationId": "0562d3a9-18e5-431c-9898-c44f5d679ed9",
+          "bridgeInstanceId": "904f682b-caf3-4b45-95a4-f0d43d532cd0",
+          "codexVersion": "26.1002.51308",
+          "fixtureRequests": 98,
+          "panelPhases": [
+            "1-Account A",
+            "2-Account B",
+            "3-Account A",
+            "continued-Account B"
+          ],
+          "generationAccounts": [
+            "synthetic-account-a",
+            "synthetic-account-b"
+          ],
+          "panelStayedMounted": true,
+          "statusBarAccountVerified": true,
+          "liveAttachment": true,
+          "platform": "linux",
+          "architecture": "x64",
+          "extensionId": "russeldanielpaul.multi-codex",
+          "originalLoginUnchanged": true,
+          "source": "Completed GitHub Actions job console report"
+        },
+        {
+          "passed": true,
+          "checks": [
+            "Selected Account A",
+            "Selected Account B",
+            "Selected Account A",
+            "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+            "Usage read through the official bundled backend",
+            "Switch rejected during an actual in-progress Codex turn",
+            "Switch allowed after the actual turn completed",
+            "Existing chat continued after switching accounts without creating a new thread",
+            "Missing account leaves the previous verified account active"
+          ],
+          "hostPid": 13134,
+          "backendPid": 13295,
+          "activationId": "137a9f26-7def-4a24-886f-d2f526150dbf",
+          "bridgeInstanceId": "6c277df0-35be-49b0-9cbd-0d8d10c2caeb",
+          "codexVersion": "26.1002.51308",
+          "fixtureRequests": 85,
+          "panelPhases": [
+            "0-Account A",
+            "1-Account B",
+            "2-Account A",
+            "continued-Account B"
+          ],
+          "generationAccounts": [
+            "synthetic-account-a",
+            "synthetic-account-b"
+          ],
+          "panelStayedMounted": true,
+          "statusBarAccountVerified": true,
+          "liveAttachment": false,
+          "platform": "linux",
+          "architecture": "x64",
+          "extensionId": "russeldanielpaul.multi-codex",
+          "originalLoginUnchanged": null,
+          "source": "Completed GitHub Actions job console report"
+        }
+      ]
+    },
+    "darwin-arm64": {
+      "unitTestsPassed": 27,
+      "nativeKeychainTestPassed": true,
+      "packagedRuns": [
+        {
+          "passed": true,
+          "checks": [
+            "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+            "Selected Account A",
+            "Selected Account B",
+            "Selected Account A",
+            "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+            "Usage read through the official bundled backend",
+            "Switch rejected during an actual in-progress Codex turn",
+            "Switch allowed after the actual turn completed",
+            "Existing chat continued after switching accounts without creating a new thread",
+            "Missing account leaves the previous verified account active"
+          ],
+          "hostPid": 12100,
+          "backendPid": 12390,
+          "activationId": "2b0747ae-96da-473b-a974-356d6fab06c4",
+          "bridgeInstanceId": "7f69bdd1-37f3-4009-9b99-3cfe2c45732a",
+          "codexVersion": "26.1002.51308",
+          "fixtureRequests": 98,
+          "panelPhases": [
+            "1-Account A",
+            "2-Account B",
+            "3-Account A",
+            "continued-Account B"
+          ],
+          "generationAccounts": [
+            "synthetic-account-a",
+            "synthetic-account-b"
+          ],
+          "panelStayedMounted": true,
+          "statusBarAccountVerified": true,
+          "liveAttachment": true,
+          "platform": "darwin",
+          "architecture": "arm64",
+          "extensionId": "russeldanielpaul.multi-codex",
+          "originalLoginUnchanged": true,
+          "source": "Completed GitHub Actions job console report"
+        },
+        {
+          "passed": true,
+          "checks": [
+            "Selected Account A",
+            "Selected Account B",
+            "Selected Account A",
+            "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+            "Usage read through the official bundled backend",
+            "Switch rejected during an actual in-progress Codex turn",
+            "Switch allowed after the actual turn completed",
+            "Existing chat continued after switching accounts without creating a new thread",
+            "Missing account leaves the previous verified account active"
+          ],
+          "hostPid": 13913,
+          "backendPid": 14170,
+          "activationId": "5d7fdb97-2087-4a1c-901f-8fb5720c1595",
+          "bridgeInstanceId": "aa73ee3c-548f-49d9-a2ef-9f8872757a0c",
+          "codexVersion": "26.1002.51308",
+          "fixtureRequests": 99,
+          "panelPhases": [
+            "0-Account A",
+            "1-Account B",
+            "2-Account A",
+            "continued-Account B"
+          ],
+          "generationAccounts": [
+            "synthetic-account-a",
+            "synthetic-account-b"
+          ],
+          "panelStayedMounted": true,
+          "statusBarAccountVerified": true,
+          "liveAttachment": false,
+          "platform": "darwin",
+          "architecture": "arm64",
+          "extensionId": "russeldanielpaul.multi-codex",
+          "originalLoginUnchanged": null,
+          "source": "Completed GitHub Actions job console report"
+        }
+      ]
+    },
+    "darwin-x64": {
+      "unitTestsPassed": 27,
+      "nativeKeychainTestPassed": true,
+      "packagedRuns": [
+        {
+          "passed": true,
+          "checks": [
+            "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+            "Selected Account A",
+            "Selected Account B",
+            "Selected Account A",
+            "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+            "Usage read through the official bundled backend",
+            "Switch rejected during an actual in-progress Codex turn",
+            "Switch allowed after the actual turn completed",
+            "Existing chat continued after switching accounts without creating a new thread",
+            "Missing account leaves the previous verified account active"
+          ],
+          "hostPid": 30254,
+          "backendPid": 30273,
+          "activationId": "283a95a5-0dd2-4495-918c-49eaf1debdf4",
+          "bridgeInstanceId": "accc2139-ef8b-4fec-9ac4-63b54a12bc54",
+          "codexVersion": "26.1002.51308",
+          "fixtureRequests": 102,
+          "panelPhases": [
+            "1-Account A",
+            "2-Account B",
+            "3-Account A",
+            "continued-Account B"
+          ],
+          "generationAccounts": [
+            "synthetic-account-a",
+            "synthetic-account-b"
+          ],
+          "panelStayedMounted": true,
+          "statusBarAccountVerified": true,
+          "liveAttachment": true,
+          "platform": "darwin",
+          "architecture": "x64",
+          "extensionId": "russeldanielpaul.multi-codex",
+          "originalLoginUnchanged": true,
+          "source": "Completed GitHub Actions job console report"
+        },
+        {
+          "passed": true,
+          "checks": [
+            "Selected Account A",
+            "Selected Account B",
+            "Selected Account A",
+            "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+            "Usage read through the official bundled backend",
+            "Switch rejected during an actual in-progress Codex turn",
+            "Switch allowed after the actual turn completed",
+            "Existing chat continued after switching accounts without creating a new thread",
+            "Missing account leaves the previous verified account active"
+          ],
+          "hostPid": 31369,
+          "backendPid": 31567,
+          "activationId": "e319c974-21e5-45af-bfd1-528e60b3bd2e",
+          "bridgeInstanceId": "73b1ce02-3687-40f8-8403-f20fdb8a1b4c",
+          "codexVersion": "26.1002.51308",
+          "fixtureRequests": 102,
+          "panelPhases": [
+            "0-Account A",
+            "1-Account B",
+            "2-Account A",
+            "continued-Account B"
+          ],
+          "generationAccounts": [
+            "synthetic-account-a",
+            "synthetic-account-b"
+          ],
+          "panelStayedMounted": true,
+          "statusBarAccountVerified": true,
+          "liveAttachment": false,
+          "platform": "darwin",
+          "architecture": "x64",
+          "extensionId": "russeldanielpaul.multi-codex",
+          "originalLoginUnchanged": null,
+          "source": "Completed GitHub Actions job console report"
+        }
+      ]
+    }
+  },
+  "publishing": {
+    "completed": true,
+    "marketplaceUrl": "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex",
+    "verifiedAt": "2026-10-08T16:06:22.060899+00:00",
+    "galleryFlags": "validated, public",
+    "pricing": "Free",
+    "preRelease": true,
+    "publicDownloads": [
+      {
+        "target": "darwin-x64",
+        "version": "0.1.0",
+        "preRelease": true,
+        "validated": true,
+        "sha256": "d1c4bfb66839469624f90de2a5167c3b183d76851edcfe3e12bc3d1d565ba30d",
+        "matchedTestedArtifact": true,
+        "source": "https://russeldanielpaul.gallerycdn.vsassets.io/extensions/russeldanielpaul/multi-codex/0.1.0/1791475275857/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+        "target": "darwin-arm64",
+        "version": "0.1.0",
+        "preRelease": true,
+        "validated": true,
+        "sha256": "944d38213375616ebced3ed4831afb32404313d6daa494f16bac3812d0a00e8a",
+        "matchedTestedArtifact": true,
+        "source": "https://russeldanielpaul.gallerycdn.vsassets.io/extensions/russeldanielpaul/multi-codex/0.1.0/1791474826699/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+        "target": "linux-x64",
+        "version": "0.1.0",
+        "preRelease": true,
+        "validated": true,
+        "sha256": "783eb5210fb10f86573f99b1bca590314c5ea80a6d986f14e54e5df306de2f39",
+        "matchedTestedArtifact": true,
+        "source": "https://russeldanielpaul.gallerycdn.vsassets.io/extensions/russeldanielpaul/multi-codex/0.1.0/1791474774631/Microsoft.VisualStudio.Services.VSIXPackage"
+      }
+    ]
+  },
+  "limitations": [
+    "Private Codex integration hooks and experimental authentication APIs",
+    "Real OAuth, credential rotation, billing limits and cloud permissions not certified by synthetic fixtures",
+    "UI-local queued messages may be invisible until submitted",
+    "macOS 26+; Linux x64 requires glibc 2.34+"
+  ],
+  "testEnvironment": {
+    "vscode": "1.140.0",
+    "codexExtension": "26.1002.51308",
+    "syntheticAccounts": true,
+    "loopbackAuthUsageModelFixtures": true,
+    "packagedVsixTest": true,
+    "nativeRunners": [
+      "ubuntu-22.04",
+      "macos-26",
+      "macos-26-intel"
+    ]
+  }
+}
