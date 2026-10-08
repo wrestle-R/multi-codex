@@ -7,7 +7,7 @@ import accountsDark from "@/public/images/accounts-dark.png"
 
 export default function Home() {
   return <main id="main">
-    <section className="hero page-width"><div className="hero-copy"><Link href="/releases" className="release-pill"><span className="status-dot" />New in v{version}<span aria-hidden="true">↗</span></Link>
+    <section className="hero page-width"><div className="hero-copy"><Link href={`/releases#v${version}`} className="release-pill"><span className="status-dot" />Latest: v{version}<span aria-hidden="true">↗</span></Link>
       <p className="eyebrow">YOUR ACCOUNTS. YOUR WORKSPACES.</p><h1>A little order<br />for all your<br /><span>Codex accounts.</span></h1>
       <p className="hero-description">Personal projects. Work accounts. One calm place to launch them all, with a separate workspace for every login.</p>
       <div className="hero-actions"><a className="button primary" href={latestRelease}>Get Multi Codex <span aria-hidden="true">↓</span></a><Link className="text-link" href="/docs">Read the docs <span aria-hidden="true">→</span></Link></div>

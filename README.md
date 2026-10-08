@@ -14,6 +14,16 @@ Launch settings includes a **CLI terminal** selector for installed terminals, in
 
 Expiring usage resets appear in a small reminder at the top when they have **48 hours or less** remaining. Qualifying resets are grouped across accounts. Reminders appear at most **twice per local day**, at least **four hours apart**, with the limit preserved after restarting the app.
 
+## Latest changes
+
+**v1.3.8** improves Launch settings and the terminal picker:
+
+- Workspace and Launching settings have separate sections, with Save and Cancel always visible.
+- The terminal picker shows Automatic and supported installed terminals, with keyboard navigation.
+- A saved terminal that is no longer installed displays guidance for choosing a replacement.
+
+The [changelog](https://multi-codex.vercel.app/releases) groups updates by release series, newest first, with version-specific dates and links to full release notes. See [release and contribution guidelines](docs/release-guidelines.md) for versioning, changelog entries and commit titles.
+
 ## Add an account
 
 Click **Add account** and choose one of three options:
