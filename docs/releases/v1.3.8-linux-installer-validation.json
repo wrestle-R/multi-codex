@@ -1,0 +1,19 @@
+{
+  "tag": "v1.3.8",
+  "appImageSha256": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
+  "checks": [
+    {
+      "script": "install-app.sh",
+      "exactReleasedAppImageInstalled": true,
+      "accountAndChatSentinelsUnchanged": true,
+      "defaultLoginUnchanged": true
+    },
+    {
+      "script": "update-app.sh",
+      "exactReleasedAppImageInstalled": true,
+      "accountAndChatSentinelsUnchanged": true,
+      "defaultLoginUnchanged": true
+    }
+  ],
+  "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
+}
