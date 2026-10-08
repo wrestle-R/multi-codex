@@ -246,7 +246,8 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             let paths = self.profile_paths(&metadata.id)?;
             let detected = profile_process_running(&paths.vscode_home)
                 || profile_process_running(&paths.desktop_home)
-                || profile_process_running(&paths.codex_home);
+                || profile_process_running(&paths.codex_home)
+                || self.extension_is_running(&metadata.id)?;
             let status = statuses
                 .get(&metadata.id)
                 .copied()
@@ -279,6 +280,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let notes = validate_notes(input.notes)?;
         let auth_mode = validate_auth_structure(&input.auth_json)?;
         self.recognizer.recognize(&input.auth_json)?;
+        let _write_lock = self.metadata_write_lock()?;
         let mut profiles = self.load_metadata()?;
         ensure_unique_name(&profiles, &name, None)?;
         let now = Utc::now();
@@ -421,6 +423,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         notes: Option<String>,
     ) -> Result<ProfileView> {
         validate_id(id)?;
+        let _write_lock = self.metadata_write_lock()?;
         if self.is_running(id)? {
             return Err("Close this profile's app window before editing it".to_string());
         }
@@ -492,6 +495,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     pub fn delete_profile(&self, id: &str) -> Result<()> {
         validate_id(id)?;
+        let _write_lock = self.metadata_write_lock()?;
         if self.is_running(id)? {
             return Err("Close this profile's app window before deleting it".to_string());
         }
@@ -505,11 +509,20 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         // linked profile must never cause another profile's files to be deleted.
         validate_managed_tree(&self.data_root, profile_root)?;
         let previous_profiles = profiles.clone();
-        let previous_secret = self.secrets.get(id)?;
+        // A reopened process may not have materialized this account into its
+        // credential store yet. Keep the persisted credential for rollback and
+        // still allow removal of signed-out accounts with no stored secret.
+        let previous_secret = self
+            .secrets
+            .get(id)
+            .ok()
+            .or_else(|| read_persisted_credential(&paths.codex_home.join("auth.json")).ok());
         self.secrets.delete(id)?;
         profiles.retain(|profile| profile.id != id);
         if let Err(error) = self.save_metadata(&profiles) {
-            let _ = self.secrets.set(id, &previous_secret);
+            if let Some(secret) = &previous_secret {
+                let _ = self.secrets.set(id, secret);
+            }
             return Err(error);
         }
         #[cfg(target_os = "macos")]
@@ -518,7 +531,9 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             remove_macos_standalone_aliases(&paths, id);
         }
         if let Err(error) = remove_managed_tree(&self.data_root, profile_root) {
-            let secret_restored = self.secrets.set(id, &previous_secret).is_ok();
+            let secret_restored = previous_secret
+                .as_ref()
+                .map_or(true, |secret| self.secrets.set(id, secret).is_ok());
             let metadata_restored = self.save_metadata(&previous_profiles).is_ok();
             return Err(if secret_restored && metadata_restored {
                 error
@@ -843,6 +858,101 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         read_metadata(&self.data_root.join("profiles.json"))
     }
 
+    fn metadata_write_lock(&self) -> Result<File> {
+        use std::os::unix::fs::OpenOptionsExt;
+        let path = self.data_root.join(".profiles.lock");
+        if let Ok(metadata) = fs::symlink_metadata(&path) {
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err("Account lock must be a regular file".into());
+            }
+        }
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(path)
+            .map_err(|_| "Could not open account lock")?;
+        fs2::FileExt::lock_exclusive(&file).map_err(|_| "Could not lock account changes")?;
+        Ok(file)
+    }
+
+    pub(crate) fn extension_credential(&self, id: &str) -> Result<String> {
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Account not found".into());
+        }
+        self.current_profile_credential(id)
+    }
+
+    pub(crate) fn extension_lease(&self, id: &str) -> Result<File> {
+        let _write_lock = self.metadata_write_lock()?;
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Account not found".into());
+        }
+        let paths = self.profile_paths(id)?;
+        ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
+        let path = paths.codex_home.join(".extension-session.lock");
+        if let Ok(metadata) = fs::symlink_metadata(&path) {
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err("Extension lease must be a regular file".into());
+            }
+        }
+        use std::os::unix::fs::OpenOptionsExt;
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(path)
+            .map_err(|_| "Could not open extension account lease")?;
+        fs2::FileExt::lock_shared(&file)
+            .map_err(|_| "Could not protect the active extension account")?;
+        Ok(file)
+    }
+
+    fn extension_is_running(&self, id: &str) -> Result<bool> {
+        let path = self
+            .profile_paths(id)?
+            .codex_home
+            .join(".extension-session.lock");
+        match fs::symlink_metadata(&path) {
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
+            Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {}
+            _ => return Err("Extension lease must be a regular file".into()),
+        }
+        let file = File::open(path).map_err(|_| "Could not inspect extension account lease")?;
+        Ok(fs2::FileExt::try_lock_exclusive(&file).is_err())
+    }
+
+    pub(crate) fn extension_credential_lock(&self, id: &str) -> Result<File> {
+        use std::os::unix::fs::OpenOptionsExt;
+        validate_id(id)?;
+        let path = self
+            .profile_paths(id)?
+            .codex_home
+            .join(".extension-credential.lock");
+        if let Ok(metadata) = fs::symlink_metadata(&path) {
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err("Credential lock must be a regular file".into());
+            }
+        }
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(path)
+            .map_err(|_| "Could not open credential lock")?;
+        fs2::FileExt::try_lock_exclusive(&file)
+            .map_err(|_| "Another window is refreshing this account. Retry in a moment.")?;
+        Ok(file)
+    }
+
     fn save_metadata(&self, profiles: &[ProfileMetadata]) -> Result<()> {
         atomic_write_metadata(&self.data_root, profiles)
     }
@@ -874,6 +984,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if profile_process_running(&paths.vscode_home)
             || profile_process_running(&paths.desktop_home)
             || profile_process_running(&paths.codex_home)
+            || self.extension_is_running(id)?
         {
             return Ok(true);
         }
@@ -2276,6 +2387,77 @@ mod tests {
         )
         .unwrap();
         (temp, service)
+    }
+
+    #[test]
+    fn extension_leases_protect_accounts_and_release_when_the_handle_closes() {
+        let (_temp, service) = fixture();
+        let profile = service
+            .add_profile(sample_input("Extension account"))
+            .unwrap();
+        let lease = service.extension_lease(&profile.metadata.id).unwrap();
+        assert_eq!(
+            service.list_profiles().unwrap()[0].status,
+            RuntimeStatus::Running
+        );
+        assert!(service.delete_profile(&profile.metadata.id).is_err());
+        assert!(service
+            .update_profile(&profile.metadata.id, "Changed".into(), None, None)
+            .is_err());
+        assert!(service.clear_profile_cache(&profile.metadata.id).is_err());
+        drop(lease);
+        assert_eq!(
+            service.list_profiles().unwrap()[0].status,
+            RuntimeStatus::Idle
+        );
+        service.delete_profile(&profile.metadata.id).unwrap();
+        assert!(service.list_profiles().unwrap().is_empty());
+    }
+
+    #[test]
+    fn concurrent_account_additions_preserve_every_record() {
+        let (_temp, service) = fixture();
+        let service = Arc::new(service);
+        let barrier = Arc::new(std::sync::Barrier::new(8));
+        let threads: Vec<_> = (0..8)
+            .map(|index| {
+                let service = Arc::clone(&service);
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    service
+                        .add_profile(sample_input(&format!("Account {index}")))
+                        .unwrap();
+                })
+            })
+            .collect();
+        for thread in threads {
+            thread.join().unwrap();
+        }
+        assert_eq!(service.list_profiles().unwrap().len(), 8);
+    }
+
+    #[test]
+    fn extension_lease_and_metadata_locks_reject_symlinks() {
+        use std::os::unix::fs::symlink;
+        let (temp, service) = fixture();
+        let profile = service
+            .add_profile(sample_input("Protected account"))
+            .unwrap();
+        let outside = temp.path().join("outside-lock");
+        fs::write(&outside, "untouched").unwrap();
+        let lease = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home
+            .join(".extension-session.lock");
+        symlink(&outside, lease).unwrap();
+        assert!(service.extension_lease(&profile.metadata.id).is_err());
+        let metadata_lock = service.data_root.join(".profiles.lock");
+        fs::remove_file(&metadata_lock).unwrap();
+        symlink(&outside, metadata_lock).unwrap();
+        assert!(service.add_profile(sample_input("Blocked write")).is_err());
+        assert_eq!(fs::read_to_string(outside).unwrap(), "untouched");
     }
 
     #[test]
