@@ -12,7 +12,9 @@ async function waitFor<T>(read: () => Promise<T>, check: (value: T) => boolean, 
 export async function run() {
   const root = process.env.MULTI_CODEX_VSCODE_TEST_ROOT!;
   const checks: string[] = [];
-  const extension = vscode.extensions.getExtension('multi-codex-local.multi-codex')!;
+  const extensionId = process.env.MULTI_CODEX_TEST_EXTENSION_ID;
+  assert.ok(extensionId, 'The test harness must provide the packaged extension ID');
+  const extension = vscode.extensions.getExtension(extensionId)!;
   const api = await extension.activate();
   await vscode.commands.executeCommand('chatgpt.openSidebar');
   if (process.env.MULTI_CODEX_TEST_LIVE_ATTACH === '1') {

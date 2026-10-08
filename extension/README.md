@@ -1,13 +1,21 @@
-# Multi Codex for VS Code — local preview
+# Multi Codex
 
 Manage saved accounts and change the account used by the **existing official Codex panel**. Account switches leave VS Code, Multi Codex, the Codex webview and its backend running. An existing local chat can continue using the newly selected account.
 
-This preview uses an experimental Codex backend authentication API. Live attachment uses a private Node process/stdio compatibility hook; later startups use Codex's development-only executable setting. It is not an official OpenAI extension API integration. The packaged preview targets local Linux x64; macOS code paths require their own native build and validation. Remote SSH, containers, WSL, Windows and vscode.dev are not supported yet.
+- Add accounts using browser sign-in or import an existing Codex login.
+- Select accounts from the activity bar or status bar.
+- Check account usage without switching accounts.
+- Share saved accounts with the Multi Codex desktop app, or use the extension on its own.
+- Block account changes while the backend reports active work or uncertain activity.
 
-## Install locally
+**Linux and macOS pre-release.** Platform packages target Linux x64, Apple Silicon Macs and Intel Macs. The Mac native helper requires macOS 26 or newer. The extension is free and open source. Your Codex subscription or API usage is billed separately. Multi Codex is an independent project and is not affiliated with or endorsed by OpenAI.
+
+This preview uses an experimental Codex backend authentication API. Live attachment uses a private Node process/stdio compatibility hook; later startups use Codex's development-only executable setting. It is not an official OpenAI extension API integration. This release targets local VS Code on Linux x64 and macOS arm64/x64. Remote SSH, containers, WSL, Windows, Linux ARM64 and vscode.dev are not supported yet.
+
+## Get started
 
 1. Install the official `openai.chatgpt` Codex extension.
-2. In VS Code, run **Extensions: Install from VSIX…** and select `multi-codex-linux-x64-0.1.0.vsix` from this directory.
+2. Install the pre-release of **Multi Codex** by **russeldanielpaul**. VS Code selects the matching platform package. For a downloaded package, run **Extensions: Install from VSIX…** and choose the Linux x64, macOS Apple Silicon (`darwin-arm64`) or macOS Intel (`darwin-x64`) VSIX for your machine.
 3. Run **Multi Codex: Enable Account Switching**.
 4. Open the Multi Codex activity bar, add or select an account, and use the official Codex panel normally.
 
@@ -20,7 +28,7 @@ You do not need the Multi Codex desktop app, a separately installed Codex CLI, o
 Existing desktop accounts are discovered automatically from the same local store:
 
 - Linux: `$XDG_DATA_HOME/multi-codex`, normally `~/.local/share/multi-codex`.
-- macOS source implementation: `~/Library/Application Support/multi-codex`.
+- macOS: `~/Library/Application Support/multi-codex`.
 
 Without desktop accounts, the list starts empty. **Add Account** supports browser sign-in, importing the current Codex login, and importing an auth JSON file. The same saved accounts become visible to the desktop app if it is installed later. Rename and removal are available from an account's context menu.
 
@@ -74,7 +82,7 @@ npm run build:helper
 npm test
 npm run test:vscode
 npm run test:attachment
-npm run package -- --target linux-x64
+npm run package -- --target linux-x64 --pre-release
 ```
 
 `npm test` runs guard, protocol bridge, rollback, identity and concurrency tests. Set `MULTI_CODEX_TEST_ENGINE` to the official extension's bundled engine to include native account-store integration tests and to run `npm run test:engine`.
@@ -83,6 +91,8 @@ npm run package -- --target linux-x64
 
 Local results and screenshots are written to `.test-results/`. Tests never install into your normal VS Code profile, publish a package or push Git changes. VS Code itself may perform its own built-in background checks; the Codex fixture uses synthetic credentials and local responses.
 
-## Publishing later
+The **VS Code extension packages** workflow builds each native helper on its target operating system. It tests the extracted VSIX in real VS Code with the official Codex extension, checks live attachment and isolated startup, and uploads installable packages only after those checks pass. These fixtures verify account routing and activity guards; they do not certify real OAuth, subscription limits or cloud permissions.
 
-Uploading is deferred. The package currently uses `multi-codex-local` as a local publisher placeholder. See [Marketplace requirements](../docs/extension-publishing.md) before choosing a permanent publisher ID and publishing a rebuilt package.
+## Support
+
+Report problems or request platform support in [GitHub Issues](https://github.com/wrestle-R/multi-codex/issues). Include your operating system, VS Code version, Codex extension version and the command that failed. Never include auth files, tokens or private conversation content.

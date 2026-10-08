@@ -29,3 +29,7 @@ next/test-results/
 next/playwright-report/
 next/tsconfig.tsbuildinfo
 .vercel/
+
+
+temp/
+output/
