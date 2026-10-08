@@ -2,7 +2,7 @@
   "name": "multi-codex",
   "displayName": "Multi Codex",
   "description": "Manage Codex accounts and switch the current Codex panel without reloading VS Code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "russeldanielpaul",
   "private": true,
   "license": "MIT",
@@ -91,7 +91,8 @@
       {
         "command": "multiCodex.checkAccountUsage",
         "title": "Check This Account's Usage",
-        "category": "Multi Codex"
+        "category": "Multi Codex",
+        "icon": "$(dashboard)"
       },
       {
         "command": "multiCodex.renameAccount",
@@ -121,12 +122,6 @@
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "multiCodex.accounts",
-        "contents": "Manage accounts in this window.\n[Add an account](command:multiCodex.addAccount)\n[Enable switching](command:multiCodex.enableSwitching)"
-      }
-    ],
     "menus": {
       "view/title": [
         {
@@ -146,6 +141,11 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "multiCodex.checkAccountUsage",
+          "when": "view == multiCodex.accounts && viewItem == multiCodexAccount",
+          "group": "inline@1"
+        },
         {
           "command": "multiCodex.checkAccountUsage",
           "when": "view == multiCodex.accounts && viewItem == multiCodexAccount"

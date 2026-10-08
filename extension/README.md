@@ -16,8 +16,8 @@ This preview uses an experimental Codex backend authentication API. Live attachm
 
 1. Install the official `openai.chatgpt` Codex extension.
 2. Install the pre-release of **Multi Codex** by **russeldanielpaul**. VS Code selects the matching platform package. For a downloaded package, run **Extensions: Install from VSIX…** and choose the Linux x64, macOS Apple Silicon (`darwin-arm64`) or macOS Intel (`darwin-x64`) VSIX for your machine.
-3. Run **Multi Codex: Enable Account Switching**.
-4. Open the Multi Codex activity bar, add or select an account, and use the official Codex panel normally.
+3. Open Multi Codex in the activity bar. Existing desktop accounts appear automatically; use **+** in the Accounts toolbar to add an account if you are starting fresh.
+4. Click an account row to connect switching automatically and use that account in the current official Codex panel. Hover over an account to check usage; the result appears beside its name.
 
 **On the verified Codex build, initial attachment and account changes need no restart or reload at all.** The bridge attaches to the existing backend without replacing its process or restarting either extension. An incompatible or ambiguous backend is refused; VS Code is never automatically reloaded. See the compatibility limits below.
 
@@ -26,6 +26,8 @@ You do not need the Multi Codex desktop app, a separately installed Codex CLI, o
 ## Accounts and desktop synchronization
 
 Existing desktop accounts are discovered automatically from the same local store:
+
+VS Code launched by a desktop account can inherit that profile's `CODEX_HOME`. The extension keeps shared account storage separate from that managed profile and resolves the global home from desktop settings or the default home. Account loading failures appear in the panel; use **Refresh** to retry after correcting a setting. No account needs to be copied or added again.
 
 - Linux: `$XDG_DATA_HOME/multi-codex`, normally `~/.local/share/multi-codex`.
 - macOS: `~/Library/Application Support/multi-codex`.
