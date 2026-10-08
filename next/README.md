@@ -21,9 +21,9 @@ The theme button matches the portfolio's circular curtain: alternate expanding/c
 
 ## Release timeline
 
-`/releases` shows all published GitHub releases, newest first, with publication dates, improvements, permalinks and original release-note links. Curated entries live in `lib/releases.ts`; update that file when publishing a release, then build and redeploy. Draft validation candidates are excluded. Older highlights are checked against the commits between published tags where GitHub notes contain only a platform description. Displayed dates use UTC consistently.
+`/releases` groups selected user-facing updates by release series, newest first, with publication dates, concrete change summaries, version permalinks and full release-note links. Curated entries live in `lib/releases.ts`; update that file when publishing a release, then build and redeploy. Draft validation candidates are excluded. Older highlights are checked against the commits between published tags where GitHub notes contain only a platform description. Displayed dates use UTC consistently.
 
-Editing website summaries changes the website after redeployment. Editing GitHub release titles or notes is a separate operation. Renaming a tag does not change the version inside an already-built application; a new app version requires matching package metadata, rebuilt assets and validation.
+Keep the website version, README, release titles, notes and package metadata consistent. App releases require matching package builds and validation. See [release and contribution guidelines](../docs/release-guidelines.md) for version numbers, changelog entries and commit titles.
 
 ## Issue submissions
 
