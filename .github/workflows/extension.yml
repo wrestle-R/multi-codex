@@ -58,7 +58,18 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb gnome-keyring dbus-x11
+      - name: Start an unlocked disposable Linux credential store
+        if: runner.os == 'Linux'
+        run: |
+          export XDG_DATA_HOME="$RUNNER_TEMP/fixture-keyring-data"
+          mkdir -p "$XDG_DATA_HOME"
+          chmod 700 "$XDG_DATA_HOME"
+          export DBUS_SESSION_BUS_ADDRESS
+          DBUS_SESSION_BUS_ADDRESS=$(dbus-daemon --session --fork --print-address)
+          printf '%s' 'multi-codex-synthetic-ci-keyring' | gnome-keyring-daemon --unlock --components=secrets
+          echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS" >> "$GITHUB_ENV"
+          echo "XDG_DATA_HOME=$XDG_DATA_HOME" >> "$GITHUB_ENV"
       - name: Build the native account helper
         run: |
           npm ci --prefix ../tauri
@@ -74,13 +85,15 @@ jobs:
           mkdir "$RUNNER_TEMP/vscode" "$RUNNER_TEMP/codex-extensions"
           if [[ "$RUNNER_OS" == 'macOS' ]]; then
             ditto -xk "$RUNNER_TEMP/vscode.archive" "$RUNNER_TEMP/vscode"
-            code_binary="$RUNNER_TEMP/vscode/Visual Studio Code.app/Contents/MacOS/Electron"
+            code_executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$RUNNER_TEMP/vscode/Visual Studio Code.app/Contents/Info.plist")
+            code_binary="$RUNNER_TEMP/vscode/Visual Studio Code.app/Contents/MacOS/$code_executable"
             code_cli="$RUNNER_TEMP/vscode/Visual Studio Code.app/Contents/Resources/app/bin/code"
           else
             tar -xzf "$RUNNER_TEMP/vscode.archive" -C "$RUNNER_TEMP/vscode" --strip-components=1
             code_binary="$RUNNER_TEMP/vscode/code"
             code_cli="$RUNNER_TEMP/vscode/bin/code"
           fi
+          test -x "$code_binary"
           "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --install-extension openai.chatgpt@26.1002.51308 --force
           codex_extension=$(find "$RUNNER_TEMP/codex-extensions" -maxdepth 1 -type d -name 'openai.chatgpt-*' -print -quit)
           test -n "$codex_extension"
