@@ -102,7 +102,10 @@
     "publishedAt": "2026-10-07T06:27:55Z",
     "website": "https://multi-codex.vercel.app",
     "websiteValidation": "docs/releases/v1.3.8-website-validation.json",
-    "packageBuildRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176"
+    "packageBuildRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176",
+    "latestReleaseVerifiedAt": "2026-10-08T05:53:18.748328+00:00",
+    "installerRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37734192047",
+    "publishedAssetDigestsMatch": true
   },
   "releaseChecks": {
     "linux-build": {
@@ -120,12 +123,18 @@
       "testedAt": "2026-10-08T05:34:00Z"
     },
     "linux-installer": {
-      "status": "pending",
-      "reason": "Package build and exact-package verification are pending."
+      "status": "passed",
+      "environment": "Ubuntu 22.04 x86_64 GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37734192047",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-08T05:48:18Z"
     },
     "macos-installer": {
-      "status": "pending",
-      "reason": "Package build and exact-package verification are pending."
+      "status": "passed",
+      "environment": "macOS 26 Apple Silicon GitHub runner",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37734192047",
+      "testedBy": "GitHub Actions",
+      "testedAt": "2026-10-08T05:49:25Z"
     },
     "linux-isolation": {
       "status": "passed",
