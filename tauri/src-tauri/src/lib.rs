@@ -568,9 +568,7 @@ pub fn run() {
                 let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
                 window.set_icon(icon)?;
             }
-            if let Some(config) = app.config().app.windows.iter().find(|w| w.label == "main") {
-                desktop_environment::configure_main_window(config.width, config.height);
-            }
+            desktop_environment::configure_main_window();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
