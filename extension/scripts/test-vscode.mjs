@@ -1,5 +1,5 @@
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile, readFile, readdir, symlink, stat, access, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, readFile, readdir, symlink, stat, access, rm, rename } from 'node:fs/promises';
 import { tmpdir, homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -128,7 +128,10 @@ const uiPolling = setInterval(async () => {
     await page.screenshot({ path: `.test-results/panel-${phase.label.replace(/[^a-zA-Z0-9-]/g, '-')}.png` });
     uiPhases.push({ label: phase.label, frames });
     await writeFile('.test-results/panel-observations.json', JSON.stringify(uiPhases, null, 2));
-    await writeFile(join(testRoot, 'ui-ack.json'), JSON.stringify({ label: phase.label }));
+    // Publish a complete acknowledgement: the extension host polls this file
+    // concurrently, and reading a partially written JSON file is a test race.
+    await writeFile(join(testRoot, 'ui-ack.tmp'), JSON.stringify({ label: phase.label }));
+    await rename(join(testRoot, 'ui-ack.tmp'), join(testRoot, 'ui-ack.json'));
   } catch { /* Renderer may still be starting; retry before the integration timeout. */ }
   finally { uiBusy = false; }
 }, 100);
