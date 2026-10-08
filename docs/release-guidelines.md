@@ -14,6 +14,8 @@ For example, after `1.3.8`, a bug fix would be `1.3.9`, a new compatible feature
 
 Test-only and documentation-only changes do not normally need an app release. Versions identify packages; they do not count commits. Keep prerelease builds separate from the stable download and website's latest-version indicator.
 
+Treat stable versions as immutable. A later code or package change gets a new version rather than reusing a published version number.
+
 ## Changelog entries
 
 The website at `/releases` presents selected user-facing updates grouped by major/minor series, newest first. A series summary describes the combined capabilities of that series; each version entry describes only changes included in that version.

@@ -1,28 +1,25 @@
 {
   "version": "1.3.8",
+  "verifiedAt": "2026-10-08T05:37:39.579033+00:00",
+  "sourceCommit": "8506bdace99c83231e0a053e26d1612f2192b73a",
   "status": "passed",
-  "testedAt": "2026-10-07T06:39:55.743810+00:00",
-  "publicUrl": "https://multi-codex.vercel.app",
-  "deploymentId": "dpl_Cog1yeE28VzvTXrN3JSboHwRmfXx",
-  "deploymentStatus": "READY",
-  "productionPromoted": true,
-  "publicAliasUpdated": true,
-  "project": "multi-codex",
-  "deploymentProtectionRetained": true,
-  "localProductionBuild": "passed",
-  "localBrowserChecksPassed": 9,
-  "liveBrowserChecksPassed": 9,
-  "browserProjects": [
-    "desktop Chromium",
-    "desktop WebKit",
-    "mobile Chromium"
+  "website": "https://multi-codex.vercel.app",
+  "deploymentUrl": "https://multi-codex-ptplt2rsp-russeldanielpaul-gmailcoms-projects.vercel.app",
+  "deploymentId": "dpl_GGeBfW8tHtmzcHn28bjvXDUFiFw9",
+  "browserChecks": 20,
+  "projects": [
+    "chromium",
+    "mobile"
   ],
-  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
-  "macosAndLinuxBrowserChecks": "passed",
-  "v248ChangelogVisible": true,
-  "changelogGuestHttpStatus": 200,
-  "errorLogScan": {
-    "sinceMinutes": 15,
-    "matchingEntries": 0
-  }
+  "ciEvidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37732607598",
+  "ciBrowsers": [
+    "chromium",
+    "webkit",
+    "mobile"
+  ],
+  "ciPlatforms": [
+    "ubuntu-22.04",
+    "macos-26"
+  ],
+  "verification": "docs/website/changelog-verification-2026-10-08.md"
 }

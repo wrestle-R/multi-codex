@@ -1,64 +1,34 @@
 {
   "version": "1.3.8",
-  "sourceCommit": "c41444f3026b5726d0b5dd2e6a0e27c02838aa4b",
-  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
-  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37580025237",
-  "releaseBuildAttempt": 2,
-  "releaseRetryNote": "The first Linux attempt failed to spawn the disposable timeout-test CLI. The targeted and full local Rust suites passed; the unchanged release job passed on its rerun. Mac passed on the first attempt.",
+  "sourceCommit": "8506bdace99c83231e0a053e26d1612f2192b73a",
+  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732607598",
+  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176",
   "artifacts": {
-    "Multi.Codex-1.3.8-1.x86_64.rpm": "ae65539f917b9567200c089fd576b04703fa71caeff571af2524e5127865c2a3",
-    "Multi.Codex_1.3.8_aarch64.dmg": "037a168d174e0dfd63dff65493a983794e09d633435db4799298fd7ca7f78988",
-    "Multi.Codex_1.3.8_amd64.AppImage": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
-    "Multi.Codex_1.3.8_amd64.deb": "ae6b5384aecfddcb70a2ab1a9c7897953ec496cb781ac39f8cac28d235a7d802",
-    "install-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60",
-    "update-app.sh": "ab88a44fb913e99073caeaf76482b80472641b7e8a6129ace0b027f06f387e60"
+    "Multi.Codex-1.3.8-1.x86_64.rpm": "892987581fc3012c6dc794ecac6de96bfc69acc06dc67775aeae11be6d80ff39",
+    "Multi.Codex_1.3.8_aarch64.dmg": "932e3c25542b5dc6a4b245662cd3230833926c724feb9c43c32a5852b9c52dc7",
+    "Multi.Codex_1.3.8_amd64.AppImage": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
+    "Multi.Codex_1.3.8_amd64.deb": "9103af905832c4d6edb523856585002f0c3a4b00065e960384ef245fb490bc38",
+    "install-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d",
+    "update-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d"
   },
-  "status": "published-installed-and-data-preservation-verified",
-  "testedAt": "2026-10-07T06:39:55.743810+00:00",
+  "status": "packages-built-installers-pending",
+  "testedAt": "2026-10-08T05:44:09.798055+00:00",
   "frontendTests": 78,
   "rustTests": {
     "passed": 82,
     "environmentSpecificIgnored": 3
   },
   "releaseAndInstallerRegressionChecks": 6,
-  "settingsBrowserChecks": "docs/releases/v1.3.8-settings-validation.json",
   "websiteTests": {
-    "local": 9,
-    "eachMacAndLinuxCiRunner": 9,
-    "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37579533595",
-    "live": 9
+    "localChromiumAndMobile": 38,
+    "eachMacAndLinuxCiRunner": 57,
+    "liveChromiumAndMobile": 20
   },
-  "preUpgradeBackup": {
-    "savedAccounts": 6,
-    "protectedFiles": 552,
-    "previousAppImageRetained": true,
-    "earlierFullBackupRetained": true
-  },
-  "installerRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37581402014",
-  "packagedNativeChecks": {
-    "appImageSha256": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
-    "runs": [
-      {
-        "startup": 1,
-        "visibleNativeWindow": true,
-        "savedAccountVisible": true,
-        "themePickerVisible": true,
-        "maximizedWithoutFullscreen": true
-      },
-      {
-        "startup": 2,
-        "visibleNativeWindow": true,
-        "savedAccountVisible": true,
-        "themePickerVisible": true,
-        "maximizedWithoutFullscreen": true
-      }
-    ],
-    "accountChatAndDefaultLoginSentinelsUnchanged": true,
-    "scope": "Disposable native Arch/Hyprland package startup and restart; no authenticated sign-in"
-  },
+  "debPackageVersion": "1.3.8",
+  "settingsBrowserChecks": "docs/releases/v1.3.8-settings-validation.json",
   "localInstallerChecks": {
     "tag": "v1.3.8",
-    "appImageSha256": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
+    "appImageSha256": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
     "checks": [
       {
         "script": "install-app.sh",
@@ -73,49 +43,29 @@
         "defaultLoginUnchanged": true
       }
     ],
-    "scope": "Actual AppImage replacement without launch; native launch and isolation are separate completed checks"
+    "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
   },
-  "publicationRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37581616717",
-  "installedNativeChecks": {
-    "status": "startup-and-saved-accounts-passed",
-    "savedAccountsVisible": 6,
-    "cliControls": 6,
-    "savedTerminal": "kitty",
-    "workspaceAndLaunchingSectionsObserved": true,
-    "nativeTerminalComboboxObserved": true,
-    "nativeMenuAutomation": {
-      "status": "incomplete",
-      "reason": "The settings dialog closed while activating the combobox through AT-SPI, so the installed-option count could not be read. Full dropdown behavior passed the local and Mac/Linux Chromium/WebKit checks."
+  "macosPackagedStartup": {
+    "runs": [
+      {
+        "startup": 1,
+        "visibleWindow": true,
+        "stayedRunning": true
+      },
+      {
+        "startup": 2,
+        "visibleWindow": true,
+        "stayedRunning": true
+      }
+    ],
+    "fixtureHashesUnchanged": {
+      "Library/Application Support/multi-codex/profiles.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "Library/Application Support/multi-codex/executables.json": "41da662af4c0e0c7e3900366127c9900274116f732c2d47a6e069d7946a083de",
+      ".codex/auth.json": "0e2340bc21037cd5b1e260cd46c75d8e6f9ec238fc3581a46806009045e1b213",
+      ".codex/config.toml": "b1ec7ef496a720e2408a2845814dbddbaa0b9867c075c87283acca44a4a8b587"
     },
-    "desktopIntegrationVersion": "1.3.8",
-    "installedAppImageSha256": "fd6f15ab02bdd0b0963a96db16bd1b80af2a913e2b55c3f3552ce843e124a613",
-    "scope": "Installed AppImage native startup with existing real accounts on Arch/Hyprland; settings headings and combobox observed; app left running at the account screen.",
-    "appRestartScope": "Only the previous Multi Codex GUI and AppImage process IDs were signalled; no broad process termination."
-  },
-  "localUpgrade": {
-    "status": "passed",
-    "installedChecksumMatchesPublishedAsset": true,
-    "previousAppImageRetained": true,
-    "backupRetained": true,
-    "dataPreservation": {
-      "status": "passed",
-      "savedAccounts": 6,
-      "accountIdsUnchanged": true,
-      "protectedFilesVerified": 552,
-      "missingDataFiles": 0,
-      "unexplainedChangedFiles": 0,
-      "chatFilesMovedToArchiveBeforeUpgrade": 17,
-      "archivedConversationContentsPreserved": true,
-      "configurationFilesWithAdditionsBeforeUpgrade": 1,
-      "allOriginalConfigurationValuesRetained": true,
-      "credentialsAndSavedLaunchPreferencesUnchanged": true,
-      "earlierConfigAndCurrentConfigBothBackedUp": true,
-      "archiveAndConfigurationChangesPredateReleasePublication": true,
-      "latestArchiveMoveAtUtc": "2026-10-07T06:24:14.310210+00:00",
-      "configurationModifiedAtUtc": "2026-10-07T06:14:51.100348+00:00",
-      "releasePublishedAtUtc": "2026-10-07T06:27:55Z",
-      "scope": "Verify original conversation byte prefixes, including same-account archived paths, and preserve additive TOML configuration changes made while release jobs were running."
-    }
+    "authenticatedDesktopIsolation": "not tested",
+    "signingAndNotarization": "optional; not verified by this startup smoke test"
   },
   "websiteValidation": "docs/releases/v1.3.8-website-validation.json"
 }
