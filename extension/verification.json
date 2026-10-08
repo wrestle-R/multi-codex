@@ -160,5 +160,6 @@
     "vulnerabilities": 0,
     "packager": "@vscode/vsce 4.0.0"
   },
-  "publishing": "Deferred; no Microsoft account or publisher created"
+  "publishing": "Historical Linux preview; publishing was deferred at this verification stage",
+  "marketplaceReleaseVerification": "../docs/extension-marketplace-verification-2026-10-08.json"
 }

@@ -1,6 +1,6 @@
 # VS Code Marketplace publishing requirements
 
-The owner has authorized Marketplace publication under the existing publisher **russeldanielpaul**. The extension is named **Multi Codex**, version **0.1.0**, and is being prepared as a pre-release. Native package validation must pass before upload; publication is not complete until Marketplace validation succeeds.
+The owner authorized Marketplace publication under the existing publisher **russeldanielpaul**. [Multi Codex 0.1.0](https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex) is published as a free pre-release for Linux x64, macOS Apple Silicon and macOS Intel. All three packages passed native tests and Marketplace validation. Their public downloads match the tested artifacts byte-for-byte; see [release evidence and checksums](extension-marketplace-verification-2026-10-08.json).
 
 ## Account and publisher
 
@@ -34,4 +34,4 @@ For a manual upload, sign in to the publisher management page, choose **New exte
 
 For command-line publishing, use `vsce` with an authorized Marketplace identity. Microsoft's current documentation recommends Microsoft Entra authentication for automation; global Azure DevOps PATs are scheduled to retire on December 1, 2026. If using an eligible PAT before then, its scope is **Marketplace: Manage**, and it must belong to an account authorized for that publisher. Keep credentials in a secret store, never in source or chat.
 
-Microsoft's [publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) documents account setup, manual upload, authentication, platform targets, validation and version updates. You can install the local VSIX now without creating a publisher.
+Microsoft's [publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) documents account setup, manual upload, authentication, platform targets, validation and version updates. Users can install the published pre-release or a local VSIX without creating a publisher.
