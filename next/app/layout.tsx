@@ -3,14 +3,14 @@ import localFont from "next/font/local"
 import Link from "next/link"
 import { BrandMark } from "@/components/brand-mark"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { latestRelease, repository } from "@/lib/site"
+import { latestRelease, repository, vscodeMarketplace } from "@/lib/site"
 import "./globals.css"
 
 const body = localFont({ src: [{ path: "../public/fonts/outfit-regular.woff2", weight: "400" }, { path: "../public/fonts/outfit-medium.woff2", weight: "500" }], variable: "--font-body", display: "swap" })
 const display = localFont({ src: [{ path: "../public/fonts/bricolage-semibold.woff2", weight: "600" }, { path: "../public/fonts/bricolage-bold.woff2", weight: "700" }], variable: "--font-display", display: "swap" })
 export const metadata: Metadata = {
   title: { default: "Multi Codex — An account for every workspace", template: "%s · Multi Codex" },
-  description: "Launch isolated Codex accounts in VS Code, the Codex app, or your favorite terminal. Open-source launcher for Linux and Apple Silicon Mac.",
+  description: "Manage Codex accounts with the desktop app or VS Code extension. Launch separate workspaces, switch accounts in the current editor, and check usage.",
   openGraph: { title: "Multi Codex", description: "An account for every workspace.", type: "website" },
 }
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,6 +25,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <div className="nav-actions"><ThemeToggle /><a className="nav-download" href={latestRelease}>Download <span aria-hidden="true">↓</span></a></div>
     </nav></header>
     {children}
-    <footer className="site-footer"><Link className="brand" href="/"><BrandMark small />Multi Codex</Link><span>Built for the way you work.</span><div><a href={`${repository}/blob/main/LICENSE`}>MIT license</a><a href={repository}>Source ↗</a></div><p>An independent open-source project. Not affiliated with OpenAI.</p></footer>
+    <footer className="site-footer"><Link className="brand" href="/"><BrandMark small />Multi Codex</Link><span>Built for the way you work.</span><div><a href={vscodeMarketplace}>VS Code extension ↗</a><a href={`${repository}/blob/main/LICENSE`}>MIT license</a><a href={repository}>Source ↗</a></div><p>An independent open-source project. Not affiliated with OpenAI.</p></footer>
   </body></html>
 }

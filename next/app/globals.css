@@ -304,3 +304,17 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .theme-transition * {
   transition: none !important;
 }
+
+.extension-section { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(32px, 7vw, 100px); padding-top: 64px; padding-bottom: 64px; border-top: 1px solid var(--line); }
+.extension-section h2 { font-family: var(--font-display), sans-serif; font-size: clamp(32px, 4vw, 46px); line-height: 1.08; letter-spacing: -1.5px; margin: 14px 0 20px; }
+.extension-section p { color: var(--muted); line-height: 1.7; max-width: 48ch; }
+.extension-section .button { margin-top: 14px; }
+.extension-section .extension-platforms { font-size: 12px; margin-top: 16px; }
+.extension-steps ol { list-style: none; padding: 0; margin: 0 0 26px; }
+.extension-steps li { display: grid; grid-template-columns: 32px 1fr; gap: 18px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.extension-steps li:first-child { padding-top: 0; }
+.extension-steps li > span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 4px; }
+.extension-steps h3 { font-size: 18px; font-weight: 500; margin: 0 0 7px; }
+.extension-steps p { font-size: 14px; margin: 0; }
+@media (max-width: 900px) { .extension-section { grid-template-columns: 1fr; gap: 36px; } }
+@media (max-width: 600px) { .extension-section { padding-top: 40px; padding-bottom: 40px; } .site-footer > div { flex-wrap: wrap; row-gap: 12px; } }
