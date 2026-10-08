@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1 — 2026-10-08
+## 0.1.1 — 2026-10-09
 
 - Fix desktop account discovery when VS Code inherits a managed profile's `CODEX_HOME`, including symlinked paths.
 - Replace the large welcome buttons with a native account list, compact toolbar actions and visible loading/error states.

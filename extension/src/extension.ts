@@ -254,9 +254,14 @@ export async function activate(context: vscode.ExtensionContext) {
   try { await prepare(); } catch { /* Storage errors are shown inline with a retry action. */ }
   return {
     activationId, refreshAccounts, switchAccount, enableSwitching: setupBridge,
-    async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, bridge: bridge ? await bridge.request('state') : null }; },
+    async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, storageError, panelMessage: view.message, bridge: bridge ? await bridge.request('state') : null }; },
     ...(process.env.MULTI_CODEX_TEST_MODE === '1' ? {
       testBackendInfo() { return { pid: findCodexBackend(engine)?.pid, activationId, hostPid: process.pid }; },
+      async testStopAccountHelper() {
+        const child = accounts?.child;
+        if (!child || !accounts?.isRunning) return;
+        await new Promise<void>(resolve => { child.once('exit', () => resolve()); child.kill(); });
+      },
       async testRequest(method: string, params: any = {}) { await connect(); if (!bridge) throw new Error('Bridge not connected'); return bridge.request('test/request', { method, params }); }
     } : {}),
   };
