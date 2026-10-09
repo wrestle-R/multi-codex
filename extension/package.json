@@ -2,7 +2,7 @@
   "name": "multi-codex",
   "displayName": "Multi Codex",
   "description": "Manage Codex accounts and switch the current Codex panel without reloading VS Code.",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "publisher": "russeldanielpaul",
   "private": true,
   "license": "MIT",

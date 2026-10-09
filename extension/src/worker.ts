@@ -1,3 +1,4 @@
+import { extensionVersion } from './version';
 import { spawn } from 'node:child_process';
 import { spawnExecutable } from './native';
 import { JsonLines, RpcPeer } from './protocol';
@@ -9,7 +10,7 @@ export async function withAccountBackend<T>(engine: string, home: string, action
   child.stderr.resume(); const lines = new JsonLines(child.stdout, child.stdin); const rpc = new RpcPeer(lines, 'worker:');
   child.on('error', () => rpc.close()); child.on('exit', () => rpc.close());
   try {
-    await rpc.request('initialize', { clientInfo: { name: 'multi_codex_account', version: '0.1.0' } }); lines.send({ method: 'initialized' });
+    await rpc.request('initialize', { clientInfo: { name: 'multi_codex_account', version: extensionVersion } }); lines.send({ method: 'initialized' });
     return await action(rpc);
   } finally { rpc.close(); child.kill(); }
 }

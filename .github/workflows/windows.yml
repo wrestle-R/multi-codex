@@ -1,5 +1,6 @@
 name: Windows native validation
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches: [main]

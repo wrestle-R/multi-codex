@@ -197,9 +197,15 @@ jobs:
           path: ${{ runner.temp }}/multi-codex-macos-evidence/
           if-no-files-found: warn
 
+  windows:
+    uses: ./.github/workflows/windows.yml
+
+  extensions:
+    uses: ./.github/workflows/extension.yml
+
   prepare-draft:
     if: github.event_name != 'workflow_dispatch'
-    needs: [linux, macos]
+    needs: [linux, macos, windows, extensions]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -212,12 +218,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir release-assets
-          find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' \) -exec cp {} release-assets/ \;
+          find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' -o -name '*_x64-setup.exe' -o -name '*.vsix' \) -exec cp {} release-assets/ \;
           cd release-assets
           mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
-          ((${#ASSETS[@]} == 4))
-          cp ../scripts/install-app.sh ../scripts/update-app.sh .
-          ASSETS+=(./install-app.sh ./update-app.sh)
+          ((${#ASSETS[@]} == 9))
+          cp ../scripts/install-app.sh ../scripts/update-app.sh ../scripts/install-app.ps1 ../scripts/update-app.ps1 .
+          ASSETS+=(./install-app.sh ./update-app.sh ./install-app.ps1 ./update-app.ps1)
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
           cd ..
