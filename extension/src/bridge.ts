@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer, type Server, type Socket } from 'node:net';
-import { spawnExecutable } from './native';
+import { spawnExecutable, terminateExecutable } from './native';
 import { chmod, mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
@@ -223,5 +223,14 @@ export class CodexBridge {
     }
   }
   private fail() { this.connectionFailed = true; this.activity.ready = false; this.backendRpc.close(); this.broadcast(); }
-  async dispose() { if (this.disposed) return; this.disposed = true; this.fail(); this.accounts.dispose(); if (this.existing) this.existing.restore(); else this.backend.kill(); for (const [client, socket] of this.clients) { client.send({ method: 'disconnected' }); socket.end(); socket.destroy(); } this.server?.close(); if (process.platform !== 'win32') await rm(this.config.socket, { force: true }); }
+  private disposal?: Promise<void>;
+  dispose() { return this.disposal ??= (async () => {
+    this.disposed = true; this.fail();
+    for (const [client, socket] of this.clients) { client.send({ method: 'disconnected' }); socket.end(); socket.destroy(); }
+    const serverClosed = this.server ? new Promise<void>(resolve => this.server!.close(() => resolve())) : Promise.resolve();
+    if (this.existing) this.existing.restore();
+    await Promise.all([this.accounts.dispose(), this.existing ? Promise.resolve() : terminateExecutable(this.backend), serverClosed]);
+    if (process.platform !== 'win32') await rm(this.config.socket, { force: true });
+  })(); }
+
 }
