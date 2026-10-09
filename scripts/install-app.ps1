@@ -12,11 +12,18 @@ $temporary = Join-Path ([IO.Path]::GetTempPath()) ('multi-codex-install-' + [gui
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
     $package = Join-Path $temporary $installer[0].name
-    Invoke-WebRequest $installer[0].browser_download_url -OutFile $package
-    $manifest = (Invoke-WebRequest $sums[0].browser_download_url).Content
+    Invoke-WebRequest $installer[0].browser_download_url -UseBasicParsing -OutFile $package
+    # GitHub serves release assets as application/octet-stream. Content can be
+    # a byte array in Windows PowerShell; read the saved manifest as text instead.
+    $manifestPath = Join-Path $temporary 'SHA256SUMS'
+    Invoke-WebRequest $sums[0].browser_download_url -UseBasicParsing -OutFile $manifestPath
+    $manifest = [IO.File]::ReadAllText($manifestPath)
     $pattern = '(?m)^([a-fA-F0-9]{64})\s+\*?' + [regex]::Escape($installer[0].name) + '\r?$'
-    $matches = [regex]::Matches($manifest, $pattern)
-    if ($matches.Count -ne 1 -or (Get-FileHash $package -Algorithm SHA256).Hash -ne $matches[0].Groups[1].Value) { throw 'Windows installer checksum verification failed.' }
+    $checksumMatches = [regex]::Matches($manifest, $pattern)
+    if ($checksumMatches.Count -ne 1) { throw 'The checksum manifest must contain exactly one Windows installer entry.' }
+    $expectedChecksum = $checksumMatches[0].Groups[1].Value
+    $actualChecksum = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash
+    if ($actualChecksum -ne $expectedChecksum) { throw "Windows installer checksum verification failed. Expected $expectedChecksum; downloaded $actualChecksum." }
     # NSIS requires /D to be the final argument; it handles spaces itself.
     $process = Start-Process -FilePath $package -ArgumentList "/S /D=$InstallDirectory" -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Windows installer failed with exit code $($process.ExitCode)." }

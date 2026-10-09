@@ -40,11 +40,13 @@ function Invoke-RestMethod {
     ) }
 }
 function Invoke-WebRequest {
-    param([string]$Uri,[string]$OutFile)
+    param([string]$Uri,[string]$OutFile,[switch]$UseBasicParsing)
+    if (!$UseBasicParsing) { throw 'Installer downloads must use basic parsing.' }
     if ($Uri -eq 'https://fixture.invalid/installer') { Copy-Item -LiteralPath $candidateInstallerPath -Destination $OutFile; return }
     if ($Uri -ne 'https://fixture.invalid/sums') { throw 'Unexpected asset request' }
     $hash = if ($candidateChecksumValid) { (Get-FileHash -LiteralPath $candidateInstallerPath -Algorithm SHA256).Hash } else { '0' * 64 }
-    return @{ Content = "$hash  $packageName`n" }
+    if (!$OutFile) { throw 'Checksum manifest must be downloaded to a file.' }
+    [IO.File]::WriteAllBytes($OutFile, [Text.Encoding]::UTF8.GetBytes("$hash  $packageName`n"))
 }
 Add-Type @'
 using System;
@@ -55,6 +57,17 @@ public static class LauncherWindows {
     [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint msg, IntPtr wParam, IntPtr lParam);
 }
 '@
+function Check-StartMenu {
+    $application = Join-Path $install 'multi-codex-desktop.exe'
+    $shell = New-Object -ComObject WScript.Shell
+    try {
+        $programs = [Environment]::GetFolderPath('Programs')
+        $links = @(Get-ChildItem -LiteralPath $programs -Filter 'Multi Codex.lnk' -Recurse -File | Where-Object {
+            $shell.CreateShortcut($_.FullName).TargetPath -ieq $application
+        })
+        if ($links.Count -ne 1) { throw 'The installer must create one Start menu shortcut to the installed app.' }
+    } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
+}
 function Check-Window {
     $application = Join-Path $install 'multi-codex-desktop.exe'
     $app = Start-Process -FilePath $application -PassThru
@@ -86,12 +99,14 @@ try {
     $candidateChecksumValid = $true
     & (Join-Path $scriptsRoot 'install-app.ps1') -NoLaunch -InstallDirectory $install
     Assert-Fixtures
+    Check-StartMenu
     Check-Window
     & (Join-Path $scriptsRoot 'update-app.ps1') -NoLaunch -InstallDirectory $install
     Assert-Fixtures
+    Check-StartMenu
     Check-Window
     Check-Window
-    $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $candidateInstallerPath -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
+    $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; startMenuShortcut=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $candidateInstallerPath -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
     $result | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-result.json')
     $result | ConvertTo-Json
 } finally {

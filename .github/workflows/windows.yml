@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['tauri/**', 'extension/**', '.github/workflows/windows.yml']
+    paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['tauri/**', 'extension/**', '.github/workflows/windows.yml']
+    paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
 concurrency:
   group: windows-native-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -14,6 +14,18 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  installer-scripts:
+    runs-on: windows-2025
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify binary checksum manifests and reject invalid downloads
+        shell: ${{ matrix.shell }}
+        run: ./tauri/scripts/windows-installer-regressions.ps1
+
   windows:
     runs-on: windows-2025
     timeout-minutes: 50
