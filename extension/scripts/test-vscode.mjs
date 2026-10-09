@@ -37,7 +37,11 @@ const portProbe = createServer(); await new Promise(resolve => portProbe.listen(
 const debugPort = portProbe.address().port; await new Promise(resolve => portProbe.close(resolve));
 const testRoot = await mkdtemp(join(tmpdir(), 'multi-codex-vscode-'));
 const fixture = await localService({ port: 8000 });
-const storage = join(testRoot, 'data'); const globalHome = join(testRoot, 'global-home'); const runtimeRoot = join(testRoot, 'runtime');
+const storage = join(testRoot, 'data'); const globalHome = join(testRoot, 'global-home');
+const ownStorage = join(testRoot, 'user-data', 'User', 'globalStorage', extensionId);
+// The native Windows helper rejects junctions at its private runtime boundary.
+// Exercise the actual VS Code storage directory rather than a fixture alias.
+const runtimeRoot = process.platform === 'win32' ? join(ownStorage, 'runtime') : join(testRoot, 'runtime');
 await mkdir(join(testRoot, 'workspace'), { recursive: true });
 await mkdir(join(testRoot, 'user-data', 'User'), { recursive: true }); await mkdir(join(testRoot, 'extensions'));
 // Only the disposable copy gets a fetch shim. Every official-extension HTTP call stays local.
@@ -64,7 +68,7 @@ await writeFile(join(storage, 'profiles.json'), JSON.stringify(profiles), { mode
 // the extension host inherits a managed account's CODEX_HOME.
 // Exercise a visible initial storage error and repair it from the test extension.
 await writeFile(join(storage, 'executables.json'), 'incomplete desktop settings', { mode: 0o600 });
-await mkdir(runtimeRoot);
+await mkdir(runtimeRoot, { recursive: true });
 const bundledEngine = await bundledEnginePath(extension);
 const configPath = join(runtimeRoot, process.platform === 'win32' ? 'codex-bridge.json' : 'bridge-config.json');
 await writeFile(configPath, JSON.stringify({ engine: bundledEngine, helper: join(developmentPath, 'bin', helperName), dataRoot: storage, globalHome, runtimeRoot, nodeExecutable: code, bridgeScript: join(developmentPath, 'dist/bridge-main.cjs') }), { mode: 0o600 });
@@ -80,8 +84,8 @@ await writeFile(join(testRoot, 'user-data', 'User', 'settings.json'), JSON.strin
   'extensions.autoCheckUpdates': false, 'workbench.startupEditor': 'none',
 }));
 // The extension's storage root is fixed by VS Code; point discovery at the same fixture runtime.
-const ownStorage = join(testRoot, 'user-data', 'User', 'globalStorage', extensionId);
-await mkdir(ownStorage, { recursive: true }); await symlink(runtimeRoot, join(ownStorage, 'runtime'), process.platform === 'win32' ? 'junction' : 'dir');
+await mkdir(ownStorage, { recursive: true });
+if (process.platform !== 'win32') await symlink(runtimeRoot, join(ownStorage, 'runtime'), 'dir');
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('CODEX_') && !key.startsWith('OPENAI_')));
 delete env.ELECTRON_RUN_AS_NODE; delete env.VSCODE_IPC_HOOK_CLI; delete env.VSCODE_PID;
 const child = spawn(code, ['--user-data-dir', join(testRoot, 'user-data'), '--extensions-dir', join(testRoot, 'extensions'),
