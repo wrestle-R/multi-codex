@@ -1,11 +1,13 @@
 import { spawn, type ChildProcess, type SpawnOptionsWithoutStdio } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 
 export const helperName = process.platform === 'win32' ? 'multi-codex-account-helper.exe' : 'multi-codex-account-helper';
 export const wrapperName = process.platform === 'win32' ? 'codex-bridge.exe' : 'codex-bridge';
 export function controlEndpoint(id: string, platform = process.platform) {
-  return platform === 'win32' ? `\\\\.\\pipe\\multi-codex-${id}` : join(tmpdir(), `mc-${process.getuid?.() ?? 'user'}-${id.slice(0, 12)}.sock`);
+  const shortId = createHash('sha256').update(id).digest('hex').slice(0, 16);
+  return platform === 'win32' ? `\\\\.\\pipe\\multi-codex-${id}` : join(tmpdir(), `mc-${process.getuid?.() ?? 'user'}-${shortId}.sock`);
 }
 /** Native production binaries and JavaScript protocol fixtures use identical streams. */
 export function spawnExecutable(binary: string, args: string[], options: SpawnOptionsWithoutStdio = {}) {
