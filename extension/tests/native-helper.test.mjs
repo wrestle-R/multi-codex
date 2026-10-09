@@ -4,9 +4,26 @@ import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { syntheticAuth } from './fixtures/local-service.mjs';
 const { AccountClient, helperName } = createRequire(import.meta.url)('../dist/core.cjs');
 const engine = process.env.MULTI_CODEX_TEST_ENGINE;
+test('packaged helper protects Windows runtime and inherited child files', { skip: !engine || process.platform !== 'win32' }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-runtime-acl-'));
+  const helper = resolve('bin', helperName);
+  try {
+    await promisify(execFile)(helper, ['--protect-directory', root], { windowsHide: true });
+    const child = join(root, 'bridge-config.json');
+    await writeFile(child, '{}');
+    const script = `$owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $a=Get-Acl -LiteralPath $env:MULTI_CODEX_TEST_DIRECTORY; $b=Get-Acl -LiteralPath (Join-Path $env:MULTI_CODEX_TEST_DIRECTORY 'bridge-config.json'); @{owner=$owner;protected=$a.AreAccessRulesProtected;directory=@($a.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value});child=@($b.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value})} | ConvertTo-Json -Compress`;
+    const { stdout } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, env: { ...process.env, MULTI_CODEX_TEST_DIRECTORY: root } });
+    const acl = JSON.parse(stdout);
+    assert.equal(acl.protected, true);
+    for (const identities of [acl.directory, acl.child]) assert.deepEqual([...new Set(identities)].sort(), [acl.owner, 'S-1-5-18'].sort());
+    await assert.rejects(() => promisify(execFile)(helper, ['--protect-directory', '.'], { windowsHide: true }));
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 test('native storage supports standalone add/import, shared discovery and cross-process leases', { skip: !engine }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-native-test-')); const home = join(root, 'default');
   await mkdir(home); const authJson = JSON.stringify(syntheticAuth('synthetic-account-a'));
