@@ -406,7 +406,7 @@ pub fn configure_main_window() {
                 }
             }
         }
-        thread::sleep(Duration::from_millis(750));
+        thread::sleep(Duration::from_millis(250));
     });
 }
 
@@ -432,7 +432,7 @@ fn main_window_lua(address: &str) -> String {
         "local w=hl.get_window('address:{address}'); assert(w); \
          hl.dispatch(hl.dsp.window.fullscreen_state({{internal=0,client=0,window=w}})); \
          hl.dispatch(hl.dsp.window.float({{action='unset',window=w}})); \
-         hl.dispatch(hl.dsp.window.fullscreen({{mode='maximized',action='set',window=w}}))"
+         hl.dispatch(hl.dsp.window.fullscreen_state({{internal=1,client=1,window=w}}))"
     )
 }
 fn move_window_lua(address: &str, workspace: i32) -> String {
