@@ -1,0 +1,43 @@
+name: Packaged Mac menu validation
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: Release workflow run containing the exact macos-package artifact
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  menu:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact candidate and install native launch targets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+        run: |
+          [[ "$CANDIDATE_RUN" =~ ^[0-9]+$ ]]
+          gh run download "$CANDIDATE_RUN" --name macos-package --dir "$RUNNER_TEMP/candidate"
+          curl --fail --location --retry 3 https://update.code.visualstudio.com/latest/darwin-arm64/stable -o "$RUNNER_TEMP/vscode.zip"
+          ditto -xk "$RUNNER_TEMP/vscode.zip" /Applications
+          curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.930.51102.zip -o "$RUNNER_TEMP/standalone.zip"
+          ditto -xk "$RUNNER_TEMP/standalone.zip" /Applications
+          DMG=$(find "$RUNNER_TEMP/candidate" -name '*.dmg' -print -quit)
+          shasum -a 256 "$DMG" > "$RUNNER_TEMP/candidate-sha256.txt"
+          hdiutil attach "$DMG" -mountpoint "$RUNNER_TEMP/candidate-volume" -nobrowse
+          APP=$(find "$RUNNER_TEMP/candidate-volume" -maxdepth 1 -name '*.app' -print -quit)
+          ditto "$APP" "$RUNNER_TEMP/Multi Codex.app"
+          hdiutil detach "$RUNNER_TEMP/candidate-volume"
+      - name: Verify menu actions, close, tray Open, Dock reopen and Quit
+        run: python3 release/scripts/macos-menu-smoke.py "$RUNNER_TEMP/Multi Codex.app"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-menu-evidence
+          path: |
+            ${{ runner.temp }}/multi-codex-menu-evidence/
+            ${{ runner.temp }}/candidate-sha256.txt
+          if-no-files-found: warn
