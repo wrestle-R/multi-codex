@@ -30,7 +30,7 @@ export async function startupEnginePath(savedEngine: string, officialExtensionPa
 
 /** Resolve only this official extension's native executable, never another installation. */
 export async function bundledEnginePath(extensionPath: string, platform = process.platform, architecture = process.arch): Promise<string> {
-  if (!['x64', 'arm64'].includes(architecture) || !['linux', 'darwin', 'win32'].includes(platform)) {
+  if (!['x64', 'arm64'].includes(architecture) || !['linux', 'darwin', 'win32'].includes(platform) || (platform === 'win32' && architecture !== 'x64')) {
     throw new Error(`Multi Codex does not support ${platform} ${architecture}.`);
   }
   const cpu = architecture === 'arm64' ? 'aarch64' : 'x86_64';

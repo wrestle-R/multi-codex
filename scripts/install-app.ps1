@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param([switch]$NoLaunch, [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA 'Multi Codex'))
 $ErrorActionPreference = 'Stop'
-if (![Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -notin @('AMD64', 'x86')) { throw 'Multi Codex requires native Windows x64.' }
+if (![Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -notin @('AMD64', 'x86') -or ($env:PROCESSOR_ARCHITEW6432 -and $env:PROCESSOR_ARCHITEW6432 -ne 'AMD64')) { throw 'Multi Codex requires native Windows x64.' }
 if (Get-Process -Name 'multi-codex-desktop' -ErrorAction SilentlyContinue) { throw 'Close Multi Codex before installing or updating. Saved accounts will be preserved.' }
 if (![System.IO.Path]::IsPathRooted($InstallDirectory)) { throw 'InstallDirectory must be an absolute path.' }
 $release = Invoke-RestMethod 'https://api.github.com/repos/wrestle-R/multi-codex/releases/latest'

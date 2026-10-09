@@ -24,6 +24,7 @@ test('engine discovery resolves official Mac and Linux layouts and rejects unava
     const windows = await executable('windows-x86_64');
     assert.equal(await bundledEnginePath(root, 'win32', 'x64'), windows);
     await assert.rejects(() => bundledEnginePath(root, 'freebsd', 'x64'), /does not support/);
+    await assert.rejects(() => bundledEnginePath(root, 'win32', 'arm64'), /does not support/);
     await assert.rejects(() => bundledEnginePath(root, 'linux', 'arm64'), /no executable/);
     await rm(arm);
     const legacy = await executable('darwin-arm64');
