@@ -25,6 +25,7 @@ export class CodexBridge {
   private accounts: AccountClient;
   private initializeId: string | number | undefined;
   private connectionFailed = false;
+  private connectionFailure: string | null = null;
   private authenticationUnverified = false;
   private disposed = false;
   private blockedWorkDuringSwitch = false;
@@ -40,15 +41,23 @@ export class CodexBridge {
     this.accounts = new AccountClient(config.helper, config.engine, config.dataRoot, config.globalHome);
     frontend.on('message', (message: Message) => this.fromFrontend(message));
     frontend.on('end', () => void this.dispose());
-    frontend.on('fault', () => this.fail());
+    frontend.on('fault', () => this.fail('frontend-protocol'));
     this.backendLines.on('message', (message: Message) => this.fromBackend(message));
-    this.backendLines.on('fault', () => this.fail());
-    this.backend.on('error', () => this.fail()); this.backend.on('exit', () => this.fail());
+    this.backendLines.on('fault', () => this.fail('backend-protocol'));
+    this.backendLines.on('end', () => this.fail('backend-output-closed'));
+    this.backend.on('error', () => this.fail('backend-start-failed')); this.backend.on('exit', () => this.fail('backend-exited'));
   }
   async attachReady() {
     if (!this.existing) throw new Error('No existing backend');
     // Read the current identity for rollback before allowing any mutation.
-    this.selectedAuth = await this.currentAuth();
+    const deadline = Date.now() + 10000;
+    for (;;) {
+      try { this.selectedAuth = await this.currentAuth(); break; }
+      catch (error) {
+        if (Date.now() >= deadline || this.connectionFailed || !(error instanceof Error) || !/not initialized/i.test(error.message)) throw error;
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     if (this.selectedAuth?.OPENAI_API_KEY) {
       throw new Error('Live attachment requires a ChatGPT login. API-key switching uses the isolated bridge on the next Codex startup.');
     }
@@ -142,7 +151,7 @@ export class CodexBridge {
     } catch { this.backendLines.send({ id, error: { code: -32000, message: 'The saved account needs fresh credentials. Sign in again in Multi Codex.' } }); }
     finally { this.credentialRequests.delete(id); this.activity.pendingApprovals.delete(id); this.broadcast(); }
   }
-  state() { return { ...this.activity.snapshot(), selectedId: this.selectedId, sourceHome: this.config.sourceHome ?? this.config.globalHome, bridgePid: process.pid, backendPid: this.backend.pid, instanceId: this.instanceId, connectionFailed: this.connectionFailed, authenticationUnverified: this.authenticationUnverified }; }
+  state() { return { ...this.activity.snapshot(), ...(this.connectionFailed ? { canSwitch: false, reason: this.connectionFailure?.includes('protocol') ? 'Codex protocol connection could no longer be verified. Save your work and reopen Codex, then retry.' : 'Codex backend disconnected. Save your work and reopen Codex, then retry.' } : {}), selectedId: this.selectedId, sourceHome: this.config.sourceHome ?? this.config.globalHome, bridgePid: process.pid, backendPid: this.backend.pid, instanceId: this.instanceId, connectionFailed: this.connectionFailed, connectionFailure: this.connectionFailure, authenticationUnverified: this.authenticationUnverified }; }
   private broadcast() { for (const client of this.clients.keys()) client.send({ method: 'state/changed', params: this.state() }); }
   async switchAccount(id: string) {
     if (typeof id !== 'string' || !id) throw new Error('Select a saved account');
@@ -222,10 +231,10 @@ export class CodexBridge {
       default: throw new Error('Unknown bridge request');
     }
   }
-  private fail() { this.connectionFailed = true; this.activity.ready = false; this.backendRpc.close(); this.broadcast(); }
+  private fail(reason: string) { if (this.connectionFailed) return; this.connectionFailure = reason; this.connectionFailed = true; this.activity.ready = false; this.backendRpc.close(); this.broadcast(); }
   private disposal?: Promise<void>;
   dispose() { return this.disposal ??= (async () => {
-    this.disposed = true; this.fail();
+    this.disposed = true; this.fail('bridge-disposed');
     for (const [client, socket] of this.clients) { client.send({ method: 'disconnected' }); socket.end(); socket.destroy(); }
     const serverClosed = this.server ? new Promise<void>(resolve => this.server!.close(() => resolve())) : Promise.resolve();
     if (this.existing) this.existing.restore();

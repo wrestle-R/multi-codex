@@ -68,6 +68,7 @@ test('backend termination closes requests and disables account changes', async t
   await assert.rejects(() => peer.request('fixture/crash', {}, 100), /closed|timed out/);
   await until(() => client.request('state'), state => state.connectionFailed);
   await assert.rejects(() => client.request('switch', { id: 'b' }), /connecting/);
+  assert.match((await client.request('state')).reason, /backend disconnected/);
   assert.equal(bridge.activity.ready, false);
 });
 test('ChatGPT and API-key modes can switch both ways in the same backend', async t => {

@@ -3,25 +3,47 @@ import { randomUUID } from 'node:crypto';
 import type { Writable, Readable } from 'node:stream';
 
 export type Message = { id?: string | number; method?: string; params?: any; result?: any; error?: { code: number; message: string } };
+export const MAX_CODEX_PROTOCOL_BYTES = 128 * 1024 * 1024;
+
+export class JsonLineBuffer {
+  private chunks: string[] = [];
+  private bytes = 0;
+  private discarding = false;
+  constructor(private complete: (line: string) => void, private fault: (error: Error) => void,
+    private maxBytes = MAX_CODEX_PROTOCOL_BYTES) {}
+  push(chunk: string) {
+    let offset = 0;
+    while (offset < chunk.length) {
+      const newline = chunk.indexOf('\n', offset);
+      const part = chunk.slice(offset, newline < 0 ? chunk.length : newline);
+      if (!this.discarding) {
+        this.bytes += Buffer.byteLength(part);
+        if (this.bytes > this.maxBytes) {
+          this.chunks = []; this.bytes = 0; this.discarding = true;
+          this.fault(new Error('Protocol frame too large'));
+        } else this.chunks.push(part);
+      }
+      if (newline >= 0) {
+        const line = this.discarding ? undefined : this.chunks.join('');
+        this.chunks = []; this.bytes = 0; this.discarding = false;
+        if (line?.trim()) this.complete(line);
+      }
+      offset = newline < 0 ? chunk.length : newline + 1;
+    }
+  }
+  takeTail() { const tail = this.chunks.join(''); this.chunks = []; this.bytes = 0; return tail; }
+}
 export class JsonLines extends EventEmitter {
-  private buffer = '';
-  constructor(input: Readable, private output: Writable, maxBytes = 8 * 1024 * 1024) {
+  constructor(input: Readable, private output: Writable, maxBytes = MAX_CODEX_PROTOCOL_BYTES) {
     super();
     input.setEncoding('utf8');
-    input.on('data', (chunk: string) => {
-      this.buffer += chunk;
-      let offset: number;
-      while ((offset = this.buffer.indexOf('\n')) >= 0) {
-        const line = this.buffer.slice(0, offset); this.buffer = this.buffer.slice(offset + 1);
-        if (Buffer.byteLength(line) > maxBytes) { this.emit('fault', new Error('Protocol frame too large')); continue; }
-        if (!line.trim()) continue;
-        let message;
-        try { message = JSON.parse(line); } catch { this.emit('fault', new Error('Invalid protocol frame')); continue; }
-        if (!message || typeof message !== 'object' || Array.isArray(message)) { this.emit('fault', new Error('Invalid protocol frame')); continue; }
-        this.emit('message', message);
-      }
-      if (Buffer.byteLength(this.buffer) > maxBytes) { this.buffer = ''; this.emit('fault', new Error('Protocol buffer too large')); }
-    });
+    const buffer = new JsonLineBuffer(line => {
+      let message;
+      try { message = JSON.parse(line); } catch { this.emit('fault', new Error('Invalid protocol frame')); return; }
+      if (!message || typeof message !== 'object' || Array.isArray(message)) { this.emit('fault', new Error('Invalid protocol frame')); return; }
+      this.emit('message', message);
+    }, error => this.emit('fault', error), maxBytes);
+    input.on('data', (chunk: string) => buffer.push(chunk));
     input.on('end', () => this.emit('end'));
     input.on('error', () => this.emit('fault', new Error('Protocol connection failed')));
     output.on('error', () => this.emit('fault', new Error('Protocol write failed')));

@@ -16,6 +16,7 @@ import { findCodexBackend, tapBackend } from './stdio-tap';
 import { bundledEnginePath } from './platform';
 import { resolveAccountPaths } from './storage';
 import { extensionVersion } from './version';
+import { waitForReady } from './connection';
 function quote(value: string) { return `'${value.replace(/'/g, `'"'"'`)}'`; }
 
 class AccountsTree implements vscode.TreeDataProvider<Account> {
@@ -54,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(status, view);
   let accounts: AccountClient | undefined; let bridge: BridgeClient | undefined;
   let runtimeRoot = ''; let engine = ''; let helper = ''; let root = ''; let globalHome = '';
-  let monitor: NodeJS.Timeout | undefined; let connecting = false; let accountsRefreshing = false;
+  let monitor: NodeJS.Timeout | undefined; let connectionPending: Promise<void> | undefined; let connectedSocket = ''; let accountsRefreshing = false;
   let usage: any = null; let usageAt = 0;
   let refreshingUsage: Promise<void> | undefined;
   const usageOperations = new Map<string, Promise<unknown>>();
@@ -70,7 +71,7 @@ export async function activate(context: vscode.ExtensionContext) {
       : !tree.accounts.length ? 'No saved accounts yet. Use + above to sign in or import an account.'
       : setupPending ? 'Connecting to Codex…'
       : state?.switching ? 'Switching account…'
-      : state?.ready && !state.canSwitch ? state.reason
+      : state?.connectionFailed || state?.ready && !state.canSwitch ? state.reason
       : undefined;
     status.text = setupPending ? '$(sync~spin) Connecting Codex…' : state?.switching ? '$(sync~spin) Switching Codex…' : account ? `$(account) ${account.name}` : state?.ready ? '$(account) Codex · Current home' : '$(account) Multi Codex';
     status.tooltip = storageError || (!bridge ? 'Choose an account to connect to Codex automatically' : state?.reason ?? (account ? `Codex is using ${account.name}` : `Codex started from ${state?.sourceHome ?? globalHome}\nChoose an account to change this window’s login`));
@@ -84,16 +85,23 @@ export async function activate(context: vscode.ExtensionContext) {
     finally { accountsRefreshing = false; }
   }
   async function connect() {
-    if (!runtimeRoot || bridge || connecting) return; connecting = true;
+    if (!runtimeRoot || bridge && !bridge.state?.connectionFailed) return;
+    if (connectionPending) return connectionPending;
+    connectionPending = discoverConnection();
+    try { await connectionPending; } finally { connectionPending = undefined; }
+  }
+  async function discoverConnection() {
     try {
       const registration = JSON.parse(await readFile(join(runtimeRoot, 'connections', `${process.pid}.json`), 'utf8'));
+      if (bridge && registration.socket === connectedSocket) return;
+      bridge?.dispose(); bridge = undefined;
       bridge = await BridgeClient.connect(registration.socket, registration.token);
+      connectedSocket = registration.socket;
       const thisBridge = bridge;
       thisBridge.on('state', () => display());
       thisBridge.on('close', () => { if (bridge === thisBridge) { bridge = undefined; display(); } });
       display();
     } catch { /* Discovery is expected to fail until the backend starts through the bridge. */ }
-    finally { connecting = false; }
   }
   async function prepare() {
     if (preparePending) return preparePending;
@@ -141,6 +149,16 @@ export async function activate(context: vscode.ExtensionContext) {
     if (current !== wrapper) await context.globalState.update('previousCliExecutable', current ?? null);
     await vscode.workspace.getConfiguration('chatgpt').update('cliExecutable', wrapper, vscode.ConfigurationTarget.Global);
     await connect();
+    if (!bridge) {
+      const codex = vscode.extensions.getExtension('openai.chatgpt')!;
+      if (!codex.isActive) await codex.activate();
+      await vscode.commands.executeCommand('chatgpt.openSidebar');
+      const deadline = Date.now() + 15000;
+      while (!bridge && !findCodexBackend(engine) && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await connect();
+      }
+    }
     if (!bridge) {
       const child = findCodexBackend(engine);
       if (child) {
@@ -201,10 +219,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }
     await connect(); if (!bridge) await setupBridge();
     if (!bridge) throw new Error('Codex could not connect. Open its panel and retry.');
-    const state = await bridge.request('state');
+    const activeBridge = bridge;
+    const state = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Connecting to Codex', cancellable: false }, () => waitForReady(() => activeBridge.request('state')));
     if (!state.canSwitch) throw new Error(state.reason);
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Switching Codex account', cancellable: false }, async () => { await bridge!.request('switch', { id }); });
-    bridge.state = await bridge.request('state'); usage = null; usageAt = 0; display();
+    if (bridge !== activeBridge) throw new Error('Codex reconnected while preparing the account switch. Retry your selection.');
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Switching Codex account', cancellable: false }, async () => { await activeBridge.request('switch', { id }); });
+    activeBridge.state = await activeBridge.request('state'); usage = null; usageAt = 0; display();
     const selected = tree.accounts.find(account => account.id === id);
     void vscode.window.showInformationMessage(`Codex is now using ${selected?.name ?? 'the selected account'}. Login verified. This window’s conversations and home resources are preserved.`);
   }
@@ -305,7 +325,11 @@ export async function activate(context: vscode.ExtensionContext) {
     activationId, refreshAccounts, switchAccount, enableSwitching: setupBridge,
     async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, storageError, panelMessage: view.message, usageSummaries: Object.fromEntries(tree.usage), bridge: bridge ? await bridge.request('state') : null }; },
     ...(process.env.MULTI_CODEX_TEST_MODE === '1' ? {
-      testBackendInfo() { return { pid: findCodexBackend(engine)?.pid, activationId, hostPid: process.pid }; },
+      testBackendInfo() {
+        const children = ((process as any)._getActiveHandles?.() ?? []).filter((handle: any) => typeof handle.spawnfile === 'string')
+          .map((child: any) => ({ executable: child.spawnfile, appServer: child.spawnargs?.includes('app-server'), alive: child.exitCode === null && !child.killed }));
+        return { pid: findCodexBackend(engine)?.pid, expectedEngine: engine, children, activationId, hostPid: process.pid };
+      },
       async testStopAccountHelper() {
         const child = accounts?.child;
         if (!child || !accounts?.isRunning) return;

@@ -6,7 +6,14 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { syntheticAuth } from './fixtures/local-service.mjs';
-const { controlEndpoint, spawnExecutable, CodexBridge, JsonLines, RpcPeer, findCodexBackend, tapBackend } = createRequire(import.meta.url)('../dist/core.cjs');
+const { controlEndpoint, spawnExecutable, CodexBridge, JsonLines, RpcPeer, findCodexBackend, tapBackend, sameExecutablePath } = createRequire(import.meta.url)('../dist/core.cjs');
+
+test('Windows backend discovery accepts native case and separator variants while keeping executable identity exact', () => {
+  assert.equal(sameExecutablePath('D:\\Extensions\\Codex\\codex.exe', 'd:/extensions/codex/codex.exe', 'win32'), true);
+  assert.equal(sameExecutablePath('\\\\?\\D:\\Extensions\\Codex\\codex.exe', 'd:/extensions/codex/codex.exe', 'win32'), true);
+  assert.equal(sameExecutablePath('D:\\Extensions\\Codex\\codex.exe', 'd:/other/codex.exe', 'win32'), false);
+  assert.equal(sameExecutablePath('/extensions/Codex/codex', '/extensions/codex/codex', 'linux'), false);
+});
 
 async function setup(t, before = async () => {}) {
   const root = await mkdtemp(join(tmpdir(), 'mc-attachment-test-'));
@@ -67,6 +74,16 @@ test('fragmented UTF-8 frames and batched frames reach the original reader exact
   child.stdout.emit('data', Buffer.concat([frame, frame]));
   assert.deepEqual(seen, ['A ✓ 🙂 B', 'A ✓ 🙂 B', 'A ✓ 🙂 B']);
   assert.equal(bridge.state().connectionFailed, false);
+});
+test('live attachment preserves a long chat response above 8 MiB without losing the connection', async t => {
+  const { bridge, peer, child } = await setup(t);
+  const seen = [];
+  peer.lines.on('message', message => { if (message.method === 'fixture/history') seen.push(message.params.history.length); });
+  const history = 'x'.repeat(9 * 1024 * 1024);
+  const frame = Buffer.from(JSON.stringify({ method: 'fixture/history', params: { history } }) + '\n');
+  for (let offset = 0; offset < frame.length; offset += 32767) child.stdout.emit('data', frame.subarray(offset, offset + 32767));
+  assert.deepEqual(seen, [history.length]); assert.equal(bridge.state().connectionFailed, false);
+  assert.equal((await peer.request('fixture/control')).held, false);
 });
 test('an incomplete pre-attachment frame is preserved and disables switching', async t => {
   const { bridge, child } = await setup(t);
