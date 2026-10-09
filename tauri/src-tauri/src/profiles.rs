@@ -1647,6 +1647,7 @@ fn build_vscode_command_with(
         .arg(extensions_dir)
         .arg(workspace)
         .env("CODEX_HOME", codex_home)
+        .env("CODEX_SQLITE_HOME", codex_home)
         .env_remove("VSCODE_IPC_HOOK_CLI")
         .env_remove("VSCODE_PID")
         .env_remove("VSCODE_CWD")
@@ -3159,6 +3160,15 @@ mod tests {
             command
                 .get_envs()
                 .find(|(key, _)| *key == "CODEX_HOME")
+                .unwrap()
+                .1
+                .unwrap(),
+            codex.as_os_str()
+        );
+        assert_eq!(
+            command
+                .get_envs()
+                .find(|(key, _)| *key == "CODEX_SQLITE_HOME")
                 .unwrap()
                 .1
                 .unwrap(),

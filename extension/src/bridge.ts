@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer, type Server, type Socket } from 'node:net';
-import { chmod, mkdir, writeFile, rm, rename } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { ActivityGuard } from './activity';
@@ -9,7 +9,7 @@ import { claims, loginParams, matchesIdentity, type StoredAuth } from './auth';
 import { JsonLines, RpcPeer, type Message } from './protocol';
 import { withAccountBackend } from './worker';
 
-export type BridgeConfig = { engine: string; helper: string; dataRoot: string; globalHome: string; sessionHome: string; historyHome?: string; selectionPath?: string; socket: string; token: string; selectedId?: string; workspace: string; attached?: boolean };
+export type BridgeConfig = { engine: string; helper: string; dataRoot: string; globalHome: string; sessionHome: string; sourceHome?: string; historyHome?: string; socket: string; token: string; workspace: string; attached?: boolean };
 export type ExistingBackend = { child: ChildProcessWithoutNullStreams; lines: JsonLines; restore: () => void };
 export class CodexBridge {
   readonly activity = new ActivityGuard();
@@ -23,7 +23,6 @@ export class CodexBridge {
   private server?: Server;
   private accounts: AccountClient;
   private initializeId: string | number | undefined;
-  private initialized = false;
   private connectionFailed = false;
   private authenticationUnverified = false;
   private disposed = false;
@@ -48,17 +47,32 @@ export class CodexBridge {
   async attachReady() {
     if (!this.existing) throw new Error('No existing backend');
     // Read the current identity for rollback before allowing any mutation.
-    const status = await this.backendRpc.request('getAuthStatus', { includeToken: true, refreshToken: false });
-    if (status.authToken && status.authMethod !== 'apikey') {
-      const id = claims(status.authToken)['https://api.openai.com/auth']?.chatgpt_account_id;
-      if (!id) throw new Error('The current Codex identity could not be verified');
-      this.selectedAuth = { auth_mode: 'ChatGPT', tokens: { access_token: status.authToken, account_id: id } };
-    } else if (status.authMethod === 'apikey') {
+    this.selectedAuth = await this.currentAuth();
+    if (this.selectedAuth?.OPENAI_API_KEY) {
       throw new Error('Live attachment requires a ChatGPT login. API-key switching uses the isolated bridge on the next Codex startup.');
     }
-    this.initialized = true;
     this.activity.ready = true;
     this.broadcast();
+  }
+  private async currentAuth(): Promise<StoredAuth | null> {
+    const status = await this.backendRpc.request('getAuthStatus', { includeToken: true, refreshToken: false });
+    if (status.authToken) {
+      if (status.authMethod === 'apikey') return { auth_mode: 'apikey', OPENAI_API_KEY: status.authToken };
+      const accountId = claims(status.authToken)['https://api.openai.com/auth']?.chatgpt_account_id;
+      if (!accountId) throw new Error('The current Codex identity could not be verified');
+      return { auth_mode: 'ChatGPT', tokens: { access_token: status.authToken, account_id: accountId } };
+    }
+    // Recent backends can withhold tokens for a file-based ChatGPT login.
+    // Compare that private file with the backend's authoritative routing identity.
+    const current = await this.backendRpc.request('account/read', { refreshToken: false });
+    if (!current.account) return null;
+    const home = this.config.attached ? this.config.sourceHome ?? this.config.globalHome : this.config.sessionHome;
+    const auth: StoredAuth = JSON.parse(await readFile(join(home, 'auth.json'), 'utf8'));
+    const login = loginParams(auth);
+    if (current.account.type !== 'chatgpt' || login.type !== 'chatgptAuthTokens' || login.chatgptAccountId !== current.workspaceRouting?.chatgptAccountId) {
+      throw new Error('The current Codex identity could not be verified. Account switching was not started.');
+    }
+    return auth;
   }
   async listen() {
     await mkdir(this.config.sessionHome, { recursive: true, mode: 0o700 });
@@ -90,25 +104,22 @@ export class CodexBridge {
       this.initializeId = message.id;
       message = { ...message, params: { ...message.params, capabilities: { ...message.params?.capabilities, experimentalApi: true } } };
     }
-    if (message.method === 'initialized') this.initialized = true;
     const authMutation = ['account/login/start', 'account/logout', 'login', 'logout'].includes(message.method ?? '');
     if (this.connectionFailed || ((this.activity.switching || this.authenticationUnverified) && (this.activity.isWork(message.method) || authMutation)) || (authMutation && !this.activity.snapshot().canSwitch)) {
       if (this.activity.switching && this.activity.isWork(message.method)) this.blockedWorkDuringSwitch = true;
       if (message.id !== undefined) this.frontend.send({ id: message.id, error: { code: -32001, message: 'Multi Codex is changing accounts. Retry when the account is verified.' } });
       return;
     }
-    if (authMutation && this.selectedId) {
+    if (authMutation) {
       // Direct login in the official panel leaves managed-account mode explicitly.
-      void this.accounts.request('accounts/release', { id: this.selectedId }).catch(() => {});
+      if (this.selectedId) void this.accounts.request('accounts/release', { id: this.selectedId }).catch(() => {});
       this.selectedId = null; this.selectedAuth = null; this.broadcast();
-      if (this.config.selectionPath) void rm(this.config.selectionPath, { force: true });
     }
     this.activity.outgoing(message); this.backendLines.send(message); this.broadcast();
   }
   private fromBackend(message: Message) {
     if (message.id === this.initializeId && !message.method) {
       this.activity.ready = !message.error;
-      if (!message.error && this.config.selectedId) void this.bootstrap(this.config.selectedId);
     }
     if (message.method === 'account/chatgptAuthTokens/refresh' && message.id !== undefined && this.selectedId) {
       void this.refreshToken(message.id, message.params); return;
@@ -116,14 +127,6 @@ export class CodexBridge {
     this.activity.incoming(message);
     if (!this.backendRpc.owns(message.id)) this.frontend.send(message);
     this.broadcast();
-  }
-  private async bootstrap(id: string) {
-    try {
-      // Frontend sends initialized after receiving its own handshake.
-      const deadline = Date.now() + 3000;
-      while (!this.initialized && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
-      await this.switchAccount(id);
-    } catch { this.broadcast(); }
   }
   private async refreshToken(id: string | number, params: any) {
     this.credentialRequests.add(id); this.activity.pendingApprovals.add(id); this.broadcast();
@@ -138,15 +141,16 @@ export class CodexBridge {
     } catch { this.backendLines.send({ id, error: { code: -32000, message: 'The saved account needs fresh credentials. Sign in again in Multi Codex.' } }); }
     finally { this.credentialRequests.delete(id); this.activity.pendingApprovals.delete(id); this.broadcast(); }
   }
-  state() { return { ...this.activity.snapshot(), selectedId: this.selectedId, bridgePid: process.pid, backendPid: this.backend.pid, instanceId: this.instanceId, connectionFailed: this.connectionFailed, authenticationUnverified: this.authenticationUnverified }; }
+  state() { return { ...this.activity.snapshot(), selectedId: this.selectedId, sourceHome: this.config.sourceHome ?? this.config.globalHome, bridgePid: process.pid, backendPid: this.backend.pid, instanceId: this.instanceId, connectionFailed: this.connectionFailed, authenticationUnverified: this.authenticationUnverified }; }
   private broadcast() { for (const client of this.clients.keys()) client.send({ method: 'state/changed', params: this.state() }); }
   async switchAccount(id: string) {
     if (typeof id !== 'string' || !id) throw new Error('Select a saved account');
     this.activity.acquire(); this.blockedWorkDuringSwitch = false; this.broadcast();
-    const previousId = this.selectedId; const previousAuth = this.selectedAuth;
+    const previousId = this.selectedId; let previousAuth = this.selectedAuth;
     let attempted = false;
     let leased = false;
     try {
+      if (!previousAuth) previousAuth = await this.currentAuth();
       await this.accounts.request('accounts/lease', { id }); leased = true;
       let auth = await this.accounts.credential(id);
       let login;
@@ -175,12 +179,6 @@ export class CodexBridge {
       await this.backendRpc.request('account/login/start', login);
       const status = await this.backendRpc.request('getAuthStatus', { includeToken: true, refreshToken: false });
       if (!matchesIdentity(status, auth)) throw new Error('Codex did not confirm the selected account.');
-      await writeFile(join(this.config.sessionHome, 'selection.json'), JSON.stringify({ id }), { mode: 0o600 });
-      if (this.config.selectionPath) {
-        const temporary = this.config.selectionPath + '.' + randomUUID();
-        try { await writeFile(temporary, JSON.stringify({ id }), { mode: 0o600 }); await rename(temporary, this.config.selectionPath); }
-        finally { await rm(temporary, { force: true }); }
-      }
       this.selectedId = id; this.selectedAuth = auth;
       if (previousId && previousId !== id) await this.accounts.request('accounts/release', { id: previousId });
       return this.state();
