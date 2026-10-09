@@ -29,7 +29,7 @@ export async function run() {
   checks.push('Desktop accounts discovered despite inherited managed CODEX_HOME');
   await vscode.commands.executeCommand('chatgpt.openSidebar');
   if (process.env.MULTI_CODEX_TEST_LIVE_ATTACH === '1') {
-    const before = api.testBackendInfo();
+    const before = await waitFor<any>(() => Promise.resolve(api.testBackendInfo()), value => !!value.pid);
     assert.ok(before.pid, 'The original Codex backend must already be running');
     await api.switchAccount(saved.accounts.find((account: any) => account.name === 'Account A').id);
     const after = await api.getState();

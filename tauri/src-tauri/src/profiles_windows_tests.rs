@@ -108,29 +108,34 @@ fn windows_accounts_survive_restart_and_keep_peer_and_global_data_private() {
 struct NativeCleanup(Vec<PathBuf>);
 impl Drop for NativeCleanup {
     fn drop(&mut self) {
-        let mut system = sysinfo::System::new_all();
-        system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-        for process in system.processes().values() {
-            if self.0.iter().any(|home| {
-                process_uses_profile(process.pid().as_u32(), home)
-                    || process.cmd().windows(2).any(|p| {
-                        p[0].to_string_lossy()
-                            .eq_ignore_ascii_case("-EncodedCommand")
-                            && crate::windows_platform::command_uses_home(
-                                &p[1].to_string_lossy(),
-                                home,
-                            )
-                    })
-            }) {
-                let _ = Command::new("taskkill.exe")
-                    .args(["/PID", &process.pid().as_u32().to_string(), "/T", "/F"])
-                    .output();
+        // Electron can create a worker while the first process snapshot is being
+        // inspected. Recheck only these disposable homes after killing a tree.
+        for _ in 0..3 {
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+            for process in system.processes().values() {
+                if self.0.iter().any(|home| {
+                    process_uses_profile(process.pid().as_u32(), home)
+                        || process.cmd().windows(2).any(|p| {
+                            p[0].to_string_lossy()
+                                .eq_ignore_ascii_case("-EncodedCommand")
+                                && crate::windows_platform::command_uses_home(
+                                    &p[1].to_string_lossy(),
+                                    home,
+                                )
+                        })
+                }) {
+                    let _ = Command::new("taskkill.exe")
+                        .args(["/PID", &process.pid().as_u32().to_string(), "/T", "/F"])
+                        .output();
+                }
             }
+            std::thread::sleep(Duration::from_secs(1));
         }
-        std::thread::sleep(Duration::from_secs(1));
     }
 }
-fn wait_for(mut condition: impl FnMut() -> bool) {
+fn wait_for(label: &str, mut condition: impl FnMut() -> bool) {
+    eprintln!("Waiting for {label}");
     let end = Instant::now() + Duration::from_secs(60);
     while Instant::now() < end {
         if condition() {
@@ -138,7 +143,7 @@ fn wait_for(mut condition: impl FnMut() -> bool) {
         }
         std::thread::sleep(Duration::from_millis(250));
     }
-    panic!("Native Windows launch did not satisfy its safety and running guards");
+    panic!("Native Windows launch did not satisfy {label}");
 }
 fn visible(home: &Path) -> bool {
     let system = sysinfo::System::new_all();
@@ -177,7 +182,7 @@ fn windows_live_launches_keep_two_accounts_isolated_and_block_mutation() {
             .unwrap();
     }
     for (profile, paths) in [(&first, &a), (&second, &b)] {
-        wait_for(|| {
+        wait_for("visible VS Code window and active account guard", || {
             visible(&paths.vscode_home) && service.is_running(&profile.metadata.id).unwrap()
         });
         assert!(service.delete_profile(&profile.metadata.id).is_err());
@@ -185,7 +190,9 @@ fn windows_live_launches_keep_two_accounts_isolated_and_block_mutation() {
     }
     drop(cleanup);
     for p in [&first, &second] {
-        wait_for(|| !service.is_running(&p.metadata.id).unwrap());
+        wait_for("VS Code cleanup releasing the account guard", || {
+            !service.is_running(&p.metadata.id).unwrap()
+        });
     }
     // Exercise the exact native PowerShell launch and marker-based CLI safety guard.
     let cli =
@@ -194,11 +201,15 @@ fn windows_live_launches_keep_two_accounts_isolated_and_block_mutation() {
     service
         .launch_cli_profile_with_command(&first.metadata.id, &workspace, &cli)
         .unwrap();
-    wait_for(|| service.is_running(&first.metadata.id).unwrap());
+    wait_for("PowerShell CLI account guard", || {
+        service.is_running(&first.metadata.id).unwrap()
+    });
     assert!(service.delete_profile(&first.metadata.id).is_err());
     assert!(service.clear_profile_cache(&first.metadata.id).is_err());
     drop(cleanup);
-    wait_for(|| !service.is_running(&first.metadata.id).unwrap());
+    wait_for("PowerShell CLI cleanup releasing the account guard", || {
+        !service.is_running(&first.metadata.id).unwrap()
+    });
     assert_eq!(
         fs::read(a.codex_home.join("auth.json")).unwrap(),
         originals[0]
@@ -248,7 +259,7 @@ fn windows_live_standalone_launch_and_restart_preserve_two_private_homes() {
             service
                 .launch_standalone_profile(&p.metadata.id, &workspace)
                 .unwrap();
-            wait_for(|| {
+            wait_for("visible standalone window and active account guard", || {
                 visible(&paths.desktop_home) && service.is_running(&p.metadata.id).unwrap()
             });
             assert!(
@@ -272,7 +283,7 @@ fn windows_live_standalone_launch_and_restart_preserve_two_private_homes() {
         );
         assert!(!a.vscode_home.exists() && !b.vscode_home.exists());
         drop(cleanup);
-        wait_for(|| {
+        wait_for("standalone cleanup releasing both account guards", || {
             !service.is_running(&first.metadata.id).unwrap()
                 && !service.is_running(&second.metadata.id).unwrap()
         });
