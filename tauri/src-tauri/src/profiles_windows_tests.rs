@@ -29,6 +29,56 @@ impl AuthRecognizer for AcceptAuth {
     }
 }
 
+#[test]
+fn windows_native_keyring_handles_full_sized_logins_and_legacy_credentials() {
+    struct Cleanup(String);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = KeyringSecretStore.delete(&self.0);
+        }
+    }
+
+    let id = format!("native-credential-test-{}", Uuid::new_v4());
+    let _cleanup = Cleanup(id.clone());
+    let secret = serde_json::json!({
+        "auth_mode": "chatgpt",
+        "tokens": {
+            "access_token": "inert-access-token-".repeat(300),
+            "id_token": "inert-id-token-".repeat(350),
+            "refresh_token": "inert-refresh-token-".repeat(200),
+        },
+    })
+    .to_string();
+
+    // Read the exact single-entry format used by releases before this fix.
+    let legacy = keyring::Entry::new(KEYRING_SERVICE, &id).unwrap();
+    legacy.set_password("legacy synthetic credential").unwrap();
+    assert_eq!(
+        KeyringSecretStore.get(&id).unwrap(),
+        "legacy synthetic credential"
+    );
+    assert!(matches!(
+        legacy.set_password(&secret),
+        Err(keyring::Error::TooLong(_, _))
+    ));
+
+    KeyringSecretStore.set(&id, &secret).unwrap();
+    // A fresh store handle reconstructs the full credential from native entries.
+    assert_eq!(KeyringSecretStore.get(&id).unwrap(), secret);
+    KeyringSecretStore
+        .set(&id, "replacement synthetic credential")
+        .unwrap();
+    assert_eq!(
+        KeyringSecretStore.get(&id).unwrap(),
+        "replacement synthetic credential"
+    );
+    KeyringSecretStore.delete(&id).unwrap();
+    assert!(matches!(
+        legacy.get_password(),
+        Err(keyring::Error::NoEntry)
+    ));
+}
+
 fn fixture() -> (tempfile::TempDir, ProfileService<MemorySecrets, AcceptAuth>) {
     let temp = tempfile::tempdir().unwrap();
     let root = temp
