@@ -112,5 +112,5 @@
     "previousAppImageRetained": true,
     "note": "Compared against the immediate pre-upgrade baseline; intentional CLI executable and terminal preference changes were backed up separately."
   },
-  "websiteValidation": "docs/releases/v1.3.7-website-validation.json"
+  "websiteValidation": "release/evidence/v1.3.7-website-validation.json"
 }

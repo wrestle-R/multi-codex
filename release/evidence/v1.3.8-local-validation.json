@@ -25,7 +25,7 @@
     "liveChromiumAndMobile": 20
   },
   "debPackageVersion": "1.3.8",
-  "settingsBrowserChecks": "docs/releases/v1.3.8-settings-validation.json",
+  "settingsBrowserChecks": "release/evidence/v1.3.8-settings-validation.json",
   "localInstallerChecks": {
     "tag": "v1.3.8",
     "appImageSha256": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
@@ -67,7 +67,7 @@
     "authenticatedDesktopIsolation": "not tested",
     "signingAndNotarization": "optional; not verified by this startup smoke test"
   },
-  "websiteValidation": "docs/releases/v1.3.8-website-validation.json",
+  "websiteValidation": "release/evidence/v1.3.8-website-validation.json",
   "installerRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37734192047",
   "linuxCiInstallerChecks": {
     "tag": "v1.3.8",
