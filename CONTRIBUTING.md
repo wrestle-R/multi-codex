@@ -25,7 +25,7 @@ The website at `/releases` presents selected user-facing updates grouped by majo
 - Use the published release date. Do not substitute the commit date or documentation update date.
 - Include a link to the version's full GitHub release notes. Preserve existing version permalinks when editing copy or layout.
 - Keep full package history on GitHub. Do not describe a selection of updates as every published version or invent entries to fill gaps.
-- Put platform requirements, known limitations and links to validation evidence in the full notes under `docs/releases/`.
+- Put platform requirements, known limitations and links to validation evidence in the full notes under `release/notes/`.
 
 ## Commit titles
 
@@ -43,7 +43,7 @@ Use `feat` for capabilities, `fix` for defects, `docs` for documentation, `test`
 
 1. Choose the next version based on the changes since the last stable release.
 2. Synchronize the app package and lockfile, Tauri configuration, Rust package and lockfile, website package and lockfile, and `next/lib/site.ts`. The release workflow checks the app version against its tag.
-3. Write full release notes in `docs/releases/v<VERSION>.md`, including installation changes, compatibility requirements and known limitations. Link evidence without claiming checks that have not passed.
+3. Write full release notes in `release/notes/v<VERSION>.md`, including installation changes, compatibility requirements and known limitations. Link evidence without claiming checks that have not passed.
 4. Complete the project's build, installer and release validation gates before publishing the stable release.
 5. After publication, update `next/lib/releases.ts` with the actual publication timestamp and concise highlights. Add a series summary when a new major/minor series appears.
 6. Align the README's current version and latest-change summary with the stable release, and verify the website badge, release-note links, version anchors and installation commands.
