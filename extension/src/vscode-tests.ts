@@ -40,6 +40,11 @@ export async function run() {
     checks.push('First account selection connected automatically without an Enable switching button');
   }
   const initial = await waitFor<any>(() => api.getState(), value => !!value.bridge?.ready && value.accounts.length === 2);
+  assert.equal(initial.bridge.selectedId, process.env.MULTI_CODEX_TEST_LIVE_ATTACH === '1' ? saved.accounts.find((account: any) => account.name === 'Account A').id : null);
+  const startupAuth = await api.testRequest('account/read', { refreshToken: false });
+  assert.equal(startupAuth.account?.type, 'chatgpt');
+  assert.equal(startupAuth.workspaceRouting?.chatgptAccountId, 'synthetic-account-a');
+  checks.push('Codex opens with the inherited home’s current login before any account selection');
   const activationId = initial.activationId; const hostPid = initial.extensionHostPid;
   const backendPid = initial.bridge.backendPid; const bridgeInstanceId = initial.bridge.instanceId;
   const a = initial.accounts.find((account: any) => account.name === 'Account A');

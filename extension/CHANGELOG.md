@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3 — 2026-10-09
+
+- Start every Codex backend with the current launch home’s login, configuration, resources and history.
+- Stop restoring old project account selections on startup; verify and announce explicit account changes.
+- Resolve the installed official Codex engine on each open so extension updates cannot leave a deleted executable path.
+- Refresh existing launcher configuration during activation and preserve the initial login when a first switch fails.
+
 ## 0.1.1 — 2026-10-09
 
 - Fix desktop account discovery when VS Code inherits a managed profile's `CODEX_HOME`, including symlinked paths.
