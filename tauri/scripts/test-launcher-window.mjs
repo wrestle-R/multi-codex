@@ -39,12 +39,12 @@ try {
   await until(clients, list => list.some(c => !addresses.has(c.address) && /code/i.test(c.class)));
   // Let focus and maximize transitions settle after the new window maps.
   await new Promise(resolve => setTimeout(resolve, 1000));
-  const afterLaunch = (await clients()).find(c => c.pid === app.pid);
+  const afterLaunch = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
   assert.ok(afterLaunch, 'The launcher disappeared'); assert.equal(afterLaunch.floating, false, 'Launching Code turned Multi Codex into a floating popup');
   for (let cycle = 0; cycle < 3; cycle++) {
-    await exec('hyprctl', ['dispatch', 'workspace', String(originalWorkspace + 20)]);
+    await exec('hyprctl', ['eval', `hl.dispatch(hl.dsp.focus({workspace=${originalWorkspace + 20}}))`]);
     await new Promise(resolve => setTimeout(resolve, 300));
-    await exec('hyprctl', ['dispatch', 'workspace', String(originalWorkspace)]);
+    await exec('hyprctl', ['eval', `hl.dispatch(hl.dsp.focus({workspace=${originalWorkspace}}))`]);
     const restored = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
     assert.equal(restored.workspace.id, originalWorkspace, 'The launcher moved desktops');
   }

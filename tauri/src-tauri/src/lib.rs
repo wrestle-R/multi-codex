@@ -606,6 +606,7 @@ pub fn run() {
                 }
             }
             if window.label() == "main"
+                && desktop_environment::backend() != "hyprland"
                 && matches!(event, tauri::WindowEvent::Focused(true))
                 && !window.is_maximized().unwrap_or(false)
             {
