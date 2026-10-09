@@ -1,8 +1,7 @@
 use crate::profiles::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
-#[cfg(unix)]
+#[cfg(all(test, unix))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 

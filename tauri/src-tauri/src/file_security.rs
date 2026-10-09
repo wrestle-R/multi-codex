@@ -15,7 +15,7 @@ pub fn protect(path: &Path, directory: bool) -> Result<()> {
 #[cfg(windows)]
 pub fn protect(path: &Path, directory: bool) -> Result<()> {
     use std::os::windows::ffi::OsStrExt;
-    use std::ptr::{null, null_mut};
+    use std::ptr::null_mut;
     use windows_sys::Win32::{
         Foundation::{CloseHandle, LocalFree},
         Security::{
@@ -81,10 +81,10 @@ pub fn protect(path: &Path, directory: bool) -> Result<()> {
             path.as_ptr(),
             SE_FILE_OBJECT,
             0x00000004 | 0x80000000,
-            null(),
-            null(),
+            null_mut(),
+            null_mut(),
             acl,
-            null(),
+            null_mut(),
         );
         LocalFree(descriptor);
         if result != 0 {
