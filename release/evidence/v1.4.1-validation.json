@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "version": "1.4.1",
+  "extensionVersion": "0.2.1",
+  "sourceCommit": "57c01170667a0932a02af88ef1aaa1607646e338",
+  "artifacts": {
+    "Multi.Codex-1.4.1-1.x86_64.rpm": "d84dcdf15b824654fa02283565064106221f6f9e5c9dae5f78355e2844394f0f",
+    "Multi.Codex_1.4.1_aarch64.dmg": "32a26e6d19799540621c8be40b3f2c6487f36f64e1e3e8ecab19bbd8306a7948",
+    "Multi.Codex_1.4.1_amd64.AppImage": "af954e950f3f8c4f07f51b490cc300b1777067759f3126938e0f38db2eb682a7",
+    "Multi.Codex_1.4.1_amd64.deb": "2554dce72112eac9bca48b62ec83d6bdffb8f634349a1b51bb04aee89e17c7f5",
+    "Multi.Codex_1.4.1_x64-setup.exe": "3d1a46a366c0a14eed3654c259e3f1ec5132897ec336542e78e206c5667789d1",
+    "install-app.ps1": "320e0389ffa6db2f82c2d914f64200a36dfb5b55bbb39d182c4b6d3d820a46de",
+    "install-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d",
+    "multi-codex-darwin-arm64-0.2.1.vsix": "233ddc8d24b11ff390e8ca73f7d818b01ecbad13a05cd6140ad3a919942228c4",
+    "multi-codex-darwin-x64-0.2.1.vsix": "0f5f0896f0e1dfe262990798304f73b376c1c303c899f0a8a5eefca9ef9aae01",
+    "multi-codex-linux-x64-0.2.1.vsix": "8f930b00d69de475ae88be74e4d515230d6ce14ffa57fb42258d9b8385766560",
+    "multi-codex-win32-x64-0.2.1.vsix": "2ec2b5dc0e75ca3a40cb6dc08b5d304858f01bf4db1a793706530d3b7569a7d5",
+    "update-app.ps1": "320e0389ffa6db2f82c2d914f64200a36dfb5b55bbb39d182c4b6d3d820a46de",
+    "update-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d"
+  },
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:12:36Z",
+      "scope": "Native frontend/Rust/helper build and packaged release assets."
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:12:36Z",
+      "scope": "Exact package install/update with unchanged account/chat/default-login fixtures. Mac also checks installed native startup/restart and unsigned-package opt-in."
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938165679",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:40:35Z",
+      "scope": "Current native account/process/credential/mutation guard regressions. Mac includes native Keychain, VS Code, Terminal and pinned standalone startup/restart; real authenticated evidence is carried forward from unchanged platform flows.",
+      "authenticatedEvidence": "https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.3.5-auth-isolation.json"
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:14:04Z",
+      "scope": "Native frontend/Rust/helper build and packaged release assets."
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:14:04Z",
+      "scope": "Exact package install/update with unchanged account/chat/default-login fixtures. Mac also checks installed native startup/restart and unsigned-package opt-in."
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938165679",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:44:12Z",
+      "scope": "Current native account/process/credential/mutation guard regressions. Mac includes native Keychain, VS Code, Terminal and pinned standalone startup/restart; real authenticated evidence is carried forward from unchanged platform flows.",
+      "authenticatedEvidence": "https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.3.5-auth-isolation.json"
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938157031",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:49:52Z",
+      "scope": "Native Rust/frontend/helper tests and NSIS packaging, including full-sized synthetic OAuth save/read/replace/delete in real Credential Manager."
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938157031",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:49:52Z",
+      "scope": "Exact NSIS install/update/restart, visible maximized window, close/exit, Unicode Start menu shortcut identity and actual native shortcut launch after install/update, checksum mismatch rejection and account/chat preservation. Windows PowerShell 5.1 and PowerShell 7 manifest regressions also pass."
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938157031",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:49:52Z",
+      "scope": "Private ACLs, native credentials, profile/mutation guards, Unicode/spaced paths, separate VS Code/PowerShell/standalone homes and cold restart with synthetic credentials. No real OAuth/browser/cloud validation."
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:11:29Z",
+      "scope": "Extracted exact VSIX in real VS Code: native attachment/startup, A\u2192B\u2192A identity, stable processes, chat continuation, busy/approval/queue guards, recovery and all-account usage. Synthetic loopback fixtures; no real OAuth/cloud quotas."
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:14:45Z",
+      "scope": "Extracted exact VSIX in real VS Code: native attachment/startup, A\u2192B\u2192A identity, stable processes, chat continuation, busy/approval/queue guards, recovery and all-account usage. Synthetic loopback fixtures; no real OAuth/cloud quotas."
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37934715671",
+      "environment": "macOS 26 Intel",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:15:28Z",
+      "scope": "Extracted exact VSIX in real VS Code: native attachment/startup, A\u2192B\u2192A identity, stable processes, chat continuation, busy/approval/queue guards, recovery and all-account usage. Synthetic loopback fixtures; no real OAuth/cloud quotas."
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938157031",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:49:52Z",
+      "scope": "Extracted exact VSIX in real VS Code: native attachment/startup, A\u2192B\u2192A identity, stable processes, chat continuation, busy/approval/queue guards, recovery and all-account usage. Synthetic loopback fixtures; no real OAuth/cloud quotas."
+    },
+    "launcher-window": {
+      "status": "passed",
+      "environment": "Arch Linux x64, live Hyprland 0.56.2",
+      "testedBy": "Codex in local desktop session",
+      "testedAt": "2026-10-09T13:16:01.562792+00:00",
+      "scope": "Exact AppImage with disposable launcher/Code/standalone homes; maximize persistence, three desktop switches per target, floating restore repair. No authentication tested.",
+      "evidence": "https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.4.1-launcher-window.json"
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37935313656",
+      "environment": "macOS 26 Apple Silicon native System Events UI automation",
+      "testedBy": "GitHub Actions native runner",
+      "testedAt": "2026-10-09T13:17:11Z",
+      "scope": "Exact DMG: supported installed launch targets, account rename and installation updates, close/hide, tray Open, Dock reopen and Quit; metadata preserved. Authenticated menu launches not tested."
+    }
+  },
+  "checks": {
+    "packaged-macos-26-arm64": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "macos-signing-notarization": {
+      "status": "pending",
+      "reason": "Optional; Apple Developer ID signing and notarization are not configured.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null,
+      "requiredForPublication": false
+    },
+    "packaged-debian-ubuntu": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-fedora": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "packaged-arch": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "hyprland-placement": {
+      "status": "passed",
+      "environment": "Arch Linux x64, live Hyprland 0.56.2",
+      "testedBy": "Codex in local desktop session",
+      "testedAt": "2026-10-09T13:16:01.562792+00:00",
+      "scope": "Exact AppImage with disposable launcher/Code/standalone homes; maximize persistence, three desktop switches per target, floating restore repair. No authentication tested.",
+      "evidence": "https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.4.1-launcher-window.json"
+    },
+    "gnome-wayland-placement": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "gnome-x11-placement": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "kde-wayland-placement": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    },
+    "kde-x11-placement": {
+      "status": "pending",
+      "reason": "Broader distribution/desktop functional matrix remains outside the completed required release checks; see releaseChecks for tested subsets.",
+      "osVersion": null,
+      "testedBy": null,
+      "testedAt": null,
+      "evidence": null
+    }
+  },
+  "artifactSources": {
+    "Multi.Codex-1.4.1-1.x86_64.rpm": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "linux",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "Multi.Codex_1.4.1_aarch64.dmg": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "macos",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "Multi.Codex_1.4.1_amd64.AppImage": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "linux",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "Multi.Codex_1.4.1_amd64.deb": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "linux",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "Multi.Codex_1.4.1_x64-setup.exe": {
+      "run": 37938157031,
+      "commit": "57c01170667a0932a02af88ef1aaa1607646e338",
+      "job": "windows",
+      "exactPackageTested": true
+    },
+    "install-app.ps1": {
+      "commit": "57c01170667a0932a02af88ef1aaa1607646e338",
+      "role": "Checksum-verified installer script tested by native runners"
+    },
+    "install-app.sh": {
+      "commit": "57c01170667a0932a02af88ef1aaa1607646e338",
+      "role": "Checksum-verified installer script tested by native runners"
+    },
+    "multi-codex-darwin-arm64-0.2.1.vsix": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "extensions",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "multi-codex-darwin-x64-0.2.1.vsix": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "extensions",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "multi-codex-linux-x64-0.2.1.vsix": {
+      "run": 37934715671,
+      "commit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+      "job": "extensions",
+      "exactPackageTested": true,
+      "sourceEquivalence": "Later source changes only synchronize a cfg(test) macOS CLI fixture and inspect redirected Windows installer-fixture shortcuts; shipped platform code and package versions are unchanged. Linux/Mac/extension jobs passed; the initial aggregate run had a superseded Windows shortcut-fixture failure."
+    },
+    "multi-codex-win32-x64-0.2.1.vsix": {
+      "run": 37938157031,
+      "commit": "57c01170667a0932a02af88ef1aaa1607646e338",
+      "job": "windows",
+      "exactPackageTested": true
+    },
+    "update-app.ps1": {
+      "commit": "57c01170667a0932a02af88ef1aaa1607646e338",
+      "role": "Checksum-verified installer script tested by native runners"
+    },
+    "update-app.sh": {
+      "commit": "57c01170667a0932a02af88ef1aaa1607646e338",
+      "role": "Checksum-verified installer script tested by native runners"
+    }
+  },
+  "additionalValidation": {
+    "ci": "https://github.com/wrestle-R/multi-codex/actions/runs/37938165679",
+    "local": "https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.4.1-local-validation.json"
+  },
+  "publication": {
+    "status": "validated-candidate",
+    "fullValidationChecksRemainPending": true,
+    "signingAndNotarizationOptional": true,
+    "marketplaceVersion": "0.2.1",
+    "marketplaceStatus": "Awaiting owner manual upload and Marketplace validation"
+  },
+  "limitations": [
+    "Real Windows OAuth/browser sign-in, token rotation and cloud quota enforcement were not exercised; native Credential Manager was tested with full-sized synthetic OAuth JSON.",
+    "Authenticated Linux/Mac standalone evidence is carried forward with current native regressions.",
+    "Developer ID signing/notarization and the broader distribution/GNOME/KDE functional matrix remain pending.",
+    "WSL/Remote SSH and Windows virtual-desktop placement remain deferred."
+  ]
+}

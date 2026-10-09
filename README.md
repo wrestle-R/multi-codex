@@ -11,7 +11,7 @@ Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your 
 Or run in PowerShell:
 
 ```powershell
-Invoke-WebRequest https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.ps1 -OutFile "$env:TEMP/install-multi-codex.ps1"
+Invoke-WebRequest https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/install-multi-codex.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1"
 ```
 
@@ -42,7 +42,7 @@ Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/mul
 Or run in PowerShell:
 
 ```powershell
-Invoke-WebRequest https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.ps1 -OutFile "$env:TEMP/update-multi-codex.ps1"
+Invoke-WebRequest https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/update-multi-codex.ps1"
 powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1"
 ```
 
