@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Installer)
 $ErrorActionPreference = 'Stop'
-$Installer = (Resolve-Path -LiteralPath $Installer).Path
+$candidateInstallerPath = (Resolve-Path -LiteralPath $Installer).Path
 $root = Join-Path $env:RUNNER_TEMP ('Multi Codex Windows 工具 O''Brien ' + [guid]::NewGuid())
 $install = Join-Path $root 'application'
 $evidence = Join-Path $env:RUNNER_TEMP 'multi-codex-windows-evidence'
@@ -27,7 +27,9 @@ function Assert-Fixtures {
 }
 # Substitute only release transport. Both published scripts perform their real
 # checksum validation and execute the exact candidate's native NSIS installer.
-$packageName = Split-Path $Installer -Leaf
+# Keep fixture transport state distinct from installer-local variables: PowerShell
+# resolves names dynamically and the invoked script uses $installer for metadata.
+$packageName = Split-Path $candidateInstallerPath -Leaf
 $script:checksumValid = $true
 function Invoke-RestMethod {
     param([string]$Uri)
@@ -39,9 +41,9 @@ function Invoke-RestMethod {
 }
 function Invoke-WebRequest {
     param([string]$Uri,[string]$OutFile)
-    if ($Uri -eq 'https://fixture.invalid/installer') { Copy-Item -LiteralPath $Installer -Destination $OutFile; return }
+    if ($Uri -eq 'https://fixture.invalid/installer') { Copy-Item -LiteralPath $candidateInstallerPath -Destination $OutFile; return }
     if ($Uri -ne 'https://fixture.invalid/sums') { throw 'Unexpected asset request' }
-    $hash = if ($script:checksumValid) { (Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash } else { '0' * 64 }
+    $hash = if ($script:checksumValid) { (Get-FileHash -LiteralPath $candidateInstallerPath -Algorithm SHA256).Hash } else { '0' * 64 }
     return @{ Content = "$hash  $packageName`n" }
 }
 Add-Type @'
@@ -89,7 +91,7 @@ try {
     Assert-Fixtures
     Check-Window
     Check-Window
-    $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $Installer -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
+    $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $candidateInstallerPath -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
     $result | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-result.json')
     $result | ConvertTo-Json
 } finally {
