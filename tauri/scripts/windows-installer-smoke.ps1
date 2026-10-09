@@ -30,7 +30,7 @@ function Assert-Fixtures {
 # Keep fixture transport state distinct from installer-local variables: PowerShell
 # resolves names dynamically and the invoked script uses $installer for metadata.
 $packageName = Split-Path $candidateInstallerPath -Leaf
-$script:checksumValid = $true
+$candidateChecksumValid = $true
 function Invoke-RestMethod {
     param([string]$Uri)
     if ($Uri -ne 'https://api.github.com/repos/wrestle-R/multi-codex/releases/latest') { throw 'Unexpected metadata request' }
@@ -43,7 +43,7 @@ function Invoke-WebRequest {
     param([string]$Uri,[string]$OutFile)
     if ($Uri -eq 'https://fixture.invalid/installer') { Copy-Item -LiteralPath $candidateInstallerPath -Destination $OutFile; return }
     if ($Uri -ne 'https://fixture.invalid/sums') { throw 'Unexpected asset request' }
-    $hash = if ($script:checksumValid) { (Get-FileHash -LiteralPath $candidateInstallerPath -Algorithm SHA256).Hash } else { '0' * 64 }
+    $hash = if ($candidateChecksumValid) { (Get-FileHash -LiteralPath $candidateInstallerPath -Algorithm SHA256).Hash } else { '0' * 64 }
     return @{ Content = "$hash  $packageName`n" }
 }
 Add-Type @'
@@ -78,12 +78,12 @@ function Check-Window {
 }
 try {
     $scriptsRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../scripts')).Path
-    $script:checksumValid = $false
+    $candidateChecksumValid = $false
     $rejected = $false
     try { & (Join-Path $scriptsRoot 'install-app.ps1') -NoLaunch -InstallDirectory $install }
     catch { if ($_.Exception.Message -notmatch 'checksum verification failed') { throw }; $rejected=$true }
     if (!$rejected -or (Test-Path $install)) { throw 'Checksum mismatch must reject installation before executing it' }
-    $script:checksumValid = $true
+    $candidateChecksumValid = $true
     & (Join-Path $scriptsRoot 'install-app.ps1') -NoLaunch -InstallDirectory $install
     Assert-Fixtures
     Check-Window
