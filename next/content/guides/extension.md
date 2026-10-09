@@ -10,7 +10,7 @@ Manage saved accounts and change the account used by the **existing official Cod
 
 **Linux and macOS pre-release.** Platform packages target Linux x64, Apple Silicon Macs and Intel Macs. The Mac native helper requires macOS 26 or newer. The extension is free and open source. Your Codex subscription or API usage is billed separately. Multi Codex is an independent project and is not affiliated with or endorsed by OpenAI.
 
-This preview uses an experimental Codex backend authentication API. Live attachment uses a private Node process/stdio compatibility hook; later startups use Codex's development-only executable setting. It is not an official OpenAI extension API integration. This release targets local VS Code on Linux x64 and macOS arm64/x64. Remote SSH, containers, WSL, Windows, Linux ARM64 and vscode.dev are not supported yet.
+This preview uses an experimental Codex backend authentication API. Live attachment uses a private Node process/stdio compatibility hook; later startups use Codex's development-only executable setting. It is not an official OpenAI extension API integration. This release targets local VS Code on Linux x64, macOS arm64/x64 and Windows x64. Remote SSH, containers, WSL, Linux ARM64 and vscode.dev are not supported yet.
 
 ## Get started
 
@@ -23,6 +23,8 @@ This preview uses an experimental Codex backend authentication API. Live attachm
 
 You do not need the Multi Codex desktop app, a separately installed Codex CLI, or the Codex desktop client. The extension uses the engine shipped inside the official VS Code extension. The VSIX contains the native account helper.
 
+The [website](https://multi-codex.vercel.app/docs/extension) is the primary guide. Matching platform VSIX files are available from [GitHub Releases](https://github.com/wrestle-R/multi-codex/releases/latest). Artifact filenames and protocol client versions come from the extension manifest.
+
 ## Accounts and desktop synchronization
 
 Existing desktop accounts are discovered automatically from the same local store:
@@ -31,6 +33,7 @@ VS Code launched by a desktop account can inherit that profile's `CODEX_HOME`. T
 
 - Linux: `$XDG_DATA_HOME/multi-codex`, normally `~/.local/share/multi-codex`.
 - macOS: `~/Library/Application Support/multi-codex`.
+- Windows: `%APPDATA%\multi-codex`.
 
 Without desktop accounts, the list starts empty. **Add Account** supports browser sign-in, importing the current Codex login, and importing an auth JSON file. The same saved accounts become visible to the desktop app if it is installed later. Rename and removal are available from an account's context menu.
 
@@ -38,13 +41,13 @@ The account list refreshes every 1.5 seconds and after account changes. Both cli
 
 This repository's updated desktop service and the extension helper serialize metadata writes using a file lock. Active extension accounts hold shared leases that prevent deletion, credential replacement and cache cleanup. Older installed desktop releases do not understand these new locks: update/rebuild the desktop app before concurrently editing shared accounts there.
 
-The active account is shown in the status bar and account list. Check active-account usage with **Multi Codex: Check Usage**, or use an account's **Check This Account's Usage** context action without switching. Usage comes from Codex's backend and displays the returned usage windows; unavailable limits are not invented. API-key billing is not a ChatGPT usage window.
+The active account is shown in the status bar and account list. Check every saved account with **Multi Codex: Check Usage**, or use an account's **Check This Account's Usage** context action without switching. Usage comes from Codex's backend and displays the returned usage windows; unavailable limits are not invented. API-key billing is not a ChatGPT usage window.
 
 ## How switching works
 
 On first enable, Multi Codex locates exactly one child process for the official bundled engine inside the shared local extension host. A reversible stdio adapter routes that already-running process through the bridge while retaining its original protocol reader. The bridge probes its authentication identity before enabling account changes. No installed official-extension file is changed.
 
-The configured `chatgpt.cliExecutable` wrapper handles later normal startups, launching the **official bundled engine** with a private credential home and forwarding its normal protocol. Every normal startup reads the current launch’s `CODEX_HOME` (or the configured/default home), copies its file-based login and configuration into the private credential home, and keeps its resources and history available. Shared account storage uses the separate global home. The launcher resolves the currently installed official engine on each startup, including after extension updates. Both attachment modes use a private authenticated Unix socket to connect the account picker to the bridge.
+The configured `chatgpt.cliExecutable` wrapper handles later normal startups, launching the **official bundled engine** with a private credential home and forwarding its normal protocol. Every normal startup reads the current launch’s `CODEX_HOME` (or the configured/default home), copies its file-based login and configuration into the private credential home, and keeps its resources and history available. Shared account storage uses the separate global home. The launcher resolves the currently installed official engine on each startup, including after extension updates. Both attachment modes use a private authenticated Unix socket (Linux/Mac) or Windows named pipe to connect the account picker to the bridge.
 
 When you select an account, the bridge:
 
