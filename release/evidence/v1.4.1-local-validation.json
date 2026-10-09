@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "version": "1.4.1",
+  "sourceCommit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+  "testedAt": "2026-10-09T13:10:56.539513+00:00",
+  "environment": "Arch Linux x64, live Hyprland 0.56.2",
+  "checks": {
+    "frontend": {
+      "passed": 82,
+      "failed": 0,
+      "build": "passed"
+    },
+    "rust": {
+      "passed": 93,
+      "failed": 0,
+      "ignored": 3,
+      "format": "passed"
+    },
+    "extension": {
+      "passed": 42,
+      "failed": 0,
+      "skipped": 2
+    },
+    "powershellInstallerRegression": {
+      "passed": 10,
+      "failed": 0,
+      "version": "7.4.13"
+    },
+    "releasePackaging": "passed",
+    "releaseGateTests": {
+      "passed": 7,
+      "failed": 0
+    },
+    "trackedSecretScan": "passed",
+    "website": {
+      "build": "passed",
+      "typecheck": "passed",
+      "chromiumAndMobile": {
+        "passed": 42,
+        "failed": 0
+      },
+      "webkit": "native CI required; local WebKit legacy runtime dependencies unavailable",
+      "nativeBrowserCI": {
+        "status": "passed",
+        "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938165679",
+        "environments": [
+          "Ubuntu 22.04",
+          "macOS 26"
+        ],
+        "projects": [
+          "Chromium",
+          "WebKit",
+          "mobile Chromium"
+        ],
+        "settingsScenariosPerOS": 8
+      }
+    },
+    "liveHyprland": {
+      "inventory": "passed",
+      "vscodePlacement": "passed with MULTI_CODEX_TEST_HYPR_PLACEMENT=1",
+      "scope": "Disposable Code profiles; native placement test, packaged launcher validation recorded separately"
+    }
+  }
+}

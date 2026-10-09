@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "profileAndConversationFixturesPreserved": true,
+  "unicodeAndSpacedPaths": true,
+  "update": true,
+  "testedAt": "2026-10-09T13:49:44.5370148Z",
+  "environment": "Microsoft Windows NT 10.0.26100.0",
+  "authenticatedAccounts": "synthetic fixtures; no real credentials",
+  "installerSHA256": "3d1a46a366c0a14eed3654c259e3f1ec5132897ec336542e78e206c5667789d1",
+  "checksumMismatchRejected": true,
+  "nativeVisibleWindow": true,
+  "restart": true,
+  "maximized": true,
+  "startMenuShortcut": true,
+  "install": true,
+  "closeExits": true,
+  "schemaVersion": 1,
+  "version": "1.4.1",
+  "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37938157031",
+  "testedBy": "GitHub Actions native Windows runner",
+  "startMenuVerification": "Native IShellLinkW identity and actual shortcut launches after install/update. Legacy automation returns a lossy ANSI path for Unicode characters."
+}
