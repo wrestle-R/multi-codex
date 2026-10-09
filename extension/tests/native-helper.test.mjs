@@ -5,13 +5,13 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { syntheticAuth } from './fixtures/local-service.mjs';
-const { AccountClient } = createRequire(import.meta.url)('../dist/core.cjs');
+const { AccountClient, helperName } = createRequire(import.meta.url)('../dist/core.cjs');
 const engine = process.env.MULTI_CODEX_TEST_ENGINE;
 test('native storage supports standalone add/import, shared discovery and cross-process leases', { skip: !engine }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-native-test-')); const home = join(root, 'default');
   await mkdir(home); const authJson = JSON.stringify(syntheticAuth('synthetic-account-a'));
   await writeFile(join(home, 'auth.json'), authJson);
-  const helper = resolve('bin/multi-codex-account-helper'); const data = join(root, 'data');
+  const helper = resolve('bin', helperName); const data = join(root, 'data');
   const first = new AccountClient(helper, engine, data, home); const second = new AccountClient(helper, engine, data, home);
   try {
     assert.deepEqual(await first.list(), []);

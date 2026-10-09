@@ -188,7 +188,8 @@
     "test:engine": "node scripts/probe-engine.mjs",
     "test:vscode": "npm run build && node scripts/test-vscode.mjs",
     "package": "npm run build && vsce package",
-    "test:attachment": "npm run build && MULTI_CODEX_TEST_LIVE_ATTACH=1 node scripts/test-vscode.mjs"
+    "test:attachment": "npm run build && MULTI_CODEX_TEST_LIVE_ATTACH=1 node scripts/test-vscode.mjs",
+    "package:platform": "npm run build && node scripts/package-platform.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",

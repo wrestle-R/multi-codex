@@ -9,7 +9,7 @@ import { createRequire } from 'node:module';
 import { syntheticAuth } from './fixtures/local-service.mjs';
 const { JsonLines, RpcPeer, BridgeClient, startupHomes } = createRequire(import.meta.url)('../dist/core.cjs');
 
-test('startup uses the current launch home and ignores stale configured history', () => {
+test('startup uses the current launch home and ignores stale configured history', { skip: process.platform === 'win32' }, () => {
   const base = { globalHome: '/global', startupHome: '/configured', historyHome: '/stale-history' };
   assert.deepEqual(startupHomes(base, { CODEX_HOME: '/current' }), { sourceHome: '/current', historyHome: '/current' });
   assert.deepEqual(startupHomes(base, { CODEX_HOME: '/current', CODEX_SQLITE_HOME: '/history' }), { sourceHome: '/current', historyHome: '/history' });
@@ -46,7 +46,7 @@ test('each open preserves the current login and resources, ignoring old project 
     running = await start(currentHome);
     const homes = await running.peer.request('fixture/homes');
     assert.equal(homes.history, currentHome);
-    assert.equal((await stat(join(homes.home, 'auth.json'))).mode & 0o777, 0o600);
+    if (process.platform !== 'win32') assert.equal((await stat(join(homes.home, 'auth.json'))).mode & 0o777, 0o600);
     assert.equal(await readlink(join(homes.home, 'skills')), join(currentHome, 'skills'));
     assert.equal(await readlink(join(homes.home, 'sessions')), join(currentHome, 'sessions'));
     assert.equal((await running.peer.request('getAuthStatus')).authToken, JSON.parse(originalAuth).tokens.access_token);

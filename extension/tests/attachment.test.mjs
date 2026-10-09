@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { syntheticAuth } from './fixtures/local-service.mjs';
-const { CodexBridge, JsonLines, RpcPeer, findCodexBackend, tapBackend } = createRequire(import.meta.url)('../dist/core.cjs');
+const { controlEndpoint, spawnExecutable, CodexBridge, JsonLines, RpcPeer, findCodexBackend, tapBackend } = createRequire(import.meta.url)('../dist/core.cjs');
 
 async function setup(t, before = async () => {}) {
   const root = await mkdtemp(join(tmpdir(), 'mc-attachment-test-'));
   const engine = resolve('tests/fixtures/fake-engine.mjs');
-  const child = spawn(engine, ['app-server'], { stdio: 'pipe' });
+  const child = spawnExecutable(engine, ['app-server']);
   const peer = new RpcPeer(new JsonLines(child.stdout, child.stdin), 'original:');
   await peer.request('initialize');
   await peer.request('account/login/start', { type: 'chatgptAuthTokens', accessToken: syntheticAuth('synthetic-account-a').tokens.access_token });
@@ -20,7 +20,7 @@ async function setup(t, before = async () => {}) {
   const tap = tapBackend(child);
   const home = join(root, 'home'); await mkdir(home);
   const bridge = new CodexBridge({ engine, helper: resolve('tests/fixtures/fake-accounts.mjs'), dataRoot: root, globalHome: root,
-    sessionHome: home, socket: join(root, 'bridge.sock'), token: 'attachment-fixture', workspace: root, attached: true }, tap.frontend, [], tap);
+    sessionHome: home, socket: controlEndpoint(root.replace(/[^a-zA-Z0-9]/g, '')), token: 'attachment-fixture', workspace: root, attached: true }, tap.frontend, [], tap);
   t.after(async () => { await bridge.dispose(); peer.close(); child.kill(); await rm(root, { recursive: true, force: true }); });
   await bridge.attachReady();
   return { bridge, peer, child, tap, write, emit };
@@ -76,8 +76,8 @@ test('an incomplete pre-attachment frame is preserved and disables switching', a
 });
 test('backend discovery refuses ambiguous children and never selects a different executable', async t => {
   const engine = resolve('tests/fixtures/fake-engine.mjs');
-  const first = spawn(engine, ['app-server'], { stdio: 'pipe' });
-  const second = spawn(engine, ['app-server'], { stdio: 'pipe' });
+  const first = spawnExecutable(engine, ['app-server']);
+  const second = spawnExecutable(engine, ['app-server']);
   t.after(() => { first.kill(); second.kill(); });
   assert.throws(() => findCodexBackend(engine), /Multiple Codex backends/);
   assert.equal(findCodexBackend('/not-the-official-codex'), undefined);
