@@ -8,7 +8,7 @@ use std::{
     sync::{Mutex, OnceLock},
     time::{Duration, Instant},
 };
-use sysinfo::{ProcessesToUpdate, System};
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
 
 pub fn resolve(name: &str, path: Option<&OsStr>, home: &Path) -> Option<PathBuf> {
     let mut candidates = Vec::new();
@@ -105,7 +105,11 @@ fn snapshot() -> std::sync::MutexGuard<'static, (System, Instant)> {
         .lock()
         .unwrap_or_else(|p| p.into_inner());
     if guard.1.elapsed() > Duration::from_millis(400) {
-        guard.0.refresh_processes(ProcessesToUpdate::All, true);
+        guard.0.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always),
+        );
         guard.1 = Instant::now();
     }
     guard
@@ -235,6 +239,36 @@ mod tests {
         assert_eq!(decoded_home(&STANDARD.encode(bytes)).as_deref(), Some(home));
         assert!(script.contains("''$x"));
         assert!(script.contains("Remove-Item -LiteralPath"));
+    }
+    #[test]
+    fn live_process_detection_refreshes_command_arguments_and_releases_on_exit() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("codex-home");
+        let script = format!(
+            "# MULTI_CODEX_HOME={}\nStart-Sleep -Seconds 30",
+            STANDARD.encode(home.to_string_lossy().as_bytes())
+        );
+        let bytes: Vec<_> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let mut child = crate::process::background(&mut Command::new("powershell.exe"))
+            .args(["-NoProfile", "-NonInteractive", "-EncodedCommand"])
+            .arg(STANDARD.encode(bytes))
+            .spawn()
+            .unwrap();
+        let end = Instant::now() + Duration::from_secs(5);
+        while !process_uses_home(child.id(), &home) && Instant::now() < end {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let detected = process_uses_home(child.id(), &home) && profile_running(&home);
+        let unrelated = profile_running(&root.path().join("other"));
+        child.kill().unwrap();
+        child.wait().unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+        assert!(
+            detected,
+            "Process inventory must explicitly request command arguments"
+        );
+        assert!(!unrelated);
+        assert!(!profile_running(&home));
     }
     #[test]
     fn canonical_windows_prefixes_identify_the_same_profile_but_not_a_neighbor() {
