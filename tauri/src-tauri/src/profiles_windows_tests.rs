@@ -225,6 +225,13 @@ fn windows_live_standalone_launch_and_restart_preserve_two_private_homes() {
         Some("26.930.61225"),
         "Moving official download must not expand the tested-version allowlist"
     );
+    assert_eq!(
+        crate::launch_targets::resolve_standalone().unwrap(),
+        fs::canonicalize(&binary).unwrap(),
+        "Production discovery must resolve the installed signed MSIX"
+    );
+    let detected = crate::launch_targets::detect();
+    assert!(detected.standalone_installed && detected.standalone_verified);
     let first = add(&service, "first");
     let second = add(&service, "second");
     let a = service.profile_paths(&first.metadata.id).unwrap();
@@ -239,7 +246,7 @@ fn windows_live_standalone_launch_and_restart_preserve_two_private_homes() {
         let cleanup = NativeCleanup(vec![a.desktop_home.clone(), b.desktop_home.clone()]);
         for (p, paths) in [(&first, &a), (&second, &b)] {
             service
-                .launch_standalone_with_command(&p.metadata.id, &workspace, &binary)
+                .launch_standalone(&p.metadata.id, &workspace)
                 .unwrap();
             wait_for(|| {
                 visible(&paths.desktop_home) && service.is_running(&p.metadata.id).unwrap()
