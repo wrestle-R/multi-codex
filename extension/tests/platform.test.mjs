@@ -9,7 +9,7 @@ const { bundledEnginePath, startupEnginePath } = createRequire(import.meta.url)(
 test('engine discovery resolves official Mac and Linux layouts and rejects unavailable platforms', async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-platform-'));
   async function executable(directory) {
-    const path = join(root, 'bin', directory, 'codex');
+    const path = join(root, 'bin', directory, directory.startsWith('windows-') ? 'codex.exe' : 'codex');
     await mkdir(join(root, 'bin', directory), { recursive: true });
     await writeFile(path, '#!/bin/sh\nexit 0\n', { mode: 0o700 });
     return path;
@@ -21,7 +21,9 @@ test('engine discovery resolves official Mac and Linux layouts and rejects unava
     assert.equal(await bundledEnginePath(root, 'darwin', 'arm64'), arm);
     assert.equal(await bundledEnginePath(root, 'darwin', 'x64'), intel);
     assert.equal(await bundledEnginePath(root, 'linux', 'x64'), linux);
-    await assert.rejects(() => bundledEnginePath(root, 'win32', 'x64'), /does not support/);
+    const windows = await executable('windows-x86_64');
+    assert.equal(await bundledEnginePath(root, 'win32', 'x64'), windows);
+    await assert.rejects(() => bundledEnginePath(root, 'freebsd', 'x64'), /does not support/);
     await assert.rejects(() => bundledEnginePath(root, 'linux', 'arm64'), /no executable/);
     await rm(arm);
     const legacy = await executable('darwin-arm64');
@@ -36,10 +38,10 @@ test('startup follows the installed official extension after an update removes t
   const oldEngine = join(old, 'bin', 'linux-x86_64', 'codex');
   try {
     const cpu = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
-    const directory = process.platform === 'darwin' ? `macos-${cpu}` : `linux-${cpu}`;
+    const directory = process.platform === 'darwin' ? `macos-${cpu}` : process.platform === 'win32' ? `windows-${cpu}` : `linux-${cpu}`;
     await mkdir(join(current, 'bin', directory), { recursive: true });
     await writeFile(join(current, 'package.json'), JSON.stringify({ publisher: 'openai', name: 'chatgpt' }));
-    await writeFile(join(current, 'bin', directory, 'codex'), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+    await writeFile(join(current, 'bin', directory, directory.startsWith('windows-') ? 'codex.exe' : 'codex'), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
     await writeFile(join(root, 'extensions.json'), JSON.stringify([{ identifier: { id: 'openai.chatgpt' }, relativeLocation: 'openai.chatgpt-2.0.0' }]));
     const expected = await bundledEnginePath(current);
     assert.equal(await startupEnginePath(oldEngine), expected);

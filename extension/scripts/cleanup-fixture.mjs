@@ -1,11 +1,11 @@
 import { readdir, readFile, rm } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 const { AccountClient } = createRequire(import.meta.url)('../dist/core.cjs');
 
 export async function cleanupFixture(root, engine, helper) {
-  if (dirname(root) !== tmpdir() || !root.split('/').at(-1).startsWith('multi-codex-vscode-')) throw new Error('Refusing to clean an unrelated directory');
+  if (dirname(root) !== tmpdir() || !basename(root).startsWith('multi-codex-vscode-')) throw new Error('Refusing to clean an unrelated directory');
   const profiles = JSON.parse(await readFile(join(root, 'data', 'profiles.json'), 'utf8').catch(() => '[]'));
   for (const profile of profiles) {
     const auth = JSON.parse(await readFile(join(root, 'data', 'profiles', profile.id, 'codex-home', 'auth.json'), 'utf8'));

@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createServer, type Server, type Socket } from 'node:net';
+import { spawnExecutable } from './native';
 import { chmod, mkdir, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
@@ -31,7 +32,7 @@ export class CodexBridge {
   constructor(readonly config: BridgeConfig, readonly frontend: JsonLines, args: string[], private existing?: ExistingBackend) {
     const env: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: config.sessionHome, CODEX_SQLITE_HOME: config.historyHome ?? config.sessionHome };
     delete env.OPENAI_API_KEY; delete env.CODEX_API_KEY; delete env.ELECTRON_RUN_AS_NODE;
-    this.backend = existing?.child ?? spawn(config.engine, args, { env, cwd: config.workspace, stdio: ['pipe', 'pipe', 'pipe'] });
+    this.backend = existing?.child ?? spawnExecutable(config.engine, args, { env, cwd: config.workspace, stdio: ['pipe', 'pipe', 'pipe'] });
     // Codex diagnostics can contain workspace and account data. Never mirror them into VS Code logs.
     if (!existing) this.backend.stderr.resume();
     this.backendLines = existing?.lines ?? new JsonLines(this.backend.stdout, this.backend.stdin);
@@ -78,7 +79,7 @@ export class CodexBridge {
     await mkdir(this.config.sessionHome, { recursive: true, mode: 0o700 });
     this.server = createServer(socket => this.accept(socket));
     await new Promise<void>((resolve, reject) => { this.server!.once('error', reject); this.server!.listen(this.config.socket, resolve); });
-    await chmod(this.config.socket, 0o600);
+    if (process.platform !== 'win32') await chmod(this.config.socket, 0o600);
   }
   private accept(socket: Socket) {
     const lines = new JsonLines(socket, socket, 2 * 1024 * 1024); let authorized = false;
@@ -222,5 +223,5 @@ export class CodexBridge {
     }
   }
   private fail() { this.connectionFailed = true; this.activity.ready = false; this.backendRpc.close(); this.broadcast(); }
-  async dispose() { if (this.disposed) return; this.disposed = true; this.fail(); this.accounts.dispose(); if (this.existing) this.existing.restore(); else this.backend.kill(); for (const [client, socket] of this.clients) { client.send({ method: 'disconnected' }); socket.end(); socket.destroy(); } this.server?.close(); await rm(this.config.socket, { force: true }); }
+  async dispose() { if (this.disposed) return; this.disposed = true; this.fail(); this.accounts.dispose(); if (this.existing) this.existing.restore(); else this.backend.kill(); for (const [client, socket] of this.clients) { client.send({ method: 'disconnected' }); socket.end(); socket.destroy(); } this.server?.close(); if (process.platform !== 'win32') await rm(this.config.socket, { force: true }); }
 }
