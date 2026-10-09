@@ -6,6 +6,7 @@ import { homedir, tmpdir } from 'node:os';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { controlEndpoint, helperName, wrapperName } from './native';
+import { usageSummary, refreshAllAccounts } from './usage';
 import { AccountClient, type Account } from './accounts';
 import { BridgeClient } from './client';
 import { JsonLines, RpcPeer } from './protocol';
@@ -22,16 +23,21 @@ class AccountsTree implements vscode.TreeDataProvider<Account> {
   accounts: Account[] = [];
   state: any = null;
   usage = new Map<string, string>();
+  checkedAt = new Map<string, number>();
+  checking = new Set<string>();
   refresh() { this.emitter.fire(); }
   getChildren() { return this.accounts; }
   getTreeItem(account: Account) {
     const item = new vscode.TreeItem(account.name);
     item.id = account.id;
     const active = this.state?.selectedId === account.id;
-    item.description = [active ? 'Active' : account.accountTier ?? account.authMode, this.usage.get(account.id)].filter(Boolean).join(' · ');
+    item.description = [active ? `Active · ${account.accountTier ?? account.authMode}` : account.accountTier ?? account.authMode, this.checking.has(account.id) ? 'Checking usage…' : this.usage.get(account.id)].filter(Boolean).join(' · ');
     item.tooltip = [account.name, account.accountTier ?? account.authMode, active ? 'Currently used by Codex' : 'Click to use this account in the current Codex window', this.usage.get(account.id), account.notes].filter(Boolean).join('\n');
     item.contextValue = 'multiCodexAccount';
-    item.iconPath = new vscode.ThemeIcon(active ? 'check' : 'account');
+    item.iconPath = new vscode.ThemeIcon(this.checking.has(account.id) ? 'sync~spin' : active ? 'pass-filled' : account.error ? 'warning' : 'account', active ? new vscode.ThemeColor('testing.iconPassed') : undefined);
+    const checked = this.checkedAt.get(account.id);
+    if (checked) item.tooltip += `\nChecked ${new Date(checked).toLocaleTimeString()}`;
+    if (account.error) item.tooltip += `\n${account.error}`;
     item.command = { command: 'multiCodex.switchAccount', title: 'Switch account', arguments: [account] };
     return item;
   }
@@ -49,6 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let runtimeRoot = ''; let engine = ''; let helper = ''; let root = ''; let globalHome = '';
   let monitor: NodeJS.Timeout | undefined; let connecting = false; let accountsRefreshing = false;
   let usage: any = null; let usageAt = 0;
+  let refreshingUsage: Promise<void> | undefined;
   let setupPending: Promise<void> | undefined;
   let preparePending: Promise<void> | undefined; let storageError = '';
   function display() {
@@ -189,27 +196,37 @@ export async function activate(context: vscode.ExtensionContext) {
     void vscode.window.showInformationMessage(`Codex is now using ${selected?.name ?? 'the selected account'}. Login verified. This window’s conversations and home resources are preserved.`);
   }
   async function refreshUsage() {
-    if (!accounts?.isRunning) await prepare();
-    await connect();
-    if (!bridge?.state.selectedId) {
-      const selected = await vscode.window.showQuickPick(tree.accounts.map(account => ({ label: account.name, description: account.accountTier ?? account.authMode, account })), { title: 'Check account usage' });
-      return selected ? checkAccountUsage(selected.account) : undefined;
-    }
-    usage = await bridge.request('usage'); usageAt = Date.now();
-    const windows = [usage.rateLimits?.primary, usage.rateLimits?.secondary].filter(Boolean);
-    const text = windows.map((window: any) => `${Math.max(0, 100 - window.usedPercent)}% left (${window.windowDurationMins >= 10080 ? 'weekly' : 'short-term'})`).join(' · ');
-    status.tooltip = `${status.tooltip}\n${text}\nChecked ${new Date(usageAt).toLocaleTimeString()}`;
-    tree.usage.set(bridge.state.selectedId, text || 'Usage unavailable'); display(); return usage;
+    if (refreshingUsage) return refreshingUsage;
+    refreshingUsage = (async () => {
+      if (!accounts?.isRunning) await prepare();
+      await refreshAccounts(); await connect();
+      const saved = [...tree.accounts];
+      if (!saved.length) { void vscode.window.showInformationMessage('Add an account to check usage.'); return; }
+      await vscode.window.withProgress({ location: { viewId: 'multiCodex.accounts' }, title: 'Checking all accounts' }, async progress => {
+        let finished = 0; let failed = 0;
+        await refreshAllAccounts(saved, checkAccountUsage, (account, error) => {
+          finished++; if (error) { failed++; tree.usage.set(account.id, 'Check failed'); }
+          progress.report({ message: `${finished}/${saved.length} accounts`, increment: 100 / saved.length }); display();
+        });
+        if (failed) void vscode.window.showWarningMessage(`Checked ${saved.length} accounts. ${failed} could not refresh; use the account’s usage action to retry and see its error.`);
+      });
+    })();
+    try { await refreshingUsage; } finally { refreshingUsage = undefined; }
   }
   async function checkAccountUsage(account: Account) {
     if (!accounts?.isRunning) await prepare();
     if (!tree.accounts.some(saved => saved.id === account.id)) throw new Error('Account not found');
-    const result = bridge?.state.selectedId === account.id ? await bridge.request('usage')
-      : await accounts!.withCredentialLock(account.id, async () => { await accounts!.credential(account.id); return withAccountBackend(engine, join(root, 'profiles', account.id, 'codex-home'), rpc => rpc.request('account/rateLimits/read')); });
-    const windows = [result.rateLimits?.primary, result.rateLimits?.secondary].filter(Boolean);
-    tree.usage.set(account.id, windows.map((window: any) => `${Math.max(0, 100 - window.usedPercent)}% left (${window.windowDurationMins >= 10080 ? 'weekly' : 'short-term'})`).join(' · ') || 'Usage unavailable');
-    display(); return result;
+    if (tree.checking.has(account.id)) return;
+    tree.checking.add(account.id); display();
+    try {
+      const result = bridge?.state.selectedId === account.id ? await bridge.request('usage')
+        : await accounts!.withCredentialLock(account.id, async () => { await accounts!.credential(account.id); return withAccountBackend(engine, join(root, 'profiles', account.id, 'codex-home'), rpc => rpc.request('account/rateLimits/read')); });
+      tree.usage.set(account.id, usageSummary(result)); tree.checkedAt.set(account.id, Date.now());
+      if (bridge?.state.selectedId === account.id) { usage = result; usageAt = Date.now(); }
+      return result;
+    } finally { tree.checking.delete(account.id); display(); }
   }
+
   async function addAccount() {
     if (!accounts?.isRunning) await prepare();
     const name = await vscode.window.showInputBox({ title: 'Account name', prompt: 'A label for this Codex account', validateInput: value => !value.trim() ? 'Enter an account name' : undefined });
