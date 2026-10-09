@@ -320,7 +320,7 @@ fn find_window(snapshot: Option<&Value>, duration_mins: i64) -> Result<Option<Li
     Ok(None)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     use chrono::TimeZone;

@@ -147,3 +147,52 @@ fn dispatch(
         _ => Err("Unknown account helper method".into()),
     }
 }
+
+/// Windows uses a native executable wrapper, avoiding cmd.exe and shell quoting.
+pub fn run_bridge_launcher() -> profiles::Result<bool> {
+    #[cfg(windows)]
+    {
+        let executable =
+            std::env::current_exe().map_err(|_| "Could not resolve bridge launcher")?;
+        let config = executable.with_extension("json");
+        if !config.is_file() {
+            return Ok(false);
+        }
+        let settings: Value = serde_json::from_slice(
+            &std::fs::read(&config).map_err(|_| "Could not read bridge config")?,
+        )
+        .map_err(|_| "Invalid bridge config")?;
+        let mut command = std::process::Command::new(
+            settings["nodeExecutable"]
+                .as_str()
+                .ok_or("Missing bridge runtime")?,
+        );
+        command
+            .arg(
+                settings["bridgeScript"]
+                    .as_str()
+                    .ok_or("Missing bridge script")?,
+            )
+            .arg("--bridge-config")
+            .arg(config)
+            .args(std::env::args_os().skip(1))
+            .env("ELECTRON_RUN_AS_NODE", "1");
+        let mut system = sysinfo::System::new();
+        system.refresh_processes(
+            sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(std::process::id())]),
+            true,
+        );
+        if let Some(parent) = system
+            .process(sysinfo::Pid::from_u32(std::process::id()))
+            .and_then(|p| p.parent())
+        {
+            command.env("MULTI_CODEX_HOST_PID", parent.as_u32().to_string());
+        }
+        let status = command
+            .status()
+            .map_err(|_| "Could not start bridge runtime")?;
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    #[cfg(not(windows))]
+    Ok(false)
+}
