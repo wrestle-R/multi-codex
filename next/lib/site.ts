@@ -1,7 +1,8 @@
+import { releaseHistory } from "./releases"
 export const repository = "https://github.com/wrestle-R/multi-codex"
 export const latestRelease = `${repository}/releases/latest`
 export const vscodeMarketplace = "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex"
-export const version = "1.3.8"
+export const version = releaseHistory[0].tag.slice(1)
 export const installCommand = (platform: "linux" | "mac" | "windows", update = false) => {
   const action = update ? "update" : "install"
   if (platform === "windows") return `Invoke-WebRequest ${latestRelease}/download/${action}-app.ps1 -OutFile "$env:TEMP/${action}-multi-codex.ps1"\npowershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/${action}-multi-codex.ps1"`
