@@ -3577,6 +3577,12 @@ mod tests {
         }
         let captured = fs::read_to_string(capture).expect("Terminal did not run the isolated CLI");
         let pid = captured.lines().next().unwrap().parse::<u32>().unwrap();
+        // The fixture writes its marker before exec. macOS can briefly fail
+        // process inspection while that PID changes from the shell to sleep.
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !process_uses_profile(pid, &paths.codex_home) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(100));
+        }
         let detected = process_uses_profile(pid, &paths.codex_home);
         let running = service
             .list_profiles()
