@@ -184,7 +184,7 @@
     "build": "tsc --noEmit && node scripts/build.mjs",
     "build:helper": "node scripts/build-helper.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node --test tests/*.test.mjs",
+    "test": "npm run build && node --test --test-timeout=120000 tests/*.test.mjs",
     "test:engine": "node scripts/probe-engine.mjs",
     "test:vscode": "npm run build && node scripts/test-vscode.mjs",
     "package": "npm run build && vsce package",
