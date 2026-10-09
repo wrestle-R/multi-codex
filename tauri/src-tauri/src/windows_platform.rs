@@ -120,6 +120,40 @@ pub fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
     })
 }
 
+fn arguments_use_home(args: &[String], home: &Path) -> bool {
+    args.iter().enumerate().any(|(index, arg)| {
+        if Path::new(arg) == home {
+            return true;
+        }
+        let value = arg.strip_prefix("--user-data-dir=").or_else(|| {
+            (index > 0 && args[index - 1] == "--user-data-dir").then_some(arg.as_str())
+        });
+        value.is_some_and(|value| {
+            Path::new(value) == home
+                || std::fs::canonicalize(value)
+                    .ok()
+                    .zip(std::fs::canonicalize(home).ok())
+                    .is_some_and(|(a, b)| a == b)
+        })
+    }) || args.windows(2).any(|pair| {
+        pair[0].eq_ignore_ascii_case("-EncodedCommand") && command_uses_home(&pair[1], home)
+    })
+}
+
+pub fn process_uses_home(pid: u32, home: &Path) -> bool {
+    snapshot()
+        .0
+        .process(sysinfo::Pid::from_u32(pid))
+        .is_some_and(|p| {
+            let args: Vec<_> = p
+                .cmd()
+                .iter()
+                .map(|s| s.to_string_lossy().into_owned())
+                .collect();
+            arguments_use_home(&args, home)
+        })
+}
+
 pub fn profile_running(home: &Path) -> bool {
     snapshot().0.processes().values().any(|p| {
         let args: Vec<_> = p
@@ -127,24 +161,7 @@ pub fn profile_running(home: &Path) -> bool {
             .iter()
             .map(|s| s.to_string_lossy().into_owned())
             .collect();
-        args.iter().enumerate().any(|(index, arg)| {
-            if Path::new(arg) == home {
-                return true;
-            }
-            let value = arg.strip_prefix("--user-data-dir=").or_else(|| {
-                (index > 0 && args[index - 1] == "--user-data-dir").then_some(arg.as_str())
-            });
-            value.is_some_and(|value| {
-                Path::new(value) == home
-                    || std::fs::canonicalize(value)
-                        .ok()
-                        .zip(std::fs::canonicalize(home).ok())
-                        .is_some_and(|(a, b)| a == b)
-            })
-        }) || args.windows(2).any(|pair| {
-            pair[0].eq_ignore_ascii_case("-EncodedCommand")
-                && decoded_home(&pair[1]).is_some_and(|p| p == home)
-        })
+        arguments_use_home(&args, home)
     })
 }
 
@@ -218,6 +235,25 @@ mod tests {
         assert_eq!(decoded_home(&STANDARD.encode(bytes)).as_deref(), Some(home));
         assert!(script.contains("''$x"));
         assert!(script.contains("Remove-Item -LiteralPath"));
+    }
+    #[test]
+    fn canonical_windows_prefixes_identify_the_same_profile_but_not_a_neighbor() {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("Profile 工具 O'Brien");
+        std::fs::create_dir_all(&home).unwrap();
+        let canonical = std::fs::canonicalize(&home).unwrap();
+        assert!(arguments_use_home(
+            &[format!("--user-data-dir={}", home.display())],
+            &canonical
+        ));
+        assert!(arguments_use_home(
+            &["--user-data-dir".into(), home.display().to_string()],
+            &canonical
+        ));
+        assert!(!arguments_use_home(
+            &[format!("--user-data-dir={}-other", home.display())],
+            &canonical
+        ));
     }
     #[test]
     fn native_credential_store_round_trip() {

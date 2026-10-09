@@ -2017,6 +2017,10 @@ fn macos_vscode_alias_in(root: &Path, vscode_home: &Path, id: &str) -> Result<Pa
 }
 
 pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
+    #[cfg(windows)]
+    if crate::windows_platform::process_uses_home(pid, vscode_home) {
+        return true;
+    }
     if vscode_home
         .file_name()
         .is_some_and(|name| name == "codex-home")
