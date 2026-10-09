@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-10-09
+
+- Fix saving full-sized Windows OAuth credentials in Credential Manager while preserving existing saved accounts.
+- Keep credential replacement atomic when a Windows vault write fails.
+
 ## 0.2.0 — 2026-10-09
 
 - Wait for Codex initialization during account selection and report lost connections with a recovery action.

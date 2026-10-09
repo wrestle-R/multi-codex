@@ -40,24 +40,64 @@ function Invoke-RestMethod {
     ) }
 }
 function Invoke-WebRequest {
-    param([string]$Uri,[string]$OutFile)
+    param([string]$Uri,[string]$OutFile,[switch]$UseBasicParsing)
+    if (!$UseBasicParsing) { throw 'Installer downloads must use basic parsing.' }
     if ($Uri -eq 'https://fixture.invalid/installer') { Copy-Item -LiteralPath $candidateInstallerPath -Destination $OutFile; return }
     if ($Uri -ne 'https://fixture.invalid/sums') { throw 'Unexpected asset request' }
     $hash = if ($candidateChecksumValid) { (Get-FileHash -LiteralPath $candidateInstallerPath -Algorithm SHA256).Hash } else { '0' * 64 }
-    return @{ Content = "$hash  $packageName`n" }
+    if (!$OutFile) { throw 'Checksum manifest must be downloaded to a file.' }
+    [IO.File]::WriteAllBytes($OutFile, [Text.Encoding]::UTF8.GetBytes("$hash  $packageName`n"))
 }
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Text;
+[ComImport, Guid("00021401-0000-0000-C000-000000000046")]
+public class UnicodeShellLink { }
+[ComImport, Guid("000214F9-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface UnicodeShellLinkPath {
+    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int length, IntPtr findData, uint flags);
+}
 public static class LauncherWindows {
     [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr window);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr window);
     [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint msg, IntPtr wParam, IntPtr lParam);
+    public static string ShortcutTarget(string path) {
+        object link = new UnicodeShellLink();
+        try {
+            ((IPersistFile)link).Load(path, 0);
+            var target = new StringBuilder(32768);
+            ((UnicodeShellLinkPath)link).GetPath(target, target.Capacity, IntPtr.Zero, 4);
+            return target.ToString();
+        } finally { Marshal.FinalReleaseComObject(link); }
+    }
 }
 '@
-function Check-Window {
+function Check-StartMenu {
     $application = Join-Path $install 'multi-codex-desktop.exe'
-    $app = Start-Process -FilePath $application -PassThru
+    $shell = New-Object -ComObject WScript.Shell
+    try {
+        # This fixture redirects APPDATA after PowerShell has initialized its
+        # known-folder cache. The newly spawned NSIS process expands that path.
+        $programs = @([Environment]::GetFolderPath('Programs'), (Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs')) | Select-Object -Unique
+        $observed = @(foreach ($directory in $programs) {
+            if (Test-Path -LiteralPath $directory) {
+                foreach ($link in Get-ChildItem -LiteralPath $directory -Filter 'Multi Codex.lnk' -Recurse -File) {
+                    @{ path=$link.FullName; target=[LauncherWindows]::ShortcutTarget($link.FullName); legacyAutomationTarget=$shell.CreateShortcut($link.FullName).TargetPath }
+                }
+            }
+        })
+        $observed | ConvertTo-Json | Set-Content (Join-Path $evidence 'start-menu-shortcuts.json')
+        $links = @($observed | Where-Object { $_.target -ieq $application } | Sort-Object -Property path -Unique)
+        if ($links.Count -ne 1) { throw 'The installer must create one Start menu shortcut to the installed app.' }
+        return $links[0].path
+    } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
+}
+function Check-Window {
+    param([string]$LaunchPath = (Join-Path $install 'multi-codex-desktop.exe'))
+    $application = Join-Path $install 'multi-codex-desktop.exe'
+    $app = Start-Process -FilePath $LaunchPath -PassThru
     try {
         $deadline = [DateTime]::UtcNow.AddSeconds(45)
         do {
@@ -67,6 +107,7 @@ function Check-Window {
             Start-Sleep -Milliseconds 250
         } while ([DateTime]::UtcNow -lt $deadline)
         if ($app.MainWindowHandle -eq 0) { throw 'Packaged app has no native window' }
+        if ($app.Path -ine $application) { throw 'Shortcut started an unexpected executable' }
         if (![LauncherWindows]::IsZoomed($app.MainWindowHandle)) { throw 'Launcher did not start maximized' }
         Start-Sleep -Seconds 3
         $app.Refresh()
@@ -86,12 +127,14 @@ try {
     $candidateChecksumValid = $true
     & (Join-Path $scriptsRoot 'install-app.ps1') -NoLaunch -InstallDirectory $install
     Assert-Fixtures
-    Check-Window
+    $startMenuShortcut = Check-StartMenu
+    Check-Window -LaunchPath $startMenuShortcut
     & (Join-Path $scriptsRoot 'update-app.ps1') -NoLaunch -InstallDirectory $install
     Assert-Fixtures
+    $startMenuShortcut = Check-StartMenu
+    Check-Window -LaunchPath $startMenuShortcut
     Check-Window
-    Check-Window
-    $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $candidateInstallerPath -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
+    $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; startMenuShortcut=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $candidateInstallerPath -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
     $result | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-result.json')
     $result | ConvertTo-Json
 } finally {
