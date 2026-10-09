@@ -42,6 +42,6 @@ export async function cleanupFixture(root, engine, helper) {
       }
       if (!deleted) throw lastError;
     }
-  } finally { client.dispose(); }
+  } finally { await client.dispose(); }
   await rm(root, { recursive: true, force: true, maxRetries: 30, retryDelay: 100 });
 }
