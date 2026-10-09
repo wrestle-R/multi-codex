@@ -16,7 +16,9 @@ test('packaged helper protects Windows runtime and inherited child files', { ski
     await promisify(execFile)(helper, ['--protect-directory', root], { windowsHide: true });
     const child = join(root, 'bridge-config.json');
     await writeFile(child, '{}');
-    const script = `$ErrorActionPreference='Stop'; Set-StrictMode -Version Latest; $owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $a=Get-Acl -LiteralPath $env:MULTI_CODEX_TEST_DIRECTORY; $b=Get-Acl -LiteralPath (Join-Path $env:MULTI_CODEX_TEST_DIRECTORY 'bridge-config.json'); @{owner=$owner;protected=$a.AreAccessRulesProtected;directory=@($a.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value});child=@($b.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value})} | ConvertTo-Json -Compress`;
+    // Windows PowerShell can inherit PowerShell 7's module path on the runner.
+    // Read NTFS security directly through .NET instead of autoloading Get-Acl.
+    const script = `$ErrorActionPreference='Stop'; Set-StrictMode -Version Latest; $owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $a=[IO.Directory]::GetAccessControl($env:MULTI_CODEX_TEST_DIRECTORY); $b=[IO.File]::GetAccessControl([IO.Path]::Combine($env:MULTI_CODEX_TEST_DIRECTORY,'bridge-config.json')); @{owner=$owner;protected=$a.AreAccessRulesProtected;directory=@($a.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | ForEach-Object {$_.IdentityReference.Value});child=@($b.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | ForEach-Object {$_.IdentityReference.Value})} | ConvertTo-Json -Compress`;
     const { stdout, stderr } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, env: { ...process.env, MULTI_CODEX_TEST_DIRECTORY: root } });
     assert.equal(stderr.trim(), '', 'Windows ACL inspection reported an error');
     const acl = JSON.parse(stdout);
