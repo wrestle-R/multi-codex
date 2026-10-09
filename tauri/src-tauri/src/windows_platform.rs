@@ -57,6 +57,47 @@ pub fn resolve(name: &str, path: Option<&OsStr>, home: &Path) -> Option<PathBuf>
         .find(|p| crate::profiles::is_executable_file(p))
 }
 
+/// Query registered MSIX locations instead of relying on aliases or privileged
+/// enumeration of Program Files/WindowsApps. Cache this slow package query.
+pub fn standalone_candidates(home: &Path, path: Option<&OsStr>) -> Vec<PathBuf> {
+    static PACKAGES: OnceLock<Mutex<(Vec<PathBuf>, Instant)>> = OnceLock::new();
+    let mut cache = PACKAGES
+        .get_or_init(|| Mutex::new((Vec::new(), Instant::now() - Duration::from_secs(60))))
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    if cache.1.elapsed() > Duration::from_secs(30) {
+        cache.0 = crate::process::output(
+            Command::new("powershell.exe").args([
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                "Get-AppxPackage -Name OpenAI.Codex | ForEach-Object { $_.InstallLocation }",
+            ]),
+            Duration::from_secs(5),
+        )
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .map(|line| PathBuf::from(line.trim()).join("app/ChatGPT.exe"))
+                .collect()
+        })
+        .unwrap_or_default();
+        cache.1 = Instant::now();
+    }
+    let mut candidates = cache.0.clone();
+    candidates.extend(
+        path.map(std::env::split_paths)
+            .into_iter()
+            .flatten()
+            .map(|dir| dir.join("ChatGPT.exe")),
+    );
+    candidates.push(home.join("AppData/Local/Programs/Codex/ChatGPT.exe"));
+    candidates
+}
+
 fn snapshot() -> std::sync::MutexGuard<'static, (System, Instant)> {
     static SNAPSHOT: OnceLock<Mutex<(System, Instant)>> = OnceLock::new();
     let mut guard = SNAPSHOT
@@ -111,6 +152,10 @@ fn decoded_home(command: &str) -> Option<PathBuf> {
     Some(PathBuf::from(
         String::from_utf8(STANDARD.decode(marker).ok()?).ok()?,
     ))
+}
+
+pub(crate) fn command_uses_home(command: &str, home: &Path) -> bool {
+    decoded_home(command).is_some_and(|p| p == home)
 }
 
 fn quote(value: &Path) -> String {

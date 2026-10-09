@@ -5,6 +5,11 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 pub fn output(command: &mut Command, timeout: Duration) -> Result<Output, String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
