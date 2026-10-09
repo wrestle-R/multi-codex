@@ -111,6 +111,7 @@ jobs:
           echo "MULTI_CODEX_TEST_EXTENSION=$codex_extension" >> "$GITHUB_ENV"
           echo "MULTI_CODEX_TEST_ENGINE=$codex_engine" >> "$GITHUB_ENV"
       - name: Test protocol, activity guards, rollback and native account storage
+        timeout-minutes: 5
         run: npm test
       - name: Verify native macOS Keychain access
         if: runner.os == 'macOS'
