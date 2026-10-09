@@ -25,11 +25,15 @@ def script(source):
 
 def wait_for(label, condition):
     deadline = time.monotonic() + 30
+    last_error = None
     while time.monotonic() < deadline:
-        if condition():
-            return
+        try:
+            if condition():
+                return
+        except RuntimeError as error:
+            last_error = str(error)
         time.sleep(.5)
-    raise RuntimeError(f'Timed out: {label}')
+    raise RuntimeError(f'Timed out: {label}; last UI error: {last_error}')
 
 with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary:
     home = Path(temporary)
@@ -55,7 +59,20 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
             return int(ui('return count of windows'))
         def open_menu():
             ui('click menu bar item 1 of menu bar 2')
+        def account_actions():
+            open_menu()
+            ui('click menu item "Menu test account" of menu 1 of menu bar item 1 of menu bar 2')
+            actions = ui('return name of every menu item of menu 1 of menu item "Menu test account" of menu 1 of menu bar item 1 of menu bar 2')
+            ui('key code 53')
+            ui('key code 53')
+            return actions
+        def replace_metadata(contents):
+            temporary_metadata = data / 'profiles.menu-test.tmp'
+            temporary_metadata.write_bytes(contents)
+            temporary_metadata.chmod(0o600)
+            temporary_metadata.replace(data / 'profiles.json')
         checks = []
+        moved_codex = None
         try:
             wait_for('native main window', lambda: window_count() > 0)
             open_menu()
@@ -68,6 +85,33 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
                 assert expected in actions, f'Missing installed target: {expected}: {actions}'
             ui('key code 53')
             checks.append('Native account menu contains all three installed supported launch targets')
+            ui('key code 53')
+            profiles[0]['name'] = 'Renamed menu account'
+            replace_metadata(json.dumps(profiles).encode())
+            def renamed_visible():
+                open_menu()
+                names = ui('return name of every menu item of menu 1 of menu bar item 1 of menu bar 2')
+                ui('key code 53')
+                return 'Renamed menu account' in names
+            wait_for('menu reflecting account edits', renamed_visible)
+            replace_metadata(metadata)
+            def original_visible():
+                open_menu()
+                names = ui('return name of every menu item of menu 1 of menu bar item 1 of menu bar 2')
+                ui('key code 53')
+                return 'Menu test account' in names
+            wait_for('restored account label', original_visible)
+            checks.append('Native menu updates account names without restarting')
+            codex_app = next((path for path in (Path('/Applications/Codex.app'), Path('/Applications/ChatGPT.app')) if path.exists()), None)
+            assert codex_app, 'The disposable runner must have the pinned Codex fixture'
+            moved_codex = home / 'Codex-away.app'
+            codex_app.rename(moved_codex)
+            wait_for('menu hiding an uninstalled Codex target', lambda: 'Open Codex' not in account_actions())
+            assert 'Open VS Code' in account_actions(), 'Installed VS Code disappeared'
+            moved_codex.rename(codex_app)
+            moved_codex = None
+            wait_for('menu restoring the supported Codex target', lambda: 'Open Codex' in account_actions())
+            checks.append('Native menu removes and restores launch targets when installed apps change')
             ui('click first button of window 1 whose subrole is "AXCloseButton"')
             wait_for('close hiding the main window', lambda: window_count() == 0)
             assert process.poll() is None, 'Close exited the app'
@@ -92,6 +136,8 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
             (report_dir / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
             print(json.dumps(result, indent=2))
         finally:
+            if moved_codex and moved_codex.exists():
+                moved_codex.rename(codex_app)
             if process.poll() is None:
                 process.terminate()
                 try:
