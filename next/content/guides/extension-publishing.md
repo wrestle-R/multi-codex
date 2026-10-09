@@ -42,6 +42,6 @@ For this manual update, sign in to [the existing publisher](https://marketplace.
 
 For command-line publishing, use `vsce` with an authorized Marketplace identity. Microsoft's current documentation recommends Microsoft Entra authentication for automation; global Azure DevOps PATs are scheduled to retire on December 1, 2026. If using an eligible PAT before then, its scope is **Marketplace: Manage**, and it must belong to an account authorized for that publisher. Keep credentials in a secret store, never in source or chat.
 
-For this update, Azure CLI device sign-in completed, but the personal-account `consumers` endpoint rejected the Azure DevOps scope with `AADSTS9002332`. Publication therefore used the existing authenticated Marketplace browser, without a PAT. The owner completed the browser CAPTCHA for the Intel upload.
+For the previous 0.1.1 Marketplace release, Azure CLI device sign-in completed, but the personal-account `consumers` endpoint rejected the Azure DevOps scope with `AADSTS9002332`. Publication therefore used the existing authenticated Marketplace browser, without a PAT. The owner completed the browser CAPTCHA for the Intel upload.
 
 Microsoft's [publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) documents account setup, manual upload, authentication, platform targets, validation and version updates. Users can install the published pre-release or a local VSIX without creating a publisher.
