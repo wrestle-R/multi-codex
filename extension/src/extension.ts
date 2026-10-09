@@ -3,9 +3,9 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { access, copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
-import { spawn, execFile } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { controlEndpoint, helperName, wrapperName } from './native';
+import { controlEndpoint, helperName, wrapperName, spawnExecutable, terminateExecutable } from './native';
 import { usageSummary, refreshAllAccounts } from './usage';
 import { AccountClient, type Account } from './accounts';
 import { BridgeClient } from './client';
@@ -15,6 +15,7 @@ import { CodexBridge } from './bridge';
 import { findCodexBackend, tapBackend } from './stdio-tap';
 import { bundledEnginePath } from './platform';
 import { resolveAccountPaths } from './storage';
+import { extensionVersion } from './version';
 function quote(value: string) { return `'${value.replace(/'/g, `'"'"'`)}'`; }
 
 class AccountsTree implements vscode.TreeDataProvider<Account> {
@@ -56,6 +57,7 @@ export async function activate(context: vscode.ExtensionContext) {
   let monitor: NodeJS.Timeout | undefined; let connecting = false; let accountsRefreshing = false;
   let usage: any = null; let usageAt = 0;
   let refreshingUsage: Promise<void> | undefined;
+  const usageOperations = new Map<string, Promise<unknown>>();
   let setupPending: Promise<void> | undefined;
   let preparePending: Promise<void> | undefined; let storageError = '';
   function display() {
@@ -112,13 +114,13 @@ export async function activate(context: vscode.ExtensionContext) {
     helper = join(context.extensionPath, 'bin', helperName); await access(helper);
     await mkdir(root, { recursive: true, mode: 0o700 }); await mkdir(runtimeRoot, { recursive: true, mode: 0o700 });
     if (process.platform === 'win32') await promisify(execFile)(helper, ['--protect-directory', runtimeRoot], { windowsHide: true });
-    accounts?.dispose();
+    await accounts?.dispose();
     accounts = new AccountClient(helper, engine, root, globalHome);
     // Refresh an existing launcher before another normal Codex startup. Account
     // discovery's global home must never replace an inherited desktop account home.
     if (vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable') === join(runtimeRoot, wrapperName)) await writeBridgeLauncher();
     try { await refreshAccounts(); }
-    catch (error) { accounts.dispose(); accounts = undefined; throw error; }
+    catch (error) { await accounts.dispose(); accounts = undefined; throw error; }
     if (monitor) clearInterval(monitor);
     monitor = setInterval(() => { void connect(); void refreshAccounts().catch(() => {}); }, 1500);
     context.subscriptions.push({ dispose() { if (monitor) clearInterval(monitor); bridge?.dispose(); accounts?.dispose(); } });
@@ -224,10 +226,14 @@ export async function activate(context: vscode.ExtensionContext) {
     })();
     try { await refreshingUsage; } finally { refreshingUsage = undefined; }
   }
-  async function checkAccountUsage(account: Account) {
+  function checkAccountUsage(account: Account): Promise<unknown> {
+    const existing = usageOperations.get(account.id); if (existing) return existing;
+    const pending = readAccountUsage(account).finally(() => usageOperations.delete(account.id));
+    usageOperations.set(account.id, pending); return pending;
+  }
+  async function readAccountUsage(account: Account) {
     if (!accounts?.isRunning) await prepare();
     if (!tree.accounts.some(saved => saved.id === account.id)) throw new Error('Account not found');
-    if (tree.checking.has(account.id)) return;
     tree.checking.add(account.id); display();
     try {
       const result = bridge?.state.selectedId === account.id ? await bridge.request('usage')
@@ -257,10 +263,10 @@ export async function activate(context: vscode.ExtensionContext) {
     await writeFile(join(directory, 'config.toml'), 'cli_auth_credentials_store = "file"\n[analytics]\nenabled = false\n', { mode: 0o600 });
     const loginEnvironment: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: directory, CODEX_SQLITE_HOME: directory };
     delete loginEnvironment.OPENAI_API_KEY; delete loginEnvironment.CODEX_API_KEY; delete loginEnvironment.ELECTRON_RUN_AS_NODE;
-    const child = spawn(engine, ['app-server'], { env: loginEnvironment, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawnExecutable(engine, ['app-server'], { env: loginEnvironment });
     child.stderr.resume(); const lines = new JsonLines(child.stdout, child.stdin); const rpc = new RpcPeer(lines, 'login:');
     try {
-      await rpc.request('initialize', { clientInfo: { name: 'multi_codex_login', version: '0.1.0' } }); lines.send({ method: 'initialized' });
+      await rpc.request('initialize', { clientInfo: { name: 'multi_codex_login', version: extensionVersion } }); lines.send({ method: 'initialized' });
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Finish signing in to Codex in your browser', cancellable: true }, async (_, cancellation) => {
         const complete: Promise<void> = new Promise((resolve, reject) => {
           lines.on('message', message => { if (message.method === 'account/login/completed') message.params?.success ? resolve() : reject(new Error('Codex sign-in did not complete')); });
@@ -278,7 +284,7 @@ export async function activate(context: vscode.ExtensionContext) {
         } finally { if (timeout) clearTimeout(timeout); }
         const authJson = await readFile(join(directory, 'auth.json'), 'utf8'); await accounts!.request('accounts/add', { name, authJson });
       });
-    } finally { rpc.close(); child.kill(); const fs = await import('node:fs/promises'); await fs.rm(directory, { recursive: true, force: true }); }
+    } finally { rpc.close(); await terminateExecutable(child); const fs = await import('node:fs/promises'); await fs.rm(directory, { recursive: true, force: true }); }
     await refreshAccounts();
   }
   function command(name: string, action: (...args: any[]) => Promise<any>) {
@@ -297,7 +303,7 @@ export async function activate(context: vscode.ExtensionContext) {
   try { await prepare(); } catch { /* Storage errors are shown inline with a retry action. */ }
   return {
     activationId, refreshAccounts, switchAccount, enableSwitching: setupBridge,
-    async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, storageError, panelMessage: view.message, bridge: bridge ? await bridge.request('state') : null }; },
+    async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, storageError, panelMessage: view.message, usageSummaries: Object.fromEntries(tree.usage), bridge: bridge ? await bridge.request('state') : null }; },
     ...(process.env.MULTI_CODEX_TEST_MODE === '1' ? {
       testBackendInfo() { return { pid: findCodexBackend(engine)?.pid, activationId, hostPid: process.pid }; },
       async testStopAccountHelper() {

@@ -99,6 +99,15 @@ export async function run() {
   await verifyStable();
   assert.equal((await api.getState()).accounts.length, 2);
   checks.push('Account discovery recovered after helper termination while Codex stayed running');
+  const usageBefore = await verifyStable();
+  await vscode.commands.executeCommand('multiCodex.refreshUsage');
+  const allUsage = await verifyStable();
+  assert.equal(allUsage.bridge.selectedId, usageBefore.bridge.selectedId, 'Checking all usage changed the selected account');
+  for (const account of [a,b]) {
+    assert.match(allUsage.usageSummaries[account.id], /90% left/, 'Top-bar usage missed a saved account');
+    assert.match(allUsage.usageSummaries[account.id], /80% left/, 'Weekly usage must also be visible');
+  }
+  checks.push('Top-bar Check Usage refreshes every saved account without changing the account, chat or backend');
   await vscode.commands.executeCommand('multiCodex.checkAccountUsage', b);
   await vscode.commands.executeCommand('workbench.view.extension.multiCodex');
   if (process.env.MULTI_CODEX_UI_TEST === '1') {
