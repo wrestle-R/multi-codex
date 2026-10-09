@@ -55,7 +55,7 @@ fn read_with_command(
     timeout: Duration,
     checked_at: DateTime<Utc>,
 ) -> Result<ProfileLimits> {
-    let mut child = Command::new(codex)
+    let mut child = crate::process::background(&mut Command::new(codex))
         .args(["app-server", "--stdio"])
         // Use the profile's durable home so a token refreshed by Codex is not discarded with a
         // temporary directory. Each Multi Codex profile already has its own isolated CODEX_HOME.

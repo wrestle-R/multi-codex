@@ -4,12 +4,17 @@ use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-pub fn output(command: &mut Command, timeout: Duration) -> Result<Output, String> {
+pub fn background(command: &mut Command) -> &mut Command {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x08000000);
     }
+    command
+}
+
+pub fn output(command: &mut Command, timeout: Duration) -> Result<Output, String> {
+    background(command);
     let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

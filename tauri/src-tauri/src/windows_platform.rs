@@ -127,13 +127,20 @@ pub fn profile_running(home: &Path) -> bool {
             .iter()
             .map(|s| s.to_string_lossy().into_owned())
             .collect();
-        args.iter().any(|arg| {
-            let value = arg.strip_prefix("--user-data-dir=").unwrap_or(arg);
-            Path::new(value) == home
-                || std::fs::canonicalize(value)
-                    .ok()
-                    .zip(std::fs::canonicalize(home).ok())
-                    .is_some_and(|(a, b)| a == b)
+        args.iter().enumerate().any(|(index, arg)| {
+            if Path::new(arg) == home {
+                return true;
+            }
+            let value = arg.strip_prefix("--user-data-dir=").or_else(|| {
+                (index > 0 && args[index - 1] == "--user-data-dir").then_some(arg.as_str())
+            });
+            value.is_some_and(|value| {
+                Path::new(value) == home
+                    || std::fs::canonicalize(value)
+                        .ok()
+                        .zip(std::fs::canonicalize(home).ok())
+                        .is_some_and(|(a, b)| a == b)
+            })
         }) || args.windows(2).any(|pair| {
             pair[0].eq_ignore_ascii_case("-EncodedCommand")
                 && decoded_home(&pair[1]).is_some_and(|p| p == home)

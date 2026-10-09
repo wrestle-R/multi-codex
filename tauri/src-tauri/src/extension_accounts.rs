@@ -12,7 +12,7 @@ impl AuthRecognizer for BundledRecognizer {
             tempfile::tempdir().map_err(|_| "Could not prepare credential validation")?;
         profiles::write_private_file(&directory.path().join("auth.json"), auth.as_bytes())?;
         profiles::write_codex_config(directory.path())?;
-        let output = std::process::Command::new(&self.0)
+        let output = crate::process::background(&mut std::process::Command::new(&self.0))
             .args(["login", "status"])
             .env("CODEX_HOME", directory.path())
             .env_remove("OPENAI_API_KEY")
