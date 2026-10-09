@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 let token = null; let authMethod = null; let mode = ''; let held; let threadStatus = 'idle';
 let fileAuth = true; let withholdFileToken = false;
-const initial = await readFile(join(process.env.CODEX_HOME, 'auth.json'), 'utf8').then(JSON.parse).catch(() => null);
+const initial = await readFile(join(process.env.CODEX_HOME || '', 'auth.json'), 'utf8').then(JSON.parse).catch(() => null);
 if (initial) { token = initial.OPENAI_API_KEY || initial.tokens?.access_token || null; authMethod = initial.OPENAI_API_KEY ? 'apikey' : token ? 'chatgpt' : null; }
 const send = message => process.stdout.write(JSON.stringify(message) + '\n');
 for await (const line of createInterface({ input: process.stdin })) {
