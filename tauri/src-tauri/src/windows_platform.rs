@@ -204,6 +204,11 @@ pub fn launch_cli(
     use std::os::windows::process::CommandExt;
     let script = cli_script(codex, home, workspace);
     let bytes: Vec<_> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
+    let encoded = STANDARD.encode(bytes);
+    if terminal != crate::terminals::Terminal::WindowsTerminal {
+        spawn_console(binary, &encoded, workspace)?;
+        return Ok(());
+    }
     let mut command = Command::new(binary);
     if terminal == crate::terminals::Terminal::WindowsTerminal {
         command
@@ -213,7 +218,7 @@ pub fn launch_cli(
     }
     command
         .args(["-NoLogo", "-NoProfile", "-EncodedCommand"])
-        .arg(STANDARD.encode(bytes))
+        .arg(encoded)
         .current_dir(workspace)
         .creation_flags(0x00000010)
         .stdin(Stdio::null())
@@ -224,9 +229,87 @@ pub fn launch_cli(
     Ok(())
 }
 
+fn spawn_console(binary: &Path, encoded_script: &str, workspace: &Path) -> Result<u32> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::{
+        Foundation::CloseHandle,
+        System::Threading::{
+            CreateProcessW, CREATE_NEW_CONSOLE, PROCESS_INFORMATION, STARTUPINFOW,
+        },
+    };
+    let application: Vec<u16> = binary.as_os_str().encode_wide().chain(Some(0)).collect();
+    let directory: Vec<u16> = workspace.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut command: Vec<u16> = std::iter::once('"' as u16)
+        .chain(binary.as_os_str().encode_wide())
+        .chain(format!("\" -NoLogo -NoProfile -EncodedCommand {encoded_script}").encode_utf16())
+        .chain(Some(0))
+        .collect();
+    let startup = STARTUPINFOW {
+        cb: std::mem::size_of::<STARTUPINFOW>() as u32,
+        ..Default::default()
+    };
+    let mut process = PROCESS_INFORMATION::default();
+    // Leave STARTF_USESTDHANDLES unset so Windows supplies the new console's
+    // input/output handles. Rust's redirected/inherited handles can otherwise
+    // leave an interactive CLI attached to NUL or the launcher's logging pipe.
+    // SAFETY: buffers are live, NUL-terminated UTF-16; command is mutable;
+    // no handles are inherited. Successful process/thread handles are closed.
+    let started = unsafe {
+        CreateProcessW(
+            application.as_ptr(),
+            command.as_mut_ptr(),
+            std::ptr::null(),
+            std::ptr::null(),
+            0,
+            CREATE_NEW_CONSOLE,
+            std::ptr::null(),
+            directory.as_ptr(),
+            &startup,
+            &mut process,
+        )
+    };
+    if started == 0 {
+        return Err(format!(
+            "Could not open Windows terminal: {}",
+            std::io::Error::last_os_error()
+        ));
+    }
+    unsafe {
+        CloseHandle(process.hThread);
+        CloseHandle(process.hProcess);
+    }
+    Ok(process.dwProcessId)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn new_powershell_console_has_interactive_standard_handles() {
+        let root = tempfile::tempdir().unwrap();
+        let result = root.path().join("console.json");
+        let binary = PathBuf::from(std::env::var_os("SystemRoot").unwrap())
+            .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        let script = format!(
+            "$ErrorActionPreference='Stop'; [IO.File]::WriteAllText({}, (@{{input=[Console]::IsInputRedirected; output=[Console]::IsOutputRedirected; error=[Console]::IsErrorRedirected}} | ConvertTo-Json -Compress)); Start-Sleep -Seconds 30",
+            quote(&result)
+        );
+        let bytes: Vec<_> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let pid = spawn_console(&binary, &STANDARD.encode(bytes), root.path()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !result.is_file() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        let contents = std::fs::read_to_string(result);
+        let _ = Command::new("taskkill.exe")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .output();
+        let actual: serde_json::Value = serde_json::from_str(&contents.unwrap()).unwrap();
+        assert_eq!(
+            actual,
+            serde_json::json!({"input":false,"output":false,"error":false})
+        );
+    }
     #[test]
     fn powershell_command_round_trips_unicode_and_quotes_without_interpolation() {
         let home = Path::new("C:\\Users\\Test User\\工具 '$x\\codex-home");

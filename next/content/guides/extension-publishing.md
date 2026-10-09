@@ -1,5 +1,9 @@
 # VS Code Marketplace publishing requirements
 
+## Version 0.2.0 manual upload
+
+The v1.4.0 desktop release includes four matching extension v0.2.0 pre-release VSIX files: Linux x64, macOS arm64, macOS x64 and Windows x64. Download them from [GitHub Releases](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.0). Upload each tested file as an update to the existing **russeldanielpaul.multi-codex** extension. Marketplace availability for v0.2.0 remains pending the owner’s manual upload and Marketplace validation. Use **Extensions: Install from VSIX…** when the matching version or platform is not available in Marketplace yet.
+
 ## Previous Marketplace release
 
 The owner authorized Marketplace publication under the existing publisher **russeldanielpaul**. [Multi Codex 0.1.1](https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex) is published as a free pre-release for Linux x64, macOS Apple Silicon and macOS Intel. All three packages passed native tests and Marketplace validation. Their public downloads match the tested artifacts byte-for-byte; see [release evidence and checksums](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/extension-marketplace-verification-2026-10-09.json). The [original 0.1.0 evidence](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/extension-marketplace-verification-2026-10-08.json) remains available.
@@ -34,7 +38,7 @@ Set `MULTI_CODEX_TEST_ENGINE` to the official VS Code extension's bundled engine
 
 ## Upload
 
-For a manual upload, sign in to the publisher management page, choose **New extension → Visual Studio Code**, and upload a tested VSIX. Add the other tested platform packages as updates to the same extension and version. A CLI personal access token is unnecessary for this browser upload. Wait for Marketplace validation for every platform before treating the release as available on that platform.
+For this manual update, sign in to [the existing publisher](https://marketplace.visualstudio.com/manage/publishers/russeldanielpaul), select **Multi Codex**, and upload each tested VSIX as an update to the same extension and version. Create a new extension only for an initial publication under a new extension ID. A CLI personal access token is unnecessary for this browser upload. Wait for Marketplace validation for every platform before treating the release as available on that platform.
 
 For command-line publishing, use `vsce` with an authorized Marketplace identity. Microsoft's current documentation recommends Microsoft Entra authentication for automation; global Azure DevOps PATs are scheduled to retire on December 1, 2026. If using an eligible PAT before then, its scope is **Marketplace: Manage**, and it must belong to an account authorized for that publisher. Keep credentials in a secret store, never in source or chat.
 
