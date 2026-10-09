@@ -84,7 +84,7 @@
       },
       {
         "command": "multiCodex.refreshUsage",
-        "title": "Check Usage",
+        "title": "Check All Accounts\u2019 Usage",
         "category": "Multi Codex",
         "icon": "$(dashboard)"
       },
