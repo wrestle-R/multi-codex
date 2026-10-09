@@ -1,6 +1,6 @@
-# Platform support for v1.3.6
+# Platform support
 
-v1.3.6 adds isolated CLI launch, a color theme picker, plan ordering and automatic usage refresh. Linux and [macOS 26 Apple Silicon CI](https://github.com/wrestle-R/multi-codex/actions/runs/37562655635) passed, including native Mac Terminal, Keychain, VS Code, standalone launch and packaged startup/restart checks. Release packages undergo exact-asset installer verification before publication; broader package/distribution coverage remains open. Apple Developer ID signing and notarization are optional and are not configured. The Mac release requires explicit unsigned-install opt-in and may require first-open approval in macOS Privacy & Security.
+Multi Codex v1.4 adds native Windows x64 support, a Mac menu-bar account picker, and a persistent maximized launcher. The VS Code extension uses separate manifest-derived packages for Linux x64, macOS arm64/x64, and Windows x64. Release publication requires native platform checks and validation of the exact downloadable packages.
 
 | Environment | Launch and desktop behavior | Evidence and remaining limits |
 | --- | --- | --- |
@@ -8,19 +8,36 @@ v1.3.6 adds isolated CLI launch, a color theme picker, plan ordering and automat
 | Linux x86_64, GNOME Shell 45–51 | Optional picker through the bundled Shell extension | Contract/source tests passed; live GNOME and packaged Wayland/X11 validation pending |
 | Linux x86_64, KDE Plasma 6 | Optional picker through an on-demand KWin script | Isolated KWin 6.7.5 Wayland inventory and placement checks passed; packaged/X11 validation pending |
 | Other Linux desktops | Current-desktop launch when placement is unavailable | No desktop-placement support claim; distribution-specific package checks pending |
+| Windows x64 | VS Code and CLI launch on the current desktop; no virtual-desktop picker | Native Windows GitHub runner exercises Credential Manager, private ACLs, locking, two-account VS Code/CLI guards, packaged VSIX switching, and exact NSIS install/update/restart. Fixtures exercise local isolation; real OAuth and token rotation require connectivity. |
 | Apple Silicon macOS 26 | VS Code or verified Codex app opens on the current desktop; no desktop picker or Spaces control | Authenticated isolation on a [Mac GitHub runner](https://github.com/wrestle-R/multi-codex/actions/runs/37345518314) and [native launch/package CI](https://github.com/wrestle-R/multi-codex/actions/runs/37359106358) passed; [real DMG install/update and native startup/restart](https://github.com/wrestle-R/multi-codex/actions/runs/37563569940) passed with account/chat fixtures; signing/notarization and wider functional checks pending |
 
-Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux releases use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. macOS 27, Intel Macs and Windows have no validation claim. Linux requires its usual session bus, native libraries and credential-store dependencies.
+Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64. Other versions and architectures fail closed until tested. Linux releases use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. The desktop launcher has no macOS 27 or Intel Mac validation claim; the extension separately supports both Mac architectures. Windows support targets native x64; WSL, Remote SSH, containers and Windows virtual-desktop placement are outside this scope. Linux requires its usual session bus, native libraries and credential-store dependencies.
 
 ## Launch settings and account data
 
 The first-run welcome saves platform and installed-app detection; installed apps are checked again later. Launch settings offers **VS Code**, **Codex**, **All available** and **CLI only**, disabling unavailable targets. The CLI button appears alongside the selected apps whenever a CLI is available. Existing launch preferences remain in place, and an unverified standalone version cannot be selected.
 
-**Preferred folder + Browse** uses the built-in folder picker. The saved folder is its starting location on each launch; a different project can be chosen then. On Linux, **Show desktop picker** is on by default and can be turned off. The option does not appear on macOS. Mac launches continue on the current desktop after the folder choice. Executable paths and global Codex home are under Advanced.
+**Preferred folder + Browse** uses the built-in folder picker. The saved folder is its starting location on each launch; a different project can be chosen then. On Linux, **Show desktop picker** is on by default and can be turned off. The option does not appear on macOS or Windows. Mac and Windows launches continue on the current desktop after the folder choice. Executable paths and global Codex home are under Advanced.
 
 Each account keeps its existing `profiles/<id>/codex-home` for VS Code, standalone and CLI launches. Standalone desktop cookies and app state use a separate `desktop-data` directory for that account; VS Code keeps its separate user-data directory and extensions. The app preserves the normal browser HOME for sign-in links. A desktop sign-out stays signed out on restart and does not silently restore stale credentials from the keyring. Editing or deleting an account and cleaning its cache are blocked while an app or CLI is using it. The global auth file is not changed by an isolated launch. [Linux and Mac authenticated isolation evidence](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.3.5-auth-isolation.json)
 
-Managed data stays in the existing platform data directory plus `multi-codex`: normally `$XDG_DATA_HOME/multi-codex` or `~/.local/share/multi-codex` on Linux, and `~/Library/Application Support/multi-codex` on macOS. Upgrades do not relocate profiles. Global import uses a nonempty inherited `CODEX_HOME`, then the saved global-home setting, then `~/.codex`. Override paths must be absolute executable files and are passed directly, never interpreted as shell commands. Empty executable fields restore automatic discovery; changing the global home requires restarting Multi Codex.
+Managed data stays in the existing platform data directory plus `multi-codex`: normally `$XDG_DATA_HOME/multi-codex` or `~/.local/share/multi-codex` on Linux, and `~/Library/Application Support/multi-codex` on macOS, and `%APPDATA%\multi-codex` on Windows. Upgrades do not relocate profiles. Global import uses a nonempty inherited `CODEX_HOME`, then the saved global-home setting, then `~/.codex`. Override paths must be absolute executable files and are passed directly, never interpreted as shell commands. Empty executable fields restore automatic discovery; changing the global home requires restarting Multi Codex.
+
+## Mac menu bar and launcher window
+
+The menu-bar icon lists saved accounts. Each account submenu offers only installed supported targets: **Open VS Code**, **Open Codex**, and **Open CLI**. Launches reuse folder preferences and account safety guards. **Open Multi Codex** restores the maximized main window; **Refresh All Usage** checks all accounts. Closing the window leaves the menu-bar process running. **Quit Multi Codex** exits the launcher and leaves separately launched tools open.
+
+On Hyprland, the launcher monitors its own mapped window and restores maximization after desktop changes or accidental floating restores, without moving it or stealing focus. Other platforms restore maximization when the main window regains focus. The live Linux test covers three desktop switches and repair of the floating screenshot state.
+
+## Windows launch and installation
+
+Use the website's Windows PowerShell install/update commands or the release's `Multi.Codex_<version>_x64-setup.exe`. Installation is per-user. The scripts select the current release's Windows asset dynamically and verify its SHA-256 before running NSIS. Updates preserve account and conversation data, which remain outside the application directory.
+
+Windows accounts use Credential Manager and protected directories granting access to the current user and SYSTEM. The launcher and extension share `%APPDATA%\multi-codex`. The extension contains a native account helper, an executable startup wrapper and authenticated named pipes. It supports live account switching in local native VS Code without changing PowerShell's persistent execution policy.
+
+VS Code discovery prefers native `Code.exe`; CLI discovery resolves npm's native `codex.exe`. Advanced settings accept absolute `.exe` paths. PowerShell and Windows Terminal launches encode the command as UTF-16, quote literal paths, and clear inherited credential overrides before selecting the account home. Running-profile detection recognizes native editor arguments and the private encoded-command marker, preventing deletion or cache cleanup during use.
+
+Standalone Codex discovery reads the installed **OpenAI.Codex** MSIX location rather than guessing a WindowsApps path. Unverified desktop versions remain disabled. The official package's native app window and two independent account homes are checked before enabling a Windows version.
 
 ## macOS launch checks
 
@@ -60,7 +77,7 @@ Plasma 6 uses the bundled `tauri/platform/kde/bridge.js`. Each request loads an 
 
 ## Release validation
 
-The tag workflow initially builds a draft and uploads checksums with the exact assets and matching install/update scripts. The [Publish tested release workflow](../.github/workflows/publish-validated.yml) requires the six `releaseChecks` in [the validation manifest](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.3.6-validation.json): Linux/Mac builds, installer verification and authenticated account isolation. It also downloads and verifies all four packages and both installer scripts against the recorded hashes before publishing as the latest stable release. The manifest records actual outcomes with environment, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
+The tag workflow initially builds a draft and uploads checksums with the exact assets and matching install/update scripts. The [Publish tested release workflow](https://github.com/wrestle-R/multi-codex/blob/main/.github/workflows/publish-validated.yml) requires the platform `releaseChecks` in [the validation manifest](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.3.6-validation.json): Linux/Mac/Windows builds and installer checks, account isolation, all four packaged extension targets, launcher behavior and the Mac menu. It also downloads and verifies all five app packages, four VSIX files and four installer scripts against the recorded hashes before publishing as the latest stable release. The manifest records actual outcomes with environment, tester, time, evidence and SHA-256. Rebuilding, changing or signing an artifact changes what must be validated.
 
 ```bash
 cd tauri

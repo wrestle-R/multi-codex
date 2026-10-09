@@ -101,3 +101,23 @@ test("screenshots load and troubleshooting answers and missing pages are usable"
   await page.getByRole("link", { name: /Back to Multi Codex/ }).click()
   await expect(page).toHaveURL(/\/$/)
 })
+
+
+test("Windows commands, menu-bar behavior and migrated detailed guides are accessible", async ({ page }) => {
+  await page.goto("/docs")
+  const install = page.locator("#installation .install-box")
+  await install.getByRole("button", { name: "Windows", exact: true }).click()
+  await expect(install.locator("code")).toContainText("install-app.ps1")
+  await expect(install.locator("code")).toContainText("$env:TEMP")
+  await expect(page.locator("#menu-bar")).toContainText("Quit Multi Codex")
+  await expect(page.locator("#vscode")).toContainText("every saved account")
+  for (const guide of ["platform-support", "extension", "extension-publishing", "release-guidelines"]) {
+    await page.goto(`/docs/${guide}`)
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
+    await expect(page.getByRole("navigation", { name: "Detailed guides" })).toBeVisible()
+    for (const width of [320,768,1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    }
+  }
+})
