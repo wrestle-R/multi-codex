@@ -131,13 +131,19 @@ const uiPolling = setInterval(async () => {
       if (await page.getByText('Enable switching', { exact: true }).count() || await page.getByText('Add an account', { exact: true }).count()) throw new Error('Large welcome buttons are still present');
     }
     await page.screenshot({ path: `.test-results/panel-${phase.label.replace(/[^a-zA-Z0-9-]/g, '-')}.png` });
-    uiPhases.push({ label: phase.label, frames });
-    await writeFile('.test-results/panel-observations.json', JSON.stringify(uiPhases, null, 2));
+    const observation = { label: phase.label, frames };
+    await writeFile('.test-results/panel-observations.json', JSON.stringify([...uiPhases, observation], null, 2));
     // Publish a complete acknowledgement: the extension host polls this file
     // concurrently, and reading a partially written JSON file is a test race.
     await writeFile(join(testRoot, 'ui-ack.tmp'), JSON.stringify({ label: phase.label }));
     await rename(join(testRoot, 'ui-ack.tmp'), join(testRoot, 'ui-ack.json'));
-  } catch { /* Renderer may still be starting; retry before the integration timeout. */ }
+    // Mark complete only after publication succeeds. Windows can briefly hold
+    // the old acknowledgement open; a failed replacement must remain retryable.
+    uiPhases.push(observation);
+  } catch (error) {
+    await writeFile('.test-results/ui-inspector-last-error.json', JSON.stringify({ message: error.message, code: error.code })).catch(() => {});
+    /* Renderer or an acknowledgement file may still be busy; retry. */
+  }
   finally { uiBusy = false; }
 }, 100);
 console.log(`Testing Codex ${packageInfo.version} in ${testRoot}`);
