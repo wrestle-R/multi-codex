@@ -114,7 +114,8 @@ impl Drop for NativeCleanup {
             if self.0.iter().any(|home| {
                 process_uses_profile(process.pid().as_u32(), home)
                     || process.cmd().windows(2).any(|p| {
-                        p[0].eq_ignore_ascii_case("-EncodedCommand")
+                        p[0].to_string_lossy()
+                            .eq_ignore_ascii_case("-EncodedCommand")
                             && crate::windows_platform::command_uses_home(
                                 &p[1].to_string_lossy(),
                                 home,
