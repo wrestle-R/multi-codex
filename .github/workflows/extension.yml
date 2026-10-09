@@ -100,7 +100,11 @@ jobs:
             code_cli="$RUNNER_TEMP/vscode/bin/code"
           fi
           test -x "$code_binary"
-          "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --install-extension openai.chatgpt@26.1002.51308 --force
+          for attempt in 1 2 3; do
+            if "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --install-extension openai.chatgpt@26.1002.51308 --force; then break; fi
+            if [[ "$attempt" == 3 ]]; then exit 1; fi
+            sleep 5
+          done
           codex_extension=$(find "$RUNNER_TEMP/codex-extensions" -maxdepth 1 -type d -name 'openai.chatgpt-*' -print -quit)
           test -n "$codex_extension"
           export codex_extension

@@ -8,7 +8,7 @@ Manage saved accounts and change the account used by the **existing official Cod
 - Share saved accounts with the Multi Codex desktop app, or use the extension on its own.
 - Block account changes while the backend reports active work or uncertain activity.
 
-**Linux and macOS pre-release.** Platform packages target Linux x64, Apple Silicon Macs and Intel Macs. The Mac native helper requires macOS 26 or newer. The extension is free and open source. Your Codex subscription or API usage is billed separately. Multi Codex is an independent project and is not affiliated with or endorsed by OpenAI.
+**Linux, macOS and Windows pre-release.** Platform packages target Linux x64, Apple Silicon Macs, Intel Macs and Windows x64. The Mac native helper requires macOS 26 or newer. The extension is free and open source. Your Codex subscription or API usage is billed separately. Multi Codex is an independent project and is not affiliated with or endorsed by OpenAI.
 
 This preview uses an experimental Codex backend authentication API. Live attachment uses a private Node process/stdio compatibility hook; later startups use Codex's development-only executable setting. It is not an official OpenAI extension API integration. This release targets local VS Code on Linux x64, macOS arm64/x64 and Windows x64. Remote SSH, containers, WSL, Linux ARM64 and vscode.dev are not supported yet.
 
@@ -19,7 +19,7 @@ All four platform packages are included in [Multi Codex v1.4.0 on GitHub](https:
 ## Get started
 
 1. Install the official `openai.chatgpt` Codex extension.
-2. Install the pre-release of **Multi Codex** by **russeldanielpaul**. VS Code selects the matching platform package. For a downloaded package, run **Extensions: Install from VSIX…** and choose the Linux x64, macOS Apple Silicon (`darwin-arm64`) or macOS Intel (`darwin-x64`) VSIX for your machine.
+2. Install the pre-release of **Multi Codex** by **russeldanielpaul**. VS Code selects the matching platform package. For a downloaded package, run **Extensions: Install from VSIX…** and choose the Linux x64, macOS Apple Silicon (`darwin-arm64`), macOS Intel (`darwin-x64`) or Windows x64 (`win32-x64`) VSIX for your machine.
 3. Open Multi Codex in the activity bar. Existing desktop accounts appear automatically; use **+** in the Accounts toolbar to add an account if you are starting fresh.
 4. Click an account row to connect switching automatically and use that account in the current official Codex panel. Hover over an account to check usage; the result appears beside its name.
 
@@ -45,7 +45,7 @@ The account list refreshes every 1.5 seconds and after account changes. Both cli
 
 This repository's updated desktop service and the extension helper serialize metadata writes using a file lock. Active extension accounts hold shared leases that prevent deletion, credential replacement and cache cleanup. Older installed desktop releases do not understand these new locks: update/rebuild the desktop app before concurrently editing shared accounts there.
 
-The active account is shown in the status bar and account list. Check every saved account with **Multi Codex: Check Usage**, or use an account's **Check This Account's Usage** context action without switching. Usage comes from Codex's backend and displays the returned usage windows; unavailable limits are not invented. API-key billing is not a ChatGPT usage window.
+The active account is shown in the status bar and account list. Check every saved account with **Multi Codex: Check All Accounts’ Usage**, or use an account's **Check This Account's Usage** context action without switching. Usage comes from Codex's backend and displays the returned usage windows; unavailable limits are not invented. API-key billing is not a ChatGPT usage window.
 
 ## How switching works
 
@@ -67,6 +67,10 @@ Authentication failures and mismatched identities trigger verified rollback to t
 Live ChatGPT attachment changes in-memory authentication without changing the original login file. API-key switching is refused in this mode because the backend would write its original credential store; it is available through the isolated wrapper on a later normal startup. Credentials in that wrapper are private to each backend. Existing session directories, resources and the SQLite history home remain available from the source Codex home. Selecting an account intentionally preserves the current conversation; this is **not a guarantee that prior conversation content is isolated between accounts**. Cloud conversations, organization-specific tools and permissions may depend on the selected account. Account selection applies to this running window. Each later startup begins with the current launch home’s login; old project selections are ignored. The status bar indicates when Codex is using the current home and shows its path in the tooltip.
 
 Expired external tokens are refreshed through a short-lived bundled backend using the saved account's home. Credential-operation locks serialize refresh/usage operations between extension windows. Browser sign-in and real token rotation require OpenAI connectivity; these live flows are not covered by the offline fixture tests.
+
+## Connection recovery
+
+Account selection waits for backend initialization. If the backend or protocol connection is lost, the extension reports the failure and keeps switching blocked. Save your work and reopen Codex or VS Code to start a fresh backend. Long chat responses no longer hit the former 8 MiB bridge limit. A failed connection is never treated as a verified idle session.
 
 ## Switching guards and limits
 
