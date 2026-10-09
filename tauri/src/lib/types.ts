@@ -146,7 +146,7 @@ export interface ExecutableSettings {
   cliTerminal?: TerminalId
 }
 
-export type TerminalId = "automatic" | "terminal" | "kitty" | "ghostty" | "konsole" | "gnomeTerminal" | "xfceTerminal" | "alacritty" | "foot" | "xterm"
+export type TerminalId = "automatic" | "powerShell" | "windowsTerminal" | "terminal" | "kitty" | "ghostty" | "konsole" | "gnomeTerminal" | "xfceTerminal" | "alacritty" | "foot" | "xterm"
 export interface TerminalOption {
   id: TerminalId
   label: string

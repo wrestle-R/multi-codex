@@ -1,3 +1,4 @@
+mod account_menu;
 #[cfg(target_os = "linux")]
 mod application_icons;
 mod desktop_environment;
@@ -592,7 +593,24 @@ pub fn run() {
                 window.set_icon(icon)?;
             }
             desktop_environment::configure_main_window();
+            #[cfg(target_os = "macos")]
+            account_menu::setup(app.handle())?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+            if window.label() == "main"
+                && matches!(event, tauri::WindowEvent::Focused(true))
+                && !window.is_maximized().unwrap_or(false)
+            {
+                let _ = window.maximize();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             get_desktop_inventory,
