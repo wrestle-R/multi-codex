@@ -89,7 +89,7 @@ test("docs explain Linux-only desktop placement and show screenshots matching a 
   await page.emulateMedia({ colorScheme: "light" })
   await page.goto("/docs#launching")
   await expect(page.locator("#launching")).toContainText("Desktop selection is Linux-only")
-  await expect(page.locator("#launching")).toContainText("On macOS, the app launches after you choose a folder.")
+  await expect(page.locator("#launching")).toContainText("On macOS and Windows, the app launches on the current desktop after you choose a folder.")
   await expect(page.locator("#terminals")).toContainText("installed terminals only")
   const screenshot = page.getByRole("img", { name: "Multi Codex Linux desktop selection interface" })
   await expect(screenshot).toHaveAttribute("src", /workspace-light/)
