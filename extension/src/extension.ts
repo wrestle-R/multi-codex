@@ -176,7 +176,18 @@ export async function activate(context: vscode.ExtensionContext) {
     }
     await replaceFile(configPath, JSON.stringify(config), 0o600);
     const wrapper = join(runtimeRoot, wrapperName);
-    if (process.platform === 'win32') { await copyFile(helper, wrapper); return; }
+    if (process.platform === 'win32') {
+      const source = await readFile(helper);
+      const existing = await readFile(wrapper).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; return undefined; });
+      // An active Windows executable is locked. Reactivation of the same
+      // extension only refreshes its config, without rewriting its wrapper.
+      if (existing?.equals(source)) return;
+      const temporary = `${wrapper}.${randomUUID()}.tmp`;
+      try { await copyFile(helper, temporary); await rename(temporary, wrapper); }
+      catch (error) { throw new Error(`Could not update the Codex wrapper. Close Codex windows using Multi Codex and retry. ${error instanceof Error ? error.message : error}`); }
+      finally { await rm(temporary, { force: true }); }
+      return;
+    }
     await replaceFile(wrapper, `#!/bin/sh\nexport ELECTRON_RUN_AS_NODE=1\nexec ${quote(process.execPath)} ${quote(join(context.extensionPath, 'dist', 'bridge-main.cjs'))} --bridge-config ${quote(configPath)} "$@"\n`, 0o700);
   }
   async function switchAccount(accountOrId?: Account | string) {
