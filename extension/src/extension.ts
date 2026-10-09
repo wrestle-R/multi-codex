@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { controlEndpoint, helperName, wrapperName, spawnExecutable, terminateExecutable } from './native';
+import { usageSummary, refreshAllAccounts } from './usage';
 import { AccountClient, type Account } from './accounts';
 import { BridgeClient } from './client';
 import { JsonLines, RpcPeer } from './protocol';
@@ -12,6 +15,8 @@ import { CodexBridge } from './bridge';
 import { findCodexBackend, tapBackend } from './stdio-tap';
 import { bundledEnginePath } from './platform';
 import { resolveAccountPaths } from './storage';
+import { extensionVersion } from './version';
+import { waitForReady } from './connection';
 function quote(value: string) { return `'${value.replace(/'/g, `'"'"'`)}'`; }
 
 class AccountsTree implements vscode.TreeDataProvider<Account> {
@@ -20,16 +25,21 @@ class AccountsTree implements vscode.TreeDataProvider<Account> {
   accounts: Account[] = [];
   state: any = null;
   usage = new Map<string, string>();
+  checkedAt = new Map<string, number>();
+  checking = new Set<string>();
   refresh() { this.emitter.fire(); }
   getChildren() { return this.accounts; }
   getTreeItem(account: Account) {
     const item = new vscode.TreeItem(account.name);
     item.id = account.id;
     const active = this.state?.selectedId === account.id;
-    item.description = [active ? 'Active' : account.accountTier ?? account.authMode, this.usage.get(account.id)].filter(Boolean).join(' · ');
+    item.description = [active ? `Active · ${account.accountTier ?? account.authMode}` : account.accountTier ?? account.authMode, this.checking.has(account.id) ? 'Checking usage…' : this.usage.get(account.id)].filter(Boolean).join(' · ');
     item.tooltip = [account.name, account.accountTier ?? account.authMode, active ? 'Currently used by Codex' : 'Click to use this account in the current Codex window', this.usage.get(account.id), account.notes].filter(Boolean).join('\n');
     item.contextValue = 'multiCodexAccount';
-    item.iconPath = new vscode.ThemeIcon(active ? 'check' : 'account');
+    item.iconPath = new vscode.ThemeIcon(this.checking.has(account.id) ? 'sync~spin' : active ? 'pass-filled' : account.error ? 'warning' : 'account', active ? new vscode.ThemeColor('testing.iconPassed') : undefined);
+    const checked = this.checkedAt.get(account.id);
+    if (checked) item.tooltip += `\nChecked ${new Date(checked).toLocaleTimeString()}`;
+    if (account.error) item.tooltip += `\n${account.error}`;
     item.command = { command: 'multiCodex.switchAccount', title: 'Switch account', arguments: [account] };
     return item;
   }
@@ -45,8 +55,10 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(status, view);
   let accounts: AccountClient | undefined; let bridge: BridgeClient | undefined;
   let runtimeRoot = ''; let engine = ''; let helper = ''; let root = ''; let globalHome = '';
-  let monitor: NodeJS.Timeout | undefined; let connecting = false; let accountsRefreshing = false;
+  let monitor: NodeJS.Timeout | undefined; let connectionPending: Promise<void> | undefined; let connectedSocket = ''; let accountsRefreshing = false;
   let usage: any = null; let usageAt = 0;
+  let refreshingUsage: Promise<void> | undefined;
+  const usageOperations = new Map<string, Promise<unknown>>();
   let setupPending: Promise<void> | undefined;
   let preparePending: Promise<void> | undefined; let storageError = '';
   function display() {
@@ -59,7 +71,7 @@ export async function activate(context: vscode.ExtensionContext) {
       : !tree.accounts.length ? 'No saved accounts yet. Use + above to sign in or import an account.'
       : setupPending ? 'Connecting to Codex…'
       : state?.switching ? 'Switching account…'
-      : state?.ready && !state.canSwitch ? state.reason
+      : state?.connectionFailed || state?.ready && !state.canSwitch ? state.reason
       : undefined;
     status.text = setupPending ? '$(sync~spin) Connecting Codex…' : state?.switching ? '$(sync~spin) Switching Codex…' : account ? `$(account) ${account.name}` : state?.ready ? '$(account) Codex · Current home' : '$(account) Multi Codex';
     status.tooltip = storageError || (!bridge ? 'Choose an account to connect to Codex automatically' : state?.reason ?? (account ? `Codex is using ${account.name}` : `Codex started from ${state?.sourceHome ?? globalHome}\nChoose an account to change this window’s login`));
@@ -73,16 +85,23 @@ export async function activate(context: vscode.ExtensionContext) {
     finally { accountsRefreshing = false; }
   }
   async function connect() {
-    if (!runtimeRoot || bridge || connecting) return; connecting = true;
+    if (!runtimeRoot || bridge && !bridge.state?.connectionFailed) return;
+    if (connectionPending) return connectionPending;
+    connectionPending = discoverConnection();
+    try { await connectionPending; } finally { connectionPending = undefined; }
+  }
+  async function discoverConnection() {
     try {
       const registration = JSON.parse(await readFile(join(runtimeRoot, 'connections', `${process.pid}.json`), 'utf8'));
+      if (bridge && registration.socket === connectedSocket) return;
+      bridge?.dispose(); bridge = undefined;
       bridge = await BridgeClient.connect(registration.socket, registration.token);
+      connectedSocket = registration.socket;
       const thisBridge = bridge;
       thisBridge.on('state', () => display());
       thisBridge.on('close', () => { if (bridge === thisBridge) { bridge = undefined; display(); } });
       display();
     } catch { /* Discovery is expected to fail until the backend starts through the bridge. */ }
-    finally { connecting = false; }
   }
   async function prepare() {
     if (preparePending) return preparePending;
@@ -100,15 +119,16 @@ export async function activate(context: vscode.ExtensionContext) {
     root = paths.dataRoot; globalHome = paths.globalHome;
     engine = await bundledEnginePath(codex.extensionPath);
     runtimeRoot = join(context.globalStorageUri.fsPath, 'runtime');
-    helper = join(context.extensionPath, 'bin', 'multi-codex-account-helper'); await access(helper);
+    helper = join(context.extensionPath, 'bin', helperName); await access(helper);
     await mkdir(root, { recursive: true, mode: 0o700 }); await mkdir(runtimeRoot, { recursive: true, mode: 0o700 });
-    accounts?.dispose();
+    if (process.platform === 'win32') await promisify(execFile)(helper, ['--protect-directory', runtimeRoot], { windowsHide: true });
+    await accounts?.dispose();
     accounts = new AccountClient(helper, engine, root, globalHome);
     // Refresh an existing launcher before another normal Codex startup. Account
     // discovery's global home must never replace an inherited desktop account home.
-    if (vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable') === join(runtimeRoot, 'codex-bridge')) await writeBridgeLauncher();
+    if (vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable') === join(runtimeRoot, wrapperName)) await writeBridgeLauncher();
     try { await refreshAccounts(); }
-    catch (error) { accounts.dispose(); accounts = undefined; throw error; }
+    catch (error) { await accounts.dispose(); accounts = undefined; throw error; }
     if (monitor) clearInterval(monitor);
     monitor = setInterval(() => { void connect(); void refreshAccounts().catch(() => {}); }, 1500);
     context.subscriptions.push({ dispose() { if (monitor) clearInterval(monitor); bridge?.dispose(); accounts?.dispose(); } });
@@ -123,12 +143,22 @@ export async function activate(context: vscode.ExtensionContext) {
   async function configureBridge() {
     if (!accounts?.isRunning) await prepare();
     const current = vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable');
-    const wrapper = join(runtimeRoot, 'codex-bridge');
+    const wrapper = join(runtimeRoot, wrapperName);
     if (current && current !== wrapper) throw new Error('Codex already has a custom executable. Restore its bundled executable before enabling Multi Codex.');
     await writeBridgeLauncher();
     if (current !== wrapper) await context.globalState.update('previousCliExecutable', current ?? null);
     await vscode.workspace.getConfiguration('chatgpt').update('cliExecutable', wrapper, vscode.ConfigurationTarget.Global);
     await connect();
+    if (!bridge) {
+      const codex = vscode.extensions.getExtension('openai.chatgpt')!;
+      if (!codex.isActive) await codex.activate();
+      await vscode.commands.executeCommand('chatgpt.openSidebar');
+      const deadline = Date.now() + 15000;
+      while (!bridge && !findCodexBackend(engine) && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await connect();
+      }
+    }
     if (!bridge) {
       const child = findCodexBackend(engine);
       if (child) {
@@ -139,7 +169,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const tap = tapBackend(child);
         const live = new CodexBridge({ engine, helper, dataRoot: root, globalHome, sessionHome,
           workspace, sourceHome: process.env.CODEX_HOME || globalHome, attached: true,
-          socket: join(tmpdir(), `mc-${process.getuid?.() ?? 'user'}-${session.slice(0, 12)}.sock`), token: randomBytes(32).toString('hex') }, tap.frontend, [], tap);
+          socket: controlEndpoint(session), token: randomBytes(32).toString('hex') }, tap.frontend, [], tap);
         try {
           await live.attachReady(); await live.listen();
           bridge = await BridgeClient.connect(live.config.socket, live.config.token);
@@ -157,15 +187,27 @@ export async function activate(context: vscode.ExtensionContext) {
   }
   async function writeBridgeLauncher() {
     const config = { engine, helper, dataRoot: root, globalHome, startupHome: process.env.CODEX_HOME || globalHome,
-      officialExtensionPath: vscode.extensions.getExtension('openai.chatgpt')!.extensionPath, runtimeRoot };
-    const configPath = join(runtimeRoot, 'bridge-config.json');
+      officialExtensionPath: vscode.extensions.getExtension('openai.chatgpt')!.extensionPath, runtimeRoot, nodeExecutable: process.execPath, bridgeScript: join(context.extensionPath, 'dist', 'bridge-main.cjs') };
+    const configPath = join(runtimeRoot, process.platform === 'win32' ? 'codex-bridge.json' : 'bridge-config.json');
     async function replaceFile(path: string, contents: string, mode: number) {
       const temporary = `${path}.${randomUUID()}.tmp`;
       try { await writeFile(temporary, contents, { mode }); await rename(temporary, path); }
       finally { await rm(temporary, { force: true }); }
     }
     await replaceFile(configPath, JSON.stringify(config), 0o600);
-    const wrapper = join(runtimeRoot, 'codex-bridge');
+    const wrapper = join(runtimeRoot, wrapperName);
+    if (process.platform === 'win32') {
+      const source = await readFile(helper);
+      const existing = await readFile(wrapper).catch((error: NodeJS.ErrnoException) => { if (error.code !== 'ENOENT') throw error; return undefined; });
+      // An active Windows executable is locked. Reactivation of the same
+      // extension only refreshes its config, without rewriting its wrapper.
+      if (existing?.equals(source)) return;
+      const temporary = `${wrapper}.${randomUUID()}.tmp`;
+      try { await copyFile(helper, temporary); await rename(temporary, wrapper); }
+      catch (error) { throw new Error(`Could not update the Codex wrapper. Close Codex windows using Multi Codex and retry. ${error instanceof Error ? error.message : error}`); }
+      finally { await rm(temporary, { force: true }); }
+      return;
+    }
     await replaceFile(wrapper, `#!/bin/sh\nexport ELECTRON_RUN_AS_NODE=1\nexec ${quote(process.execPath)} ${quote(join(context.extensionPath, 'dist', 'bridge-main.cjs'))} --bridge-config ${quote(configPath)} "$@"\n`, 0o700);
   }
   async function switchAccount(accountOrId?: Account | string) {
@@ -177,35 +219,51 @@ export async function activate(context: vscode.ExtensionContext) {
     }
     await connect(); if (!bridge) await setupBridge();
     if (!bridge) throw new Error('Codex could not connect. Open its panel and retry.');
-    const state = await bridge.request('state');
+    const activeBridge = bridge;
+    const state = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Connecting to Codex', cancellable: false }, () => waitForReady(() => activeBridge.request('state')));
     if (!state.canSwitch) throw new Error(state.reason);
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Switching Codex account', cancellable: false }, async () => { await bridge!.request('switch', { id }); });
-    bridge.state = await bridge.request('state'); usage = null; usageAt = 0; display();
+    if (bridge !== activeBridge) throw new Error('Codex reconnected while preparing the account switch. Retry your selection.');
+    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Switching Codex account', cancellable: false }, async () => { await activeBridge.request('switch', { id }); });
+    activeBridge.state = await activeBridge.request('state'); usage = null; usageAt = 0; display();
     const selected = tree.accounts.find(account => account.id === id);
     void vscode.window.showInformationMessage(`Codex is now using ${selected?.name ?? 'the selected account'}. Login verified. This window’s conversations and home resources are preserved.`);
   }
   async function refreshUsage() {
-    if (!accounts?.isRunning) await prepare();
-    await connect();
-    if (!bridge?.state.selectedId) {
-      const selected = await vscode.window.showQuickPick(tree.accounts.map(account => ({ label: account.name, description: account.accountTier ?? account.authMode, account })), { title: 'Check account usage' });
-      return selected ? checkAccountUsage(selected.account) : undefined;
-    }
-    usage = await bridge.request('usage'); usageAt = Date.now();
-    const windows = [usage.rateLimits?.primary, usage.rateLimits?.secondary].filter(Boolean);
-    const text = windows.map((window: any) => `${Math.max(0, 100 - window.usedPercent)}% left (${window.windowDurationMins >= 10080 ? 'weekly' : 'short-term'})`).join(' · ');
-    status.tooltip = `${status.tooltip}\n${text}\nChecked ${new Date(usageAt).toLocaleTimeString()}`;
-    tree.usage.set(bridge.state.selectedId, text || 'Usage unavailable'); display(); return usage;
+    if (refreshingUsage) return refreshingUsage;
+    refreshingUsage = (async () => {
+      if (!accounts?.isRunning) await prepare();
+      await refreshAccounts(); await connect();
+      const saved = [...tree.accounts];
+      if (!saved.length) { void vscode.window.showInformationMessage('Add an account to check usage.'); return; }
+      await vscode.window.withProgress({ location: { viewId: 'multiCodex.accounts' }, title: 'Checking all accounts' }, async progress => {
+        let finished = 0; let failed = 0;
+        await refreshAllAccounts(saved, checkAccountUsage, (account, error) => {
+          finished++; if (error) { failed++; tree.usage.set(account.id, 'Check failed'); }
+          progress.report({ message: `${finished}/${saved.length} accounts`, increment: 100 / saved.length }); display();
+        });
+        if (failed) void vscode.window.showWarningMessage(`Checked ${saved.length} accounts. ${failed} could not refresh; use the account’s usage action to retry and see its error.`);
+      });
+    })();
+    try { await refreshingUsage; } finally { refreshingUsage = undefined; }
   }
-  async function checkAccountUsage(account: Account) {
+  function checkAccountUsage(account: Account): Promise<unknown> {
+    const existing = usageOperations.get(account.id); if (existing) return existing;
+    const pending = readAccountUsage(account).finally(() => usageOperations.delete(account.id));
+    usageOperations.set(account.id, pending); return pending;
+  }
+  async function readAccountUsage(account: Account) {
     if (!accounts?.isRunning) await prepare();
     if (!tree.accounts.some(saved => saved.id === account.id)) throw new Error('Account not found');
-    const result = bridge?.state.selectedId === account.id ? await bridge.request('usage')
-      : await accounts!.withCredentialLock(account.id, async () => { await accounts!.credential(account.id); return withAccountBackend(engine, join(root, 'profiles', account.id, 'codex-home'), rpc => rpc.request('account/rateLimits/read')); });
-    const windows = [result.rateLimits?.primary, result.rateLimits?.secondary].filter(Boolean);
-    tree.usage.set(account.id, windows.map((window: any) => `${Math.max(0, 100 - window.usedPercent)}% left (${window.windowDurationMins >= 10080 ? 'weekly' : 'short-term'})`).join(' · ') || 'Usage unavailable');
-    display(); return result;
+    tree.checking.add(account.id); display();
+    try {
+      const result = bridge?.state.selectedId === account.id ? await bridge.request('usage')
+        : await accounts!.withCredentialLock(account.id, async () => { await accounts!.credential(account.id); return withAccountBackend(engine, join(root, 'profiles', account.id, 'codex-home'), rpc => rpc.request('account/rateLimits/read')); });
+      tree.usage.set(account.id, usageSummary(result)); tree.checkedAt.set(account.id, Date.now());
+      if (bridge?.state.selectedId === account.id) { usage = result; usageAt = Date.now(); }
+      return result;
+    } finally { tree.checking.delete(account.id); display(); }
   }
+
   async function addAccount() {
     if (!accounts?.isRunning) await prepare();
     const name = await vscode.window.showInputBox({ title: 'Account name', prompt: 'A label for this Codex account', validateInput: value => !value.trim() ? 'Enter an account name' : undefined });
@@ -225,10 +283,10 @@ export async function activate(context: vscode.ExtensionContext) {
     await writeFile(join(directory, 'config.toml'), 'cli_auth_credentials_store = "file"\n[analytics]\nenabled = false\n', { mode: 0o600 });
     const loginEnvironment: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: directory, CODEX_SQLITE_HOME: directory };
     delete loginEnvironment.OPENAI_API_KEY; delete loginEnvironment.CODEX_API_KEY; delete loginEnvironment.ELECTRON_RUN_AS_NODE;
-    const child = spawn(engine, ['app-server'], { env: loginEnvironment, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawnExecutable(engine, ['app-server'], { env: loginEnvironment });
     child.stderr.resume(); const lines = new JsonLines(child.stdout, child.stdin); const rpc = new RpcPeer(lines, 'login:');
     try {
-      await rpc.request('initialize', { clientInfo: { name: 'multi_codex_login', version: '0.1.0' } }); lines.send({ method: 'initialized' });
+      await rpc.request('initialize', { clientInfo: { name: 'multi_codex_login', version: extensionVersion } }); lines.send({ method: 'initialized' });
       await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: 'Finish signing in to Codex in your browser', cancellable: true }, async (_, cancellation) => {
         const complete: Promise<void> = new Promise((resolve, reject) => {
           lines.on('message', message => { if (message.method === 'account/login/completed') message.params?.success ? resolve() : reject(new Error('Codex sign-in did not complete')); });
@@ -246,7 +304,7 @@ export async function activate(context: vscode.ExtensionContext) {
         } finally { if (timeout) clearTimeout(timeout); }
         const authJson = await readFile(join(directory, 'auth.json'), 'utf8'); await accounts!.request('accounts/add', { name, authJson });
       });
-    } finally { rpc.close(); child.kill(); const fs = await import('node:fs/promises'); await fs.rm(directory, { recursive: true, force: true }); }
+    } finally { rpc.close(); await terminateExecutable(child); const fs = await import('node:fs/promises'); await fs.rm(directory, { recursive: true, force: true }); }
     await refreshAccounts();
   }
   function command(name: string, action: (...args: any[]) => Promise<any>) {
@@ -261,13 +319,17 @@ export async function activate(context: vscode.ExtensionContext) {
   command('multiCodex.addAccount', addAccount);
   command('multiCodex.renameAccount', async (account: Account) => { const name = await vscode.window.showInputBox({ title: 'Rename account', value: account.name }); if (name) { await accounts!.request('accounts/rename', { id: account.id, name }); await refreshAccounts(); } });
   command('multiCodex.removeAccount', async (account: Account) => { if (bridge?.state.selectedId === account.id) throw new Error('Switch away from this account before removing it.'); const answer = await vscode.window.showWarningMessage(`Remove saved account “${account.name}”?`, { modal: true }, 'Remove'); if (answer === 'Remove') { await accounts!.request('accounts/delete', { id: account.id }); await refreshAccounts(); } });
-  command('multiCodex.disableSwitching', async () => { const wrapper = join(runtimeRoot, 'codex-bridge'); const settings = vscode.workspace.getConfiguration('chatgpt'); if (settings.get('cliExecutable') === wrapper) await settings.update('cliExecutable', context.globalState.get('previousCliExecutable', null), vscode.ConfigurationTarget.Global); vscode.window.showInformationMessage('The bundled Codex executable will be restored the next time Codex starts.'); });
+  command('multiCodex.disableSwitching', async () => { const wrapper = join(runtimeRoot, wrapperName); const settings = vscode.workspace.getConfiguration('chatgpt'); if (settings.get('cliExecutable') === wrapper) await settings.update('cliExecutable', context.globalState.get('previousCliExecutable', null), vscode.ConfigurationTarget.Global); vscode.window.showInformationMessage('The bundled Codex executable will be restored the next time Codex starts.'); });
   try { await prepare(); } catch { /* Storage errors are shown inline with a retry action. */ }
   return {
     activationId, refreshAccounts, switchAccount, enableSwitching: setupBridge,
-    async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, storageError, panelMessage: view.message, bridge: bridge ? await bridge.request('state') : null }; },
+    async getState() { await connect(); return { activationId, extensionHostPid: process.pid, accounts: tree.accounts, storageError, panelMessage: view.message, usageSummaries: Object.fromEntries(tree.usage), bridge: bridge ? await bridge.request('state') : null }; },
     ...(process.env.MULTI_CODEX_TEST_MODE === '1' ? {
-      testBackendInfo() { return { pid: findCodexBackend(engine)?.pid, activationId, hostPid: process.pid }; },
+      testBackendInfo() {
+        const children = ((process as any)._getActiveHandles?.() ?? []).filter((handle: any) => typeof handle.spawnfile === 'string')
+          .map((child: any) => ({ executable: child.spawnfile, appServer: child.spawnargs?.includes('app-server'), alive: child.exitCode === null && !child.killed }));
+        return { pid: findCodexBackend(engine)?.pid, expectedEngine: engine, children, activationId, hostPid: process.pid };
+      },
       async testStopAccountHelper() {
         const child = accounts?.child;
         if (!child || !accounts?.isRunning) return;

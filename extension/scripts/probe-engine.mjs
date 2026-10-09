@@ -31,7 +31,7 @@ function request(method, params = {}) {
   });
 }
 try {
-  await request('initialize', { clientInfo: { name: 'multi_codex_probe', version: '0.1.0' }, capabilities: { experimentalApi: true } });
+  await request('initialize', { clientInfo: { name: 'multi_codex_probe', version: JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version }, capabilities: { experimentalApi: true } });
   child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
   let profiles = [syntheticAuth('synthetic-account-a'), syntheticAuth('synthetic-account-b')];
   if (live) {

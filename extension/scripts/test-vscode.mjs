@@ -1,5 +1,5 @@
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile, readFile, readdir, symlink, stat, access, rm, rename } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile, readFile, readdir, symlink, cp, stat, access, rm, rename } from 'node:fs/promises';
 import { tmpdir, homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -9,7 +9,7 @@ import { chromium } from 'playwright-core';
 import { inspectWebview } from './webview-inspector.mjs';
 import { cleanupFixture } from './cleanup-fixture.mjs';
 import { createRequire } from 'node:module';
-const { bundledEnginePath } = createRequire(import.meta.url)('../dist/core.cjs');
+const { bundledEnginePath, helperName, wrapperName } = createRequire(import.meta.url)('../dist/core.cjs');
 
 async function discoverExtension() {
   if (process.env.MULTI_CODEX_TEST_EXTENSION) return process.env.MULTI_CODEX_TEST_EXTENSION;
@@ -37,15 +37,19 @@ const portProbe = createServer(); await new Promise(resolve => portProbe.listen(
 const debugPort = portProbe.address().port; await new Promise(resolve => portProbe.close(resolve));
 const testRoot = await mkdtemp(join(tmpdir(), 'multi-codex-vscode-'));
 const fixture = await localService({ port: 8000 });
-const storage = join(testRoot, 'data'); const globalHome = join(testRoot, 'global-home'); const runtimeRoot = join(testRoot, 'runtime');
+const storage = join(testRoot, 'data'); const globalHome = join(testRoot, 'global-home');
+const ownStorage = join(testRoot, 'user-data', 'User', 'globalStorage', extensionId);
+// The native Windows helper rejects junctions at its private runtime boundary.
+// Exercise the actual VS Code storage directory rather than a fixture alias.
+const runtimeRoot = process.platform === 'win32' ? join(ownStorage, 'runtime') : join(testRoot, 'runtime');
 await mkdir(join(testRoot, 'workspace'), { recursive: true });
 await mkdir(join(testRoot, 'user-data', 'User'), { recursive: true }); await mkdir(join(testRoot, 'extensions'));
 // Only the disposable copy gets a fetch shim. Every official-extension HTTP call stays local.
 const testExtension = join(testRoot, 'extensions', `openai.chatgpt-${packageInfo.version}`);
 await mkdir(testExtension);
-for (const entry of await readdir(extension)) if (entry !== 'out') await symlink(join(extension, entry), join(testExtension, entry));
+for (const entry of await readdir(extension)) if (entry !== 'out') { if (process.platform === 'win32') await cp(join(extension, entry), join(testExtension, entry), { recursive: true }); else await symlink(join(extension, entry), join(testExtension, entry)); }
 await mkdir(join(testExtension, 'out'));
-for (const entry of await readdir(join(extension, 'out'))) if (entry !== 'extension.js') await symlink(join(extension, 'out', entry), join(testExtension, 'out', entry));
+for (const entry of await readdir(join(extension, 'out'))) if (entry !== 'extension.js') { if (process.platform === 'win32') await cp(join(extension, 'out', entry), join(testExtension, 'out', entry), { recursive: true }); else await symlink(join(extension, 'out', entry), join(testExtension, 'out', entry)); }
 const fetchShim = `const multiCodexOriginalFetch = globalThis.fetch; globalThis.fetch = (input, options) => { const url = new URL(typeof input === 'string' ? input : input.url ?? input.toString()); if (url.protocol === 'http:' || url.protocol === 'https:') return multiCodexOriginalFetch(${JSON.stringify(fixture.origin)} + url.pathname + url.search, options); return multiCodexOriginalFetch(input, options); };\n`;
 const preparedUser = `\nconst multiCodexActivate = module.exports.activate; module.exports = { ...module.exports, activate: async (context, ...args) => { for (const key of ['viewed2025-09-15-nux', 'viewed2025-09-15-full-chatgpt-auth-nux', 'viewed2025-09-15-apikey-auth-nux']) await context.globalState.update(key, true); return multiCodexActivate(context, ...args); } };\n`;
 await writeFile(join(testExtension, 'out', 'extension.js'), fetchShim + await readFile(join(extension, 'out', 'extension.js'), 'utf8') + preparedUser);
@@ -64,13 +68,14 @@ await writeFile(join(storage, 'profiles.json'), JSON.stringify(profiles), { mode
 // the extension host inherits a managed account's CODEX_HOME.
 // Exercise a visible initial storage error and repair it from the test extension.
 await writeFile(join(storage, 'executables.json'), 'incomplete desktop settings', { mode: 0o600 });
-await mkdir(runtimeRoot);
+await mkdir(runtimeRoot, { recursive: true });
 const bundledEngine = await bundledEnginePath(extension);
-const configPath = join(runtimeRoot, 'bridge-config.json');
-await writeFile(configPath, JSON.stringify({ engine: bundledEngine, helper: join(developmentPath, 'bin/multi-codex-account-helper'), dataRoot: storage, globalHome, runtimeRoot }), { mode: 0o600 });
-const wrapper = join(runtimeRoot, 'codex-bridge');
+const configPath = join(runtimeRoot, process.platform === 'win32' ? 'codex-bridge.json' : 'bridge-config.json');
+await writeFile(configPath, JSON.stringify({ engine: bundledEngine, helper: join(developmentPath, 'bin', helperName), dataRoot: storage, globalHome, runtimeRoot, nodeExecutable: code, bridgeScript: join(developmentPath, 'dist/bridge-main.cjs') }), { mode: 0o600 });
+const wrapper = join(runtimeRoot, wrapperName);
 const quote = value => `'${value.replace(/'/g, `'"'"'`)}'`;
-await writeFile(wrapper, `#!/bin/sh\nexport ELECTRON_RUN_AS_NODE=1\nexec ${quote(code)} ${quote(join(developmentPath, 'dist/bridge-main.cjs'))} --bridge-config ${quote(configPath)} "$@"\n`, { mode: 0o700 });
+if (process.platform === 'win32') await cp(join(developmentPath, 'bin', helperName), wrapper);
+else await writeFile(wrapper, `#!/bin/sh\nexport ELECTRON_RUN_AS_NODE=1\nexec ${quote(code)} ${quote(join(developmentPath, 'dist/bridge-main.cjs'))} --bridge-config ${quote(configPath)} "$@"\n`, { mode: 0o700 });
 await writeFile(join(testRoot, 'user-data', 'User', 'settings.json'), JSON.stringify({
   'multiCodex.dataDirectory': storage,
   ...(!liveAttach ? { 'chatgpt.cliExecutable': wrapper } : {}), 'chatgpt.openOnStartup': true,
@@ -79,8 +84,8 @@ await writeFile(join(testRoot, 'user-data', 'User', 'settings.json'), JSON.strin
   'extensions.autoCheckUpdates': false, 'workbench.startupEditor': 'none',
 }));
 // The extension's storage root is fixed by VS Code; point discovery at the same fixture runtime.
-const ownStorage = join(testRoot, 'user-data', 'User', 'globalStorage', extensionId);
-await mkdir(ownStorage, { recursive: true }); await symlink(runtimeRoot, join(ownStorage, 'runtime'));
+await mkdir(ownStorage, { recursive: true });
+if (process.platform !== 'win32') await symlink(runtimeRoot, join(ownStorage, 'runtime'), 'dir');
 const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('CODEX_') && !key.startsWith('OPENAI_')));
 delete env.ELECTRON_RUN_AS_NODE; delete env.VSCODE_IPC_HOOK_CLI; delete env.VSCODE_PID;
 const child = spawn(code, ['--user-data-dir', join(testRoot, 'user-data'), '--extensions-dir', join(testRoot, 'extensions'),
@@ -126,13 +131,19 @@ const uiPolling = setInterval(async () => {
       if (await page.getByText('Enable switching', { exact: true }).count() || await page.getByText('Add an account', { exact: true }).count()) throw new Error('Large welcome buttons are still present');
     }
     await page.screenshot({ path: `.test-results/panel-${phase.label.replace(/[^a-zA-Z0-9-]/g, '-')}.png` });
-    uiPhases.push({ label: phase.label, frames });
-    await writeFile('.test-results/panel-observations.json', JSON.stringify(uiPhases, null, 2));
+    const observation = { label: phase.label, frames };
+    await writeFile('.test-results/panel-observations.json', JSON.stringify([...uiPhases, observation], null, 2));
     // Publish a complete acknowledgement: the extension host polls this file
     // concurrently, and reading a partially written JSON file is a test race.
     await writeFile(join(testRoot, 'ui-ack.tmp'), JSON.stringify({ label: phase.label }));
     await rename(join(testRoot, 'ui-ack.tmp'), join(testRoot, 'ui-ack.json'));
-  } catch { /* Renderer may still be starting; retry before the integration timeout. */ }
+    // Mark complete only after publication succeeds. Windows can briefly hold
+    // the old acknowledgement open; a failed replacement must remain retryable.
+    uiPhases.push(observation);
+  } catch (error) {
+    await writeFile('.test-results/ui-inspector-last-error.json', JSON.stringify({ message: error.message, code: error.code })).catch(() => {});
+    /* Renderer or an acknowledgement file may still be busy; retry. */
+  }
   finally { uiBusy = false; }
 }, 100);
 console.log(`Testing Codex ${packageInfo.version} in ${testRoot}`);
@@ -165,6 +176,6 @@ try {
   process.exitCode = 1;
 } finally {
   await fixture.close();
-  if (process.exitCode !== 1) await cleanupFixture(testRoot, bundledEngine, join(developmentPath, 'bin/multi-codex-account-helper'));
+  if (process.exitCode !== 1) await cleanupFixture(testRoot, bundledEngine, join(developmentPath, 'bin', helperName));
   else console.error(`Failure artifacts retained in ${testRoot}`);
 }

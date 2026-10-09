@@ -1,79 +1,17 @@
 # Multi Codex
 
-Your Codex accounts, your choice of VS Code, the Codex app, or CLI. Keep your default login untouched.
+Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your default login untouched.
 
-[Website and docs](https://multi-codex.vercel.app) · [Quick start](https://multi-codex.vercel.app/docs) · [Changelog](https://multi-codex.vercel.app/releases)
+**The website is the primary documentation source.**
 
-<img src="tauri/public/accounts_screenshot.png" alt="Multi Codex — accounts" width="100%" />
+- [Installation and usage](https://multi-codex.vercel.app/docs)
+- [Platform support](https://multi-codex.vercel.app/docs/platform-support)
+- [VS Code extension](https://multi-codex.vercel.app/docs/extension)
+- [Changelog](https://multi-codex.vercel.app/releases)
+- [Downloads](https://github.com/wrestle-R/multi-codex/releases/latest)
+- [Wiki](https://github.com/wrestle-R/multi-codex/wiki)
+- [Contributing and release process](CONTRIBUTING.md)
 
-<img src="tauri/public/workspace_screenshot.png" alt="Multi Codex — workspace and desktop selection" width="100%" />
+<img src="tauri/public/accounts_screenshot.png" alt="Multi Codex accounts" width="100%" />
 
-Install and update use the [latest release](https://github.com/wrestle-R/multi-codex/releases/latest), including its matching installer scripts. Current release: **v1.3.8**.
-
-Launch settings includes a **CLI terminal** selector for installed terminals, including Kitty and Ghostty. CLI launches use the selected account’s saved sign-in; install a complete Codex CLI rather than selecting the VS Code extension helper.
-
-Expiring usage resets appear in a small reminder at the top when they have **48 hours or less** remaining. Qualifying resets are grouped across accounts. Reminders appear at most **twice per local day**, at least **four hours apart**, with the limit preserved after restarting the app.
-
-## Latest changes
-
-**v1.3.8** improves Launch settings and the terminal picker:
-
-- Workspace and Launching settings have separate sections, with Save and Cancel always visible.
-- The terminal picker shows Automatic and supported installed terminals, with keyboard navigation.
-- A saved terminal that is no longer installed displays guidance for choosing a replacement.
-
-The [changelog](https://multi-codex.vercel.app/releases) groups updates by release series, newest first, with version-specific dates and links to full release notes. See [release and contribution guidelines](docs/release-guidelines.md) for versioning, changelog entries and commit titles.
-
-## Add an account
-
-Click **Add account** and choose one of three options:
-
-- **Sign in with browser** — use the sign-in link and one-time code to connect another account.
-- **Paste JSON** — paste the contents of an existing Codex `auth.json` file.
-- **Import current** — save a copy of your current Codex login without changing the original.
-
-Accounts appear in plan order: **Pro → Plus → Go → Free**. Usage limits refresh automatically when the app opens.
-
-## Linux
-
-AppImage for Linux x86_64. See [platform support](docs/platform-support.md) for distribution requirements and desktop integrations.
-
-### Install
-
-```bash
-curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.sh -o /tmp/install-multi-codex.sh
-bash /tmp/install-multi-codex.sh
-```
-
-### Update
-
-```bash
-curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.sh -o /tmp/update-multi-codex.sh
-bash /tmp/update-multi-codex.sh
-```
-
-## Mac
-
-Apple Silicon and macOS 26 or newer. This release has no Apple Developer ID signature and is not notarized; the Mac commands explicitly allow the checksum-verified unsigned build.
-
-Open Multi Codex once. If macOS blocks it, go to **System Settings → Privacy & Security → Open Anyway**, then confirm **Open**. [Apple's first-open instructions](https://support.apple.com/en-us/102445). The installer keeps Gatekeeper and quarantine protections in place.
-
-### Install
-
-```bash
-curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
-```
-
-### Update
-
-```bash
-curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
-```
-
-Updates replace the app while preserving saved accounts and profile data. Close Multi Codex before updating. To update without launching it, add `MULTI_CODEX_NO_LAUNCH=1` to the command.
-
-Standalone launch supports verified Codex desktop version `26.930.51102`. See [tested platforms and remaining validation](docs/platform-support.md).
-
-Install the Codex extension in each isolated VS Code profile before using Codex there.
+Multi Codex is independent and is not affiliated with or endorsed by OpenAI.

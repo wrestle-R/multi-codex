@@ -1,17 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { syntheticAuth } from './fixtures/local-service.mjs';
-const { AccountClient } = createRequire(import.meta.url)('../dist/core.cjs');
+const { AccountClient, helperName } = createRequire(import.meta.url)('../dist/core.cjs');
 const engine = process.env.MULTI_CODEX_TEST_ENGINE;
+test('packaged helper protects Windows runtime and inherited child files', { skip: !engine || process.platform !== 'win32' }, async () => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-runtime-acl-'));
+  const helper = resolve('bin', helperName);
+  try {
+    await promisify(execFile)(helper, ['--protect-directory', root], { windowsHide: true });
+    const child = join(root, 'bridge-config.json');
+    await writeFile(child, '{}');
+    // Windows PowerShell can inherit PowerShell 7's module path on the runner.
+    // Read NTFS security directly through .NET instead of autoloading Get-Acl.
+    const script = `$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Set-StrictMode -Version Latest; $owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $a=[IO.Directory]::GetAccessControl($env:MULTI_CODEX_TEST_DIRECTORY); $b=[IO.File]::GetAccessControl([IO.Path]::Combine($env:MULTI_CODEX_TEST_DIRECTORY,'bridge-config.json')); @{owner=$owner;protected=$a.AreAccessRulesProtected;directory=@($a.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | ForEach-Object {$_.IdentityReference.Value});child=@($b.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]) | ForEach-Object {$_.IdentityReference.Value})} | ConvertTo-Json -Compress`;
+    const { stdout } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, env: { ...process.env, MULTI_CODEX_TEST_DIRECTORY: root } });
+    const acl = JSON.parse(stdout);
+    assert.equal(acl.protected, true);
+    for (const identities of [acl.directory, acl.child]) assert.deepEqual([...new Set(identities)].sort(), [acl.owner, 'S-1-5-18'].sort());
+    await assert.rejects(() => promisify(execFile)(helper, ['--protect-directory', '.'], { windowsHide: true }));
+    const linked = join(root, 'linked-runtime');
+    await symlink(root, linked, 'junction');
+    try { await assert.rejects(() => promisify(execFile)(helper, ['--protect-directory', linked], { windowsHide: true })); }
+    finally { await rm(linked); }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 test('native storage supports standalone add/import, shared discovery and cross-process leases', { skip: !engine }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'mc-native-test-')); const home = join(root, 'default');
   await mkdir(home); const authJson = JSON.stringify(syntheticAuth('synthetic-account-a'));
   await writeFile(join(home, 'auth.json'), authJson);
-  const helper = resolve('bin/multi-codex-account-helper'); const data = join(root, 'data');
+  const helper = resolve('bin', helperName); const data = join(root, 'data');
   const first = new AccountClient(helper, engine, data, home); const second = new AccountClient(helper, engine, data, home);
   try {
     assert.deepEqual(await first.list(), []);
@@ -36,12 +59,12 @@ test('native storage supports standalone add/import, shared discovery and cross-
     assert.equal((await first.list()).length, 6);
     const cold = new AccountClient(helper, engine, data, home);
     try { await cold.request('accounts/delete', { id: active.id }); }
-    finally { cold.dispose(); }
+    finally { await cold.dispose(); }
     assert.equal((await second.list()).length, 5, 'A fresh helper could not remove a persisted account');
   } finally {
     for (const profile of await first.list().catch(() => [])) { await first.request('accounts/release', { id: profile.id }).catch(() => {}); await second.request('accounts/release', { id: profile.id }).catch(() => {}); }
     for (const profile of await first.list().catch(() => [])) { await first.request('accounts/unlockCredential', { id: profile.id }).catch(() => {}); await second.request('accounts/unlockCredential', { id: profile.id }).catch(() => {}); }
     for (const profile of await first.list().catch(() => [])) await first.request('accounts/delete', { id: profile.id }).catch(() => {});
-    first.dispose(); second.dispose(); await rm(root, { recursive: true, force: true });
+    await Promise.all([first.dispose(), second.dispose()]); await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   }
 });

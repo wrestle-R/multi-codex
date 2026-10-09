@@ -7,10 +7,11 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io::{self, Write};
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use std::process::Stdio;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -180,7 +181,7 @@ impl AuthRecognizer for CodexCliRecognizer {
         write_codex_config(temp.path())?;
 
         let codex = resolve_codex_command()?;
-        let output = Command::new(codex)
+        let output = crate::process::background(&mut Command::new(codex))
             .args(["login", "status"])
             .env("CODEX_HOME", temp.path())
             .output()
@@ -574,6 +575,16 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         {
             crate::terminals::launch(terminal, &binary, &args, &workspace)
         }
+        #[cfg(windows)]
+        {
+            crate::windows_platform::launch_cli(
+                terminal,
+                &binary,
+                codex,
+                &paths.codex_home,
+                &workspace,
+            )
+        }
         #[cfg(target_os = "macos")]
         {
             if terminal != crate::terminals::Terminal::Terminal {
@@ -790,6 +801,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !profile.auth_mode.eq_ignore_ascii_case("chatgpt") {
             return Err("Live limits are available only for ChatGPT accounts".to_string());
         }
+        // Usage can rotate tokens. Reuse extension locks so another client
+        // cannot refresh, replace or delete this account before the child exits.
+        let _lease = self.extension_lease(id)?;
+        let _credential_lock = self.extension_credential_lock(id)?;
         self.current_profile_credential(id)?;
         let paths = self.profile_paths(id)?;
         let result = read_profile_limits(&paths.codex_home);
@@ -859,21 +874,13 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     fn metadata_write_lock(&self) -> Result<File> {
-        use std::os::unix::fs::OpenOptionsExt;
         let path = self.data_root.join(".profiles.lock");
         if let Ok(metadata) = fs::symlink_metadata(&path) {
             if !metadata.is_file() || metadata.file_type().is_symlink() {
                 return Err("Account lock must be a regular file".into());
             }
         }
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(path)
-            .map_err(|_| "Could not open account lock")?;
+        let file = crate::file_security::lock_file(&path)?;
         fs2::FileExt::lock_exclusive(&file).map_err(|_| "Could not lock account changes")?;
         Ok(file)
     }
@@ -900,15 +907,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 return Err("Extension lease must be a regular file".into());
             }
         }
-        use std::os::unix::fs::OpenOptionsExt;
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(path)
-            .map_err(|_| "Could not open extension account lease")?;
+        let file = crate::file_security::lock_file(&path)?;
         fs2::FileExt::lock_shared(&file)
             .map_err(|_| "Could not protect the active extension account")?;
         Ok(file)
@@ -924,12 +923,15 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {}
             _ => return Err("Extension lease must be a regular file".into()),
         }
-        let file = File::open(path).map_err(|_| "Could not inspect extension account lease")?;
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path)
+            .map_err(|_| "Could not inspect extension account lease")?;
         Ok(fs2::FileExt::try_lock_exclusive(&file).is_err())
     }
 
     pub(crate) fn extension_credential_lock(&self, id: &str) -> Result<File> {
-        use std::os::unix::fs::OpenOptionsExt;
         validate_id(id)?;
         let path = self
             .profile_paths(id)?
@@ -940,14 +942,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 return Err("Credential lock must be a regular file".into());
             }
         }
-        let file = fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(path)
-            .map_err(|_| "Could not open credential lock")?;
+        let file = crate::file_security::lock_file(&path)?;
         fs2::FileExt::try_lock_exclusive(&file)
             .map_err(|_| "Another window is refreshing this account. Retry in a moment.")?;
         Ok(file)
@@ -1275,9 +1270,7 @@ fn canonical_workspace(workspace: &Path) -> Result<PathBuf> {
 
 pub fn default_service() -> Result<ProfileService<KeyringSecretStore, CodexCliRecognizer>> {
     let home = dirs::home_dir().ok_or_else(|| "Home directory is unavailable".to_string())?;
-    let data_root = dirs::data_dir()
-        .ok_or_else(|| "Data directory is unavailable".to_string())?
-        .join("multi-codex");
+    let data_root = crate::settings::data_root()?;
     let codex_home = crate::settings::global_codex_home(
         &home,
         env::var_os("CODEX_HOME"),
@@ -1403,9 +1396,7 @@ fn atomic_write_metadata(root: &Path, profiles: &[ProfileMetadata]) -> Result<()
     write_private_file(&temp_path, &bytes)?;
     fs::rename(&temp_path, &destination)
         .map_err(|error| format!("Could not save profile metadata: {error}"))?;
-    File::open(root)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|error| format!("Could not sync profile metadata: {error}"))?;
+    crate::file_security::sync_directory(root)?;
     Ok(())
 }
 
@@ -1455,13 +1446,11 @@ fn reclaimable_size(profile_root: &Path) -> Result<u64> {
 }
 
 pub(crate) fn set_owner_only_dir(path: &Path) -> Result<()> {
-    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
-        .map_err(|error| format!("Could not protect {}: {error}", path.display()))
+    crate::file_security::protect(path, true)
 }
 
 fn set_owner_only_file(path: &Path) -> Result<()> {
-    fs::set_permissions(path, fs::Permissions::from_mode(0o600))
-        .map_err(|error| format!("Could not protect {}: {error}", path.display()))
+    crate::file_security::protect(path, false)
 }
 
 fn read_persisted_credential(path: &Path) -> Result<String> {
@@ -1529,17 +1518,13 @@ pub(crate) fn write_private_file(path: &Path, bytes: &[u8]) -> Result<()> {
     }
     let mut temp = tempfile::NamedTempFile::new_in(parent)
         .map_err(|error| format!("Could not create protected temporary file: {error}"))?;
-    temp.as_file()
-        .set_permissions(fs::Permissions::from_mode(0o600))
-        .map_err(|error| format!("Could not protect temporary file: {error}"))?;
+    crate::file_security::protect(temp.path(), false)?;
     temp.write_all(bytes)
         .and_then(|_| temp.as_file().sync_all())
         .map_err(|error| format!("Could not write protected file: {error}"))?;
     temp.persist(path)
         .map_err(|error| format!("Could not replace protected file: {}", error.error))?;
-    File::open(parent)
-        .and_then(|directory| directory.sync_all())
-        .map_err(|error| format!("Could not sync protected file directory: {error}"))
+    crate::file_security::sync_directory(parent)
 }
 
 fn remove_private_file(path: &Path) -> Result<()> {
@@ -1755,6 +1740,12 @@ fn is_extension_cli(path: &Path) -> bool {
 }
 
 fn interactive_codex_with(path: Option<&OsStr>, home: &Path) -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(found) =
+        crate::windows_platform::resolve("codex", path, home).filter(|p| !is_extension_cli(p))
+    {
+        return Some(found);
+    }
     let paths = path
         .map(env::split_paths)
         .into_iter()
@@ -1765,7 +1756,7 @@ fn interactive_codex_with(path: Option<&OsStr>, home: &Path) -> Option<PathBuf> 
         PathBuf::from("/opt/homebrew/bin/codex"),
         PathBuf::from("/usr/local/bin/codex"),
     ];
-    #[cfg(target_os = "linux")]
+    #[cfg(not(target_os = "macos"))]
     let platform_paths: [PathBuf; 0] = [];
     paths
         .chain([
@@ -1784,6 +1775,10 @@ fn require_codex_command(path: Option<&OsStr>, home: &Path) -> Result<PathBuf> {
 }
 
 fn resolve_command_with(name: &str, path: Option<&OsStr>, home: &Path) -> Option<PathBuf> {
+    #[cfg(windows)]
+    if let Some(found) = crate::windows_platform::resolve(name, path, home) {
+        return Some(found);
+    }
     if let Some(candidate) = path.and_then(|paths| {
         env::split_paths(paths)
             .map(|directory| directory.join(name))
@@ -1833,11 +1828,18 @@ fn resolve_command_with(name: &str, path: Option<&OsStr>, home: &Path) -> Option
 }
 
 pub(crate) fn is_executable_file(path: &Path) -> bool {
-    fs::metadata(path)
-        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+    #[cfg(unix)]
+    return fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0);
+    #[cfg(windows)]
+    return path.is_file()
+        && path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("exe"));
 }
 
 fn find_extension_codex(home: &Path) -> Option<PathBuf> {
+    #[cfg(windows)]
+    const PLATFORM: &str = "windows-x86_64";
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
     const PLATFORM: &str = "linux-x86_64";
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -1847,6 +1849,7 @@ fn find_extension_codex(home: &Path) -> Option<PathBuf> {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     const PLATFORM: &str = "darwin-arm64";
     #[cfg(not(any(
+        windows,
         all(target_os = "linux", target_arch = "x86_64"),
         all(target_os = "linux", target_arch = "aarch64"),
         all(target_os = "macos", target_arch = "x86_64"),
@@ -1883,9 +1886,16 @@ fn find_extension_codex_for_platform(home: &Path, platform: &str) -> Option<Path
         .into_iter()
         .rev()
         .flat_map(|extension| {
-            directories
-                .iter()
-                .map(move |directory| extension.join("bin").join(directory).join("codex"))
+            directories.iter().map(move |directory| {
+                extension
+                    .join("bin")
+                    .join(directory)
+                    .join(if directory.starts_with("windows-") {
+                        "codex.exe"
+                    } else {
+                        "codex"
+                    })
+            })
         })
         .find(|candidate| is_executable_file(candidate))
 }
@@ -2011,6 +2021,10 @@ fn macos_vscode_alias_in(root: &Path, vscode_home: &Path, id: &str) -> Result<Pa
 }
 
 pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
+    #[cfg(windows)]
+    if crate::windows_platform::process_uses_home(pid, vscode_home) {
+        return true;
+    }
     if vscode_home
         .file_name()
         .is_some_and(|name| name == "codex-home")
@@ -2020,6 +2034,8 @@ pub(crate) fn process_uses_profile(pid: u32, vscode_home: &Path) -> bool {
         let environment = fs::read(format!("/proc/{pid}/environ")).ok();
         #[cfg(target_os = "macos")]
         let environment = macos_process_info(pid);
+        #[cfg(windows)]
+        let environment: Option<Vec<u8>> = None;
         if environment.is_some_and(|bytes| {
             bytes
                 .split(|byte| *byte == 0)
@@ -2231,7 +2247,7 @@ fn profile_process_running(vscode_home: &Path) -> bool {
         .any(|pid| process_uses_profile(pid, vscode_home))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     #[test]
@@ -2415,6 +2431,39 @@ mod tests {
         assert!(service.list_profiles().unwrap().is_empty());
     }
 
+    #[test]
+    fn desktop_usage_refuses_a_peer_credential_refresh_before_starting_a_backend() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Shared account")).unwrap();
+        let credential_lock = service
+            .extension_credential_lock(&profile.metadata.id)
+            .unwrap();
+        let before = fs::read(
+            service
+                .profile_paths(&profile.metadata.id)
+                .unwrap()
+                .codex_home
+                .join("auth.json"),
+        )
+        .unwrap();
+        assert!(service
+            .check_profile_limits(&profile.metadata.id)
+            .unwrap_err()
+            .contains("Another window is refreshing"));
+        assert_eq!(
+            fs::read(
+                service
+                    .profile_paths(&profile.metadata.id)
+                    .unwrap()
+                    .codex_home
+                    .join("auth.json")
+            )
+            .unwrap(),
+            before
+        );
+        drop(credential_lock);
+        service.delete_profile(&profile.metadata.id).unwrap();
+    }
     #[test]
     fn concurrent_account_additions_preserve_every_record() {
         let (_temp, service) = fixture();
@@ -3974,3 +4023,16 @@ mod tests {
         assert_eq!(profile.metadata.notes.as_deref(), Some("Keep this"));
     }
 }
+
+#[cfg(windows)]
+fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
+    crate::windows_platform::process_arguments(pid)
+}
+#[cfg(windows)]
+fn profile_process_running(home: &Path) -> bool {
+    crate::windows_platform::profile_running(home)
+}
+
+#[cfg(all(test, windows))]
+#[path = "profiles_windows_tests.rs"]
+mod windows_tests;

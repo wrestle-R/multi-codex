@@ -1,8 +1,15 @@
+#[cfg(any(target_os = "macos", test))]
+mod account_menu;
 #[cfg(target_os = "linux")]
 mod application_icons;
 mod desktop_environment;
+#[cfg(unix)]
+mod desktop_integration;
+#[cfg(windows)]
+#[path = "windows_integration.rs"]
 mod desktop_integration;
 mod extension_accounts;
+mod file_security;
 mod launch;
 mod launch_targets;
 #[cfg(target_os = "linux")]
@@ -12,8 +19,10 @@ mod profiles;
 mod settings;
 mod terminals;
 mod usage;
+#[cfg(windows)]
+mod windows_platform;
 
-pub use extension_accounts::run_account_helper;
+pub use extension_accounts::{run_account_helper, run_bridge_launcher};
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
@@ -187,7 +196,20 @@ async fn open_device_login_browser() -> Result<bool, String> {
             Ok(true)
         }).await.map_err(|_| "Could not open the default browser".to_string())?
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        Command::new("rundll32.exe")
+            .args([
+                "url.dll,FileProtocolHandler",
+                "https://auth.openai.com/codex/device",
+            ])
+            .creation_flags(0x08000000)
+            .spawn()
+            .map_err(|_| "Could not open the default browser".to_string())?;
+        Ok(true)
+    }
+    #[cfg(target_os = "linux")]
     Ok(false)
 }
 
@@ -557,7 +579,7 @@ pub fn run() {
         eprintln!("Multi Codex could not initialize desktop integration: {error}");
         std::process::exit(1);
     });
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(AppState {
             service: Arc::new(service),
             launches: Arc::new(Mutex::new(launch::LaunchCoordinator::default())),
@@ -572,7 +594,25 @@ pub fn run() {
                 window.set_icon(icon)?;
             }
             desktop_environment::configure_main_window();
+            #[cfg(target_os = "macos")]
+            account_menu::setup(app.handle())?;
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            #[cfg(target_os = "macos")]
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+            if window.label() == "main"
+                && desktop_environment::backend() != "hyprland"
+                && matches!(event, tauri::WindowEvent::Focused(true))
+                && !window.is_maximized().unwrap_or(false)
+            {
+                let _ = window.maximize();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             get_desktop_inventory,
@@ -602,8 +642,14 @@ pub fn run() {
             get_desktop_integration_status,
             install_desktop_integration,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Multi Codex");
+        .build(tauri::generate_context!())
+        .expect("error while building Multi Codex");
+    app.run(|_app, _event| {
+        #[cfg(target_os = "macos")]
+        if matches!(_event, tauri::RunEvent::Reopen { .. }) {
+            account_menu::show(_app);
+        }
+    });
 }
 
 #[cfg(test)]

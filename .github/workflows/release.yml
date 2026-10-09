@@ -26,6 +26,9 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            RELEASE_TAG="v$(node -p 'require("./package.json").version')"
+          fi
           [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           VERSION="${RELEASE_TAG#v}"
           VERSION="$VERSION" node -e '
@@ -55,6 +58,16 @@ jobs:
       - run: npm run test:release
       - run: npm run test:release-gates
       - run: npm run release:linux
+      - name: Verify install and update of the exact Linux candidate
+        run: |
+          mkdir "$RUNNER_TEMP/linux-installer-assets"
+          cp src-tauri/target/release/bundle/appimage/*.AppImage SHA256SUMS "$RUNNER_TEMP/linux-installer-assets/"
+          VERSION=$(node -p 'require("./package.json").version')
+          python3 scripts/linux-installer-smoke.py "$RUNNER_TEMP/linux-installer-assets" "v$VERSION" "$RUNNER_TEMP/linux-installer-result.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-installer-evidence
+          path: ${{ runner.temp }}/linux-installer-result.json
       - uses: actions/upload-artifact@v4
         with:
           name: linux-packages
@@ -82,6 +95,9 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            RELEASE_TAG="v$(node -p 'require("./package.json").version')"
+          fi
           [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           VERSION="${RELEASE_TAG#v}"
           VERSION="$VERSION" node -e '
@@ -176,13 +192,23 @@ jobs:
             fi
           fi
       - name: Normalize DMG name
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          VERSION="${RELEASE_TAG#v}"
+          VERSION=$(node -p 'require("./package.json").version')
           DMG=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -type f -name '*.dmg' -print -quit)
           test -n "$DMG"
           mv "$DMG" "Multi.Codex_${VERSION}_aarch64.dmg"
+      - name: Verify install and update of the exact Mac candidate
+        run: |
+          mkdir "$RUNNER_TEMP/mac-installer-assets"
+          cp Multi.Codex_*_aarch64.dmg "$RUNNER_TEMP/mac-installer-assets/"
+          (cd "$RUNNER_TEMP/mac-installer-assets" && shasum -a 256 *.dmg > SHA256SUMS)
+          VERSION=$(node -p 'require("./package.json").version')
+          python3 scripts/macos-installer-smoke.py "$RUNNER_TEMP/mac-installer-assets" "v$VERSION"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-installer-evidence
+          path: ${{ runner.temp }}/multi-codex-macos-installer-evidence/
       - uses: actions/upload-artifact@v4
         with:
           name: macos-package
@@ -197,9 +223,15 @@ jobs:
           path: ${{ runner.temp }}/multi-codex-macos-evidence/
           if-no-files-found: warn
 
+  windows:
+    uses: ./.github/workflows/windows.yml
+
+  extensions:
+    uses: ./.github/workflows/extension.yml
+
   prepare-draft:
     if: github.event_name != 'workflow_dispatch'
-    needs: [linux, macos]
+    needs: [linux, macos, windows, extensions]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -212,20 +244,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir release-assets
-          find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' \) -exec cp {} release-assets/ \;
+          find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' -o -name '*_x64-setup.exe' -o -name '*.vsix' \) -exec cp {} release-assets/ \;
           cd release-assets
           mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
-          ((${#ASSETS[@]} == 4))
-          cp ../scripts/install-app.sh ../scripts/update-app.sh .
-          ASSETS+=(./install-app.sh ./update-app.sh)
+          ((${#ASSETS[@]} == 9))
+          cp ../scripts/install-app.sh ../scripts/update-app.sh ../scripts/install-app.ps1 ../scripts/update-app.ps1 .
+          ASSETS+=(./install-app.sh ./update-app.sh ./install-app.ps1 ./update-app.ps1)
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
           cd ..
           if gh release view "$GITHUB_REF_NAME" --json isDraft >/dev/null 2>&1; then
             [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" == "true" ]]
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
-            gh release edit "$GITHUB_REF_NAME" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+            gh release edit "$GITHUB_REF_NAME" --notes-file "release/notes/${GITHUB_REF_NAME}.md"
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "release/notes/${GITHUB_REF_NAME}.md"
           fi
           echo "Draft created. Functional validation is required before publishing."

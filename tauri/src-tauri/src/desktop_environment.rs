@@ -136,6 +136,9 @@ struct HyprMonitor {
 }
 
 pub fn backend() -> &'static str {
+    if cfg!(target_os = "windows") {
+        return "windows";
+    }
     if cfg!(target_os = "macos") {
         return "macos";
     }
@@ -173,6 +176,7 @@ pub fn inventory() -> Result<DesktopInventory> {
         "hyprland" => hypr_inventory(),
         #[cfg(target_os = "linux")]
         "gnome" | "kde" => crate::linux_desktops::inventory(backend()),
+        "windows" => Ok(unsupported_inventory("windows", "Windows virtual desktop placement is unavailable. Apps open on the current desktop.".into())),
         "macos" => Ok(unsupported_inventory("macos", "Native macOS Spaces enumeration and verified placement have not passed the release feasibility gate. Opening on the current desktop is available.".into())),
         _ => Ok(unsupported_inventory("unsupported", "Desktop control is available on Hyprland, GNOME with the Multi Codex extension, and KDE Plasma 6. Opening on the current desktop is available.".into())),
     }
@@ -380,32 +384,29 @@ pub fn configure_main_window() {
     if backend() != "hyprland" {
         return;
     }
+    static MONITORING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if MONITORING.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     let pid = std::process::id();
-    thread::spawn(move || {
-        let deadline = Instant::now() + WINDOW_WAIT;
-        while Instant::now() < deadline {
-            if let Ok(clients) = hypr_json::<Vec<HyprClient>>("clients") {
-                if let Some(client) = clients
-                    .into_iter()
-                    .find(|client| client.pid == pid && client.mapped)
-                {
-                    if !client.floating && client.fullscreen == 1 {
-                        return;
-                    }
-                    if valid_address(&client.address) {
-                        let _ = crate::process::output(
-                            Command::new("hyprctl")
-                                .args(["eval", &main_window_lua(&client.address)]),
-                            Duration::from_secs(3),
-                        );
-                    }
-                    // The first map can precede GTK's maximize request. Verify
-                    // compositor state on the next poll rather than assuming
-                    // the first command took effect.
+    thread::spawn(move || loop {
+        if let Ok(clients) = hypr_json::<Vec<HyprClient>>("clients") {
+            if let Some(client) = clients
+                .into_iter()
+                .find(|client| client.pid == pid && client.mapped)
+            {
+                // GTK/compositor focus transitions can restore a floating window
+                // long after startup. Keep its tiled, maximized state throughout
+                // launches and desktop changes without focusing or moving it.
+                if (client.floating || client.fullscreen != 1) && valid_address(&client.address) {
+                    let _ = crate::process::output(
+                        Command::new("hyprctl").args(["eval", &main_window_lua(&client.address)]),
+                        Duration::from_secs(3),
+                    );
                 }
             }
-            thread::sleep(POLL_INTERVAL);
         }
+        thread::sleep(Duration::from_millis(250));
     });
 }
 
@@ -431,7 +432,7 @@ fn main_window_lua(address: &str) -> String {
         "local w=hl.get_window('address:{address}'); assert(w); \
          hl.dispatch(hl.dsp.window.fullscreen_state({{internal=0,client=0,window=w}})); \
          hl.dispatch(hl.dsp.window.float({{action='unset',window=w}})); \
-         hl.dispatch(hl.dsp.window.fullscreen({{mode='maximized',action='set',window=w}}))"
+         hl.dispatch(hl.dsp.window.fullscreen_state({{internal=1,client=1,window=w}}))"
     )
 }
 fn move_window_lua(address: &str, workspace: i32) -> String {

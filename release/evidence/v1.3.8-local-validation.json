@@ -1,0 +1,120 @@
+{
+  "version": "1.3.8",
+  "sourceCommit": "8506bdace99c83231e0a053e26d1612f2192b73a",
+  "ciRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732607598",
+  "releaseRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37732606176",
+  "artifacts": {
+    "Multi.Codex-1.3.8-1.x86_64.rpm": "892987581fc3012c6dc794ecac6de96bfc69acc06dc67775aeae11be6d80ff39",
+    "Multi.Codex_1.3.8_aarch64.dmg": "932e3c25542b5dc6a4b245662cd3230833926c724feb9c43c32a5852b9c52dc7",
+    "Multi.Codex_1.3.8_amd64.AppImage": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
+    "Multi.Codex_1.3.8_amd64.deb": "9103af905832c4d6edb523856585002f0c3a4b00065e960384ef245fb490bc38",
+    "install-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d",
+    "update-app.sh": "43ad224c6f7d3a8c75870cf92513d1b23c5c0f1675bc9f19564685c4c7faf43d"
+  },
+  "status": "published-packages-and-installers-verified",
+  "testedAt": "2026-10-08T05:44:09.798055+00:00",
+  "frontendTests": 78,
+  "rustTests": {
+    "passed": 82,
+    "environmentSpecificIgnored": 3
+  },
+  "releaseAndInstallerRegressionChecks": 6,
+  "websiteTests": {
+    "localChromiumAndMobile": 38,
+    "eachMacAndLinuxCiRunner": 57,
+    "liveChromiumAndMobile": 20
+  },
+  "debPackageVersion": "1.3.8",
+  "settingsBrowserChecks": "release/evidence/v1.3.8-settings-validation.json",
+  "localInstallerChecks": {
+    "tag": "v1.3.8",
+    "appImageSha256": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
+    "checks": [
+      {
+        "script": "install-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      },
+      {
+        "script": "update-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      }
+    ],
+    "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
+  },
+  "macosPackagedStartup": {
+    "runs": [
+      {
+        "startup": 1,
+        "visibleWindow": true,
+        "stayedRunning": true
+      },
+      {
+        "startup": 2,
+        "visibleWindow": true,
+        "stayedRunning": true
+      }
+    ],
+    "fixtureHashesUnchanged": {
+      "Library/Application Support/multi-codex/profiles.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "Library/Application Support/multi-codex/executables.json": "41da662af4c0e0c7e3900366127c9900274116f732c2d47a6e069d7946a083de",
+      ".codex/auth.json": "0e2340bc21037cd5b1e260cd46c75d8e6f9ec238fc3581a46806009045e1b213",
+      ".codex/config.toml": "b1ec7ef496a720e2408a2845814dbddbaa0b9867c075c87283acca44a4a8b587"
+    },
+    "authenticatedDesktopIsolation": "not tested",
+    "signingAndNotarization": "optional; not verified by this startup smoke test"
+  },
+  "websiteValidation": "release/evidence/v1.3.8-website-validation.json",
+  "installerRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37734192047",
+  "linuxCiInstallerChecks": {
+    "tag": "v1.3.8",
+    "appImageSha256": "75608cbfce6c6bde5716124d1413b16baa840f611fbbbe20e6c510dc99a07a41",
+    "checks": [
+      {
+        "script": "install-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      },
+      {
+        "script": "update-app.sh",
+        "exactReleasedAppImageInstalled": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "defaultLoginUnchanged": true
+      }
+    ],
+    "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
+  },
+  "macosCiInstallerChecks": {
+    "tag": "v1.3.8",
+    "dmgSha256": "932e3c25542b5dc6a4b245662cd3230833926c724feb9c43c32a5852b9c52dc7",
+    "checks": [
+      {
+        "script": "install-app.sh",
+        "strictUnsignedRejection": true,
+        "explicitUnsignedInstall": true,
+        "installedVersion": "1.3.8",
+        "signatureIntegrity": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "installedNativeStartupAndRestart": true,
+        "stagingCleaned": true
+      },
+      {
+        "script": "update-app.sh",
+        "strictUnsignedRejection": true,
+        "explicitUnsignedInstall": true,
+        "installedVersion": "1.3.8",
+        "signatureIntegrity": true,
+        "accountAndChatSentinelsUnchanged": true,
+        "installedNativeStartupAndRestart": true,
+        "stagingCleaned": true
+      }
+    ],
+    "notarization": "not available; first-open approval remains controlled by macOS"
+  },
+  "publishedArtifactDigestsMatch": true,
+  "publicationVerifiedAt": "2026-10-08T05:53:18.748328+00:00"
+}
