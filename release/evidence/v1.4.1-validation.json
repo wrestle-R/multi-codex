@@ -309,11 +309,17 @@
     "local": "https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.4.1-local-validation.json"
   },
   "publication": {
-    "status": "validated-candidate",
+    "status": "published-stable",
     "fullValidationChecksRemainPending": true,
     "signingAndNotarizationOptional": true,
     "marketplaceVersion": "0.2.1",
-    "marketplaceStatus": "Awaiting owner manual upload and Marketplace validation"
+    "marketplaceStatus": "Awaiting owner manual upload and Marketplace validation",
+    "publishedAt": "2026-10-09T13:54:23Z",
+    "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.1",
+    "publicationWorkflow": "https://github.com/wrestle-R/multi-codex/actions/runs/37940189835",
+    "publishedAssetDigestsVerified": true,
+    "publicWindowsDownloadVerified": true,
+    "publicPowerShellScriptDigestsVerified": true
   },
   "limitations": [
     "Real Windows OAuth/browser sign-in, token rotation and cloud quota enforcement were not exercised; native Credential Manager was tested with full-sized synthetic OAuth JSON.",

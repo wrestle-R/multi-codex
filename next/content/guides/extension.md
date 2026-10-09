@@ -12,9 +12,9 @@ Manage saved accounts and change the account used by the **existing official Cod
 
 This preview uses an experimental Codex backend authentication API. Live attachment uses a private Node process/stdio compatibility hook; later startups use Codex's development-only executable setting. It is not an official OpenAI extension API integration. This release targets local VS Code on Linux x64, macOS arm64/x64 and Windows x64. Remote SSH, containers, WSL, Linux ARM64 and vscode.dev are not supported yet.
 
-## Version 0.2.0 downloads
+## Version 0.2.1 downloads
 
-All four platform packages are included in [Multi Codex v1.4.0 on GitHub](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.0). The owner uploads Marketplace updates separately. If v0.2.0 or your target platform is not listed yet, download its VSIX and use **Extensions: Install from VSIX…**.
+All four platform packages are included in [Multi Codex v1.4.1 on GitHub](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.1). The owner uploads Marketplace updates separately. If v0.2.1 or your target platform is not listed yet, download its VSIX and use **Extensions: Install from VSIX…**.
 
 ## Get started
 
