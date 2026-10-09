@@ -1,0 +1,70 @@
+{
+  "testedAt": "2026-10-09T09:19:20.386104+00:00",
+  "environment": "Arch Linux, Hyprland 0.56.2, actual desktop session",
+  "artifact": "Multi.Codex_1.4.0_amd64.AppImage",
+  "artifactSha256": "8afc5aea61cac0dfcd3a79ef09061414da02b061324ff1f6c50e4006a55387e1",
+  "checks": [
+    {
+      "passed": true,
+      "target": "vscode",
+      "before": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterLaunch": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterClose": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "desktopSwitchCycles": 3,
+      "repairedFloatingRestore": true,
+      "temporaryData": true
+    },
+    {
+      "passed": true,
+      "target": "standalone",
+      "before": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterLaunch": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterClose": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "desktopSwitchCycles": 3,
+      "repairedFloatingRestore": true,
+      "temporaryData": true
+    }
+  ]
+}
