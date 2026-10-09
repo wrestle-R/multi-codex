@@ -318,3 +318,12 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .extension-steps p { font-size: 14px; margin: 0; }
 @media (max-width: 900px) { .extension-section { grid-template-columns: 1fr; gap: 36px; } }
 @media (max-width: 600px) { .extension-section { padding-top: 40px; padding-bottom: 40px; } .site-footer > div { flex-wrap: wrap; row-gap: 12px; } }
+
+.markdown-guide { overflow-wrap: anywhere; }
+.markdown-guide h1 { font-size: clamp(2rem, 4vw, 3.5rem); margin-bottom: 2rem; }
+.markdown-guide h2, .markdown-guide h3 { margin-top: 2rem; }
+.markdown-guide p, .markdown-guide ul, .markdown-guide ol { margin: 1rem 0; line-height: 1.7; }
+.markdown-guide li { margin-left: 1.5rem; }
+.markdown-guide pre { overflow-x: auto; padding: 1rem; background: var(--panel); }
+.markdown-guide table { display: block; overflow-x: auto; border-collapse: collapse; }
+.markdown-guide td, .markdown-guide th { padding: .75rem; border: 1px solid var(--border); text-align: left; }

@@ -46,7 +46,7 @@ export function evaluate(report, version, artifactDirectory, { fullValidation = 
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const version = JSON.parse(readFileSync(resolve(root, 'tauri/package.json'), 'utf8')).version
-  const report = JSON.parse(readFileSync(resolve(root, `docs/releases/v${version}-validation.json`), 'utf8'))
+  const report = JSON.parse(readFileSync(resolve(root, `release/evidence/v${version}-validation.json`), 'utf8'))
   const artifactDirectory = process.argv.slice(2).find(argument => argument !== '--full-validation')
   const failures = evaluate(report, version, artifactDirectory, { fullValidation: process.argv.includes('--full-validation') })
   if (failures.length) {

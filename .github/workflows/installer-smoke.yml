@@ -30,7 +30,7 @@ jobs:
           source_run_id=$(python3 - <<'PY'
           import json, os
           from pathlib import Path
-          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          report = json.loads(Path(f"release/evidence/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
           assert 'v' + report['version'] == os.environ['CANDIDATE_TAG']
           print(report['releaseRun'].rsplit('/', 1)[1])
           PY
@@ -41,7 +41,7 @@ jobs:
           python3 - <<'PY'
           import hashlib, json, os, shutil
           from pathlib import Path
-          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          report = json.loads(Path(f"release/evidence/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
           assets = Path(os.environ['RUNNER_TEMP']) / 'installer-assets'
           name = f"Multi.Codex_{report['version']}_amd64.AppImage"
           source = next(assets.rglob(name))
@@ -83,7 +83,7 @@ jobs:
             source_run_id=$(python3 - <<'PY'
           import json, os
           from pathlib import Path
-          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          report = json.loads(Path(f"release/evidence/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
           assert 'v' + report['version'] == os.environ['CANDIDATE_TAG']
           print(report['releaseRun'].rsplit('/', 1)[1])
           PY
@@ -93,7 +93,7 @@ jobs:
             python3 - <<'PY'
           import hashlib, json, os
           from pathlib import Path
-          report = json.loads(Path(f"docs/releases/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
+          report = json.loads(Path(f"release/evidence/{os.environ['CANDIDATE_TAG']}-local-validation.json").read_text())
           assets = Path(os.environ['RUNNER_TEMP']) / 'installer-assets'
           name = f"Multi.Codex_{report['version']}_aarch64.dmg"
           expected = report['artifacts'][name]
