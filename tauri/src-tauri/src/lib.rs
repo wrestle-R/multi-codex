@@ -1,3 +1,4 @@
+#[cfg(any(target_os = "macos", test))]
 mod account_menu;
 #[cfg(target_os = "linux")]
 mod application_icons;

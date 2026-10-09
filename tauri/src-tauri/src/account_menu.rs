@@ -1,6 +1,10 @@
 //! Native menu bar uses the same account and launch flow as the main window.
-use crate::{launch_targets::LaunchTargets, AppState};
+use crate::launch_targets::LaunchTargets;
+#[cfg(target_os = "macos")]
+use crate::AppState;
+#[cfg(target_os = "macos")]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+#[cfg(target_os = "macos")]
 use tauri::{Emitter, Manager};
 
 pub fn launch_actions(targets: &LaunchTargets) -> Vec<(&'static str, &'static str)> {
@@ -17,6 +21,7 @@ pub fn launch_actions(targets: &LaunchTargets) -> Vec<(&'static str, &'static st
     actions
 }
 
+#[cfg(target_os = "macos")]
 pub fn menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let menu = Menu::new(app)?;
     menu.append(&MenuItem::with_id(
@@ -69,6 +74,7 @@ pub fn menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Ok(menu)
 }
 
+#[cfg(target_os = "macos")]
 pub fn show(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
@@ -78,10 +84,11 @@ pub fn show(app: &tauri::AppHandle) {
     }
 }
 
+#[cfg(target_os = "macos")]
 pub fn setup(app: &tauri::AppHandle) -> tauri::Result<()> {
     let initial_menu = menu(app)?;
     // A monochrome template adapts to both light and dark macOS menu bars.
-    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/32x32.png"))?;
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/menu-bar.png"))?;
     tauri::tray::TrayIconBuilder::with_id("accounts")
         .icon(icon)
         .icon_as_template(true)
