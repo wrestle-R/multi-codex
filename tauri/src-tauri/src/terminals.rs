@@ -8,6 +8,8 @@ use std::process::{Command, Stdio};
 pub enum Terminal {
     #[default]
     Automatic,
+    PowerShell,
+    WindowsTerminal,
     Terminal,
     Kitty,
     Ghostty,
@@ -31,6 +33,8 @@ impl Terminal {
     fn label(self) -> &'static str {
         match self {
             Self::Automatic => "Automatic",
+            Self::PowerShell => "PowerShell",
+            Self::WindowsTerminal => "Windows Terminal",
             Self::Terminal => "Terminal",
             Self::Kitty => "Kitty",
             Self::Ghostty => "Ghostty",
@@ -45,6 +49,8 @@ impl Terminal {
 
     fn command(self) -> &'static str {
         match self {
+            Self::PowerShell => "powershell",
+            Self::WindowsTerminal => "wt",
             Self::Kitty => "kitty",
             Self::Ghostty => "ghostty",
             Self::Konsole => "konsole",
@@ -68,6 +74,8 @@ impl Terminal {
 }
 
 fn candidates() -> &'static [Terminal] {
+    #[cfg(windows)]
+    return &[Terminal::WindowsTerminal, Terminal::PowerShell];
     #[cfg(target_os = "linux")]
     return &[
         Terminal::Konsole,
@@ -214,6 +222,7 @@ mod tests {
         assert!(choose_with(Terminal::Automatic, &supported, |_| None).is_err());
     }
 
+    #[cfg(unix)]
     #[test]
     fn native_terminal_arguments_keep_isolated_command_as_separate_arguments() {
         let root = tempfile::tempdir().unwrap();

@@ -1,7 +1,9 @@
+#![cfg(unix)]
 use serde::Serialize;
 use std::env;
 use std::fs::{self, File};
 use std::io::{self, Write};
+#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
