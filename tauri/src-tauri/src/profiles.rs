@@ -801,6 +801,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !profile.auth_mode.eq_ignore_ascii_case("chatgpt") {
             return Err("Live limits are available only for ChatGPT accounts".to_string());
         }
+        // Usage can rotate tokens. Reuse extension locks so another client
+        // cannot refresh, replace or delete this account before the child exits.
+        let _lease = self.extension_lease(id)?;
+        let _credential_lock = self.extension_credential_lock(id)?;
         self.current_profile_credential(id)?;
         let paths = self.profile_paths(id)?;
         let result = read_profile_limits(&paths.codex_home);
@@ -2427,6 +2431,39 @@ mod tests {
         assert!(service.list_profiles().unwrap().is_empty());
     }
 
+    #[test]
+    fn desktop_usage_refuses_a_peer_credential_refresh_before_starting_a_backend() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Shared account")).unwrap();
+        let credential_lock = service
+            .extension_credential_lock(&profile.metadata.id)
+            .unwrap();
+        let before = fs::read(
+            service
+                .profile_paths(&profile.metadata.id)
+                .unwrap()
+                .codex_home
+                .join("auth.json"),
+        )
+        .unwrap();
+        assert!(service
+            .check_profile_limits(&profile.metadata.id)
+            .unwrap_err()
+            .contains("Another window is refreshing"));
+        assert_eq!(
+            fs::read(
+                service
+                    .profile_paths(&profile.metadata.id)
+                    .unwrap()
+                    .codex_home
+                    .join("auth.json")
+            )
+            .unwrap(),
+            before
+        );
+        drop(credential_lock);
+        service.delete_profile(&profile.metadata.id).unwrap();
+    }
     #[test]
     fn concurrent_account_additions_preserve_every_record() {
         let (_temp, service) = fixture();
