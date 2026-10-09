@@ -224,8 +224,8 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" --json isDraft >/dev/null 2>&1; then
             [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" == "true" ]]
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
-            gh release edit "$GITHUB_REF_NAME" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+            gh release edit "$GITHUB_REF_NAME" --notes-file "release/notes/${GITHUB_REF_NAME}.md"
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "docs/releases/${GITHUB_REF_NAME}.md"
+            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "release/notes/${GITHUB_REF_NAME}.md"
           fi
           echo "Draft created. Functional validation is required before publishing."
