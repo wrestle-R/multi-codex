@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-10-09
+
+- Wait for Codex initialization during account selection and report lost connections with a recovery action.
+- Keep long chat history responses connected with bounded, incremental protocol framing.
+- Match Windows backend executable paths across native case and separator differences.
+- Add native Windows x64 support with Credential Manager, private account ACLs, authenticated named pipes, and an executable startup wrapper.
+- Refresh all saved accounts from the top-bar Check Usage action, with progress, independent failures, remaining percentages and reset times.
+- Keep active Windows wrappers intact during reactivation and wait for account/backend processes to release their handles during cleanup.
+- Verify matching Linux x64, macOS arm64/x64 and Windows x64 VSIX files; filenames and protocol versions derive from the extension manifest.
+- Keep the website as the primary setup and compatibility guide.
+
 ## 0.1.3 — 2026-10-09
 
 - Start every Codex backend with the current launch home’s login, configuration, resources and history.

@@ -8,3 +8,7 @@ export * from './stdio-tap';
 export * from './platform';
 export * from './storage';
 export * from './startup';
+
+export * from './native';
+export * from './usage';
+export * from './connection';

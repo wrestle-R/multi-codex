@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event"
 import { orderProfilesByPlan } from "./lib/profile-order"
 import { useProfileLimits } from "./components/use-profile-limits"
 import { ThemePicker } from "./components/theme-picker"
@@ -395,7 +396,7 @@ export default function App() {
       if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Launch settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
-      setHideDesktopPicker(environment.capabilities.backend === "macos" || Boolean(settings.hideDesktopPicker))
+      setHideDesktopPicker(environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker))
       setFolderRequest({ profile, target, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -404,6 +405,29 @@ export default function App() {
     }
     await refresh()
   }
+
+  const menuActions = useRef({ launch: handleLaunch, refresh: handleRefreshAllLimits, add: () => setDialogProfile(null) })
+  menuActions.current = { launch: handleLaunch, refresh: handleRefreshAllLimits, add: () => setDialogProfile(null) }
+  useEffect(() => {
+    if (!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) return
+    let disposed = false
+    const stops: (() => void)[] = []
+    const subscribe = async () => {
+      const bindings = await Promise.all([
+        listen<{ id: string; target: LaunchTarget }>("account-menu-launch", async ({ payload }) => {
+          if (!["vscode", "standalone", "cli"].includes(payload.target)) return
+          const saved = await listProfiles()
+          const account = saved.find(profile => profile.id === payload.id)
+          if (account) await menuActions.current.launch(account, payload.target)
+        }),
+        listen("account-menu-refresh", () => void menuActions.current.refresh()),
+        listen("account-menu-add", () => menuActions.current.add()),
+      ])
+      if (disposed) bindings.forEach(stop => stop()); else stops.push(...bindings)
+    }
+    void subscribe()
+    return () => { disposed = true; stops.forEach(stop => stop()) }
+  }, [])
 
   async function completeFolderSelection(workspace: string) {
     if (!folderRequest) return

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawnExecutable, terminateExecutable } from './native';
 import { JsonLines, RpcPeer } from './protocol';
 import type { StoredAuth } from './auth';
 
@@ -9,7 +10,7 @@ export class AccountClient {
   private closed = false;
   get isRunning() { return !this.closed; }
   constructor(helper: string, engine: string, dataRoot: string, globalHome: string) {
-    this.child = spawn(helper, [engine, dataRoot, globalHome], { stdio: ['pipe', 'pipe', 'pipe'] });
+    this.child = spawnExecutable(helper, [engine, dataRoot, globalHome]);
     this.child.stderr.resume();
     this.peer = new RpcPeer(new JsonLines(this.child.stdout, this.child.stdin), 'account-helper:');
     const close = () => { this.closed = true; this.peer.close(); };
@@ -25,5 +26,6 @@ export class AccountClient {
     await this.request('accounts/lockCredential', { id });
     try { return await action(); } finally { await this.request('accounts/unlockCredential', { id }).catch(() => {}); }
   }
-  dispose() { this.closed = true; this.peer.close(); this.child.stdin.end(); this.child.kill(); }
+  private disposal?: Promise<void>;
+  dispose() { return this.disposal ??= (async () => { this.closed = true; this.peer.close(); this.child.stdin.end(); await terminateExecutable(this.child); })(); }
 }

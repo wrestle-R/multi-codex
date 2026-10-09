@@ -1,7 +1,7 @@
 use crate::profiles::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::Write;
+#[cfg(all(test, unix))]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
@@ -37,6 +37,14 @@ pub struct ExecutableSettings {
 }
 
 pub fn data_root() -> Result<PathBuf> {
+    #[cfg(windows)]
+    if let Some(path) = std::env::var_os("APPDATA").filter(|v| !v.is_empty()) {
+        let path = PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err("APPDATA must be an absolute path".into());
+        }
+        return Ok(path.join("multi-codex"));
+    }
     dirs::data_dir()
         .map(|p| p.join("multi-codex"))
         .ok_or_else(|| "App data directory is unavailable".into())
@@ -103,21 +111,10 @@ pub fn save(mut settings: ExecutableSettings) -> Result<ExecutableSettings> {
 }
 
 fn save_to(root: &Path, settings: &ExecutableSettings) -> Result<()> {
-    fs::create_dir_all(root).map_err(|e| e.to_string())?;
-    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
-    let mut temp = tempfile::NamedTempFile::new_in(root).map_err(|e| e.to_string())?;
-    temp.as_file()
-        .set_permissions(fs::Permissions::from_mode(0o600))
-        .map_err(|e| e.to_string())?;
-    temp.write_all(&serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())?;
-    temp.as_file().sync_all().map_err(|e| e.to_string())?;
-    temp.persist(root.join("executables.json"))
-        .map_err(|e| e.to_string())?;
-    fs::File::open(root)
-        .and_then(|f| f.sync_all())
-        .map_err(|e| e.to_string())?;
-    Ok(())
+    crate::profiles::write_private_file(
+        &root.join("executables.json"),
+        &serde_json::to_vec_pretty(settings).map_err(|e| e.to_string())?,
+    )
 }
 
 pub fn global_codex_home(
@@ -136,7 +133,7 @@ pub fn global_codex_home(
     Ok(path)
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     #[test]
