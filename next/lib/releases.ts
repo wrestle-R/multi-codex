@@ -2,6 +2,10 @@
 // Highlights come from release notes or the commits between published tags.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.4.1", publishedAt: "2026-10-09T13:54:23Z", title: "Windows credential and installer fixes", highlights: [
+    "Full-sized Windows logins now save in Credential Manager while keeping existing accounts readable.",
+    "PowerShell installation and updates correctly verify GitHub checksum downloads; the direct Windows installer remains available.",
+  ] },
   { tag: "v1.4.0", publishedAt: "2026-10-09T10:08:39Z", title: "Windows support and reliable account switching", highlights: [
     "Native Windows x64 launcher and extension packages add private account storage, isolated launches and verified install/update scripts.",
     "Mac account menus, all-account usage refresh, connection recovery, long-chat support and persistent Hyprland maximization improve everyday use.",

@@ -2,11 +2,13 @@
 
 Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your default login untouched.
 
+Latest release: [v1.4.1](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.1) fixes Windows credential saving and PowerShell checksum verification.
+
 ## Install
 
 ### Windows x64
 
-[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.0/Multi.Codex_1.4.0_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
+[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.1/Multi.Codex_1.4.1_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
 
 Or run in PowerShell:
 
@@ -37,7 +39,7 @@ Close Multi Codex before updating. Saved accounts and profile data are preserved
 
 ### Windows x64
 
-Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.0/Multi.Codex_1.4.0_x64-setup.exe) again to update.
+Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.1/Multi.Codex_1.4.1_x64-setup.exe) again to update.
 
 Or run in PowerShell:
 
