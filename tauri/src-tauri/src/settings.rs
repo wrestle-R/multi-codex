@@ -37,6 +37,14 @@ pub struct ExecutableSettings {
 }
 
 pub fn data_root() -> Result<PathBuf> {
+    #[cfg(windows)]
+    if let Some(path) = std::env::var_os("APPDATA").filter(|v| !v.is_empty()) {
+        let path = PathBuf::from(path);
+        if !path.is_absolute() {
+            return Err("APPDATA must be an absolute path".into());
+        }
+        return Ok(path.join("multi-codex"));
+    }
     dirs::data_dir()
         .map(|p| p.join("multi-codex"))
         .ok_or_else(|| "App data directory is unavailable".into())
