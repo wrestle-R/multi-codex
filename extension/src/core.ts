@@ -7,3 +7,4 @@ export * from './accounts';
 export * from './stdio-tap';
 export * from './platform';
 export * from './storage';
+export * from './startup';

@@ -44,7 +44,7 @@ The active account is shown in the status bar and account list. Check active-acc
 
 On first enable, Multi Codex locates exactly one child process for the official bundled engine inside the shared local extension host. A reversible stdio adapter routes that already-running process through the bridge while retaining its original protocol reader. The bridge probes its authentication identity before enabling account changes. No installed official-extension file is changed.
 
-The configured `chatgpt.cliExecutable` wrapper handles later normal startups, launching the **official bundled engine** with a private credential home and forwarding its normal protocol. Both attachment modes use a private authenticated Unix socket to connect the account picker to the bridge.
+The configured `chatgpt.cliExecutable` wrapper handles later normal startups, launching the **official bundled engine** with a private credential home and forwarding its normal protocol. Every normal startup reads the current launch’s `CODEX_HOME` (or the configured/default home), copies its file-based login and configuration into the private credential home, and keeps its resources and history available. Shared account storage uses the separate global home. The launcher resolves the currently installed official engine on each startup, including after extension updates. Both attachment modes use a private authenticated Unix socket to connect the account picker to the bridge.
 
 When you select an account, the bridge:
 
@@ -53,11 +53,11 @@ When you select an account, the bridge:
 3. Asks the backend for every loaded thread and verifies each is idle.
 4. Calls `account/login/start` with the selected external ChatGPT tokens. The isolated startup bridge also supports API keys.
 5. Reads the adopted authentication identity and checks it against the selected account.
-6. Records the selection, releases the previous account's lease, and allows work again.
+6. Shows a verified-login confirmation, releases the previous account's lease, and allows work again.
 
 Authentication failures and mismatched identities trigger verified rollback to the previous account. If rollback cannot be verified, switching stays blocked. The wrapper does not patch the installed official extension, overwrite its default auth file, invoke `workbench.action.reloadWindow`, or open another project window.
 
-Live ChatGPT attachment changes in-memory authentication without changing the original login file. API-key switching is refused in this mode because the backend would write its original credential store; it is available through the isolated wrapper on a later normal startup. Credentials in that wrapper are private to each backend. Existing session directories, resources and the SQLite history home remain available from the source Codex home. Selecting an account intentionally preserves the current conversation; this is **not a guarantee that prior conversation content is isolated between accounts**. Cloud conversations, organization-specific tools and permissions may depend on the selected account. The most recently selected account for each project is restored on a later startup when activity can be verified.
+Live ChatGPT attachment changes in-memory authentication without changing the original login file. API-key switching is refused in this mode because the backend would write its original credential store; it is available through the isolated wrapper on a later normal startup. Credentials in that wrapper are private to each backend. Existing session directories, resources and the SQLite history home remain available from the source Codex home. Selecting an account intentionally preserves the current conversation; this is **not a guarantee that prior conversation content is isolated between accounts**. Cloud conversations, organization-specific tools and permissions may depend on the selected account. Account selection applies to this running window. Each later startup begins with the current launch home’s login; old project selections are ignored. The status bar indicates when Codex is using the current home and shows its path in the tooltip.
 
 Expired external tokens are refreshed through a short-lived bundled backend using the saved account's home. Credential-operation locks serialize refresh/usage operations between extension windows. Browser sign-in and real token rotation require OpenAI connectivity; these live flows are not covered by the offline fixture tests.
 
