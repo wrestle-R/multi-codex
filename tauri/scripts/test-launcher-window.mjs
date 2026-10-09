@@ -32,6 +32,7 @@ async function stop(child) {
 }
 try {
   const before = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
+  const originalWorkspace = before.workspace.id;
   const addresses = new Set((await clients()).map(c => c.address));
   code = spawn('/usr/share/code/code', ['--user-data-dir', join(root, 'code-user'), '--extensions-dir', join(root, 'code-extensions'),
     '--disable-extensions', '--skip-welcome', '--skip-release-notes', '--disable-gpu', '--no-sandbox', '--ozone-platform=x11', join(root, 'workspace')], { env, stdio: 'ignore' });
@@ -40,12 +41,23 @@ try {
   await new Promise(resolve => setTimeout(resolve, 1000));
   const afterLaunch = (await clients()).find(c => c.pid === app.pid);
   assert.ok(afterLaunch, 'The launcher disappeared'); assert.equal(afterLaunch.floating, false, 'Launching Code turned Multi Codex into a floating popup');
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await exec('hyprctl', ['dispatch', 'workspace', String(originalWorkspace + 20)]);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await exec('hyprctl', ['dispatch', 'workspace', String(originalWorkspace)]);
+    const restored = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
+    assert.equal(restored.workspace.id, originalWorkspace, 'The launcher moved desktops');
+  }
+  // Reproduce the screenshot state after startup; the long-lived guard must
+  // repair it without stealing focus or moving the launcher.
+  await exec('hyprctl', ['eval', `local w=hl.get_window('address:${before.address}'); assert(w); hl.dispatch(hl.dsp.window.fullscreen_state({internal=0,client=0,window=w})); hl.dispatch(hl.dsp.window.float({action='set',window=w}))`]);
+  await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
   code.kill('SIGTERM');
   await until(clients, list => !list.some(c => !addresses.has(c.address) && /code/i.test(c.class)));
   const afterClose = (await clients()).find(c => c.pid === app.pid);
   assert.equal(afterClose.floating, false, 'The launcher retained a floating restore state');
   const details = value => ({ floating: value.floating, fullscreen: value.fullscreen, size: value.size });
-  const report = { passed: true, before: details(before), afterLaunch: details(afterLaunch), afterClose: details(afterClose), temporaryData: true };
+  const report = { passed: true, before: details(before), afterLaunch: details(afterLaunch), afterClose: details(afterClose), desktopSwitchCycles: 3, repairedFloatingRestore: true, temporaryData: true };
   await mkdir('test-results', { recursive: true }); await writeFile('test-results/launcher-window.json', JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
