@@ -5,13 +5,13 @@ import { mkdtemp, chmod, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
-const { CodexBridge, JsonLines, RpcPeer, BridgeClient } = createRequire(import.meta.url)('../dist/core.cjs');
+const { controlEndpoint, spawnExecutable, CodexBridge, JsonLines, RpcPeer, BridgeClient } = createRequire(import.meta.url)('../dist/core.cjs');
 async function setup(t) {
   const root = await mkdtemp(join(tmpdir(), 'mc-bridge-test-'));
   const engine = resolve('tests/fixtures/fake-engine.mjs'); const helper = resolve('tests/fixtures/fake-accounts.mjs');
   await chmod(engine, 0o755); await chmod(helper, 0o755); await mkdir(join(root, 'home'));
   const input = new PassThrough(); const output = new PassThrough();
-  const bridge = new CodexBridge({ engine, helper, dataRoot: root, globalHome: root, sessionHome: join(root, 'home'), socket: join(root, 'bridge.sock'), token: 'private-test-token', workspace: root }, new JsonLines(input, output), ['app-server']);
+  const bridge = new CodexBridge({ engine, helper, dataRoot: root, globalHome: root, sessionHome: join(root, 'home'), socket: controlEndpoint(root.replace(/[^a-zA-Z0-9]/g, '')), token: 'private-test-token', workspace: root }, new JsonLines(input, output), ['app-server']);
   const peer = new RpcPeer(new JsonLines(output, input), 'frontend:');
   await bridge.listen(); await peer.request('initialize'); input.write(JSON.stringify({ method: 'initialized' }) + '\n');
   const client = await BridgeClient.connect(bridge.config.socket, bridge.config.token);

@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { controlEndpoint, helperName, wrapperName } from './native';
 import { AccountClient, type Account } from './accounts';
 import { BridgeClient } from './client';
 import { JsonLines, RpcPeer } from './protocol';
@@ -100,13 +102,14 @@ export async function activate(context: vscode.ExtensionContext) {
     root = paths.dataRoot; globalHome = paths.globalHome;
     engine = await bundledEnginePath(codex.extensionPath);
     runtimeRoot = join(context.globalStorageUri.fsPath, 'runtime');
-    helper = join(context.extensionPath, 'bin', 'multi-codex-account-helper'); await access(helper);
+    helper = join(context.extensionPath, 'bin', helperName); await access(helper);
     await mkdir(root, { recursive: true, mode: 0o700 }); await mkdir(runtimeRoot, { recursive: true, mode: 0o700 });
+    if (process.platform === 'win32') await promisify(execFile)(helper, ['--protect-directory', runtimeRoot], { windowsHide: true });
     accounts?.dispose();
     accounts = new AccountClient(helper, engine, root, globalHome);
     // Refresh an existing launcher before another normal Codex startup. Account
     // discovery's global home must never replace an inherited desktop account home.
-    if (vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable') === join(runtimeRoot, 'codex-bridge')) await writeBridgeLauncher();
+    if (vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable') === join(runtimeRoot, wrapperName)) await writeBridgeLauncher();
     try { await refreshAccounts(); }
     catch (error) { accounts.dispose(); accounts = undefined; throw error; }
     if (monitor) clearInterval(monitor);
@@ -123,7 +126,7 @@ export async function activate(context: vscode.ExtensionContext) {
   async function configureBridge() {
     if (!accounts?.isRunning) await prepare();
     const current = vscode.workspace.getConfiguration('chatgpt').get<string>('cliExecutable');
-    const wrapper = join(runtimeRoot, 'codex-bridge');
+    const wrapper = join(runtimeRoot, wrapperName);
     if (current && current !== wrapper) throw new Error('Codex already has a custom executable. Restore its bundled executable before enabling Multi Codex.');
     await writeBridgeLauncher();
     if (current !== wrapper) await context.globalState.update('previousCliExecutable', current ?? null);
@@ -139,7 +142,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const tap = tapBackend(child);
         const live = new CodexBridge({ engine, helper, dataRoot: root, globalHome, sessionHome,
           workspace, sourceHome: process.env.CODEX_HOME || globalHome, attached: true,
-          socket: join(tmpdir(), `mc-${process.getuid?.() ?? 'user'}-${session.slice(0, 12)}.sock`), token: randomBytes(32).toString('hex') }, tap.frontend, [], tap);
+          socket: controlEndpoint(session), token: randomBytes(32).toString('hex') }, tap.frontend, [], tap);
         try {
           await live.attachReady(); await live.listen();
           bridge = await BridgeClient.connect(live.config.socket, live.config.token);
@@ -157,15 +160,16 @@ export async function activate(context: vscode.ExtensionContext) {
   }
   async function writeBridgeLauncher() {
     const config = { engine, helper, dataRoot: root, globalHome, startupHome: process.env.CODEX_HOME || globalHome,
-      officialExtensionPath: vscode.extensions.getExtension('openai.chatgpt')!.extensionPath, runtimeRoot };
-    const configPath = join(runtimeRoot, 'bridge-config.json');
+      officialExtensionPath: vscode.extensions.getExtension('openai.chatgpt')!.extensionPath, runtimeRoot, nodeExecutable: process.execPath, bridgeScript: join(context.extensionPath, 'dist', 'bridge-main.cjs') };
+    const configPath = join(runtimeRoot, process.platform === 'win32' ? 'codex-bridge.json' : 'bridge-config.json');
     async function replaceFile(path: string, contents: string, mode: number) {
       const temporary = `${path}.${randomUUID()}.tmp`;
       try { await writeFile(temporary, contents, { mode }); await rename(temporary, path); }
       finally { await rm(temporary, { force: true }); }
     }
     await replaceFile(configPath, JSON.stringify(config), 0o600);
-    const wrapper = join(runtimeRoot, 'codex-bridge');
+    const wrapper = join(runtimeRoot, wrapperName);
+    if (process.platform === 'win32') { await copyFile(helper, wrapper); return; }
     await replaceFile(wrapper, `#!/bin/sh\nexport ELECTRON_RUN_AS_NODE=1\nexec ${quote(process.execPath)} ${quote(join(context.extensionPath, 'dist', 'bridge-main.cjs'))} --bridge-config ${quote(configPath)} "$@"\n`, 0o700);
   }
   async function switchAccount(accountOrId?: Account | string) {
@@ -261,7 +265,7 @@ export async function activate(context: vscode.ExtensionContext) {
   command('multiCodex.addAccount', addAccount);
   command('multiCodex.renameAccount', async (account: Account) => { const name = await vscode.window.showInputBox({ title: 'Rename account', value: account.name }); if (name) { await accounts!.request('accounts/rename', { id: account.id, name }); await refreshAccounts(); } });
   command('multiCodex.removeAccount', async (account: Account) => { if (bridge?.state.selectedId === account.id) throw new Error('Switch away from this account before removing it.'); const answer = await vscode.window.showWarningMessage(`Remove saved account “${account.name}”?`, { modal: true }, 'Remove'); if (answer === 'Remove') { await accounts!.request('accounts/delete', { id: account.id }); await refreshAccounts(); } });
-  command('multiCodex.disableSwitching', async () => { const wrapper = join(runtimeRoot, 'codex-bridge'); const settings = vscode.workspace.getConfiguration('chatgpt'); if (settings.get('cliExecutable') === wrapper) await settings.update('cliExecutable', context.globalState.get('previousCliExecutable', null), vscode.ConfigurationTarget.Global); vscode.window.showInformationMessage('The bundled Codex executable will be restored the next time Codex starts.'); });
+  command('multiCodex.disableSwitching', async () => { const wrapper = join(runtimeRoot, wrapperName); const settings = vscode.workspace.getConfiguration('chatgpt'); if (settings.get('cliExecutable') === wrapper) await settings.update('cliExecutable', context.globalState.get('previousCliExecutable', null), vscode.ConfigurationTarget.Global); vscode.window.showInformationMessage('The bundled Codex executable will be restored the next time Codex starts.'); });
   try { await prepare(); } catch { /* Storage errors are shown inline with a retry action. */ }
   return {
     activationId, refreshAccounts, switchAccount, enableSwitching: setupBridge,

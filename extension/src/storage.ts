@@ -5,7 +5,8 @@ import { homedir } from 'node:os';
 export function defaultDataDirectory(platform = process.platform, home = homedir(), env = process.env): string {
   if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'multi-codex');
   if (platform === 'linux') return join(env.XDG_DATA_HOME && isAbsolute(env.XDG_DATA_HOME) ? env.XDG_DATA_HOME : join(home, '.local', 'share'), 'multi-codex');
-  throw new Error('Multi Codex supports local Linux and macOS.');
+  if (platform === 'win32') return join(env.APPDATA || join(home, 'AppData', 'Roaming'), 'multi-codex');
+  throw new Error('Multi Codex supports local Linux, macOS and Windows.');
 }
 
 async function canonicalPath(path: string): Promise<string> {

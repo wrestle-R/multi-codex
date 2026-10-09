@@ -8,7 +8,7 @@ import { JsonLines } from './protocol';
 export function findCodexBackend(engine: string): ChildProcessWithoutNullStreams | undefined {
   const handles = (process as any)._getActiveHandles?.();
   if (!Array.isArray(handles)) return;
-  const matches = handles.filter((child: any) => child instanceof ChildProcess && child.spawnfile === engine
+  const matches = handles.filter((child: any) => child instanceof ChildProcess && (child.spawnfile === engine || (engine.endsWith('.mjs') && child.spawnargs?.includes(engine)))
     && child.spawnargs?.includes('app-server') && child.pid && child.exitCode === null && !child.killed
     && child.stdin?.writable && !child.stdin.destroyed && child.stdout?.readable && !child.stdout.destroyed);
   if (matches.length > 1) throw new Error('Multiple Codex backends are running in this extension host. Live attachment was refused.');

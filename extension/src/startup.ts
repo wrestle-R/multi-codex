@@ -15,11 +15,12 @@ export async function prepareSessionHome(sourceHome: string, sessionHome: string
   await mkdir(sourceHome, { recursive: true, mode: 0o700 });
   for (const name of ['sessions', 'archived_sessions', 'skills', 'rules', 'plugins', 'memories', 'prompts']) {
     await mkdir(join(sourceHome, name), { recursive: true, mode: 0o700 });
-    await symlink(join(sourceHome, name), join(sessionHome, name));
+    await symlink(join(sourceHome, name), join(sessionHome, name), process.platform === 'win32' ? 'junction' : 'dir');
   }
   try {
     await readFile(join(sourceHome, 'AGENTS.md'));
-    await symlink(join(sourceHome, 'AGENTS.md'), join(sessionHome, 'AGENTS.md'));
+    if (process.platform === 'win32') await copyFile(join(sourceHome, 'AGENTS.md'), join(sessionHome, 'AGENTS.md'));
+    else await symlink(join(sourceHome, 'AGENTS.md'), join(sessionHome, 'AGENTS.md'));
   } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   let originalConfig = '';
   try { originalConfig = await readFile(join(sourceHome, 'config.toml'), 'utf8'); }
