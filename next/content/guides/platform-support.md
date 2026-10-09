@@ -33,7 +33,9 @@ On Hyprland, the launcher monitors its own mapped window and restores maximizati
 
 [Native Windows validation](https://github.com/wrestle-R/multi-codex/actions/runs/37914130058) passed for the exact v1.4.0 installer and v0.2.0 Windows VSIX. [All four packaged extension targets](https://github.com/wrestle-R/multi-codex/actions/runs/37914129972) and [native Mac account menus](https://github.com/wrestle-R/multi-codex/actions/runs/37909325891) have runner evidence. The [release manifest](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.4.0-validation.json) records package hashes and the remaining validation limits.
 
-Use the website's Windows PowerShell install/update commands or the release's `Multi.Codex_<version>_x64-setup.exe`. Installation is per-user. The scripts select the current release's Windows asset dynamically and verify its SHA-256 before running NSIS. Updates preserve account and conversation data, which remain outside the application directory.
+Choose Windows on the website and click **Download Windows .exe**, or [download the v1.4.0 installer directly](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.0/Multi.Codex_1.4.0_x64-setup.exe). Double-click the downloaded installer, follow setup, then open Multi Codex from the Start menu. Installation is per-user. To update, close Multi Codex and run the new installer again. Updates preserve account and conversation data, which remain outside the application directory.
+
+PowerShell install/update commands remain available as an alternative. The scripts select the current release's Windows asset dynamically and verify its SHA-256 before running NSIS.
 
 Windows accounts use Credential Manager and protected directories granting access to the current user and SYSTEM. The launcher and extension share `%APPDATA%\multi-codex`. The extension contains a native account helper, an executable startup wrapper and authenticated named pipes. It supports live account switching in local native VS Code without changing PowerShell's persistent execution policy.
 
