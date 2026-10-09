@@ -6,7 +6,9 @@ Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your 
 
 ### Windows x64
 
-Run in PowerShell:
+[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.0/Multi.Codex_1.4.0_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
+
+Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.ps1 -OutFile "$env:TEMP/install-multi-codex.ps1"
@@ -35,7 +37,9 @@ Close Multi Codex before updating. Saved accounts and profile data are preserved
 
 ### Windows x64
 
-Run in PowerShell:
+Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.0/Multi.Codex_1.4.0_x64-setup.exe) again to update.
+
+Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://github.com/wrestle-R/multi-codex/releases/latest/download/update-app.ps1 -OutFile "$env:TEMP/update-multi-codex.ps1"

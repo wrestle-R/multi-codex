@@ -107,10 +107,27 @@ test("Windows commands, menu-bar behavior and migrated detailed guides are acces
   await page.goto("/docs")
   const install = page.locator("#installation .install-box")
   await install.getByRole("button", { name: "Windows", exact: true }).click()
+  const installerUrl = "https://github.com/wrestle-R/multi-codex/releases/download/v1.4.0/Multi.Codex_1.4.0_x64-setup.exe"
+  await expect(install.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
+  await expect(install).toContainText("double-click")
+  await expect(install.getByRole("button", { name: "Copy command" })).not.toBeVisible()
+  await install.locator("summary").click()
+  await expect(install.getByRole("button", { name: "Copy command" })).toBeVisible()
   await expect(install.locator("code")).toContainText("install-app.ps1")
   await expect(install.locator("code")).toContainText("$env:TEMP")
+  const update = page.locator("#updates .install-box")
+  await update.getByRole("button", { name: "Windows", exact: true }).click()
+  await expect(update.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
+  await expect(update).toContainText("saved accounts and conversations stay in place")
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+  }
   await expect(page.locator("#menu-bar")).toContainText("Quit Multi Codex")
   await expect(page.locator("#vscode")).toContainText("every saved account")
+  await page.goto("/")
+  await page.getByRole("button", { name: "Windows", exact: true }).click()
+  await expect(page.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
   for (const guide of ["platform-support", "extension", "extension-publishing", "release-guidelines"]) {
     await page.goto(`/docs/${guide}`)
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
