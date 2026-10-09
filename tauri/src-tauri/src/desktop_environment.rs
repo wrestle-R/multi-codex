@@ -136,6 +136,9 @@ struct HyprMonitor {
 }
 
 pub fn backend() -> &'static str {
+    if cfg!(target_os = "windows") {
+        return "windows";
+    }
     if cfg!(target_os = "macos") {
         return "macos";
     }
@@ -173,6 +176,7 @@ pub fn inventory() -> Result<DesktopInventory> {
         "hyprland" => hypr_inventory(),
         #[cfg(target_os = "linux")]
         "gnome" | "kde" => crate::linux_desktops::inventory(backend()),
+        "windows" => Ok(unsupported_inventory("windows", "Windows virtual desktop placement is unavailable. Apps open on the current desktop.".into())),
         "macos" => Ok(unsupported_inventory("macos", "Native macOS Spaces enumeration and verified placement have not passed the release feasibility gate. Opening on the current desktop is available.".into())),
         _ => Ok(unsupported_inventory("unsupported", "Desktop control is available on Hyprland, GNOME with the Multi Codex extension, and KDE Plasma 6. Opening on the current desktop is available.".into())),
     }

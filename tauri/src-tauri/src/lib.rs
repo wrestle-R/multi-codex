@@ -1,8 +1,13 @@
 #[cfg(target_os = "linux")]
 mod application_icons;
 mod desktop_environment;
+#[cfg(unix)]
+mod desktop_integration;
+#[cfg(windows)]
+#[path = "windows_integration.rs"]
 mod desktop_integration;
 mod extension_accounts;
+mod file_security;
 mod launch;
 mod launch_targets;
 #[cfg(target_os = "linux")]
@@ -12,8 +17,10 @@ mod profiles;
 mod settings;
 mod terminals;
 mod usage;
+#[cfg(windows)]
+mod windows_platform;
 
-pub use extension_accounts::run_account_helper;
+pub use extension_accounts::{run_account_helper, run_bridge_launcher};
 
 use desktop_integration::{DesktopIntegration, DesktopIntegrationStatus};
 use profiles::{
@@ -187,7 +194,20 @@ async fn open_device_login_browser() -> Result<bool, String> {
             Ok(true)
         }).await.map_err(|_| "Could not open the default browser".to_string())?
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        Command::new("rundll32.exe")
+            .args([
+                "url.dll,FileProtocolHandler",
+                "https://auth.openai.com/codex/device",
+            ])
+            .creation_flags(0x08000000)
+            .spawn()
+            .map_err(|_| "Could not open the default browser".to_string())?;
+        Ok(true)
+    }
+    #[cfg(target_os = "linux")]
     Ok(false)
 }
 
