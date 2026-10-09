@@ -67,14 +67,17 @@ pub fn standalone_candidates(home: &Path, path: Option<&OsStr>) -> Vec<PathBuf> 
         .unwrap_or_else(|p| p.into_inner());
     if cache.1.elapsed() > Duration::from_secs(30) {
         cache.0 = crate::process::output(
-            Command::new("powershell.exe").args([
+            Command::new("powershell.exe").env_remove("PSModulePath").args([
                 "-NoLogo",
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "Get-AppxPackage -Name OpenAI.Codex | ForEach-Object { $_.InstallLocation }",
+                "$ErrorActionPreference = 'Stop'; Get-AppxPackage -Name OpenAI.Codex | ForEach-Object { $_.InstallLocation }",
             ]),
-            Duration::from_secs(5),
+            // Appx module initialization on a cold Windows installation can
+            // exceed five seconds. Let Windows PowerShell construct its own
+            // module path instead of inheriting PowerShell 7's module paths.
+            Duration::from_secs(15),
         )
         .ok()
         .filter(|o| o.status.success())
