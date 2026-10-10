@@ -181,7 +181,7 @@ impl AuthRecognizer for CodexCliRecognizer {
         write_codex_config(temp.path())?;
 
         let codex = resolve_codex_command()?;
-        let output = Command::new(codex)
+        let output = crate::process::background(&mut Command::new(codex))
             .args(["login", "status"])
             .env("CODEX_HOME", temp.path())
             .output()
