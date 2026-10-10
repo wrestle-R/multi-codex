@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "checks": [
+    "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+    "Desktop accounts discovered despite inherited managed CODEX_HOME",
+    "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+    "First account selection connected automatically without an Enable switching button",
+    "Codex opens with the inherited home\u2019s current login before any account selection",
+    "Selected Account A",
+    "Selected Account B",
+    "Selected Account A",
+    "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+    "Usage read through the official bundled backend",
+    "Switch rejected during an actual in-progress Codex turn",
+    "Switch allowed after the actual turn completed",
+    "Existing chat continued after switching accounts without creating a new thread",
+    "Missing account leaves the previous verified account active",
+    "Account discovery recovered after helper termination while Codex stayed running",
+    "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+    "Native account list shows saved accounts and inline usage without welcome buttons"
+  ],
+  "hostPid": 126895,
+  "backendPid": 126947,
+  "activationId": "301cb67e-1ab6-4088-b757-738631edce8a",
+  "bridgeInstanceId": "bf1124e4-96d3-498e-ad22-d373fb9a95b7",
+  "codexVersion": "26.1007.21434",
+  "fixtureRequests": 106,
+  "panelPhases": [
+    "5-Account A",
+    "6-Account B",
+    "7-Account A",
+    "continued-Account B",
+    "accounts-list Account B"
+  ],
+  "generationAccounts": [
+    "synthetic-account-a",
+    "synthetic-account-b"
+  ],
+  "panelStayedMounted": true,
+  "statusBarAccountVerified": true,
+  "accountsPanelVerified": true,
+  "liveAttachment": true,
+  "platform": "linux",
+  "architecture": "x64",
+  "extensionId": "russeldanielpaul.multi-codex",
+  "originalLoginUnchanged": true,
+  "appVersion": "1.4.0",
+  "extensionVersion": "0.2.0",
+  "testedAt": "2026-10-09T06:06:06.232248+00:00",
+  "testedBy": "Codex local native VS Code test"
+}

@@ -36,12 +36,12 @@ test('native storage supports standalone add/import, shared discovery and cross-
     assert.equal((await first.list()).length, 6);
     const cold = new AccountClient(helper, engine, data, home);
     try { await cold.request('accounts/delete', { id: active.id }); }
-    finally { cold.dispose(); }
+    finally { await cold.dispose(); }
     assert.equal((await second.list()).length, 5, 'A fresh helper could not remove a persisted account');
   } finally {
     for (const profile of await first.list().catch(() => [])) { await first.request('accounts/release', { id: profile.id }).catch(() => {}); await second.request('accounts/release', { id: profile.id }).catch(() => {}); }
     for (const profile of await first.list().catch(() => [])) { await first.request('accounts/unlockCredential', { id: profile.id }).catch(() => {}); await second.request('accounts/unlockCredential', { id: profile.id }).catch(() => {}); }
     for (const profile of await first.list().catch(() => [])) await first.request('accounts/delete', { id: profile.id }).catch(() => {});
-    first.dispose(); second.dispose(); await rm(root, { recursive: true, force: true });
+    await Promise.all([first.dispose(), second.dispose()]); await rm(root, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
   }
 });
