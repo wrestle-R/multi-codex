@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
-import { evaluate, requiredChecks } from './release-gates.mjs'
+import { evaluate, requiredChecks, crossPlatformChecks, extensionTargets } from './release-gates.mjs'
 
 function releaseChecks() {
   return Object.fromEntries(requiredChecks.map(id => [id, { status: 'passed', evidence: 'record', environment: 'test runner', testedBy: 'tester', testedAt: '2026-10-03T00:00:00Z' }]))
@@ -39,4 +39,20 @@ test('requires the exact packages that were functionally tested', () => {
     assert.ok(evaluate(report, '1.3.0', directory).some(error => error.includes('differs from the tested candidate')))
     assert.ok(evaluate(report, '1.3.1', directory).some(error => error.includes('does not match')))
   } finally { rmSync(directory, { recursive: true, force: true }) }
+})
+
+
+test('new platform releases cannot bypass Windows, packaged extension or menu validation', () => {
+  const version = '1.4.0', extensionVersion = '0.2.0';
+  const report = { version, extensionVersion, schemaVersion: 1, releaseChecks: releaseChecks(), artifacts: {} };
+  const names = [`Multi.Codex_${version}_amd64.AppImage`, `Multi.Codex_${version}_amd64.deb`, `Multi.Codex-${version}-1.x86_64.rpm`, `Multi.Codex_${version}_aarch64.dmg`, `Multi.Codex_${version}_x64-setup.exe`, 'install-app.sh', 'update-app.sh', 'install-app.ps1', 'update-app.ps1', ...extensionTargets.map(target => `multi-codex-${target}-${extensionVersion}.vsix`)];
+  for (const name of names) report.artifacts[name] = 'a'.repeat(64);
+  assert.ok(evaluate(report, version).some(error => error.includes('windows-installer')));
+  assert.ok(evaluate(report, version).some(error => error.includes('extension-win32-x64')));
+  for (const check of crossPlatformChecks) report.releaseChecks[check] = { status: 'passed', evidence: 'exact packaged candidate run', environment: 'native runner', testedBy: 'tester', testedAt: '2026-10-09T00:00:00Z' };
+  assert.deepEqual(evaluate(report, version), []);
+  delete report.artifacts[`multi-codex-win32-x64-${extensionVersion}.vsix`];
+  assert.ok(evaluate(report, version).some(error => error.includes('win32-x64')));
+  delete report.extensionVersion;
+  assert.ok(evaluate(report, version).some(error => error.includes('manifest version')));
 })
