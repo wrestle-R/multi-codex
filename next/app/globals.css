@@ -87,7 +87,7 @@ h1, h2, h3, p { margin-top: 0; }
 .getting-started h2, .notes-section h2 { font-size: 43px; letter-spacing: -1.8px; line-height: 1.1; font-weight: 600; }
 .getting-started > div > p:not(.eyebrow) { max-width: 320px; color: var(--muted); font-size: 15px; }
 .install-box { min-width: 0; padding: 20px; border: 1px solid var(--panel-border); border-radius: 10px; background: var(--panel); }
-.install-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 19px; }
+.install-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 19px; }
 .platform-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 5px; background: var(--tabs); }
 .platform-tabs button { padding: 7px 14px; border-radius: 4px; color: var(--muted); background: transparent; font-size: 12px; }
 .platform-tabs button[aria-pressed="true"] { color: var(--ink); background: var(--paper); box-shadow: 0 1px 3px var(--tab-shadow); }
