@@ -52,6 +52,19 @@ jobs:
           "MULTI_CODEX_TEST_VSCODE=$codeRoot/Code.exe" >> $env:GITHUB_ENV
           "MULTI_CODEX_TEST_EXTENSION=$official" >> $env:GITHUB_ENV
           "MULTI_CODEX_TEST_ENGINE=$official/bin/windows-x86_64/codex.exe" >> $env:GITHUB_ENV
+      - name: Verify two native VS Code accounts and isolated PowerShell CLI
+        run: cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_live_launches -- --ignored --test-threads=1
+      - name: Install the official signed Codex Windows MSIX in the disposable runner
+        shell: pwsh
+        run: |
+          $package = "$env:RUNNER_TEMP/Codex.msix"
+          Invoke-WebRequest 'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-x64.msix' -OutFile $package
+          Add-AppxPackage -Path $package
+          $location = (Get-AppxPackage -Name OpenAI.Codex).InstallLocation
+          if (!$location) { throw 'The signed OpenAI.Codex package is missing' }
+          "MULTI_CODEX_TEST_STANDALONE=$location/app/ChatGPT.exe" >> $env:GITHUB_ENV
+      - name: Verify separate standalone accounts, native windows, guards and cold restart
+        run: cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_live_standalone -- --ignored --test-threads=1
       - run: npm test
         working-directory: extension
       - name: Package Windows VSIX and extract the exact package for UI tests
@@ -93,6 +106,23 @@ jobs:
 
       - run: npm run tauri -- build --bundles nsis --config src-tauri/tauri.windows.conf.json
         working-directory: tauri
+      - name: Normalize the manifest-derived Windows installer filename
+        shell: pwsh
+        run: |
+          $version = (Get-Content tauri/package.json | ConvertFrom-Json).version
+          $package = @(Get-ChildItem tauri/src-tauri/target/release/bundle/nsis/*.exe)
+          if ($package.Count -ne 1) { throw 'Expected one NSIS candidate' }
+          $destination = Join-Path $package[0].DirectoryName "Multi.Codex_$($version)_x64-setup.exe"
+          if ($package[0].FullName -ne $destination) { Move-Item $package[0].FullName $destination }
+          "MULTI_CODEX_TEST_INSTALLER=$destination" >> $env:GITHUB_ENV
+      - name: Install, update and restart the exact packaged Windows app
+        shell: pwsh
+        run: ./tauri/scripts/windows-installer-smoke.ps1 -Installer $env:MULTI_CODEX_TEST_INSTALLER
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installer-evidence
+          path: ${{ runner.temp }}/multi-codex-windows-evidence/
       - uses: actions/upload-artifact@v4
         with:
           name: windows-installer

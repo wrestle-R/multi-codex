@@ -81,12 +81,12 @@ pub(crate) fn bundled_standalone_cli() -> Option<PathBuf> {
     let cli = if std::env::consts::OS == "macos" {
         resources.join("codex-cli/CodexCLI.app/Contents/MacOS/codex")
     } else {
-        resources.join("codex")
+        resources.join(if cfg!(windows) { "codex.exe" } else { "codex" })
     };
     crate::profiles::is_executable_file(&cli).then_some(cli)
 }
 
-fn desktop_version(binary: &Path) -> Option<String> {
+pub(crate) fn desktop_version(binary: &Path) -> Option<String> {
     let parent = binary.parent()?;
     for archive in [
         parent.join("resources/app.asar"),
@@ -141,6 +141,8 @@ fn standalone_candidates(
                     .map(|name| root.join(format!("{name}.app/Contents/MacOS/{name}")))
             })
             .collect(),
+        #[cfg(windows)]
+        "windows" => crate::windows_platform::standalone_candidates(home, path.as_deref()),
         "linux" => {
             // `codex` is also the CLI name: never treat it as the desktop app.
             let mut candidates: Vec<_> = path

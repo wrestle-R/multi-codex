@@ -1266,9 +1266,7 @@ fn canonical_workspace(workspace: &Path) -> Result<PathBuf> {
 
 pub fn default_service() -> Result<ProfileService<KeyringSecretStore, CodexCliRecognizer>> {
     let home = dirs::home_dir().ok_or_else(|| "Home directory is unavailable".to_string())?;
-    let data_root = dirs::data_dir()
-        .ok_or_else(|| "Data directory is unavailable".to_string())?
-        .join("multi-codex");
+    let data_root = crate::settings::data_root()?;
     let codex_home = crate::settings::global_codex_home(
         &home,
         env::var_os("CODEX_HOME"),
@@ -3993,3 +3991,7 @@ fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
 fn profile_process_running(home: &Path) -> bool {
     crate::windows_platform::profile_running(home)
 }
+
+#[cfg(all(test, windows))]
+#[path = "profiles_windows_tests.rs"]
+mod windows_tests;
