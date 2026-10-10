@@ -62,7 +62,10 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const version = JSON.parse(readFileSync(resolve(root, 'tauri/package.json'), 'utf8')).version
   const report = JSON.parse(readFileSync(resolve(root, `release/evidence/v${version}-validation.json`), 'utf8'))
   const artifactDirectory = process.argv.slice(2).find(argument => argument !== '--full-validation')
+  const extensionVersion = JSON.parse(readFileSync(resolve(root, 'extension/package.json'), 'utf8')).version
   const failures = evaluate(report, version, artifactDirectory, { fullValidation: process.argv.includes('--full-validation') })
+  const [major, minor] = version.split('.').map(Number)
+  if ((major > 1 || (major === 1 && minor >= 4)) && report.extensionVersion !== extensionVersion) failures.push('Validation report extension version does not match the committed manifest')
   if (failures.length) {
     console.error(`Release v${version} is blocked:\n${failures.map(f => `- ${f}`).join('\n')}`)
     process.exitCode = 1
