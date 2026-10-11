@@ -14,13 +14,17 @@ export function spawnExecutable(binary: string, args: string[], options: SpawnOp
     : spawn(binary, args, { ...options, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
 }
 
-/** Wait for handles to close before removing homes or replacing a Windows binary. */
+/** Reap the process and close our pipes before removing its private home. */
 export async function terminateExecutable(child: ChildProcess) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  await new Promise<void>(resolve => {
-    const done = () => { clearTimeout(timeout); resolve(); };
-    child.once('close', done);
-    const timeout = setTimeout(() => child.kill('SIGKILL'), 3000);
-    child.kill();
-  });
+  if (child.exitCode === null && child.signalCode === null) {
+    await new Promise<void>(resolve => {
+      const done = () => { clearTimeout(timeout); child.off('exit', done); child.off('close', done); resolve(); };
+      child.once('exit', done); child.once('close', done);
+      const timeout = setTimeout(() => child.kill('SIGKILL'), 3000);
+      child.kill();
+    });
+  }
+  // Descendants can inherit a pipe after the parent exits. They must not hold
+  // extension disposal open indefinitely; these streams belong to this client.
+  child.stdin?.destroy(); child.stdout?.destroy(); child.stderr?.destroy();
 }
