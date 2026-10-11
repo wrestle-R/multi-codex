@@ -104,8 +104,8 @@
     "latestReleaseVerifiedAt": "2026-10-07T05:33:24.717285+00:00",
     "publishRun": "https://github.com/wrestle-R/multi-codex/actions/runs/37576313561",
     "localUpgrade": "passed",
-    "dataPreservation": "docs/releases/v1.3.7-local-validation.json",
-    "websiteValidation": "docs/releases/v1.3.7-website-validation.json"
+    "dataPreservation": "release/evidence/v1.3.7-local-validation.json",
+    "websiteValidation": "release/evidence/v1.3.7-website-validation.json"
   },
   "releaseChecks": {
     "linux-build": {
@@ -139,7 +139,7 @@
     "linux-isolation": {
       "status": "passed",
       "environment": "Linux x86_64; Codex desktop 26.930.51102",
-      "evidence": "docs/releases/v1.3.5-auth-isolation.json",
+      "evidence": "release/evidence/v1.3.5-auth-isolation.json",
       "testedAt": "2026-10-06T00:05:50+05:30",
       "testedBy": "Codex automation with user sign-in",
       "carriedForwardFrom": "v1.3.5",
