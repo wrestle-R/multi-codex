@@ -16,7 +16,7 @@
     "url": "https://github.com/wrestle-R/multi-codex.git",
     "directory": "extension"
   },
-  "homepage": "https://github.com/wrestle-R/multi-codex/tree/main/extension",
+  "homepage": "https://multi-codex.vercel.app/docs/extension",
   "bugs": "https://github.com/wrestle-R/multi-codex/issues",
   "icon": "resources/icon.png",
   "keywords": [
