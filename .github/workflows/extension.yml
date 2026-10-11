@@ -59,6 +59,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
+          cache-on-failure: true
       - name: Install Linux native dependencies
         if: runner.os == 'Linux'
         run: |

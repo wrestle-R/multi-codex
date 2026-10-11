@@ -26,6 +26,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
+          cache-on-failure: true
       - run: npm ci
         working-directory: tauri
       - run: npm run build
