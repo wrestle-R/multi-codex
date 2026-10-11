@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import App, { formatStorage } from "./App"
@@ -34,6 +34,12 @@ const api = vi.hoisted(() => ({
 }))
 
 vi.mock("./lib/desktop-api", () => api)
+const menuEvents = vi.hoisted(() => new Map<string, (event: any) => unknown>())
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async (name: string, handler: (event: any) => unknown) => {
+  menuEvents.set(name, handler)
+  return () => menuEvents.delete(name)
+}) }))
+
 
 const profile: Profile = {
   id: "2c7f23ba-b2c0-4f67-a963-7749cc13f1e2",
@@ -47,6 +53,7 @@ const profile: Profile = {
 let deviceLoginListener: ((event: { id: string; output?: string; completed: boolean; error?: string }) => void) | undefined
 
 beforeEach(() => {
+  menuEvents.clear()
   localStorage.clear()
   api.getTerminalOptions.mockReset().mockResolvedValue([{ id: "automatic", label: "Automatic", available: true }, { id: "konsole", label: "Konsole", available: true }, { id: "kitty", label: "Kitty", available: true }, { id: "ghostty", label: "Ghostty", available: false }])
   api.listProfiles.mockReset().mockResolvedValue([profile])
@@ -120,7 +127,7 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => cleanup())
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe("Multi Codex", () => {
   it("formats storage using compact binary units", () => {
@@ -1075,4 +1082,40 @@ it("groups expiring resets at the top, opens account details, and keeps the dism
   await screen.findByRole("heading", { name: "Work" })
   await new Promise(resolve => setTimeout(resolve, 300))
   expect(screen.queryByRole("complementary", { name: "Expiring usage resets" })).not.toBeInTheDocument()
+})
+
+
+it.each(["vscode", "standalone", "cli"] as const)("Mac account menu reuses folder preferences and launch guards for %s", async target => {
+  vi.stubGlobal("__TAURI_INTERNALS__", {})
+  const user = userEvent.setup()
+  api.getLaunchTargets.mockResolvedValue({ platform: "macos", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true })
+  api.getLaunchEnvironment.mockResolvedValue({ defaultWorkspace: "/Users/test/Projects", capabilities: { backend: "macos", enumerateDesktops: false, enumerateWindows: false, moveWindows: false, reason: null } })
+  api.getExecutableSettings.mockResolvedValue({ preferredWorkspace: "/Users/test/Client project", launchMode: "vscode" })
+  const view = render(<App />)
+  await waitFor(() => expect(menuEvents.has("account-menu-launch")).toBe(true))
+  await act(async () => { await menuEvents.get("account-menu-launch")!({ payload: { id: profile.id, target } }) })
+  expect(api.launchProfile).not.toHaveBeenCalled()
+  expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
+  expect(api.launchCliProfile).not.toHaveBeenCalled()
+  await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+  const launcher = target === "vscode" ? api.launchProfile : target === "standalone" ? api.launchStandaloneProfile : api.launchCliProfile
+  await waitFor(() => expect(launcher).toHaveBeenCalledWith(...(target === "cli" ? [profile.id, "/Users/test/Client project"] : [profile.id, "/Users/test/Client project", null, null])))
+  expect(api.getDesktopInventory).not.toHaveBeenCalled()
+  view.unmount()
+  expect(menuEvents.size).toBe(0)
+})
+
+it("Mac menu refresh checks every saved account without opening a launch dialog", async () => {
+  vi.stubGlobal("__TAURI_INTERNALS__", {})
+  const peer = { ...profile, id: "00000000-0000-4000-8000-000000000001", name: "Work" }
+  api.listProfiles.mockResolvedValue([profile,peer])
+  render(<App />)
+  await waitFor(() => expect(api.checkProfileLimits).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(screen.getByRole("button", { name: "Refresh all" })).not.toBeDisabled())
+  api.checkProfileLimits.mockClear()
+  await act(async () => { menuEvents.get("account-menu-refresh")!({ payload: null }) })
+  await waitFor(() => expect(api.checkProfileLimits).toHaveBeenCalledTimes(2))
+  expect(api.checkProfileLimits).toHaveBeenCalledWith(profile.id)
+  expect(api.checkProfileLimits).toHaveBeenCalledWith(peer.id)
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
 })
