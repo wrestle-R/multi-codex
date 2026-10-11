@@ -16,7 +16,7 @@ export function spawnExecutable(binary: string, args: string[], options: SpawnOp
 
 /** Reap the process and close our pipes before removing its private home. */
 export async function terminateExecutable(child: ChildProcess) {
-  if (child.exitCode === null && child.signalCode === null) {
+  if (child.pid && child.exitCode === null && child.signalCode === null) {
     await new Promise<void>(resolve => {
       const done = () => { clearTimeout(timeout); child.off('exit', done); child.off('close', done); resolve(); };
       child.once('exit', done); child.once('close', done);

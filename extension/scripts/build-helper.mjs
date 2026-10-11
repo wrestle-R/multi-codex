@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, copyFileSync, chmodSync, renameSync } from 'node:fs';
 import { resolve } from 'node:path';
-if (!['linux', 'darwin', 'win32'].includes(process.platform)) throw new Error('The native account helper currently supports Linux and macOS.');
+if (!['linux', 'darwin', 'win32'].includes(process.platform)) throw new Error('The native account helper supports Linux, macOS and native Windows x64.');
 execFileSync('cargo', ['build', '--locked', '--release', '--bin', 'multi-codex-account-helper'], { cwd: resolve('../tauri/src-tauri'), stdio: 'inherit' });
 mkdirSync('bin', { recursive: true });
 const name = process.platform === 'win32' ? 'multi-codex-account-helper.exe' : 'multi-codex-account-helper';
