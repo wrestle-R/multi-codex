@@ -197,7 +197,7 @@ pub fn run_bridge_launcher() -> profiles::Result<bool> {
         {
             command.env("MULTI_CODEX_HOST_PID", parent.as_u32().to_string());
         }
-        let status = command
+        let status = crate::process::background(&mut command)
             .status()
             .map_err(|_| "Could not start bridge runtime")?;
         std::process::exit(status.code().unwrap_or(1));
