@@ -1,6 +1,6 @@
 # Storage cleanup and in-app updates
 
-These controls are implemented in the development source and are **not included in the published v1.4.1 packages**. The [changelog](/releases) identifies published versions and their exact capabilities. Use the existing installer/update commands for v1.4.1.
+These controls are available in **v1.5.0 and later**. If you use v1.4.1 or an older package, use the [website update command](/docs#updates) or the new installer once. Later signed updates can be installed from the Update button. The [changelog](/releases) identifies each published version and its exact capabilities.
 
 ## Understand profile storage
 
@@ -46,13 +46,13 @@ Native deletion can complete some selected chats before a later operation fails.
 
 ## Update from the app
 
-In a release containing these controls, click **Update** in the header. Multi Codex checks the stable release, downloads the matching package, verifies its signature, installs it and restarts. Progress and the restart state are shown in the app. A failed check or installation offers a retry.
+Click **Update** in the header. Multi Codex checks the stable release, downloads the matching package, verifies its signature, installs it and restarts. Progress and the restart state are shown in the app. A failed check or installation offers a retry.
 
 Saved accounts and profile data are preserved. Updating the launcher does not intentionally close separately launched Codex sessions.
 
 Supported in-app update packages are Linux x64 AppImage, Apple Silicon macOS application bundles, and Windows x64 installers. Linux `.deb` and `.rpm` installations continue to use their package manager. A development binary is not an installed AppImage.
 
-Signed updater packages and a matching `latest.json` must be published before this flow can download an update. Existing v1.4.1 release assets do not include them. Update-signature verification is separate from Apple Developer ID signing and notarization; signing an updater payload does not remove macOS first-open requirements.
+Starting with v1.5.0, stable release assets include signed updater packages and a matching `latest.json`. The button reports that you are up to date when no newer stable version is available. Existing v1.4.1 packages do not contain the button or signed updater assets. Update-signature verification is separate from Apple Developer ID signing and notarization; signing an updater payload does not remove macOS first-open requirements.
 
 ## Release publishing requirements
 
