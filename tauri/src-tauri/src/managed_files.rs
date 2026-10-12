@@ -78,17 +78,25 @@ fn relative_parts<'a>(root_path: &'a Path, path: &'a Path) -> Result<Vec<Compone
                 _ => expected == actual,
             }
         }
-        let root: Vec<_> = root_path.components().collect();
         let candidate: Vec<_> = path.components().collect();
-        if candidate.len() <= root.len()
-            || !root
-                .iter()
-                .zip(&candidate)
-                .all(|(expected, actual)| same_component(*expected, *actual))
-        {
-            return Err("Storage path must remain inside its owned root".into());
+        let mut roots = vec![root_path.to_path_buf()];
+        if let Ok(canonical) = fs::canonicalize(root_path) {
+            if canonical != root_path {
+                roots.push(canonical);
+            }
         }
-        Ok(candidate.into_iter().skip(root.len()).collect())
+        for spelling in roots {
+            let root: Vec<_> = spelling.components().collect();
+            if candidate.len() > root.len()
+                && root
+                    .iter()
+                    .zip(&candidate)
+                    .all(|(expected, actual)| same_component(*expected, *actual))
+            {
+                return Ok(candidate.into_iter().skip(root.len()).collect());
+            }
+        }
+        Err("Storage path must remain inside its owned root".into())
     }
 }
 
@@ -424,14 +432,7 @@ mod tests {
         let child = root.join("private/child");
         fs::create_dir_all(&child).unwrap();
         let canonical_child = fs::canonicalize(&child).unwrap();
-        let result = checked(&root, &canonical_child, false);
-        assert!(
-            result.is_ok(),
-            "root={root:?} root_components={:?} candidate={canonical_child:?} candidate_components={:?} error={result:?}",
-            root.components().collect::<Vec<_>>(),
-            canonical_child.components().collect::<Vec<_>>()
-        );
-        assert_eq!(result.unwrap(), child);
+        assert_eq!(checked(&root, &canonical_child, false).unwrap(), child);
         let neighbor = temp.path().join("owned-neighbor");
         fs::create_dir(&neighbor).unwrap();
         assert!(checked(&root, &fs::canonicalize(neighbor).unwrap(), false).is_err());
