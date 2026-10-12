@@ -29,6 +29,15 @@ impl AuthRecognizer for BundledRecognizer {
 
 pub fn run_account_helper() -> profiles::Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if args.len() == 2 && args[0] == "--protect-directory" {
+        let path = PathBuf::from(&args[1]);
+        let metadata = std::fs::symlink_metadata(&path)
+            .map_err(|_| "The private runtime directory is unavailable")?;
+        if !path.is_absolute() || !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err("The private runtime must be an absolute directory, not a link".into());
+        }
+        return crate::file_security::protect(&path, true);
+    }
     if args.len() != 3 {
         return Err("Expected engine, data directory and global Codex home".into());
     }
