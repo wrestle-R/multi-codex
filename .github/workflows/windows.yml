@@ -16,9 +16,6 @@ on:
         description: Sign updater payloads for a release candidate
         type: boolean
         default: false
-  push:
-    branches: [main]
-    paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
   pull_request:
     paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
 concurrency:

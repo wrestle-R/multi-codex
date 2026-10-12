@@ -46,7 +46,37 @@ Use `feat` for capabilities, `fix` for defects, `docs` for documentation, `test`
 3. Write full release details in `next/content/releases/v<VERSION>.md`. Preview the website page and check its changes, installation/update instructions, compatibility requirements, limitations and evidence. Do not claim checks that have not passed.
 4. Complete build, installer, signed-updater and functional release gates before publishing. Configure the GitHub Actions `TAURI_SIGNING_PRIVATE_KEY` secret and optional password. The matching public key is in the Tauri config; private signing material never belongs in Git or website content. Signing the update payload is separate from Apple Developer ID signing/notarization.
 5. After publication, update `next/lib/releases.ts` with the actual publication timestamp and concise highlights. Add a series summary when a new major/minor series appears.
-6. Verify the deployed website release page, badge, version anchors and installation commands. Publish GitHub assets with a short link to that page. Keep the README focused on project setup and installation, linking to the website changelog.
+6. Publish the validated draft manually with the short website link using the commands below. Verify the deployed website release page, badge, version anchors and installation commands. Keep the README focused on project setup and installation, linking to the website changelog.
+
+## Automation and manual publication
+
+Ordinary branch pushes do not run desktop CI, Windows packaging or extension packaging. Version-tag pushes matching `v*.*.*` start the Release workflow, which builds and tests native packages and creates a **draft** after its checks pass. A tag must match the committed stable app version. The draft is not automatically published. CI remains available for pull requests and explicit manual runs; individual platform workflows can also be called by Release or started manually for investigation.
+
+Website deployments are separate: keep Vercel Git deployments enabled for ordinary pushes. A branch push can update the website without building or publishing a desktop release. Production follows `main`; other branches can create previews.
+
+After recording truthful native evidence and exact hashes in `release/evidence/v<VERSION>-validation.json`, download and verify the draft before publishing it manually from the repository root. This snippet intentionally refuses to edit an already-published stable release. No Actions workflow writes the final GitHub description.
+
+```bash
+set -e
+VERSION=$(node -p 'JSON.parse(require("fs").readFileSync("tauri/package.json", "utf8")).version')
+TAG="v$VERSION"
+[[ "$(gh release view "$TAG" --json isDraft --jq '.isDraft')" == "true" ]]
+RELEASE_DIR=$(mktemp -d)
+gh release download "$TAG" --dir "$RELEASE_DIR"
+node tauri/scripts/release-gates.mjs "$RELEASE_DIR"
+node tauri/scripts/updater-manifest.mjs "$RELEASE_DIR" "$VERSION" --check
+if command -v sha256sum >/dev/null 2>&1; then
+  (cd "$RELEASE_DIR" && sha256sum --check SHA256SUMS)
+else
+  (cd "$RELEASE_DIR" && shasum -a 256 -c SHA256SUMS)
+fi
+test -f "next/content/releases/$TAG.md"
+printf 'Full release details: https://multi-codex.vercel.app/releases/%s\n' "$TAG" > "$RELEASE_DIR/release-link.md"
+gh release edit "$TAG" --draft=false --prerelease=false --latest \
+  --title "Multi Codex $TAG" --notes-file "$RELEASE_DIR/release-link.md"
+```
+
+Verify updater payload signatures against the configured public key as part of release evidence. The manifest/checksum checks above complement native functional and signature checks; do not fabricate passed evidence or skip failed checks. After publication, use GitHub's actual publication timestamp in the website history and push that website update.
 
 ## Website verification
 
