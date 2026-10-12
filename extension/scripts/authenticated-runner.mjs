@@ -21,6 +21,25 @@ const report = { platform: process.platform, architecture: process.arch, passed:
 report.source = process.env.GITHUB_SHA ?? 'local';
 report.engineVersion = spawnSync(engine, ['--version'], { encoding: 'utf8', windowsHide: true }).stdout?.trim();
 const digest = value => createHash('sha256').update(value).digest('hex');
+const modelIds = result => (result?.data ?? result?.models ?? [])
+  .map(entry => entry?.model ?? entry?.slug ?? entry?.id)
+  .filter(value => typeof value === 'string' && value.length > 0);
+async function completedTurn(lines, rpc, threadId, text, timeout = 120000) {
+  let handler; let timer;
+  const completion = new Promise((resolve, reject) => {
+    timer = setTimeout(() => reject(new Error('Authenticated model turn timed out')), timeout);
+    handler = message => {
+      if (message.method === 'turn/completed' && message.params.threadId === threadId) resolve(message.params.turn.status === 'completed');
+    };
+    lines.on('message', handler);
+  });
+  completion.catch(() => {});
+  try {
+    await rpc.request('turn/start', { threadId, input: [{ type: 'text', text }] });
+    return await completion;
+  } catch { return false; }
+  finally { clearTimeout(timer); lines.off('message', handler); }
+}
 await mkdir(output, { recursive: true });
 await mkdir(globalHome, { mode: 0o700 });
 let phase = 'setup'; let accounts; let bridge; let client; let frontend;
@@ -118,6 +137,7 @@ try {
   client = await BridgeClient.connect(bridge.config.socket, bridge.config.token);
   const pid = bridge.backend.pid;
   const credentialHashes = await Promise.all(saved.map(id => readFile(join(dataRoot, 'profiles', id, 'codex-home', 'auth.json')).then(digest)));
+  const catalogs = new Map();
   for (const index of [0, 1, 0]) {
     await client.request('switch', { id: saved[index] });
     assert.equal((await client.request('state')).selectedId, saved[index]);
@@ -127,10 +147,26 @@ try {
     assert.equal(digest(actual.account.email.toLowerCase()), identities[index].identity);
     // A real authenticated read verifies that this isn't only a cosmetic switch.
     await client.request('usage');
+    if (!catalogs.has(index)) catalogs.set(index, modelIds(await frontend.request('model/list', { limit: 100 })));
     assert.equal(bridge.backend.pid, pid);
     for (let i = 0; i < saved.length; i++) assert.equal(digest(await readFile(join(dataRoot, 'profiles', saved[i], 'codex-home', 'auth.json'))), credentialHashes[i]);
     report.switching.push({ account: index === 0 ? 'a' : 'b', identityVerified: true, authenticatedUsage: true, sameBackend: true, sourceCredentialsUnchanged: true });
   }
+  phase = 'shared-model-selection';
+  const accountBModels = new Set(catalogs.get(1));
+  const candidates = catalogs.get(0).filter(model => accountBModels.has(model)).slice(0, 8);
+  assert.ok(candidates.length, 'Saved accounts have no common model catalog entries');
+  let sharedModel;
+  for (const model of candidates) {
+    await client.request('switch', { id: saved[0] });
+    const threadA = await frontend.request('thread/start', { cwd: root, model, sandbox: 'read-only', approvalPolicy: 'never' }).catch(() => null);
+    if (!threadA || !await completedTurn(frontend.lines, frontend, threadA.thread.id, 'Reply with just the word ready.')) continue;
+    await client.request('switch', { id: saved[1] });
+    const threadB = await frontend.request('thread/start', { cwd: root, model, sandbox: 'read-only', approvalPolicy: 'never' }).catch(() => null);
+    if (threadB && await completedTurn(frontend.lines, frontend, threadB.thread.id, 'Reply with just the word ready.')) { sharedModel = model; break; }
+  }
+  assert.ok(sharedModel, 'Saved accounts have no inference-verified common model');
+  await client.request('switch', { id: saved[0] });
   phase = 'shared-account-continuation';
   client.dispose(); frontend.close(); await bridge.dispose();
   client = undefined; frontend = undefined; bridge = undefined;
@@ -146,32 +182,11 @@ try {
   await frontend.request('initialize', { clientInfo: { name: 'multi_codex_authenticated_sharing_acceptance', version: '1' }, capabilities: { experimentalApi: true } });
   sharedInput.write(JSON.stringify({ method: 'initialized' }) + '\n');
   client = await BridgeClient.connect(bridge.config.socket, bridge.config.token);
-  async function minimalTurn(threadId, text) {
-    let handler;
-    let timer;
-    const completion = new Promise((resolve, reject) => {
-      timer = setTimeout(() => reject(new Error('Authenticated shared turn timed out')), 120000);
-      handler = message => {
-        if (message.method === 'turn/completed' && message.params.threadId === threadId) {
-          message.params.turn.status === 'completed' ? resolve() : reject(new Error('Authenticated shared turn failed'));
-        }
-      };
-      sharedLines.on('message', handler);
-    });
-    completion.catch(() => {});
-    try {
-      await frontend.request('turn/start', { threadId, input: [{ type: 'text', text }] });
-      await completion;
-    } finally { clearTimeout(timer); sharedLines.off('message', handler); }
-  }
   phase = 'shared-account-a-start-thread';
-  // Cross-account continuation must not inherit an account-specific preferred
-  // model. Use the same explicit baseline as the native sharing acceptance.
-  const sharedModel = 'gpt-5.4';
   const started = await frontend.request('thread/start', { cwd: workspace, model: sharedModel, sandbox: 'read-only', approvalPolicy: 'never' });
   const threadId = started.thread.id;
   phase = 'shared-account-a-first-turn';
-  await minimalTurn(threadId, 'Reply with just the word ready.');
+  assert.ok(await completedTurn(sharedLines, frontend, threadId, 'Reply with just the word ready.'));
   phase = 'shared-account-a-read-thread';
   const original = (await frontend.request('thread/read', { threadId, includeTurns: true })).thread;
   const writerA = bridge.backend;
@@ -184,7 +199,7 @@ try {
   const resumed = await frontend.request('thread/resume', { threadId });
   assert.deepEqual(resumed.thread.turns, original.turns);
   phase = 'shared-account-b-continuation';
-  await minimalTurn(threadId, 'Reply with just the word continued.');
+  assert.ok(await completedTurn(sharedLines, frontend, threadId, 'Reply with just the word continued.'));
   const continued = (await frontend.request('thread/read', { threadId, includeTurns: true })).thread;
   assert.equal(continued.turns.length, original.turns.length + 1);
   assert.deepEqual(continued.turns.slice(0, -1), original.turns);

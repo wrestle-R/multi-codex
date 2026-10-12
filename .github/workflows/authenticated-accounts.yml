@@ -6,18 +6,19 @@ on:
         description: Base64 RSA public key for private device instructions
         required: true
         type: string
+      platform:
+        description: Platform to verify
+        required: false
+        default: all
+        type: choice
+        options: [all, mac, windows]
 permissions:
   contents: read
 jobs:
   accounts:
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: macos-26
-            name: mac
-          - os: windows-2025
-            name: windows
+      matrix: ${{ fromJSON(inputs.platform == 'mac' && '{"include":[{"os":"macos-26","name":"mac"}]}' || inputs.platform == 'windows' && '{"include":[{"os":"windows-2025","name":"windows"}]}' || '{"include":[{"os":"macos-26","name":"mac"},{"os":"windows-2025","name":"windows"}]}') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 55
     defaults:
