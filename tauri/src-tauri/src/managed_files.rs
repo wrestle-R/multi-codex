@@ -99,6 +99,18 @@ pub fn regular(root_path: &Path, path: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Resolve an explicitly allowed dependency link, then re-enter the ordinary
+/// no-link boundary using the root's path spelling (including Windows prefixes).
+pub fn resolved_owned(root_path: &Path, path: &Path) -> Result<PathBuf> {
+    root(root_path)?;
+    let physical_root = fs::canonicalize(root_path).map_err(|_| "Cannot resolve storage root")?;
+    let target = fs::canonicalize(path).map_err(|_| "Cannot resolve storage dependency")?;
+    let relative = target
+        .strip_prefix(&physical_root)
+        .map_err(|_| "Storage dependency is outside its owned root")?;
+    checked(root_path, &root_path.join(relative), false)
+}
+
 pub fn digest(path: &Path) -> Result<String> {
     let metadata =
         fs::symlink_metadata(path).map_err(|_| "Could not inspect file for verification")?;
@@ -296,6 +308,27 @@ pub fn verified_snapshot(source: &Path, destination: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn explicit_dependency_resolution_keeps_owned_paths_and_refuses_external_targets() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("app");
+        let payload = root.join("payload");
+        let outside = temp.path().join("external");
+        fs::create_dir_all(&payload).unwrap();
+        fs::create_dir(&outside).unwrap();
+        package_link(&payload, &root.join("owned-link")).unwrap();
+        package_link(&outside, &root.join("external-link")).unwrap();
+        assert!(checked(&root, &root.join("owned-link"), false).is_err());
+        assert_eq!(
+            resolved_owned(&root, &root.join("owned-link")).unwrap(),
+            payload
+        );
+        assert_eq!(
+            resolved_owned(&root, &fs::canonicalize(&payload).unwrap()).unwrap(),
+            payload
+        );
+        assert!(resolved_owned(&root, &root.join("external-link")).is_err());
+    }
     #[test]
     fn snapshots_verify_content_empty_directories_and_links_without_following_them() {
         let temp = tempfile::tempdir().unwrap();

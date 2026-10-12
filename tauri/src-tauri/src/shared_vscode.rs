@@ -652,13 +652,28 @@ impl ExtensionStore {
                 .path();
             let metadata =
                 fs::symlink_metadata(&path).map_err(|_| "Could not inspect extension entry")?;
-            if !metadata.is_dir() {
-                continue;
-            }
             if files::is_link(&metadata) {
+                // A previous managed catalog links its shared packages. Those
+                // packages are already supplied by the new verified generation.
+                // Validate ownership before skipping them; never follow arbitrary
+                // legacy links or silently omit linked Copilot dependencies.
+                let target = files::resolved_owned(&self.data_root, &path)
+                    .map_err(|_| "An existing extension link is broken; repair it first")?;
+                if target.starts_with(self.root.join("generations")) {
+                    let id = package_id(&package_manifest(&target)?)?;
+                    if registry
+                        .iter()
+                        .any(|entry| entry["identifier"]["id"].as_str() == Some(id.as_str()))
+                    {
+                        continue;
+                    }
+                }
                 return Err(
                     "Linked legacy extension packages require explicit migration coverage".into(),
                 );
+            }
+            if !metadata.is_dir() {
+                continue;
             }
             let manifest = package_manifest(&path)?;
             let id = package_id(&manifest)?;
