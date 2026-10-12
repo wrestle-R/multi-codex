@@ -39,8 +39,8 @@ jobs:
       - name: Build production account bridge and native helper
         run: |
           npm ci --prefix tauri
-          npm --prefix tauri run build
           npm ci --prefix extension
+          npm --prefix tauri run build:desktop
           cd extension
           npm run build:helper
           npm run build

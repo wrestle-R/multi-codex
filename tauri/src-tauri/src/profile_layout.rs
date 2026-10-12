@@ -136,6 +136,17 @@ impl LayoutStore {
         )
     }
     pub fn selected_catalog(&self, profile_id: &str) -> Result<Option<PathBuf>> {
+        self.selected_catalog_checked(profile_id, true)
+    }
+    /// Queue polling checks registry/link structure; launch still hashes payloads.
+    pub(crate) fn catalog_structure(&self, profile_id: &str) -> Result<Option<PathBuf>> {
+        self.selected_catalog_checked(profile_id, false)
+    }
+    fn selected_catalog_checked(
+        &self,
+        profile_id: &str,
+        verify_payload: bool,
+    ) -> Result<Option<PathBuf>> {
         crate::profile_restore::ensure_ready(&self.data_root, profile_id)?;
         let Some(record) = self.record(profile_id)? else {
             return Ok(None);
@@ -143,7 +154,7 @@ impl LayoutStore {
         match record.phase {
             LayoutPhase::Committed => {
                 let store = ExtensionStore::open(&self.data_root)?;
-                store.verify(&record.generation)?;
+                if verify_payload { store.verify(&record.generation)?; }
                 let catalog = self.catalog(&record)?;
                 store.verify_catalog(&record.generation, &catalog)?;
                 Ok(Some(catalog))
@@ -458,6 +469,30 @@ mod tests {
                 cleanup(&entry.unwrap().path());
             }
         }
+    }
+    #[test]
+    fn queue_structure_check_leaves_payload_integrity_enforcement_at_launch() {
+        let (_temp, layout, snapshot, generation) = fixture();
+        layout
+            .commit(&snapshot, &generation, &desired(), || Ok(()))
+            .unwrap();
+        let store = ExtensionStore::open(&layout.data_root).unwrap();
+        let payload = store
+            .generation_path(&generation.id)
+            .unwrap()
+            .join("packages")
+            .join(&generation.packages[0].directory);
+        cleanup(&payload);
+        fs::write(payload.join("package.json"), "corrupted payload").unwrap();
+        assert!(layout
+            .catalog_structure(&snapshot.profile_id)
+            .unwrap()
+            .is_some());
+        assert!(
+            layout.selected_catalog(&snapshot.profile_id).is_err(),
+            "Launch must still refuse changed package bytes"
+        );
+        cleanup(&layout.data_root);
     }
     #[test]
     fn selection_and_rollback_preserve_legacy_and_later_user_settings() {

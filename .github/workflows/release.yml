@@ -129,7 +129,7 @@ jobs:
           workspaces: tauri/src-tauri
       - run: npm ci
       - run: npm test
-      - run: npm run build
+      - run: npm run build:desktop
       - run: cargo test --manifest-path src-tauri/Cargo.toml
       - name: Install disposable native VS Code test dependency
         run: |
