@@ -31,12 +31,15 @@ pub fn detect() -> LaunchTargets {
 }
 
 fn verified_version(platform: &str, architecture: &str, version: Option<&str>) -> bool {
-    // This internal desktop isolation API was exercised with two real identities,
-    // cold credential reuse, refresh and logout. Unknown versions fail closed.
+    // Linux and Mac have authenticated isolation evidence. Windows additionally
+    // has native signed-MSIX, two-home and cold-restart runner coverage with
+    // inert credentials. Only these exact platform builds are enabled.
     matches!(
-        (platform, architecture),
-        ("linux", "x86_64") | ("macos", "aarch64")
-    ) && version == Some("26.930.51102")
+        (platform, architecture, version),
+        ("linux", "x86_64", Some("26.930.51102"))
+            | ("macos", "aarch64", Some("26.930.51102"))
+            | ("windows", "x86_64", Some("26.930.61225"))
+    )
 }
 
 fn find_standalone(
@@ -191,6 +194,13 @@ mod tests {
     fn unknown_versions_and_unverified_architectures_cannot_launch() {
         assert!(verified_version("linux", "x86_64", Some("26.930.51102")));
         assert!(verified_version("macos", "aarch64", Some("26.930.51102")));
+        assert!(verified_version("windows", "x86_64", Some("26.930.61225")));
+        assert!(!verified_version(
+            "windows",
+            "aarch64",
+            Some("26.930.61225")
+        ));
+        assert!(!verified_version("windows", "x86_64", Some("26.930.51102")));
         assert!(!verified_version("linux", "x86_64", Some("26.931.1")));
         assert!(!verified_version("macos", "x86_64", Some("26.930.51102")));
         assert!(!verified_version("linux", "x86_64", None));
