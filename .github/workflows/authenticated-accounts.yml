@@ -1,0 +1,116 @@
+name: Authenticated Mac and Windows accounts
+on:
+  workflow_dispatch:
+    inputs:
+      device_public_key:
+        description: Base64 RSA public key for private device instructions
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  accounts:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-26
+            name: mac
+          - os: windows-2025
+            name: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    defaults:
+      run:
+        shell: bash
+    env:
+      AUTH_PUBLIC_KEY: ${{ inputs.device_public_key }}
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+          cache-on-failure: true
+      - name: Build production account bridge and native helper
+        run: |
+          npm ci --prefix tauri
+          npm --prefix tauri run build
+          npm ci --prefix extension
+          cd extension
+          npm run build:helper
+          npm run build
+      - name: Verify Windows helpers have no terminal window
+        if: runner.os == 'Windows'
+        run: cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_background_helpers_have_no_console
+      - name: Install official CLI in a disposable directory
+        run: |
+          npm install --prefix "$RUNNER_TEMP/auth-cli" @openai/codex@0.160.0
+          node --input-type=module <<'JS'
+          import { readdir, appendFile } from 'node:fs/promises';
+          import { join } from 'node:path';
+          async function find(root) {
+            for (const entry of await readdir(root, { withFileTypes: true })) {
+              const path = join(root, entry.name);
+              if (entry.isFile() && entry.name === (process.platform === 'win32' ? 'codex.exe' : 'codex')) return path;
+              if (entry.isDirectory()) { const found = await find(path); if (found) return found; }
+            }
+          }
+          const engine = await find(join(process.env.RUNNER_TEMP, 'auth-cli', 'node_modules'));
+          if (!engine) throw new Error('Native Codex executable missing');
+          await appendFile(process.env.GITHUB_ENV, `AUTH_ENGINE=${engine}\nAUTH_OUTPUT=${join(process.env.RUNNER_TEMP, 'auth-public')}\n`);
+          JS
+      - name: Start fresh sign-ins and production bridge verification
+        working-directory: extension
+        run: node scripts/authenticated-runner.mjs > "$RUNNER_TEMP/auth-private.log" 2>&1 < /dev/null &
+      - name: Wait for account A instructions
+        run: |
+          for attempt in $(seq 1 120); do
+            if test -f "$AUTH_OUTPUT/exit-status"; then cat "$AUTH_OUTPUT/result.json"; exit 1; fi
+            test ! -f "$AUTH_OUTPUT/signin-a.encrypted" || exit 0
+            sleep 2
+          done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-signin-a-encrypted
+          path: ${{ env.AUTH_OUTPUT }}/signin-a.encrypted
+          retention-days: 1
+      - name: Wait for account B instructions
+        run: |
+          for attempt in $(seq 1 450); do
+            if test -f "$AUTH_OUTPUT/exit-status"; then cat "$AUTH_OUTPUT/result.json"; exit 1; fi
+            test ! -f "$AUTH_OUTPUT/signin-b.encrypted" || exit 0
+            sleep 2
+          done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-signin-b-encrypted
+          path: ${{ env.AUTH_OUTPUT }}/signin-b.encrypted
+          retention-days: 1
+      - name: Wait for real account switching results
+        run: |
+          for attempt in $(seq 1 450); do
+            if test -f "$AUTH_OUTPUT/exit-status"; then
+              cat "$AUTH_OUTPUT/result.json"
+              test "$(cat "$AUTH_OUTPUT/exit-status")" = 0
+              exit $?
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Upload sanitized results only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-authenticated-result
+          path: |
+            ${{ env.AUTH_OUTPUT }}/result.json
+            ${{ env.AUTH_OUTPUT }}/progress.json
+          if-no-files-found: warn
+          retention-days: 14
