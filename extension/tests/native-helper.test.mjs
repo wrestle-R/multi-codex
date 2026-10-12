@@ -16,8 +16,9 @@ test('packaged helper protects Windows runtime and inherited child files', { ski
     await promisify(execFile)(helper, ['--protect-directory', root], { windowsHide: true });
     const child = join(root, 'bridge-config.json');
     await writeFile(child, '{}');
-    const script = `$owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $a=Get-Acl -LiteralPath $env:MULTI_CODEX_TEST_DIRECTORY; $b=Get-Acl -LiteralPath (Join-Path $env:MULTI_CODEX_TEST_DIRECTORY 'bridge-config.json'); @{owner=$owner;protected=$a.AreAccessRulesProtected;directory=@($a.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value});child=@($b.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value})} | ConvertTo-Json -Compress`;
-    const { stdout } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, env: { ...process.env, MULTI_CODEX_TEST_DIRECTORY: root } });
+    const script = `$ErrorActionPreference='Stop'; Set-StrictMode -Version Latest; $owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $a=Get-Acl -LiteralPath $env:MULTI_CODEX_TEST_DIRECTORY; $b=Get-Acl -LiteralPath (Join-Path $env:MULTI_CODEX_TEST_DIRECTORY 'bridge-config.json'); @{owner=$owner;protected=$a.AreAccessRulesProtected;directory=@($a.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value});child=@($b.Access | ForEach-Object {$_.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value})} | ConvertTo-Json -Compress`;
+    const { stdout, stderr } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, env: { ...process.env, MULTI_CODEX_TEST_DIRECTORY: root } });
+    assert.equal(stderr.trim(), '', 'Windows ACL inspection reported an error');
     const acl = JSON.parse(stdout);
     assert.equal(acl.protected, true);
     for (const identities of [acl.directory, acl.child]) assert.deepEqual([...new Set(identities)].sort(), [acl.owner, 'S-1-5-18'].sort());

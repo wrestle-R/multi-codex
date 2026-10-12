@@ -579,7 +579,7 @@ pub fn run() {
         eprintln!("Multi Codex could not initialize desktop integration: {error}");
         std::process::exit(1);
     });
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .manage(AppState {
             service: Arc::new(service),
             launches: Arc::new(Mutex::new(launch::LaunchCoordinator::default())),
@@ -642,8 +642,14 @@ pub fn run() {
             get_desktop_integration_status,
             install_desktop_integration,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Multi Codex");
+        .build(tauri::generate_context!())
+        .expect("error while building Multi Codex");
+    app.run(|_app, _event| {
+        #[cfg(target_os = "macos")]
+        if matches!(_event, tauri::RunEvent::Reopen { .. }) {
+            account_menu::show(_app);
+        }
+    });
 }
 
 #[cfg(test)]
