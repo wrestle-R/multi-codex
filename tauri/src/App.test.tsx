@@ -20,6 +20,7 @@ const api = vi.hoisted(() => ({
   previewProfileChats: vi.fn(),
   clearProfileChats: vi.fn(),
   subscribeAppUpdate: vi.fn(),
+  checkAppUpdate: vi.fn(),
   updateApp: vi.fn(),
   importCurrentProfile: vi.fn(),
   updateProfile: vi.fn(),
@@ -70,6 +71,7 @@ beforeEach(() => {
   api.previewProfileChats.mockReset().mockResolvedValue({ token: "chat-preview", count: 2, transcriptBytes: 10_485_760, protectedCount: 0 })
   api.clearProfileChats.mockReset().mockResolvedValue({ deletedCount: 2, transcriptBytes: 10_485_760 })
   api.subscribeAppUpdate.mockReset().mockResolvedValue(() => undefined)
+  api.checkAppUpdate.mockReset().mockResolvedValue(null)
   api.updateApp.mockReset().mockResolvedValue("current")
   api.importCurrentProfile.mockReset().mockResolvedValue(profile)
   api.updateProfile.mockReset().mockResolvedValue(profile)
@@ -536,19 +538,49 @@ describe("Multi Codex", () => {
     await waitFor(() => expect(api.previewProfileChats).toHaveBeenCalledTimes(2))
   })
 
+  it("checks quietly on startup and discovers updates on all-account and individual refresh", async () => {
+    api.checkAppUpdate.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce("1.5.1").mockResolvedValue(null)
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByText("Personal")
+    await waitFor(() => expect(api.checkAppUpdate).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole("button", { name: "Update Multi Codex" })).not.toBeInTheDocument()
+    expect(screen.queryByText("Couldn’t update")).not.toBeInTheDocument()
+    expect(api.updateApp).not.toHaveBeenCalled()
+    await user.click(await screen.findByRole("button", { name: "Refresh all" }))
+    expect(await screen.findByRole("button", { name: "Update Multi Codex" })).toHaveAttribute("title", "Install Multi Codex v1.5.1")
+    await user.click(screen.getByRole("button", { name: "Refresh" }))
+    await waitFor(() => expect(api.checkAppUpdate).toHaveBeenCalledTimes(3))
+    expect(screen.queryByRole("button", { name: "Update Multi Codex" })).not.toBeInTheDocument()
+  })
+
+  it("retains an available update through offline checks and retries on reconnect", async () => {
+    api.checkAppUpdate.mockResolvedValueOnce("1.5.1").mockRejectedValueOnce(new Error("offline")).mockResolvedValue(null)
+    render(<App />)
+    await screen.findByRole("button", { name: "Update Multi Codex" })
+    act(() => window.dispatchEvent(new Event("online")))
+    await waitFor(() => expect(api.checkAppUpdate).toHaveBeenCalledTimes(2))
+    expect(screen.getByRole("button", { name: "Update Multi Codex" })).toBeVisible()
+    act(() => document.dispatchEvent(new Event("visibilitychange")))
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Update Multi Codex" })).not.toBeInTheDocument())
+    expect(api.updateApp).not.toHaveBeenCalled()
+  })
+
   it("runs an update from the top bar and reports an available retry on failure", async () => {
-    api.updateApp.mockRejectedValueOnce(new Error("Could not check for updates."))
+    api.checkAppUpdate.mockResolvedValue("1.5.1")
+    api.updateApp.mockRejectedValueOnce(new Error("Cannot reach the update service right now."))
     const user = userEvent.setup()
     render(<App />)
     await user.click(await screen.findByRole("button", { name: "Update Multi Codex" }))
     await screen.findByRole("alert")
     expect(api.updateApp).toHaveBeenCalledTimes(1)
     await user.click(screen.getByRole("button", { name: "Try again" }))
-    await screen.findByText("You’re up to date")
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Update Multi Codex" })).not.toBeInTheDocument())
     expect(api.updateApp).toHaveBeenCalledTimes(2)
   })
 
   it("shows real update progress and prevents repeated update or account actions", async () => {
+    api.checkAppUpdate.mockResolvedValue("1.5.1")
     let progressListener: ((event: UpdateProgress) => void) | undefined
     let complete: ((value: "restarting") => void) | undefined
     api.subscribeAppUpdate.mockImplementation(async listener => { progressListener = listener; return () => undefined })
