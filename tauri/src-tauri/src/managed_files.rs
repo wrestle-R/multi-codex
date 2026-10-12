@@ -424,7 +424,14 @@ mod tests {
         let child = root.join("private/child");
         fs::create_dir_all(&child).unwrap();
         let canonical_child = fs::canonicalize(&child).unwrap();
-        assert_eq!(checked(&root, &canonical_child, false).unwrap(), child);
+        let result = checked(&root, &canonical_child, false);
+        assert!(
+            result.is_ok(),
+            "root={root:?} root_components={:?} candidate={canonical_child:?} candidate_components={:?} error={result:?}",
+            root.components().collect::<Vec<_>>(),
+            canonical_child.components().collect::<Vec<_>>()
+        );
+        assert_eq!(result.unwrap(), child);
         let neighbor = temp.path().join("owned-neighbor");
         fs::create_dir(&neighbor).unwrap();
         assert!(checked(&root, &fs::canonicalize(neighbor).unwrap(), false).is_err());
