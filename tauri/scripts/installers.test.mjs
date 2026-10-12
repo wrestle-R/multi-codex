@@ -8,8 +8,9 @@ import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
+const unixInstallerOnly = { skip: process.platform === 'win32' ? 'Unix shell installers run on Linux/macOS; Windows installer regressions use PowerShell.' : false }
 for (const script of ['install-app.sh', 'update-app.sh']) {
-  test(`${script} chooses compatible assets and rejects unsupported hosts before installation`, () => {
+  test(`${script} chooses compatible assets and rejects unsupported hosts before installation`, unixInstallerOnly, () => {
     const task = mkdtempSync(join(tmpdir(), 'multi-codex-installer-'))
     try {
       const bin = join(task, 'bin'); mkdirSync(bin)
@@ -40,7 +41,7 @@ for (const script of ['install-app.sh', 'update-app.sh']) {
 }
 
 for (const script of ['install-app.sh', 'update-app.sh']) {
-  test(`${script} verifies downloads before replacing the app and preserves account data`, () => {
+  test(`${script} verifies downloads before replacing the app and preserves account data`, unixInstallerOnly, () => {
     const task = mkdtempSync(join(tmpdir(), 'multi-codex-installer-'))
     try {
       const bin = join(task, 'bin'); mkdirSync(bin)

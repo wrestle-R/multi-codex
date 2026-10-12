@@ -103,6 +103,10 @@ jobs:
           export MULTI_CODEX_TEST_EXTENSIONS="$RUNNER_TEMP/official-extensions"
           export SHARED_GATE_OUTPUT="$RUNNER_TEMP/shared-gate-public"
           node scripts/native-sharing-acceptance.mjs
+      - name: Verify native Windows PowerShell installer regressions
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./tauri/scripts/windows-installer-regressions.ps1
       - name: Upload inert feasibility result
         if: always()
         uses: actions/upload-artifact@v4

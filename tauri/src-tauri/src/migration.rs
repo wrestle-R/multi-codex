@@ -479,7 +479,7 @@ mod tests {
     use super::*;
     fn fixture() -> (tempfile::TempDir, MigrationStore, String, PathBuf) {
         let temp = tempfile::tempdir().unwrap();
-        let app = temp.path().join("app");
+        let app = fs::canonicalize(temp.path()).unwrap().join("app");
         let id = Uuid::new_v4().to_string();
         let profile = app.join("profiles").join(&id);
         fs::create_dir_all(profile.join("codex-home/sessions")).unwrap();
