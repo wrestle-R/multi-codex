@@ -1,0 +1,72 @@
+{
+  "passed": true,
+  "testedAt": "2026-10-12T05:17:40.950144+00:00",
+  "environment": "Arch Linux x64, live Hyprland 0.56.2",
+  "testedBy": "Codex in local desktop session",
+  "appImageSha256": "2a0734fd996afbd2f04d1cda5252a79c0f6fff6b65714064856adc747ac900dd",
+  "scope": "Exact AppImage with disposable data, VS Code and standalone homes; maximize persistence, three desktop switches per target, floating restore repair. No authentication tested.",
+  "results": {
+    "vscode": {
+      "passed": true,
+      "target": "vscode",
+      "before": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterLaunch": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterClose": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "desktopSwitchCycles": 3,
+      "repairedFloatingRestore": true,
+      "temporaryData": true
+    },
+    "standalone": {
+      "passed": true,
+      "target": "standalone",
+      "before": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterLaunch": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterClose": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "desktopSwitchCycles": 3,
+      "repairedFloatingRestore": true,
+      "temporaryData": true
+    }
+  }
+}
