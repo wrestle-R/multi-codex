@@ -75,7 +75,7 @@ try {
     const url = new URL(instructions.authUrl);
     assert.ok(['https://auth.openai.com', 'https://chatgpt.com'].includes(url.origin));
     const redirect = new URL(url.searchParams.get('redirect_uri'));
-    assert.equal(redirect.hostname, 'localhost');
+    assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(redirect.hostname));
     await browser.rpc.request('account/login/cancel', { loginId: instructions.loginId });
     assert.equal((await browser.rpc.request('account/read', { refreshToken: false })).account, null);
     report.browserFlow = 'initiation and cancellation passed; callback completion requires a local tunnel';

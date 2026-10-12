@@ -87,6 +87,59 @@ impl DesktopIntegration {
         }
     }
 
+    /// An in-place signed update keeps the executable path. Refresh only entries
+    /// that this app already owns; preserve custom fields and shortcut choices.
+    pub fn refresh_after_update(&self) -> Result<(), String> {
+        let Some(source) = &self.source_appimage else {
+            return Ok(());
+        };
+        if source.canonicalize().ok() != self.install_bin.canonicalize().ok()
+            || !self.install_bin.is_file()
+        {
+            return Ok(());
+        }
+        for path in [
+            self.applications_dir.join(DESKTOP_FILE_NAME),
+            self.desktop_dir.join(DESKTOP_SHORTCUT_NAME),
+        ] {
+            let Ok(metadata) = fs::symlink_metadata(&path) else {
+                continue;
+            };
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                continue;
+            }
+            let entry = fs::read_to_string(&path)
+                .map_err(|_| "Could not read the existing app shortcut")?;
+            if !entry
+                .lines()
+                .any(|line| line == "StartupWMClass=multi-codex-desktop")
+                || !entry
+                    .lines()
+                    .any(|line| line.starts_with("X-MultiCodex-Version="))
+            {
+                continue;
+            }
+            let updated = entry
+                .split_inclusive('\n')
+                .map(|line| {
+                    if line.starts_with("X-MultiCodex-Version=") {
+                        format!("X-MultiCodex-Version={}\n", self.version)
+                    } else {
+                        line.to_string()
+                    }
+                })
+                .collect::<String>();
+            if updated != entry {
+                atomic_write(
+                    &path,
+                    updated.as_bytes(),
+                    metadata.permissions().mode() & 0o777,
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn install(
         &self,
         create_desktop_shortcut: bool,
@@ -323,5 +376,44 @@ mod tests {
         fs::write(entry_path, entry).unwrap();
         assert!(!integration.status().installed);
         assert!(integration.status().available);
+    }
+
+    #[test]
+    fn in_place_update_refreshes_owned_shortcuts_preserving_customizations() {
+        let root = tempfile::tempdir().unwrap();
+        let mut integration = fixture(root.path(), true);
+        integration.install(true).unwrap();
+        integration.source_appimage = Some(integration.install_bin.clone());
+        integration.version = "0.3.0".into();
+        let path = integration.applications_dir.join(DESKTOP_FILE_NAME);
+        let entry = fs::read_to_string(&path).unwrap() + "X-Custom-Setting=keep-me\n";
+        fs::write(&path, entry).unwrap();
+        let before = fs::read(&integration.install_bin).unwrap();
+        integration.refresh_after_update().unwrap();
+        assert!(integration.status().installed);
+        assert!(fs::read_to_string(path)
+            .unwrap()
+            .contains("X-Custom-Setting=keep-me\n"));
+        assert!(
+            fs::read_to_string(integration.desktop_dir.join(DESKTOP_SHORTCUT_NAME))
+                .unwrap()
+                .contains("X-MultiCodex-Version=0.3.0\n")
+        );
+        assert_eq!(fs::read(&integration.install_bin).unwrap(), before);
+        integration.refresh_after_update().unwrap();
+    }
+
+    #[test]
+    fn update_does_not_create_shortcuts_or_modify_other_installations() {
+        let root = tempfile::tempdir().unwrap();
+        let mut integration = fixture(root.path(), true);
+        integration.install(false).unwrap();
+        integration.version = "0.3.0".into();
+        integration.refresh_after_update().unwrap();
+        assert!(!integration.status().installed);
+        integration.source_appimage = Some(integration.install_bin.clone());
+        integration.refresh_after_update().unwrap();
+        assert!(integration.status().installed);
+        assert!(!integration.status().desktop_shortcut);
     }
 }
