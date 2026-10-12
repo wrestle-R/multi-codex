@@ -274,12 +274,10 @@ jobs:
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
           cd ..
-          printf 'Full release details: https://multi-codex.vercel.app/releases/%s\n' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-link.md"
           if gh release view "$GITHUB_REF_NAME" --json isDraft >/dev/null 2>&1; then
             [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" == "true" ]]
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
-            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-link.md"
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "$RUNNER_TEMP/release-link.md"
+            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes ''
           fi
-          echo "Draft created. Functional validation is required before publishing."
+          echo "Draft created. Validate exact assets, then publish manually with a short website link."
