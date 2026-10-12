@@ -25,5 +25,9 @@ for (const entry of ['dist', 'resources', 'LICENSE', 'README.md']) {
 }
 // Populate the complete resource before Tauri expands its resource paths.
 // beforeBundle verifies/refreshes the same target artifact again at packaging.
-await import('./bundle-desktop-helper.mjs');
-console.log('Built managed bridge and matching headless helper without private runtime data.');
+if (process.argv.includes('--bridge-only')) {
+  console.log('Staged managed bridge resources for native helper compilation.');
+} else {
+  await import('./bundle-desktop-helper.mjs');
+  console.log('Built managed bridge and matching headless helper without private runtime data.');
+}

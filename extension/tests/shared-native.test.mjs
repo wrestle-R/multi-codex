@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { copyFile, mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises';
 import { PassThrough } from 'node:stream';
 import { randomUUID, createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
@@ -13,7 +13,7 @@ const helper = process.env.MULTI_CODEX_TEST_SHARED_HELPER;
 const digest = value => createHash('sha256').update(value).digest('hex');
 
 test('native broker lists foreign full history, fences writers, and continues with B after A handoff', { skip: !engine || !helper }, async () => {
-  const root = await mkdtemp(join(tmpdir(), 'mc-shared-native-'));
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'mc-shared-native-')));
   const dataRoot = join(root, 'data'); const globalHome = join(root, 'global');
   const service = await localService(); const profiles = [];
   const open = []; let storage;

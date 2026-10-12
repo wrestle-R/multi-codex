@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { publicEncrypt, constants, createHash, randomUUID } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile, rm, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PassThrough } from 'node:stream';
@@ -13,7 +13,7 @@ const { spawnExecutable, terminateExecutable, JsonLines, RpcPeer, AccountClient,
 const output = resolve(process.env.AUTH_OUTPUT);
 const engine = resolve(process.env.AUTH_ENGINE);
 const key = Buffer.from(process.env.AUTH_PUBLIC_KEY, 'base64').toString();
-const root = await mkdtemp(join(tmpdir(), 'multi-codex-real-auth-'));
+const root = await realpath(await mkdtemp(join(tmpdir(), 'multi-codex-real-auth-')));
 const dataRoot = join(root, 'data'); const globalHome = join(root, 'global');
 const helper = resolve('bin', helperName);
 const report = { platform: process.platform, architecture: process.arch, passed: false,
