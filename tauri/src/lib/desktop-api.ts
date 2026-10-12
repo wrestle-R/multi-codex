@@ -54,6 +54,11 @@ const wait = () => new Promise((resolve) => window.setTimeout(resolve, 120))
 
 const demoUpdateListeners = new Set<(event: UpdateProgress) => void>()
 
+export async function checkAppUpdate(): Promise<string | null> {
+  if (isTauri) return invoke("check_app_update")
+  return null
+}
+
 export async function subscribeAppUpdate(listener: (event: UpdateProgress) => void): Promise<() => void> {
   if (isTauri) {
     const { listen } = await import("@tauri-apps/api/event")

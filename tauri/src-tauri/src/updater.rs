@@ -4,6 +4,37 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::UpdaterExt;
 
+fn updater_builder(app: &AppHandle) -> Result<tauri_plugin_updater::UpdaterBuilder, String> {
+    app.updater_builder()
+        .timeout(Duration::from_secs(30))
+        .header("Cache-Control", "no-cache")
+        .map_err(|_| "Could not start the updater.".to_string())
+}
+
+async fn check(
+    updater: &tauri_plugin_updater::Updater,
+) -> Result<Option<tauri_plugin_updater::Update>, String> {
+    updater.check().await.map_err(|error| {
+        eprintln!("Update availability check failed: {error}");
+        "Cannot reach the update service right now. Reconnect and try again.".to_string()
+    })
+}
+
+#[tauri::command]
+pub async fn check_app_update(app: AppHandle) -> Result<Option<String>, String> {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("APPIMAGE").is_none() {
+        return Ok(None);
+    }
+    if UPDATING.load(Ordering::Acquire) {
+        return Ok(None);
+    }
+    let updater = updater_builder(&app)?
+        .build()
+        .map_err(|_| "Could not start the updater.")?;
+    Ok(check(&updater).await?.map(|update| update.version))
+}
+
 static UPDATING: AtomicBool = AtomicBool::new(false);
 
 struct UpdateGuard;
@@ -51,7 +82,7 @@ pub async fn update_app(app: AppHandle) -> Result<String, String> {
         return Err("In-app updates require the AppImage on Linux. Update .deb and .rpm installations through their package manager.".into());
     }
     emit(&app, "checking", 0, None, None);
-    let builder = app.updater_builder().timeout(Duration::from_secs(30));
+    let builder = updater_builder(&app)?;
     #[cfg(windows)]
     let builder = builder.on_before_exit({
         let app = app.clone();
@@ -63,7 +94,7 @@ pub async fn update_app(app: AppHandle) -> Result<String, String> {
     let updater = builder
         .build()
         .map_err(|_| "Could not start the updater.")?;
-    let update = updater.check().await.map_err(|_| "Could not check for updates. Check your connection; this release may not have a signed update published yet.")?;
+    let update = check(&updater).await?;
     let Some(mut update) = update else {
         emit(&app, "current", 0, None, None);
         return Ok("current".into());

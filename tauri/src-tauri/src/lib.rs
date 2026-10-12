@@ -665,6 +665,7 @@ pub fn run() {
             preview_profile_chats,
             clear_profile_chats,
             updater::update_app,
+            updater::check_app_update,
             get_launch_environment,
             get_launch_targets,
             list_workspace_directories,
