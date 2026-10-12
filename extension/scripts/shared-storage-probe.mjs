@@ -9,7 +9,9 @@ import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { localService, syntheticAuth } from '../tests/fixtures/local-service.mjs';
 const { spawnExecutable, terminateExecutable, JsonLines, RpcPeer, bundledEnginePath } = createRequire(import.meta.url)('../dist/core.cjs');
-const root = await realpath(await mkdtemp(join(tmpdir(), 'mc-sharing-gate-')));
+// macOS's default /var/folders temp root exceeds VS Code's 103-byte IPC limit
+// once canonicalized. Keep this disposable editor home physically short.
+const root = await realpath(await mkdtemp(join(process.platform === 'darwin' ? '/tmp' : tmpdir(), 'mc-sharing-gate-')));
 const source = resolve(process.env.MULTI_CODEX_TEST_EXTENSIONS);
 const code = process.env.MULTI_CODEX_TEST_VSCODE;
 const cli = process.env.MULTI_CODEX_TEST_CODE_CLI;
