@@ -144,6 +144,7 @@ try {
   frontend = new RpcPeer(sharedLines, 'shared-acceptance:');
   await bridge.listen();
   await frontend.request('initialize', { clientInfo: { name: 'multi_codex_authenticated_sharing_acceptance', version: '1' }, capabilities: { experimentalApi: true } });
+  sharedInput.write(JSON.stringify({ method: 'initialized' }) + '\n');
   client = await BridgeClient.connect(bridge.config.socket, bridge.config.token);
   async function minimalTurn(threadId, text) {
     let handler;
@@ -163,11 +164,15 @@ try {
       await completion;
     } finally { clearTimeout(timer); sharedLines.off('message', handler); }
   }
+  phase = 'shared-account-a-start-thread';
   const started = await frontend.request('thread/start', { cwd: workspace, sandbox: 'read-only', approvalPolicy: 'never' });
   const threadId = started.thread.id;
+  phase = 'shared-account-a-first-turn';
   await minimalTurn(threadId, 'Reply with just the word ready.');
+  phase = 'shared-account-a-read-thread';
   const original = (await frontend.request('thread/read', { threadId, includeTurns: true })).thread;
   const writerA = bridge.backend;
+  phase = 'shared-switch-to-account-b';
   await client.request('switch', { id: saved[1] });
   assert.ok(writerA.exitCode !== null || writerA.signalCode !== null);
   assert.equal(digest((await frontend.request('account/read', { refreshToken: false })).account.email.toLowerCase()), identities[1].identity);
@@ -175,10 +180,12 @@ try {
   assert.deepEqual(observed.thread.turns, original.turns);
   const resumed = await frontend.request('thread/resume', { threadId });
   assert.deepEqual(resumed.thread.turns, original.turns);
+  phase = 'shared-account-b-continuation';
   await minimalTurn(threadId, 'Reply with just the word continued.');
   const continued = (await frontend.request('thread/read', { threadId, includeTurns: true })).thread;
   assert.equal(continued.turns.length, original.turns.length + 1);
   assert.deepEqual(continued.turns.slice(0, -1), original.turns);
+  phase = 'shared-return-to-account-a';
   await client.request('switch', { id: saved[0] });
   assert.equal(digest((await frontend.request('account/read', { refreshToken: false })).account.email.toLowerCase()), identities[0].identity);
   for (let i = 0; i < saved.length; i++) assert.equal(digest(await readFile(join(dataRoot, 'profiles', saved[i], 'codex-home', 'auth.json'))), credentialHashes[i]);
