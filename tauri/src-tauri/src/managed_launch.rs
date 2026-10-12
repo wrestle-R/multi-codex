@@ -18,6 +18,35 @@ pub fn runtime_home(data_root: &Path, profile_id: &str) -> PathBuf {
         .join("bridge-runtime")
 }
 
+/// Resolve the CLI selected by the installed Windows editor's own launcher.
+/// New builds keep resources under a version directory beside Code.exe.
+#[cfg(any(windows, test))]
+pub(crate) fn editor_cli_script(code: &Path) -> Result<PathBuf> {
+    let root = code
+        .parent()
+        .ok_or("VS Code installation path is unavailable")?;
+    let launcher = root.join("bin/code.cmd");
+    if launcher.exists() {
+        let text = fs::read_to_string(files::regular(root, &launcher)?)
+            .map_err(|_| "Could not inspect the installed VS Code CLI launcher")?;
+        for quoted in text.split('"') {
+            let lower = quoted.to_ascii_lowercase();
+            let prefix = "%~dp0..\\";
+            if lower.starts_with(prefix) && lower.ends_with("\\resources\\app\\out\\cli.js") {
+                let relative = quoted[prefix.len()..].replace('\\', "/");
+                if !Path::new(&relative)
+                    .components()
+                    .all(|part| matches!(part, std::path::Component::Normal(_)))
+                {
+                    return Err("The installed editor CLI points outside its installation".into());
+                }
+                return files::regular(root, &root.join(relative));
+            }
+        }
+    }
+    files::regular(root, &root.join("resources/app/out/cli.js"))
+}
+
 pub fn editor_runtime(code: &Path) -> Result<PathBuf> {
     let resolved =
         fs::canonicalize(code).map_err(|_| "Installed VS Code executable is unavailable")?;
@@ -245,4 +274,43 @@ pub fn prepare(
         ("extensions.autoUpdate".into(), Value::Bool(false)),
         ("extensions.autoCheckUpdates".into(), Value::Bool(false)),
     ]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn windows_cli_locator_supports_flat_and_versioned_resources_and_rejects_escape() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let code = root.join("Code.exe");
+        fs::create_dir_all(root.join("resources/app/out")).unwrap();
+        fs::write(root.join("resources/app/out/cli.js"), "flat CLI").unwrap();
+        assert_eq!(
+            editor_cli_script(&code).unwrap(),
+            root.join("resources/app/out/cli.js")
+        );
+        fs::create_dir_all(root.join("bin")).unwrap();
+        fs::create_dir_all(root.join("07f806f999/resources/app/out")).unwrap();
+        fs::write(
+            root.join("07f806f999/resources/app/out/cli.js"),
+            "active CLI",
+        )
+        .unwrap();
+        fs::write(
+            root.join("bin/code.cmd"),
+            "\"%~dp0..\\Code.exe\" \"%~dp0..\\07f806f999\\resources\\app\\out\\cli.js\" %*\r\n",
+        )
+        .unwrap();
+        assert_eq!(
+            editor_cli_script(&code).unwrap(),
+            root.join("07f806f999/resources/app/out/cli.js")
+        );
+        fs::write(
+            root.join("bin/code.cmd"),
+            "\"%~dp0..\\..\\outside\\resources\\app\\out\\cli.js\"",
+        )
+        .unwrap();
+        assert!(editor_cli_script(&code).is_err());
+    }
 }
