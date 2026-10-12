@@ -22,12 +22,11 @@ async function main() {
     historyHome,
     socket: controlEndpoint(sessionId), token: randomBytes(32).toString('hex'),
   };
-  await prepareSessionHome(sourceHome, config.sessionHome);
+  await prepareSessionHome(sourceHome, config.sessionHome, { sharedChats: config.sharedChats });
   const bridge = new CodexBridge(config, new JsonLines(process.stdin, process.stdout), args);
   await bridge.listen();
   await mkdir(join(base.runtimeRoot, 'connections'), { recursive: true, mode: 0o700 });
   await writeFile(join(base.runtimeRoot, 'connections', `${process.env.MULTI_CODEX_HOST_PID || process.ppid}.json`), JSON.stringify({ socket: config.socket, token: config.token }), { mode: 0o600 });
-  await writeFile(join(config.sessionHome, 'backend.json'), JSON.stringify({ pid: bridge.backend.pid, bridgePid: process.pid }), { mode: 0o600 });
   process.on('SIGTERM', () => void bridge.dispose().finally(() => process.exit(0)));
   process.on('SIGINT', () => void bridge.dispose().finally(() => process.exit(0)));
 }

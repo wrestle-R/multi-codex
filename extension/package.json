@@ -51,6 +51,16 @@
   "contributes": {
     "commands": [
       {
+        "command": "multiCodex.releaseSharedChats",
+        "title": "Release Shared Chats for Another Window",
+        "category": "Multi Codex"
+      },
+      {
+        "command": "multiCodex.recoverSharedChat",
+        "title": "Recover a Stopped Shared Chat Writer",
+        "category": "Multi Codex"
+      },
+      {
         "command": "multiCodex.enableSwitching",
         "title": "Enable Account Switching",
         "category": "Multi Codex"

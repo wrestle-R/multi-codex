@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 let token = null; let authMethod = null; let mode = ''; let held; let threadStatus = 'idle';
 let fileAuth = true; let withholdFileToken = false;
+let loadedThreads = ['hidden-thread'];
 const initial = await readFile(join(process.env.CODEX_HOME || '', 'auth.json'), 'utf8').then(JSON.parse).catch(() => null);
 if (initial) { token = initial.OPENAI_API_KEY || initial.tokens?.access_token || null; authMethod = initial.OPENAI_API_KEY ? 'apikey' : token ? 'chatgpt' : null; }
 const send = message => process.stdout.write(JSON.stringify(message) + '\n');
@@ -13,6 +14,7 @@ for await (const line of createInterface({ input: process.stdin })) {
   if (message.id === undefined) continue;
   let result = {};
   if (message.method === 'fixture/control') {
+    if (Array.isArray(p.loadedThreads)) loadedThreads = p.loadedThreads;
     if (p.withholdFileToken !== undefined) withholdFileToken = p.withholdFileToken;
     if (p.mode !== undefined) mode = p.mode;
     if (p.threadStatus) threadStatus = p.threadStatus;
@@ -36,7 +38,7 @@ for await (const line of createInterface({ input: process.stdin })) {
   else if (message.method === 'getAuthStatus') result = fileAuth && withholdFileToken ? { authToken: null, authMethod: null } : { authToken: token, authMethod };
   else if (message.method === 'account/read') result = { account: token ? { type: authMethod, email: 'fixture@example.invalid' } : null,
     workspaceRouting: authMethod === 'chatgpt' ? { chatgptAccountId: JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())['https://api.openai.com/auth'].chatgpt_account_id } : null };
-  else if (message.method === 'thread/loaded/list') { if (mode === 'hold-scan') { held = message; continue; } result = { data: ['hidden-thread'] }; }
+  else if (message.method === 'thread/loaded/list') { if (mode === 'hold-scan') { held = message; continue; } result = { data: loadedThreads }; }
   else if (message.method === 'thread/read') result = { thread: { id: p.threadId, status: { type: threadStatus } } };
   else if (message.method === 'turn/start') { result = { turn: { id: 'turn-local', status: 'inProgress' } }; send({ method: 'turn/started', params: result }); }
   else if (message.method === 'fixture/crash') process.exit(0);

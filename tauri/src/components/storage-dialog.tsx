@@ -13,12 +13,16 @@ interface StorageDialogProps {
   onRefresh: () => void
   onClear: (profile: ProfileStorageUsage) => void
   onDelete: (profile: Profile) => void
+  onBackup: (profile: ProfileStorageUsage) => void
+  onMigrate: (profile: ProfileStorageUsage) => void
+  onManageSharing: () => void
+  onClearSharedChats: (scope: ChatScope) => void
   onClearChats: (profile: ProfileStorageUsage, scope: ChatScope) => void
   notice?: string | null
   profiles: Profile[]
 }
 
-export function StorageDialog({ usage, loading, error, onClose, onRefresh, onClear, onDelete, onClearChats, notice, profiles }: StorageDialogProps) {
+export function StorageDialog({ usage, loading, error, onClose, onRefresh, onClear, onDelete, onClearChats, onBackup, onMigrate, onClearSharedChats, onManageSharing, notice, profiles }: StorageDialogProps) {
   const titleId = useId()
   const dialogRef = useDialogFocus(onClose, false)
 
@@ -44,6 +48,7 @@ export function StorageDialog({ usage, loading, error, onClose, onRefresh, onCle
             <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
           </button>
         </div>
+        <div className="storage-toolbar"><p>Share Codex packages and chats while keeping each account's login private.</p><button className="button secondary" disabled={loading} onClick={onManageSharing}>Set up all accounts</button></div>
         {error ? <div className="form-error" role="alert">{error}</div> : null}
         {notice ? <p className="storage-notice" role="status">{notice}</p> : null}
         {loading && !usage ? <div className="storage-loading">Calculating profile sizes…</div> : null}
@@ -73,9 +78,14 @@ export function StorageDialog({ usage, loading, error, onClose, onRefresh, onCle
                       <div><dt>Installed extensions</dt><dd>{formatStorage(item.breakdown.extensionsBytes)}</dd></div>
                       <div><dt>Codex data, including chats</dt><dd>{formatStorage(item.breakdown.codexBytes)}</dd></div>
                       <div><dt>Codex Desktop data</dt><dd>{formatStorage(item.breakdown.desktopBytes)}</dd></div>
+                      {item.layout === "shared" ? <div><dt>Retained original extensions</dt><dd>Included above · kept for recovery</dd></div> : null}
+                      {item.privateCatalogBytes ? <div><dt>Private extension registry and Copilot</dt><dd>{formatStorage(item.privateCatalogBytes)}</dd></div> : null}
+                      {item.privateRuntimeBytes ? <div><dt>Private working histories</dt><dd>{formatStorage(item.privateRuntimeBytes)}</dd></div> : null}
                     </dl> : null}
-                    <p className="storage-chat-help">Chat cleanup removes local conversations and their history records. Your account and installed tools are kept.</p>
+                    <p className="storage-chat-help">{item.layout === "shared" ? "Profile cleanup affects its retained private histories. Shared conversations remain in the shared library." : "Chat cleanup removes local conversations and their history records. Your account and installed tools are kept."}</p>
                     <div className="storage-chat-actions">
+                      <button className="button secondary" type="button" disabled={loading} aria-label={`Back up ${item.name}`} onClick={() => onBackup(item)}>Back up profile</button>
+                      <button className="button secondary" type="button" disabled={loading || item.running} onClick={() => onMigrate(item)}>{item.layout === "shared" ? "Shared storage and recovery" : item.layout === "needsRecovery" || item.layout === "needsRestore" ? "Recover interrupted migration" : "Set up shared storage"}</button>
                       <button className="button secondary" type="button" disabled={item.running || loading} aria-label={`Clear chats older than 30 days for ${item.name}`} onClick={() => onClearChats(item, "olderThan30Days")}>Clear chats older than 30 days</button>
                       <button className="button secondary danger-button" type="button" disabled={item.running || loading} aria-label={`Clear all chats for ${item.name}`} onClick={() => onClearChats(item, "all")}>Clear all chats</button>
                     </div>
@@ -84,6 +94,13 @@ export function StorageDialog({ usage, loading, error, onClose, onRefresh, onCle
                 </article>
               )
             })}
+            {(usage.sharedChatsBytes ?? 0) > 0 ? <article className="storage-row storage-other"><div className="storage-row-copy"><strong>Shared chat cleanup</strong><span>Changes the library for every saved account. Private histories and backups are kept.</span><div className="storage-chat-actions"><button className="button secondary" disabled={loading} onClick={() => onClearSharedChats("olderThan30Days")}>Clear shared chats older than 30 days</button><button className="button secondary danger-button" disabled={loading} onClick={() => onClearSharedChats("all")}>Clear all shared chats</button></div></div></article> : null}
+            {[
+              ["Shared extensions and staging", usage.sharedExtensionsBytes],
+              ["Shared chat library and reader copies", usage.sharedChatsBytes],
+              ["Migration journals and reader staging", usage.migrationBytes],
+            ].map(([label, bytes]) => Number(bytes) > 0 ? <article className="storage-row storage-other" key={String(label)}><div className="storage-row-copy"><strong>{label}</strong><span>{formatStorage(Number(bytes))} · counted once</span></div></article> : null)}
+            {(usage.backupBytes ?? 0) > 0 ? <article className="storage-row storage-other"><div className="storage-row-copy"><strong>Retained backups</strong><span>{formatStorage(usage.backupBytes!)} outside app data · excluded from Total used</span></div></article> : null}
             {usage.otherBytes > 0 ? (
               <article className="storage-row storage-other">
                 <div className="storage-row-copy"><strong>App metadata</strong><span>{formatStorage(usage.otherBytes)}</span></div>

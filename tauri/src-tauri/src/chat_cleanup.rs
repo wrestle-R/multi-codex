@@ -314,7 +314,7 @@ fn transcript_stamp(home: &Path, path: &Path) -> Result<(u64, Option<SystemTime>
     ))
 }
 
-struct LocalServer {
+pub(crate) struct LocalServer {
     child: Child,
     messages: Receiver<Value>,
     next_id: u64,
@@ -328,7 +328,7 @@ impl Drop for LocalServer {
 }
 
 impl LocalServer {
-    fn start(binary: &Path, home: &Path) -> Result<Self> {
+    pub(crate) fn start(binary: &Path, home: &Path) -> Result<Self> {
         let mut command = Command::new(binary);
         for (key, _) in std::env::vars_os() {
             let name = key.to_string_lossy();
@@ -371,7 +371,7 @@ impl LocalServer {
             messages,
             next_id: 1,
         };
-        server.request("initialize", json!({"clientInfo": {"name": "multi_codex_chat_cleanup", "version": env!("CARGO_PKG_VERSION")}}))?;
+        server.request("initialize", json!({"clientInfo": {"name": "multi_codex_local_history", "version": env!("CARGO_PKG_VERSION")}, "capabilities":{"experimentalApi":true}}))?;
         server.send(json!({"method":"initialized"}))?;
         Ok(server)
     }
@@ -390,7 +390,7 @@ impl LocalServer {
             .map_err(|_| "Could not send the local chat request.".into())
     }
 
-    fn request(&mut self, method: &str, params: Value) -> Result<Value> {
+    pub(crate) fn request(&mut self, method: &str, params: Value) -> Result<Value> {
         let id = self.next_id;
         self.next_id += 1;
         self.send(json!({"id": id, "method": method, "params": params}))?;
@@ -405,7 +405,7 @@ impl LocalServer {
             }
             if message.get("error").is_some() {
                 // Never display raw engine errors, which can include private paths or contents.
-                return Err("Codex could not complete chat cleanup. Update Codex if this version does not support chat deletion.".into());
+                return Err(format!("Codex could not complete {method}. Its saved history remains available; check that the installed engine supports this operation."));
             }
             return message
                 .get("result")

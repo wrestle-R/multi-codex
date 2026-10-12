@@ -52,6 +52,9 @@ export interface ProfileStorageUsage {
   bytes: number
   reclaimableBytes: number
   running: boolean
+  layout?: "legacy" | "shared" | "needsRecovery" | "needsRestore"
+  privateCatalogBytes?: number
+  privateRuntimeBytes?: number
   breakdown?: {
     codexBytes: number
     vscodeBytes: number
@@ -87,6 +90,26 @@ export interface StorageUsage {
   reclaimableBytes: number
   otherBytes: number
   profiles: ProfileStorageUsage[]
+  sharedExtensionsBytes?: number
+  sharedChatsBytes?: number
+  migrationBytes?: number
+  backupBytes?: number
+}
+
+export interface SharedStorageLayout {
+  schema: number
+  profileId: string
+  operationId: string
+  phase: "prepared" | "settingsApplied" | "committed" | "rollbackPending" | "rolledBack"
+  snapshot: MigrationSnapshot
+  generation: { id: string; platform: string; architecture: string }
+  catalogName: string
+}
+
+export interface SharedStorageQueue {
+  schema: number
+  enabled: boolean
+  profiles: Record<string, { state: "ready" | "deferred" | "needsAttention"; reason: string | null; version: string }>
 }
 
 export interface LaunchEnvironment {
@@ -191,4 +214,30 @@ export interface LaunchTargets {
   standaloneInstalled: boolean
   standaloneVerified: boolean
   standaloneVersion?: string | null
+}
+
+export interface MigrationSnapshot {
+  schema: number
+  profileId: string
+  snapshotId: string
+  state: "copying" | "verified"
+  sourceDigest: string
+  metadataDigest: string
+  sourceBytes: number
+  entries: number
+  createdAt: string
+  verifiedAt: string | null
+}
+
+export interface MigrationPreview {
+  profileId: string
+  sourceBytes: number
+  entries: number
+  requiredBackupBytes: number
+  availableBackupBytes: number
+  requiredAppBytes?: number
+  availableAppBytes?: number
+  externalLinks: string[]
+  running: boolean
+  snapshot: MigrationSnapshot | null
 }

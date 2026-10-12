@@ -1,0 +1,115 @@
+name: Shared storage native acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            platform: linux-x64
+          - os: macos-26
+            platform: darwin-arm64
+          - os: windows-2025
+            platform: win32-x64-archive
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+      - name: Build protocol client
+        working-directory: extension
+        run: |
+          npm ci
+          npm run build
+      - name: Install Linux native UI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libasound2 libgbm1 libgtk-3-0 libnss3 libxss1 libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: Install pinned editor and official extension on Mac or Linux
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          EDITOR_PLATFORM: ${{ matrix.platform }}
+        run: |
+          curl --fail --location --retry 3 "https://update.code.visualstudio.com/1.140.0/$EDITOR_PLATFORM/stable" -o "$RUNNER_TEMP/editor.archive"
+          mkdir "$RUNNER_TEMP/editor" "$RUNNER_TEMP/official-extensions"
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            ditto -xk "$RUNNER_TEMP/editor.archive" "$RUNNER_TEMP/editor"
+            code="$RUNNER_TEMP/editor/Visual Studio Code.app/Contents/MacOS/Electron"
+            executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$RUNNER_TEMP/editor/Visual Studio Code.app/Contents/Info.plist")
+            code="$RUNNER_TEMP/editor/Visual Studio Code.app/Contents/MacOS/$executable"
+            cli="$RUNNER_TEMP/editor/Visual Studio Code.app/Contents/Resources/app/bin/code"
+            cli_js="$RUNNER_TEMP/editor/Visual Studio Code.app/Contents/Resources/app/out/cli.js"
+          else
+            tar -xzf "$RUNNER_TEMP/editor.archive" -C "$RUNNER_TEMP/editor" --strip-components=1
+            code="$RUNNER_TEMP/editor/code"
+            cli="$RUNNER_TEMP/editor/bin/code"
+            cli_js="$RUNNER_TEMP/editor/resources/app/out/cli.js"
+          fi
+          "$cli" --user-data-dir "$RUNNER_TEMP/install-user" --extensions-dir "$RUNNER_TEMP/official-extensions" --install-extension openai.chatgpt@26.1002.51308 --force
+          echo "MULTI_CODEX_TEST_VSCODE=$code" >> "$GITHUB_ENV"
+          echo "MULTI_CODEX_TEST_CODE_NODE_CLI=$cli_js" >> "$GITHUB_ENV"
+      - name: Install pinned editor and official extension on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://update.code.visualstudio.com/1.140.0/win32-x64-archive/stable' -OutFile "$env:RUNNER_TEMP/editor.zip"
+          Expand-Archive "$env:RUNNER_TEMP/editor.zip" "$env:RUNNER_TEMP/editor"
+          & "$env:RUNNER_TEMP/editor/bin/code.cmd" --user-data-dir "$env:RUNNER_TEMP/install-user" --extensions-dir "$env:RUNNER_TEMP/official-extensions" --install-extension openai.chatgpt@26.1002.51308 --force
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned Codex installation failed' }
+          "MULTI_CODEX_TEST_VSCODE=$env:RUNNER_TEMP/editor/Code.exe" >> $env:GITHUB_ENV
+          "MULTI_CODEX_TEST_CODE_NODE_CLI=$env:RUNNER_TEMP/editor/resources/app/out/cli.js" >> $env:GITHUB_ENV
+      - name: Test native catalog mutations and cross-home continuation
+        shell: bash
+        working-directory: extension
+        run: |
+          export MULTI_CODEX_TEST_EXTENSIONS="$RUNNER_TEMP/official-extensions"
+          export SHARED_GATE_OUTPUT="$RUNNER_TEMP/shared-gate-public"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a node scripts/shared-storage-probe.mjs
+          else
+            node scripts/shared-storage-probe.mjs
+          fi
+      - name: Build matching packaged desktop bridge and run local suites
+        working-directory: tauri
+        shell: bash
+        env:
+          TAURI_ENV_DEBUG: 'true'
+          MACOSX_DEPLOYMENT_TARGET: '26.0'
+        run: |
+          npm ci
+          npm run build:desktop
+          npm test
+          npm run test:release-gates
+          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+          npm --prefix ../extension test
+      - name: Test production broker and migration service
+        working-directory: extension
+        shell: bash
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '26.0'
+        run: |
+          export MULTI_CODEX_TEST_EXTENSIONS="$RUNNER_TEMP/official-extensions"
+          export SHARED_GATE_OUTPUT="$RUNNER_TEMP/shared-gate-public"
+          node scripts/native-sharing-acceptance.mjs
+      - name: Upload inert feasibility result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-storage-${{ matrix.platform }}
+          path: |
+            ${{ runner.temp }}/shared-gate-public/result.json
+            ${{ runner.temp }}/shared-gate-public/production-result.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -19,6 +19,6 @@ export class BridgeClient extends EventEmitter {
     try { client.state = await client.peer.request('connect', { token }, 3000); return client; }
     catch (error) { client.dispose(); throw error; }
   }
-  request(method: string, params: any = {}) { return this.peer.request(method, params, method === 'switch' ? 60000 : 20000); }
+  request(method: string, params: any = {}) { return this.peer.request(method, params, ['switch', 'releaseSharedChats', 'recoverSharedChat'].includes(method) ? 60000 : 20000); }
   dispose() { this.peer.close(); this.socket.destroy(); }
 }

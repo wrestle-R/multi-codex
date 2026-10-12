@@ -120,3 +120,54 @@ pub fn lock_file(path: &Path) -> Result<std::fs::File> {
     protect(path, false)?;
     Ok(file)
 }
+
+/// Unlock explicitly before closing the descriptor. A concurrent Unix spawn
+/// can briefly inherit a descriptor until exec even when it is close-on-exec.
+pub(crate) struct ExclusiveLock(std::fs::File);
+impl Drop for ExclusiveLock {
+    fn drop(&mut self) {
+        let _ = fs2::FileExt::unlock(&self.0);
+    }
+}
+pub(crate) fn exclusive_lock(file: std::fs::File, busy: &str) -> Result<ExclusiveLock> {
+    fs2::FileExt::try_lock_exclusive(&file).map_err(|_| busy.to_owned())?;
+    Ok(ExclusiveLock(file))
+}
+
+pub(crate) fn exclusive_lock_timeout(
+    file: std::fs::File,
+    busy: &str,
+    timeout: std::time::Duration,
+) -> Result<ExclusiveLock> {
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        match fs2::FileExt::try_lock_exclusive(&file) {
+            Ok(()) => return Ok(ExclusiveLock(file)),
+            Err(error)
+                if error.kind() == std::io::ErrorKind::WouldBlock
+                    && std::time::Instant::now() < deadline =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(_) => return Err(busy.to_owned()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn operation_unlocks_even_while_a_duplicate_descriptor_survives() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("operation.lock");
+        let guard = exclusive_lock(lock_file(&path).unwrap(), "busy").unwrap();
+        let inherited = guard.0.try_clone().unwrap();
+        assert!(exclusive_lock(lock_file(&path).unwrap(), "busy").is_err());
+        drop(guard);
+        let next = exclusive_lock(lock_file(&path).unwrap(), "busy").unwrap();
+        drop(inherited);
+        assert!(exclusive_lock(lock_file(&path).unwrap(), "busy").is_err());
+        drop(next);
+    }
+}

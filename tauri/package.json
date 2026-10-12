@@ -13,7 +13,8 @@
     "test:release": "bash scripts/test-release-packaging.sh",
     "release:linux": "bash scripts/build-linux-release.sh",
     "test:release-gates": "node --test scripts/release-gates.test.mjs scripts/installers.test.mjs scripts/updater-manifest.test.mjs",
-    "check:release-gates": "node scripts/release-gates.mjs"
+    "check:release-gates": "node scripts/release-gates.mjs",
+    "build:desktop": "node scripts/build-desktop-resources.mjs && npm run build"
   },
   "dependencies": {
     "@fontsource/bricolage-grotesque": "^5.2.10",
