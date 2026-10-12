@@ -2,7 +2,7 @@
 
 Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your default login untouched.
 
-Latest release: [v1.4.1](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.1) fixes Windows credential saving and PowerShell checksum verification.
+[Read the full changelog and release details on the website](https://multi-codex.vercel.app/releases). GitHub hosts the downloadable packages.
 
 ## Install
 

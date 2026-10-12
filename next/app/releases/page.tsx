@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { releaseGroups } from "../../lib/releases"
 import { latestRelease, repository, version } from "../../lib/site"
 
@@ -13,11 +14,11 @@ export default function Releases() {
   return <main id="main" className="release-page page-width">
     <p className="eyebrow">MULTI CODEX CHANGELOG</p>
     <h1>What’s new.</h1>
-    <p className="page-description">Features and fixes, grouped by release series. Open the full release notes for package details and validation.</p>
+    <p className="page-description">Features and fixes, grouped by release series. Full release details, upgrade instructions and validation live here. GitHub hosts the downloads.</p>
     <div className="release-history-summary">
       <span>Latest: v{version}</span>
       <span>Newest first · Selected updates</span>
-      <a className="text-link" href={`${repository}/releases`}>Browse on GitHub ↗</a>
+      <a className="text-link" href={`${repository}/releases`}>Download archive ↗</a>
     </div>
     {releaseGroups.map(group => <section className="release-group" key={group.series} aria-labelledby={`series-${group.series}`}>
       <div className="release-group-heading">
@@ -37,12 +38,12 @@ export default function Releases() {
           <ul>{release.highlights.map(highlight => <li key={highlight}>{highlight}</li>)}</ul>
           <div className="release-actions">
             {release.tag === `v${version}` && <a className="button primary" href={latestRelease}>Download latest ↓</a>}
-            <a className="text-link" href={`${repository}/releases/tag/${release.tag}`}>Full release notes<span className="sr-only"> for {release.tag}</span> ↗</a>
+            <Link className="text-link" href={`/releases/${release.tag}`}>Full release details<span className="sr-only"> for {release.tag}</span> →</Link>
           </div>
         </article>
       </li>)}
       </ol>
     </section>)}
-    <div className="doc-note"><strong>Release verification</strong><p>Mac/Linux builds and installer checks are tracked separately from broader platform validation. The Mac package remains unsigned and unnotarized.</p><a href={`${repository}/blob/main/docs/releases/v${version}-validation.json`}>View the validation manifest →</a></div>
+    <div className="doc-note"><strong>Release verification</strong><p>Each release page explains the tested packages, known limitations and available validation evidence. The current Mac package remains unsigned and unnotarized.</p><Link href={`/releases/v${version}`}>Read the latest release details →</Link></div>
   </main>
 }

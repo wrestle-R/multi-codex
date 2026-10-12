@@ -38,7 +38,7 @@ test("changelog groups selected updates by series and preserves version links an
     previous = published
     await expect(entry.getByRole("heading", { level: 3 })).not.toHaveText("")
     expect(await entry.locator("article li").count()).toBeGreaterThanOrEqual(1)
-    await expect(entry.getByRole("link", { name: `Full release notes for ${tag} ↗` })).toHaveAttribute("href", `https://github.com/wrestle-R/multi-codex/releases/tag/${tag}`)
+    await expect(entry.getByRole("link", { name: `Full release details for ${tag} →` })).toHaveAttribute("href", `/releases/${tag}`)
   }
   await expect(entries.first()).toContainText("Latest release")
   await expect(page.getByText("Latest release", { exact: true })).toHaveCount(1)
@@ -50,6 +50,21 @@ test("changelog groups selected updates by series and preserves version links an
     await page.setViewportSize({ width: 320, height: 800 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
   }
+})
+
+test("full release details stay on the website and preserve package downloads", async ({ page }) => {
+  await page.goto("/releases")
+  await page.getByRole("link", { name: "Full release details for v1.4.1 →" }).click()
+  await expect(page).toHaveURL(/\/releases\/v1\.4\.1$/)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Multi Codex v1.4.1")
+  await expect(page.getByRole("heading", { name: "Validation", exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "Download v1.4.1 ↓" })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.1")
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+  }
+  const response = await page.goto("/releases/v1.3.4")
+  expect(response?.status()).toBe(404)
 })
 
 test("showcase, docs and changelog navigate with working release links and no horizontal overflow", async ({ page }) => {
@@ -129,7 +144,7 @@ test("Windows commands, menu-bar behavior and migrated detailed guides are acces
   await page.goto("/")
   await page.getByRole("button", { name: "Windows", exact: true }).click()
   await expect(page.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
-  for (const guide of ["platform-support", "extension", "extension-publishing", "release-guidelines"]) {
+  for (const guide of ["platform-support", "extension", "extension-publishing", "release-guidelines", "storage-and-updates"]) {
     await page.goto(`/docs/${guide}`)
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
     await expect(page.getByRole("navigation", { name: "Detailed guides" })).toBeVisible()

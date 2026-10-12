@@ -17,6 +17,9 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import "./App.css"
 import { BrandMark } from "./components/brand-mark"
 import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
+import { ChatCleanupDialog } from "./components/chat-cleanup-dialog"
+import { UpdateButton } from "./components/update-button"
+import type { ChatScope } from "./lib/types"
 import { ConfirmDialog } from "./components/confirm-dialog"
 import { LaunchSettingsDialog } from "./components/launch-settings-dialog"
 import { DesktopIntegrationDialog } from "./components/desktop-integration-dialog"
@@ -93,6 +96,9 @@ export default function App() {
   const [storageLoading, setStorageLoading] = useState(false)
   const [storageError, setStorageError] = useState<string | null>(null)
   const [showStorage, setShowStorage] = useState(false)
+  const [chatTarget, setChatTarget] = useState<{ profile: ProfileStorageUsage; scope: ChatScope } | null>(null)
+  const [storageNotice, setStorageNotice] = useState<string | null>(null)
+  const [updating, setUpdating] = useState(false)
   const [cacheTarget, setCacheTarget] = useState<ProfileStorageUsage | null>(null)
   const [cacheBusy, setCacheBusy] = useState(false)
   const [cacheError, setCacheError] = useState<string | null>(null)
@@ -534,7 +540,7 @@ export default function App() {
   if (!loading && !pageError && profiles.length === 0 && welcomeReady && welcomeNeeded) return <WelcomeScreen platform={launchTargets?.platform} busy={welcomeBusy} error={welcomeError} onContinue={() => void completeWelcome()} />
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" aria-busy={updating}>
       <ResetExpiryReminder profiles={profiles} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />
       <header className="topbar">
         <div className="topbar-inner">
@@ -547,8 +553,9 @@ export default function App() {
           </div>
           <div className="topbar-actions">
             <ThemePicker value={colorTheme} onChange={setColorTheme} />
-            <button className="button secondary" type="button" onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
-            <button className="storage-status" type="button" title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
+            <UpdateButton disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
+            <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
+            <button className="storage-status" type="button" disabled={updating} title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
               <span>{storageUsage == null ? "Calculating" : formatStorage(storageUsage.bytes)}</span>
             </button>
@@ -575,14 +582,14 @@ export default function App() {
             <button
               className="button secondary refresh-all-button"
               type="button"
-              disabled={refreshingAllLimits || chatGptProfiles.length === 0}
+              disabled={updating || refreshingAllLimits || chatGptProfiles.length === 0}
               onClick={() => void handleRefreshAllLimits()}
             >
               <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
               {refreshingAllLimits ? "Refreshing all" : "Refresh all"}
             </button>
           </div>
-          <button className="button primary header-button" type="button" onClick={openAdd}>
+          <button className="button primary header-button" type="button" disabled={updating} onClick={openAdd}>
             <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />
             Add account
           </button>
@@ -617,6 +624,7 @@ export default function App() {
                 <ProfileRow
                   key={profile.id}
                   profile={profile}
+                  disabled={updating}
                   limits={limitChecks[profile.id]}
                   onCheckLimits={handleCheckLimits}
                   onLaunch={handleLaunch}
@@ -690,18 +698,30 @@ export default function App() {
           onChoose={(path) => void completeFolderSelection(path)}
         />
       ) : null}
-      {showStorage ? (
+      {showStorage && !chatTarget ? (
         <StorageDialog
           usage={storageUsage}
           loading={storageLoading}
           error={storageError}
+          notice={storageNotice}
           profiles={profiles}
           onClose={() => setShowStorage(false)}
           onRefresh={() => void refreshStorage()}
           onClear={(profile) => { setCacheError(null); setCacheTarget(profile) }}
+          onClearChats={(profile, scope) => { setStorageNotice(null); setChatTarget({ profile, scope }) }}
           onDelete={(profile) => { setShowStorage(false); setDialogError(null); setDeleteTarget(profile) }}
         />
       ) : null}
+      {chatTarget ? <ChatCleanupDialog
+        profile={chatTarget.profile}
+        scope={chatTarget.scope}
+        onClose={() => { setChatTarget(null); void refreshStorage() }}
+        onDeleted={result => {
+          setStorageNotice(`Deleted ${result.deletedCount} local chats from ${chatTarget.profile.name}. Removed ${formatStorage(result.transcriptBytes)} of transcripts.`)
+          setChatTarget(null)
+          void refreshStorage()
+        }}
+      /> : null}
       {cacheTarget ? (
         <CacheConfirmDialog
           profile={cacheTarget}

@@ -52,6 +52,34 @@ export interface ProfileStorageUsage {
   bytes: number
   reclaimableBytes: number
   running: boolean
+  breakdown?: {
+    codexBytes: number
+    vscodeBytes: number
+    extensionsBytes: number
+    desktopBytes: number
+    chatBytes: number
+  }
+}
+
+export type ChatScope = "all" | "olderThan30Days"
+
+export interface ChatPreview {
+  token: string
+  count: number
+  transcriptBytes: number
+  protectedCount: number
+}
+
+export interface ChatCleanupResult {
+  deletedCount: number
+  transcriptBytes: number
+}
+
+export interface UpdateProgress {
+  phase: "checking" | "downloading" | "installing" | "restarting" | "current"
+  downloaded: number
+  total: number | null
+  version: string | null
 }
 
 export interface StorageUsage {

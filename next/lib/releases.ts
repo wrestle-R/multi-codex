@@ -1,5 +1,5 @@
 // Selected published releases, newest first. Dates are GitHub's published_at values.
-// Highlights come from release notes or the commits between published tags.
+// Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
   { tag: "v1.4.1", publishedAt: "2026-10-09T13:54:23Z", title: "Windows credential and installer fixes", highlights: [
@@ -71,7 +71,7 @@ export const releaseHistory = [
 
 
 // Group summaries describe the series as a whole; individual entries retain
-// their published versions, dates, anchors and links to the original notes.
+// their published versions, dates, anchors and website detail pages.
 const releaseSeries = [
   { series: "1.4", title: "Windows support and account switching", description: "Native Windows packages, Mac account menus, all-account usage refresh and connection recovery, with tested platform downloads." },
   { series: "1.3", title: "Desktop and CLI launch options", description: "Launch saved accounts in VS Code, Codex desktop or CLI, with folder preferences, terminal selection and usage reminders." },

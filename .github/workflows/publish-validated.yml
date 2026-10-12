@@ -27,6 +27,8 @@ jobs:
           mkdir candidate-assets
           gh release download "$CANDIDATE_TAG" --dir candidate-assets
           node tauri/scripts/release-gates.mjs candidate-assets
+          node tauri/scripts/updater-manifest.mjs candidate-assets "$VERSION" --check
+          test -f "next/content/releases/${CANDIDATE_TAG}.md"
           cd candidate-assets
           sha256sum --check SHA256SUMS
       - name: Publish the validated packages
@@ -34,4 +36,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CANDIDATE_TAG: ${{ inputs.tag }}
         run: |
-          gh release edit "$CANDIDATE_TAG" --draft=false --prerelease=false --latest --title "Multi Codex $CANDIDATE_TAG" --notes-file "release/notes/${CANDIDATE_TAG}.md"
+          printf 'Full release details: https://multi-codex.vercel.app/releases/%s\n' "$CANDIDATE_TAG" > "$RUNNER_TEMP/release-link.md"
+          gh release edit "$CANDIDATE_TAG" --draft=false --prerelease=false --latest --title "Multi Codex $CANDIDATE_TAG" --notes-file "$RUNNER_TEMP/release-link.md"

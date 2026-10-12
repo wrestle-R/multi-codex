@@ -95,7 +95,9 @@ npm run check:secrets
 npm run tauri -- build --bundles deb,rpm
 
 set +e
-npm run tauri -- build --bundles appimage
+updater_config=()
+if [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then updater_config=(--config src-tauri/tauri.updater.conf.json); fi
+npm run tauri -- build --bundles appimage "${updater_config[@]}"
 appimage_build_status=$?
 set -e
 if [[ "$appimage_build_status" -ne 0 ]]; then
@@ -116,6 +118,12 @@ mapfile -t generated < <(find "$appimage_dir" -maxdepth 1 -type f -name '*.AppIm
 [[ "${#generated[@]}" -eq 1 ]] || { echo "Expected exactly one generated AppImage" >&2; exit 1; }
 mv "${generated[0]}" "$appimage_dir/$artifact_name"
 normalize_release_artifact_names "$bundle_dir"
+
+# Repacking changes the AppImage bytes: sign the exact final package, not the earlier bundle.
+if [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]]; then
+  rm -f "$appimage_dir"/*.AppImage.sig
+  npm run tauri -- signer sign "$appimage_dir/$artifact_name"
+fi
 
 while IFS= read -r -d '' artifact; do
   checksum="$(sha256sum "$artifact" | cut -d' ' -f1)"

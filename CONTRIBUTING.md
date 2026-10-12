@@ -1,6 +1,6 @@
 # Release and contribution guidelines
 
-Use clear, verifiable descriptions of what changed and how it affects someone using Multi Codex. Keep package versions, release notes, the README and the website consistent.
+Use clear, verifiable descriptions of what changed and how it affects someone using Multi Codex. The website is the source of truth for detailed release information. GitHub hosts package downloads and a short link to the corresponding website release page. Keep package versions and website documentation consistent.
 
 ## Version numbers
 
@@ -23,9 +23,9 @@ The website at `/releases` presents selected user-facing updates grouped by majo
 - Use concrete titles, such as “Workspace folder picker” or “Linux package checksum correction.”
 - Explain the affected behavior and result. Avoid slogans, unsupported guarantees and internal test details in the short website summary.
 - Use the published release date. Do not substitute the commit date or documentation update date.
-- Include a link to the version's full GitHub release notes. Preserve existing version permalinks when editing copy or layout.
-- Keep full package history on GitHub. Do not describe a selection of updates as every published version or invent entries to fill gaps.
-- Put platform requirements, known limitations and links to validation evidence in the full notes under `release/notes/`.
+- Link each version to its full website page at `/releases/v<VERSION>`. Preserve existing changelog anchors and published dates.
+- Keep package assets on GitHub. Release descriptions contain only a short link to the website page. Do not use the README as a changelog or duplicate full notes into GitHub descriptions.
+- Store full public notes under `next/content/releases/v<VERSION>.md`, rendered by the website. Include platform requirements, exact changes, upgrade instructions, known limitations and validation evidence. Keep unpublished work and draft validation clearly separate from published releases.
 
 ## Commit titles
 
@@ -43,10 +43,10 @@ Use `feat` for capabilities, `fix` for defects, `docs` for documentation, `test`
 
 1. Choose the next version based on the changes since the last stable release.
 2. Synchronize the app package and lockfile, Tauri configuration, Rust package and lockfile, website package and lockfile, and `next/lib/site.ts`. The release workflow checks the app version against its tag.
-3. Write full release notes in `release/notes/v<VERSION>.md`, including installation changes, compatibility requirements and known limitations. Link evidence without claiming checks that have not passed.
-4. Complete the project's build, installer and release validation gates before publishing the stable release.
+3. Write full release details in `next/content/releases/v<VERSION>.md`. Preview the website page and check its changes, installation/update instructions, compatibility requirements, limitations and evidence. Do not claim checks that have not passed.
+4. Complete build, installer, signed-updater and functional release gates before publishing. Configure the GitHub Actions `TAURI_SIGNING_PRIVATE_KEY` secret and optional password. The matching public key is in the Tauri config; private signing material never belongs in Git or website content. Signing the update payload is separate from Apple Developer ID signing/notarization.
 5. After publication, update `next/lib/releases.ts` with the actual publication timestamp and concise highlights. Add a series summary when a new major/minor series appears.
-6. Align the README's current version and latest-change summary with the stable release, and verify the website badge, release-note links, version anchors and installation commands.
+6. Verify the deployed website release page, badge, version anchors and installation commands. Publish GitHub assets with a short link to that page. Keep the README focused on project setup and installation, linking to the website changelog.
 
 ## Website verification
 
