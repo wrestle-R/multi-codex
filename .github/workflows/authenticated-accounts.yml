@@ -64,6 +64,9 @@ jobs:
           if (!engine) throw new Error('Native Codex executable missing');
           await appendFile(process.env.GITHUB_ENV, `AUTH_ENGINE=${engine}\nAUTH_OUTPUT=${join(process.env.RUNNER_TEMP, 'auth-public')}\n`);
           JS
+      - name: Verify disposable native account storage before sign-in
+        working-directory: extension
+        run: node scripts/authenticated-account-preflight.mjs
       - name: Start fresh sign-ins and production bridge verification
         working-directory: extension
         run: node scripts/authenticated-runner.mjs > "$RUNNER_TEMP/auth-private.log" 2>&1 < /dev/null &
