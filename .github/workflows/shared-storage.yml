@@ -1,6 +1,12 @@
 name: Shared storage native acceptance
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Native platform to verify after a targeted correction
+        type: choice
+        default: all
+        options: [all, linux, macos, windows]
 permissions:
   contents: read
 jobs:
@@ -8,13 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            platform: linux-x64
-          - os: macos-26
-            platform: darwin-arm64
-          - os: windows-2025
-            platform: win32-x64-archive
+        include: ${{ fromJSON(inputs.platform == 'linux' && '[{"os":"ubuntu-22.04","platform":"linux-x64"}]' || inputs.platform == 'macos' && '[{"os":"macos-26","platform":"darwin-arm64"}]' || inputs.platform == 'windows' && '[{"os":"windows-2025","platform":"win32-x64-archive"}]' || '[{"os":"ubuntu-22.04","platform":"linux-x64"},{"os":"macos-26","platform":"darwin-arm64"},{"os":"windows-2025","platform":"win32-x64-archive"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     steps:
