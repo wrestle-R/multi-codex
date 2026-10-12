@@ -19,12 +19,12 @@ test("extension installation links use the public Marketplace and explain shared
 })
 
 test("changelog groups selected updates by series and preserves version links and permalinks", async ({ page }) => {
-  const tags = ["v1.5.0", "v1.4.1", "v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
+  const tags = ["v1.5.1", "v1.5.0", "v1.4.1", "v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
   await page.goto("/releases")
   const groups = page.locator(".release-group")
   await expect(groups).toHaveCount(8)
   expect(await groups.locator(".release-group-heading .eyebrow").allTextContents()).toEqual(["1.5.x", "1.4.x", "1.3.x", "1.2.x", "1.1.x", "1.0.x", "0.2.x", "0.1.x"])
-  await expect(page.locator(".release-history-summary")).toContainText("Latest: v1.5.0")
+  await expect(page.locator(".release-history-summary")).toContainText("Latest: v1.5.1")
   await expect(page.locator(".release-history-summary")).toContainText("Selected updates")
   const timeline = page.locator(".release-timeline")
   const entries = timeline.locator(":scope > li")
@@ -122,7 +122,7 @@ test("Windows commands, menu-bar behavior and migrated detailed guides are acces
   await page.goto("/docs")
   const install = page.locator("#installation .install-box")
   await install.getByRole("button", { name: "Windows", exact: true }).click()
-  const installerUrl = "https://github.com/wrestle-R/multi-codex/releases/download/v1.5.0/Multi.Codex_1.5.0_x64-setup.exe"
+  const installerUrl = "https://github.com/wrestle-R/multi-codex/releases/download/v1.5.1/Multi.Codex_1.5.1_x64-setup.exe"
   await expect(install.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
   await expect(install).toContainText("double-click")
   await expect(install.getByRole("button", { name: "Copy command" })).not.toBeVisible()
