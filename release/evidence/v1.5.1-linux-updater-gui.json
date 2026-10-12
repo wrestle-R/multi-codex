@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "testedAt": "2026-10-12T06:32:56.871043+00:00",
+  "sourceCommit": "5b2709d07e37b4486725fbc9763dc345df089d20",
+  "environment": "Arch Linux x64, Hyprland 0.56.2, real Tauri WebKit window and native signed updater",
+  "scope": "Disposable data/installation; same release runtime/UI with test-only config version 1.5.0 and loopback HTTP feed. Installed and restarted the signed local v1.5.1 package. No live accounts or chats touched. Production configuration has only HTTPS endpoints.",
+  "artifactSha256": "a767d51a848a6bc9a8a3aa02ee1d301e3b1b82b082ba72e25a081ac916015613",
+  "checks": [
+    "Startup HTTP 503 produced no update button or error popup",
+    "Refresh all fetched the recovered feed with Cache-Control no-cache and revealed Update",
+    "Click Update displayed native Downloading 12% and disabled account actions",
+    "Native download/signature verification/install replaced the disposable target with exact package bytes",
+    "Automatic restart created a new visible maximized launcher process",
+    "Updated launcher hid Update when no newer release existed",
+    "Synthetic chat sentinel was preserved"
+  ],
+  "evidenceImages": [
+    "gui-offline-clear.png",
+    "gui-available-settled.png",
+    "gui-downloading.png",
+    "gui-restarted.png"
+  ]
+}
