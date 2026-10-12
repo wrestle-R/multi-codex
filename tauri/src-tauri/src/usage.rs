@@ -55,16 +55,17 @@ fn read_with_command(
     timeout: Duration,
     checked_at: DateTime<Utc>,
 ) -> Result<ProfileLimits> {
-    let mut child = crate::process::background(&mut Command::new(codex))
-        .args(["app-server", "--stdio"])
-        // Use the profile's durable home so a token refreshed by Codex is not discarded with a
-        // temporary directory. Each Multi Codex profile already has its own isolated CODEX_HOME.
-        .env("CODEX_HOME", codex_home)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|_| "Codex CLI is required to check live limits".to_string())?;
+    let mut child = crate::process::spawn(
+        Command::new(codex)
+            .args(["app-server", "--stdio"])
+            // Use the profile's durable home so a token refreshed by Codex is not discarded with a
+            // temporary directory. Each Multi Codex profile already has its own isolated CODEX_HOME.
+            .env("CODEX_HOME", codex_home)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .map_err(|_| "Codex CLI is required to check live limits".to_string())?;
 
     let stderr = child
         .stderr
