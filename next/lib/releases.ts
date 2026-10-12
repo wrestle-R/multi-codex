@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.5.0", publishedAt: "2026-10-12T05:35:40Z", title: "Local chat cleanup and one-click updates", highlights: [
+    "Inspect account storage by category and preview deletion of all local chats or chats last active more than 30 days ago.",
+    "The Update button downloads signed packages, shows progress and installs the latest launcher with a clear restart state.",
+    "Detailed release notes now live on the website, with GitHub providing package downloads and a short link.",
+  ] },
   { tag: "v1.4.1", publishedAt: "2026-10-09T13:54:23Z", title: "Windows credential and installer fixes", highlights: [
     "Full-sized Windows logins now save in Credential Manager while keeping existing accounts readable.",
     "PowerShell installation and updates correctly verify GitHub checksum downloads; the direct Windows installer remains available.",
@@ -73,6 +78,7 @@ export const releaseHistory = [
 // Group summaries describe the series as a whole; individual entries retain
 // their published versions, dates, anchors and website detail pages.
 const releaseSeries = [
+  { series: "1.5", title: "Storage cleanup and signed updates", description: "Understand account storage, clear selected local conversations with a preview, and update the launcher through signed packages." },
   { series: "1.4", title: "Windows support and account switching", description: "Native Windows packages, Mac account menus, all-account usage refresh and connection recovery, with tested platform downloads." },
   { series: "1.3", title: "Desktop and CLI launch options", description: "Launch saved accounts in VS Code, Codex desktop or CLI, with folder preferences, terminal selection and usage reminders." },
   { series: "1.2", title: "Workspace and storage controls", description: "Choose a workspace folder, place VS Code windows on Hyprland desktops and manage account caches." },

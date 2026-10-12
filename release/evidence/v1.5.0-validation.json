@@ -275,9 +275,13 @@
     }
   },
   "publication": {
-    "status": "validated-draft",
+    "status": "published-stable",
     "fullValidationChecksRemainPending": true,
-    "signingAndNotarizationOptional": true
+    "signingAndNotarizationOptional": true,
+    "publishedAt": "2026-10-12T05:35:40Z",
+    "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.5.0",
+    "publicationWorkflow": "https://github.com/wrestle-R/multi-codex/actions/runs/38208589720",
+    "publishedAssetDigestsVerified": true
   },
   "limitations": [
     "Fresh Windows supported Desktop launch/restart was unavailable after the moving upstream MSIX changed; existing older-build evidence is carried forward. The newer build remains unsupported and was safely refused.",
