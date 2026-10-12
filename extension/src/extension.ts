@@ -115,10 +115,10 @@ export async function activate(context: vscode.ExtensionContext) {
     const codex = vscode.extensions.getExtension('openai.chatgpt');
     if (!codex) throw new Error('Install the official Codex extension first.');
     const settings = vscode.workspace.getConfiguration('multiCodex');
-    const paths = await resolveAccountPaths({ dataDirectory: settings.get<string>('dataDirectory'), globalCodexHome: settings.get<string>('globalCodexHome') });
+    const paths = await resolveAccountPaths({ dataDirectory: process.env.MULTI_CODEX_MANAGED_DATA_ROOT || settings.get<string>('dataDirectory'), globalCodexHome: process.env.MULTI_CODEX_GLOBAL_HOME || settings.get<string>('globalCodexHome') });
     root = paths.dataRoot; globalHome = paths.globalHome;
     engine = await bundledEnginePath(codex.extensionPath);
-    runtimeRoot = join(context.globalStorageUri.fsPath, 'runtime');
+    runtimeRoot = process.env.MULTI_CODEX_BRIDGE_RUNTIME || join(context.globalStorageUri.fsPath, 'runtime');
     helper = join(context.extensionPath, 'bin', helperName); await access(helper);
     await mkdir(root, { recursive: true, mode: 0o700 }); await mkdir(runtimeRoot, { recursive: true, mode: 0o700 });
     if (process.platform === 'win32') await promisify(execFile)(helper, ['--protect-directory', runtimeRoot], { windowsHide: true });
@@ -161,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
     if (!bridge) {
       const child = findCodexBackend(engine);
-      if (child) {
+      if (child && process.env.MULTI_CODEX_SHARED_CHATS !== '1') {
         const session = randomUUID();
         const sessionHome = join(runtimeRoot, 'attached', session);
         const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || homedir();
@@ -188,6 +188,7 @@ export async function activate(context: vscode.ExtensionContext) {
   async function writeBridgeLauncher() {
     const config = { engine, helper, dataRoot: root, globalHome, startupHome: process.env.CODEX_HOME || globalHome,
       officialExtensionPath: vscode.extensions.getExtension('openai.chatgpt')!.extensionPath, runtimeRoot, nodeExecutable: process.execPath, bridgeScript: join(context.extensionPath, 'dist', 'bridge-main.cjs') };
+    Object.assign(config, { sharedChats: process.env.MULTI_CODEX_SHARED_CHATS === '1', profileId: process.env.MULTI_CODEX_PROFILE_ID });
     const configPath = join(runtimeRoot, process.platform === 'win32' ? 'codex-bridge.json' : 'bridge-config.json');
     async function replaceFile(path: string, contents: string, mode: number) {
       const temporary = `${path}.${randomUUID()}.tmp`;
@@ -313,6 +314,28 @@ export async function activate(context: vscode.ExtensionContext) {
   command('multiCodex.enableSwitching', setupBridge);
   command('multiCodex.switchAccount', switchAccount);
   command('multiCodex.pickAccount', () => switchAccount());
+  command('multiCodex.releaseSharedChats', async () => {
+    await connect();
+    if (!bridge) throw new Error('Open Codex in a managed shared-storage account first.');
+    await bridge.request('releaseSharedChats');
+    vscode.window.showInformationMessage('Shared chats are released for another window. Their saved context is retained; resume a chat here to continue writing.');
+  });
+  command('multiCodex.recoverSharedChat', async () => {
+    if (!accounts?.isRunning) await prepare();
+    await connect();
+    if (!bridge) throw new Error('Open Codex in a managed shared-storage account first.');
+    const retained: string[] = await accounts!.request('chats/recoverable');
+    const choices = await Promise.all(retained.map(async threadId => {
+      let label = `Retained chat ${threadId.slice(0, 8)}`;
+      try { const thread = await accounts!.request('chats/get', { threadId }); label = thread.metadata.name || thread.metadata.snippet || label; } catch {}
+      return { label, description: threadId, threadId };
+    }));
+    if (!choices.length) { vscode.window.showInformationMessage('No stopped writers need recovery. Running chats stay protected.'); return; }
+    const selected = await vscode.window.showQuickPick(choices, { placeHolder: 'Recover a chat after its previous writer stopped. Running writers remain protected.' });
+    if (!selected) return;
+    await bridge.request('recoverSharedChat', { threadId: (selected as any).threadId });
+    vscode.window.showInformationMessage('The stopped writer’s complete history is recovered. Refresh the Codex chat list and resume the chat.');
+  });
   command('multiCodex.refreshAccounts', refreshAccounts);
   command('multiCodex.refreshUsage', refreshUsage);
   command('multiCodex.checkAccountUsage', checkAccountUsage);

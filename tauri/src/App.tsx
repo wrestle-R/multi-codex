@@ -17,6 +17,10 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import "./App.css"
 import { BrandMark } from "./components/brand-mark"
 import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
+import { MigrationBackupDialog } from "./components/migration-backup-dialog"
+import { SharedStorageQueueDialog } from "./components/shared-storage-queue-dialog"
+import { SharedChatCleanupDialog } from "./components/shared-chat-cleanup-dialog"
+import { SharedStorageDialog } from "./components/shared-storage-dialog"
 import { ChatCleanupDialog } from "./components/chat-cleanup-dialog"
 import { UpdateButton } from "./components/update-button"
 import { useAppUpdate } from "./components/use-app-update"
@@ -98,6 +102,10 @@ export default function App() {
   const [storageError, setStorageError] = useState<string | null>(null)
   const [showStorage, setShowStorage] = useState(false)
   const [chatTarget, setChatTarget] = useState<{ profile: ProfileStorageUsage; scope: ChatScope } | null>(null)
+  const [backupTarget, setBackupTarget] = useState<ProfileStorageUsage | null>(null)
+  const [sharedStorageTarget, setSharedStorageTarget] = useState<ProfileStorageUsage | null>(null)
+  const [showSharingQueue, setShowSharingQueue] = useState(false)
+  const [sharedChatScope, setSharedChatScope] = useState<ChatScope | null>(null)
   const [storageNotice, setStorageNotice] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
   const appUpdate = useAppUpdate(updating)
@@ -705,7 +713,7 @@ export default function App() {
           onChoose={(path) => void completeFolderSelection(path)}
         />
       ) : null}
-      {showStorage && !chatTarget ? (
+      {showStorage && !chatTarget && !backupTarget && !sharedStorageTarget ? (
         <StorageDialog
           usage={storageUsage}
           loading={storageLoading}
@@ -715,10 +723,28 @@ export default function App() {
           onClose={() => setShowStorage(false)}
           onRefresh={() => void refreshStorage()}
           onClear={(profile) => { setCacheError(null); setCacheTarget(profile) }}
+          onBackup={profile => { setStorageNotice(null); setBackupTarget(profile) }}
+          onManageSharing={() => setShowSharingQueue(true)}
+          onClearSharedChats={scope => { setStorageNotice(null); setSharedChatScope(scope) }}
+          onMigrate={profile => { setStorageNotice(null); setSharedStorageTarget(profile) }}
           onClearChats={(profile, scope) => { setStorageNotice(null); setChatTarget({ profile, scope }) }}
           onDelete={(profile) => { setShowStorage(false); setDialogError(null); setDeleteTarget(profile) }}
         />
       ) : null}
+      {showSharingQueue ? <SharedStorageQueueDialog profiles={profiles} onClose={() => { setShowSharingQueue(false); void refreshStorage() }} /> : null}
+      {sharedChatScope ? <SharedChatCleanupDialog scope={sharedChatScope} onClose={() => setSharedChatScope(null)} onCompleted={message => { setStorageNotice(message); setSharedChatScope(null); void refreshStorage() }} /> : null}
+      {sharedStorageTarget ? <SharedStorageDialog profile={sharedStorageTarget} onClose={() => setSharedStorageTarget(null)} onCompleted={message => {
+        setStorageNotice(message); setSharedStorageTarget(null); void refreshStorage()
+      }} /> : null}
+      {backupTarget ? <MigrationBackupDialog
+        profile={backupTarget}
+        onClose={() => setBackupTarget(null)}
+        onPrepared={() => {
+          setStorageNotice(`Verified backup retained for ${backupTarget.name}. Original profile files are kept.`)
+          setBackupTarget(null)
+          void refreshStorage()
+        }}
+      /> : null}
       {chatTarget ? <ChatCleanupDialog
         profile={chatTarget.profile}
         scope={chatTarget.scope}

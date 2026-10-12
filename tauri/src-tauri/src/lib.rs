@@ -13,11 +13,25 @@ mod extension_accounts;
 mod file_security;
 mod launch;
 mod launch_targets;
+mod legacy_cleanup;
 #[cfg(target_os = "linux")]
 mod linux_desktops;
+mod managed_files;
+mod managed_launch;
+mod managed_settings;
+mod migration;
+mod migration_dependencies;
 mod process;
+mod profile_layout;
+mod profile_restore;
 mod profiles;
 mod settings;
+mod shared_chat_cleanup;
+mod shared_chat_import;
+mod shared_chat_leases;
+mod shared_chats;
+mod shared_storage_queue;
+mod shared_vscode;
 mod terminals;
 mod updater;
 mod usage;
@@ -110,6 +124,158 @@ async fn list_workspace_directories(path: String) -> Result<WorkspaceDirectoryLi
     tauri::async_runtime::spawn_blocking(move || read_workspace_directories(&path))
         .await
         .map_err(|_| "Could not read folders".to_string())?
+}
+
+#[tauri::command]
+async fn set_shared_storage_enabled(
+    enabled: bool,
+    state: State<'_, AppState>,
+) -> Result<shared_storage_queue::Queue, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.set_shared_storage_enabled(enabled))
+        .await
+        .map_err(|_| "Cannot change shared storage queue".to_string())?
+}
+#[tauri::command]
+async fn get_shared_storage_queue(
+    state: State<'_, AppState>,
+) -> Result<shared_storage_queue::Queue, String> {
+    state.service.shared_storage_queue()
+}
+
+#[tauri::command]
+async fn prepare_shared_extensions(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<shared_vscode::Generation, String> {
+    use tauri::Manager;
+    let resource = app
+        .path()
+        .resource_dir()
+        .map_err(|_| "Managed bridge resource is unavailable")?
+        .join("managed-vscode/bridge");
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.prepare_shared_extensions(&resource))
+        .await
+        .map_err(|_| "Could not prepare shared editor extensions".to_string())?
+}
+
+#[tauri::command]
+async fn migrate_profile_shared_storage(
+    id: String,
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<profile_layout::LayoutRecord, String> {
+    use tauri::Manager;
+    let resource = app
+        .path()
+        .resource_dir()
+        .map_err(|_| "Managed bridge resource is unavailable")?
+        .join("managed-vscode/bridge");
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || {
+        service.migrate_profile_shared_storage(&id, &resource)
+    })
+    .await
+    .map_err(|_| "Could not migrate profile storage".to_string())?
+}
+
+#[tauri::command]
+async fn rollback_profile_shared_storage(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<profile_layout::LayoutRecord, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.rollback_profile_shared_storage(&id))
+        .await
+        .map_err(|_| "Could not recover profile layout".to_string())?
+}
+
+#[tauri::command]
+async fn stage_profile_restore(id: String, state: State<'_, AppState>) -> Result<String, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || {
+        service
+            .stage_profile_restore(&id)
+            .map(|path| path.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|_| "Could not stage profile restore".to_string())?
+}
+
+#[tauri::command]
+async fn preview_shared_generations(
+    state: State<'_, AppState>,
+) -> Result<shared_vscode::GenerationCleanup, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.preview_shared_generations())
+        .await
+        .map_err(|_| "Cannot preview unused packages".to_string())?
+}
+#[tauri::command]
+async fn clear_shared_generations(
+    preview: shared_vscode::GenerationCleanup,
+    state: State<'_, AppState>,
+) -> Result<u64, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.clear_shared_generations(preview))
+        .await
+        .map_err(|_| "Cannot clear unused packages".to_string())?
+}
+
+#[tauri::command]
+async fn preview_legacy_extensions(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<legacy_cleanup::Preview, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.preview_legacy_extensions(&id))
+        .await
+        .map_err(|_| "Cannot preview original extensions".to_string())?
+}
+#[tauri::command]
+async fn clear_legacy_extensions(
+    id: String,
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<u64, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.clear_legacy_extensions(&id, &token))
+        .await
+        .map_err(|_| "Cannot clear original extensions".to_string())?
+}
+
+#[tauri::command]
+async fn restore_profile_backup(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<profile_restore::RestoreRecord, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.restore_profile_backup(&id))
+        .await
+        .map_err(|_| "Could not restore profile backup".to_string())?
+}
+
+#[tauri::command]
+async fn preview_profile_migration(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<migration::MigrationPreview, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.preview_profile_migration(&id))
+        .await
+        .map_err(|_| "Could not preview migration".to_string())?
+}
+
+#[tauri::command]
+async fn prepare_profile_migration(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<migration::SnapshotRecord, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.prepare_profile_migration(&id))
+        .await
+        .map_err(|_| "Could not prepare a migration backup".to_string())?
 }
 
 #[tauri::command]
@@ -536,6 +702,27 @@ async fn clear_profile_chats(
 }
 
 #[tauri::command]
+async fn preview_shared_chats(
+    scope: chat_cleanup::ChatScope,
+    state: State<'_, AppState>,
+) -> Result<chat_cleanup::ChatPreview, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.preview_shared_chats(scope))
+        .await
+        .map_err(|_| "Cannot preview shared chats".to_string())?
+}
+#[tauri::command]
+async fn clear_shared_chats(
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<shared_chat_cleanup::CleanupResult, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.clear_shared_chats(&token))
+        .await
+        .map_err(|_| "Cannot clear shared chats".to_string())?
+}
+
+#[tauri::command]
 async fn get_launch_environment() -> Result<LaunchEnvironment, String> {
     tauri::async_runtime::spawn_blocking(|| LaunchEnvironment {
         default_workspace: desktop_environment::default_workspace_root()
@@ -629,6 +816,13 @@ pub fn run() {
             desktop_environment::configure_main_window();
             #[cfg(target_os = "macos")]
             account_menu::setup(app.handle())?;
+            let resource = app.path().resource_dir()?.join("managed-vscode/bridge");
+            let service = Arc::clone(&app.state::<AppState>().service);
+            service.set_managed_bridge(resource)?;
+            std::thread::spawn(move || loop {
+                let _ = service.process_shared_storage_queue();
+                std::thread::sleep(std::time::Duration::from_secs(30));
+            });
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -667,9 +861,24 @@ pub fn run() {
             delete_profile,
             get_runtime_status,
             get_storage_usage,
+            preview_profile_migration,
+            prepare_shared_extensions,
+            set_shared_storage_enabled,
+            get_shared_storage_queue,
+            migrate_profile_shared_storage,
+            rollback_profile_shared_storage,
+            stage_profile_restore,
+            restore_profile_backup,
+            preview_legacy_extensions,
+            preview_shared_generations,
+            clear_shared_generations,
+            clear_legacy_extensions,
+            prepare_profile_migration,
             clear_profile_cache,
             preview_profile_chats,
             clear_profile_chats,
+            preview_shared_chats,
+            clear_shared_chats,
             updater::update_app,
             updater::check_app_update,
             get_launch_environment,

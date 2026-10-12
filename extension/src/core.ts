@@ -12,3 +12,4 @@ export * from './startup';
 export * from './native';
 export * from './usage';
 export * from './connection';
+export * from './shared-chats';

@@ -35,3 +35,5 @@ temp/
 output/
 /docs/
 /local-docs/
+
+/tauri/resources/managed-extension/

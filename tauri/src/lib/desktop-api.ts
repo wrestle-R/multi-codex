@@ -327,3 +327,71 @@ export async function getLaunchTargets(): Promise<LaunchTargets> {
   if (isTauri) return invoke<LaunchTargets>("get_launch_targets")
   return { platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true, standaloneVersion: "26.930.51102" }
 }
+
+export async function previewProfileMigration(id: string): Promise<import("./types").MigrationPreview> {
+  if (isTauri) return invoke("preview_profile_migration", { id })
+  await wait()
+  const profile = demoProfiles.find(profile => profile.id === id)
+  if (!profile) throw new Error("Profile not found")
+  return { profileId: id, sourceBytes: 1_500_000_000, entries: 2000, requiredBackupBytes: 1_600_000_000,
+    availableBackupBytes: 20_000_000_000, externalLinks: [], running: profile.status === "running", snapshot: null }
+}
+
+export async function prepareProfileMigration(id: string): Promise<import("./types").MigrationSnapshot> {
+  if (isTauri) return invoke("prepare_profile_migration", { id })
+  const preview = await previewProfileMigration(id)
+  if (preview.running) throw new Error("Close this profile's sessions before preparing a backup")
+  return { schema: 1, profileId: id, snapshotId: crypto.randomUUID(), state: "verified", sourceDigest: "demo", metadataDigest: "demo",
+    sourceBytes: preview.sourceBytes, entries: preview.entries, createdAt: new Date().toISOString(), verifiedAt: new Date().toISOString() }
+}
+
+export async function migrateProfileSharedStorage(id: string): Promise<import("./types").SharedStorageLayout> {
+  if (isTauri) return invoke("migrate_profile_shared_storage", { id })
+  throw new Error("Shared storage migration requires the installed desktop app")
+}
+
+export async function rollbackProfileSharedStorage(id: string): Promise<import("./types").SharedStorageLayout> {
+  if (isTauri) return invoke("rollback_profile_shared_storage", { id })
+  throw new Error("Layout recovery requires the installed desktop app")
+}
+
+export async function restoreProfileBackup(id: string): Promise<{ phase: string }> {
+  if (!isTauri) throw new Error("Profile restore requires the desktop app.")
+  return invoke("restore_profile_backup", { id })
+}
+
+export async function previewSharedChats(scope: ChatScope): Promise<ChatPreview> {
+  if (!isTauri) throw new Error("Shared chat cleanup requires the desktop app.")
+  return invoke("preview_shared_chats", { scope })
+}
+export async function clearSharedChats(token: string): Promise<{ deletedCount: number; reclaimedBytes: number }> {
+  if (!isTauri) throw new Error("Shared chat cleanup requires the desktop app.")
+  return invoke("clear_shared_chats", { token })
+}
+
+export async function getSharedStorageQueue(): Promise<import("./types").SharedStorageQueue> {
+  if (isTauri) return invoke("get_shared_storage_queue")
+  return { schema: 1, enabled: false, profiles: {} }
+}
+export async function setSharedStorageEnabled(enabled: boolean): Promise<import("./types").SharedStorageQueue> {
+  if (!isTauri) throw new Error("Shared storage queue requires the desktop app.")
+  return invoke("set_shared_storage_enabled", { enabled })
+}
+export async function previewLegacyExtensions(id: string): Promise<{ token: string; bytes: number }> {
+  if (!isTauri) throw new Error("Original extension cleanup requires the desktop app.")
+  return invoke("preview_legacy_extensions", { id })
+}
+export async function clearLegacyExtensions(id: string, token: string): Promise<number> {
+  if (!isTauri) throw new Error("Original extension cleanup requires the desktop app.")
+  return invoke("clear_legacy_extensions", { id, token })
+}
+
+export interface GenerationCleanup { digest: string; generations: string[]; bytes: number }
+export async function previewSharedGenerations(): Promise<GenerationCleanup> {
+  if (!isTauri) throw new Error("Shared package cleanup requires the desktop app.")
+  return invoke("preview_shared_generations")
+}
+export async function clearSharedGenerations(preview: GenerationCleanup): Promise<number> {
+  if (!isTauri) throw new Error("Shared package cleanup requires the desktop app.")
+  return invoke("clear_shared_generations", { preview })
+}

@@ -1,8 +1,18 @@
 {
   "bundle": {
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico"],
-    "resources": {},
-    "windows": { "nsis": { "installMode": "currentUser" } }
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../resources/managed-extension/": "managed-vscode/bridge/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   }
 }
