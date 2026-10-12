@@ -1,0 +1,70 @@
+{
+  "passed": true,
+  "testedAt": "2026-10-12T06:43:56.961109+00:00",
+  "environment": "Arch Linux x64 with live Hyprland 0.56.2",
+  "sourceCommit": "5b2709d07e37b4486725fbc9763dc345df089d20",
+  "scope": "VS Code test ran the exact Ubuntu AppImage; standalone test ran the same runtime from the local release build. Disposable profile data only.",
+  "appImageSha256": "b6d06dc2b5705931fff69d6ccba229e1b3e698f720c5f1a5e50dde4f4ffd3edc",
+  "vscode": {
+    "passed": true,
+    "target": "vscode",
+    "before": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "afterLaunch": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "afterClose": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "desktopSwitchCycles": 3,
+    "repairedFloatingRestore": true,
+    "temporaryData": true
+  },
+  "standalone": {
+    "passed": true,
+    "target": "vscode",
+    "before": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "afterLaunch": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "afterClose": {
+      "floating": false,
+      "fullscreen": 1,
+      "size": [
+        1908,
+        1148
+      ]
+    },
+    "desktopSwitchCycles": 3,
+    "repairedFloatingRestore": true,
+    "temporaryData": true
+  }
+}
