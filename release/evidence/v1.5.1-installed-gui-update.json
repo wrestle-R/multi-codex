@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "testedAt": "2026-10-12T06:49:20.915164+00:00",
+  "fromVersion": "1.5.0",
+  "toVersion": "1.5.1",
+  "method": "Clicked Update in the actual installed GUI; public GitHub signed feed, native download/verification/install and automatic restart. No script fallback or file replacement used.",
+  "artifactSha256": "b6d06dc2b5705931fff69d6ccba229e1b3e698f720c5f1a5e50dde4f4ffd3edc",
+  "runningBinaryMatchesPublishedPackage": true,
+  "accountMetadataUnchanged": true,
+  "savedAccountCount": 6,
+  "restartChangedLauncherPid": true,
+  "visibleMaximizedWindow": true,
+  "updaterButtonHiddenAfterUpdate": true,
+  "separatelyLaunchedSessions": "Not stopped or restarted",
+  "environment": "Arch Linux x64, Hyprland 0.56.2; actual installed GUI and existing saved profiles"
+}

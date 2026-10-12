@@ -2,6 +2,10 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.5.1", publishedAt: "2026-10-12T06:47:27Z", title: "Quiet automatic update discovery", highlights: [
+    "Checks for updates quietly at startup, on account refresh, when returning to the app and when reconnecting.",
+    "The Update button appears when a newer release is available, with signed installation, progress and automatic restart.",
+  ] },
   { tag: "v1.5.0", publishedAt: "2026-10-12T05:35:40Z", title: "Local chat cleanup and one-click updates", highlights: [
     "Inspect account storage by category and preview deletion of all local chats or chats last active more than 30 days ago.",
     "The Update button downloads signed packages, shows progress and installs the latest launcher with a clear restart state.",

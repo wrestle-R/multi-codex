@@ -152,6 +152,7 @@
     "signedPayloads": "All three exact updater payload signatures verified against configured public key; altered bytes rejected.",
     "nativeLinuxSdk": "release/evidence/v1.5.1-linux-updater.json",
     "nativeLinuxGui": "release/evidence/v1.5.1-linux-updater-gui.json",
-    "limits": "Native Mac/Windows installers and restart tested; their updater SDK installation/restart paths not directly exercised. Broader Linux distro/DE matrix, Apple notarization and real Windows cloud OAuth not claimed."
+    "limits": "Native Mac/Windows installers and restart tested; their updater SDK installation/restart paths not directly exercised. Broader Linux distro/DE matrix, Apple notarization and real Windows cloud OAuth not claimed.",
+    "actualInstalledLinuxUpgrade": "release/evidence/v1.5.1-installed-gui-update.json"
   }
 }
