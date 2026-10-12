@@ -246,7 +246,7 @@ fn windows_live_standalone_launch_and_restart_preserve_two_private_homes() {
         let cleanup = NativeCleanup(vec![a.desktop_home.clone(), b.desktop_home.clone()]);
         for (p, paths) in [(&first, &a), (&second, &b)] {
             service
-                .launch_standalone(&p.metadata.id, &workspace)
+                .launch_standalone_profile(&p.metadata.id, &workspace)
                 .unwrap();
             wait_for(|| {
                 visible(&paths.desktop_home) && service.is_running(&p.metadata.id).unwrap()
