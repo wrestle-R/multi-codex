@@ -100,7 +100,8 @@ try {
     if (identities.length) assert.notEqual(result.identity, identities[0].identity, 'Two different accounts are required');
     phase = `device-${name}-save-account`;
     const added = await accounts.request('accounts/add', { name: `Runner ${name.toUpperCase()}`, authJson: result.auth });
-    saved.push(added.metadata.id); identities.push(result);
+    assert.equal(typeof added.id, 'string');
+    saved.push(added.id); identities.push(result);
     Object.assign(report.deviceLogins.at(-1), { savedInLauncher: true, differentAccount: name === 'b' ? true : null });
     await writeFile(join(output, 'progress.json'), JSON.stringify(report));
   }
@@ -196,7 +197,10 @@ try {
 } finally {
   client?.dispose(); frontend?.close(); await bridge?.dispose();
   if (accounts) {
-    for (const id of saved) await accounts.request('accounts/delete', { id }).catch(() => { report.cleanupFailed = true; process.exitCode = 1; });
+    // Recover IDs even if a check failed immediately after creating an account.
+    // This helper only owns the fresh disposable dataRoot above.
+    const remaining = await accounts.list().catch(() => { report.cleanupFailed = true; process.exitCode = 1; return []; });
+    for (const id of new Set([...saved, ...remaining.map(account => account.id)])) await accounts.request('accounts/delete', { id }).catch(() => { report.cleanupFailed = true; process.exitCode = 1; });
     await accounts.dispose();
   }
   await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => { report.cleanupFailed = true; process.exitCode = 1; });
