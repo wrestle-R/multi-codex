@@ -401,7 +401,7 @@ mod tests {
 
     fn fixture() -> (tempfile::TempDir, LayoutStore, SnapshotRecord, Generation) {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().join("app");
+        let root = fs::canonicalize(temp.path()).unwrap().join("app");
         fs::create_dir(&root).unwrap();
         let profile = Uuid::new_v4().to_string();
         let base = root.join("profiles").join(&profile);

@@ -415,17 +415,19 @@ mod tests {
     }
     fn fixture() -> (tempfile::TempDir, ThreadLeases, Backend, PathBuf) {
         let temp = tempfile::tempdir().unwrap();
-        let app = temp.path().join("app");
+        let app = fs::canonicalize(temp.path()).unwrap().join("app");
         let home = app.join("profiles/runtime/codex-home");
         fs::create_dir_all(&home).unwrap();
-        let child = Command::new("/bin/sh")
+        let engine = app.join("fixture-engine");
+        fs::copy("/bin/bash", &engine).unwrap();
+        let child = Command::new(&engine)
             .args(["-c", "read pending"])
             .env("CODEX_HOME", &home)
             .stdin(Stdio::piped())
             .spawn()
             .unwrap();
         let backend = Backend(child);
-        let store = ThreadLeases::open(&app, Path::new("/bin/sh")).unwrap();
+        let store = ThreadLeases::open(&app, &engine).unwrap();
         // Wait for exec before inspecting the engine and private environment.
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
         while !process_system(backend.0.id())
