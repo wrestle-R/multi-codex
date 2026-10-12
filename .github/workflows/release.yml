@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+env:
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
 jobs:
   linux:
     runs-on: ubuntu-22.04
@@ -57,6 +61,8 @@ jobs:
       - run: npm run check:secrets
       - run: npm run test:release
       - run: npm run test:release-gates
+      - name: Require signed updater packages
+        run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
       - run: npm run release:linux
       - name: Verify install and update of the exact Linux candidate
         run: |
@@ -73,6 +79,7 @@ jobs:
           name: linux-packages
           path: |
             tauri/src-tauri/target/release/bundle/appimage/*.AppImage
+            tauri/src-tauri/target/release/bundle/appimage/*.AppImage.sig
             tauri/src-tauri/target/release/bundle/deb/*.deb
             tauri/src-tauri/target/release/bundle/rpm/*.rpm
           if-no-files-found: error
@@ -159,7 +166,8 @@ jobs:
           for signing_setting in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
             [[ -n "${!signing_setting}" ]] || unset "$signing_setting"
           done
-          npm run tauri -- build --bundles app,dmg --target aarch64-apple-darwin
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          npm run tauri -- build --bundles app,dmg --target aarch64-apple-darwin --config src-tauri/tauri.updater.conf.json
       - name: Inspect and smoke-test Apple Silicon app bundle
         run: |
           APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
@@ -197,6 +205,10 @@ jobs:
           DMG=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -type f -name '*.dmg' -print -quit)
           test -n "$DMG"
           mv "$DMG" "Multi.Codex_${VERSION}_aarch64.dmg"
+          UPDATE=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -name "*.app.tar.gz" -print -quit)
+          test -f "$UPDATE.sig"
+          cp "$UPDATE" "Multi.Codex_${VERSION}_aarch64.app.tar.gz"
+          cp "$UPDATE.sig" "Multi.Codex_${VERSION}_aarch64.app.tar.gz.sig"
       - name: Verify install and update of the exact Mac candidate
         run: |
           mkdir "$RUNNER_TEMP/mac-installer-assets"
@@ -212,7 +224,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos-package
-          path: tauri/Multi.Codex_*_aarch64.dmg
+          path: |
+            tauri/Multi.Codex_*_aarch64.dmg
+            tauri/Multi.Codex_*_aarch64.app.tar.gz
+            tauri/Multi.Codex_*_aarch64.app.tar.gz.sig
           if-no-files-found: error
 
       - name: Upload macOS startup evidence
@@ -225,6 +240,9 @@ jobs:
 
   windows:
     uses: ./.github/workflows/windows.yml
+    with:
+      signed_updates: true
+    secrets: inherit
 
   extensions:
     uses: ./.github/workflows/extension.yml
@@ -250,14 +268,18 @@ jobs:
           ((${#ASSETS[@]} == 9))
           cp ../scripts/install-app.sh ../scripts/update-app.sh ../scripts/install-app.ps1 ../scripts/update-app.ps1 .
           ASSETS+=(./install-app.sh ./update-app.sh ./install-app.ps1 ./update-app.ps1)
+          find ../downloaded-assets -type f \( -name "*.AppImage.sig" -o -name "*.exe.sig" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \) -exec cp {} . \;
+          node ../tauri/scripts/updater-manifest.mjs . "${GITHUB_REF_NAME#v}"
+          mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
           ASSETS+=(SHA256SUMS)
           cd ..
+          printf 'Full release details: https://multi-codex.vercel.app/releases/%s\n' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-link.md"
           if gh release view "$GITHUB_REF_NAME" --json isDraft >/dev/null 2>&1; then
             [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" == "true" ]]
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
-            gh release edit "$GITHUB_REF_NAME" --notes-file "release/notes/${GITHUB_REF_NAME}.md"
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/release-link.md"
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "release/notes/${GITHUB_REF_NAME}.md"
+            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes-file "$RUNNER_TEMP/release-link.md"
           fi
           echo "Draft created. Functional validation is required before publishing."

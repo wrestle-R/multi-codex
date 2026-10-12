@@ -2,6 +2,7 @@
 mod account_menu;
 #[cfg(target_os = "linux")]
 mod application_icons;
+mod chat_cleanup;
 mod desktop_environment;
 #[cfg(unix)]
 mod desktop_integration;
@@ -18,6 +19,7 @@ mod process;
 mod profiles;
 mod settings;
 mod terminals;
+mod updater;
 mod usage;
 #[cfg(windows)]
 mod windows_platform;
@@ -507,6 +509,30 @@ async fn clear_profile_cache(id: String, state: State<'_, AppState>) -> Result<u
 }
 
 #[tauri::command]
+async fn preview_profile_chats(
+    id: String,
+    scope: chat_cleanup::ChatScope,
+    state: State<'_, AppState>,
+) -> Result<chat_cleanup::ChatPreview, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.preview_profile_chats(&id, scope))
+        .await
+        .map_err(|_| "Could not check local chats".to_string())?
+}
+
+#[tauri::command]
+async fn clear_profile_chats(
+    id: String,
+    token: String,
+    state: State<'_, AppState>,
+) -> Result<chat_cleanup::ChatCleanupResult, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.clear_profile_chats(&id, &token))
+        .await
+        .map_err(|_| "Could not clear local chats".to_string())?
+}
+
+#[tauri::command]
 async fn get_launch_environment() -> Result<LaunchEnvironment, String> {
     tauri::async_runtime::spawn_blocking(|| LaunchEnvironment {
         default_workspace: desktop_environment::default_workspace_root()
@@ -580,6 +606,7 @@ pub fn run() {
         std::process::exit(1);
     });
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             service: Arc::new(service),
             launches: Arc::new(Mutex::new(launch::LaunchCoordinator::default())),
@@ -635,6 +662,9 @@ pub fn run() {
             get_runtime_status,
             get_storage_usage,
             clear_profile_cache,
+            preview_profile_chats,
+            clear_profile_chats,
+            updater::update_app,
             get_launch_environment,
             get_launch_targets,
             list_workspace_directories,

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core"
+import type { ChatCleanupResult, ChatPreview, ChatScope, UpdateProgress } from "./types"
 import type { TerminalOption, LaunchTargets, DesktopInventory, ExecutableSettings, LaunchResult, DesktopIntegrationStatus, DeviceLoginEvent, LaunchEnvironment, Profile, ProfileDetails, ProfileLimits, SaveProfileInput, StorageUsage, WorkspaceDirectoryListing } from "./types"
 
 // Development-only demo mode lets native screenshot captures use fictional accounts.
@@ -50,6 +51,26 @@ let demoProfiles: Profile[] = [
 ]
 
 const wait = () => new Promise((resolve) => window.setTimeout(resolve, 120))
+
+const demoUpdateListeners = new Set<(event: UpdateProgress) => void>()
+
+export async function subscribeAppUpdate(listener: (event: UpdateProgress) => void): Promise<() => void> {
+  if (isTauri) {
+    const { listen } = await import("@tauri-apps/api/event")
+    return listen<UpdateProgress>("app-update-progress", event => listener(event.payload))
+  }
+  demoUpdateListeners.add(listener)
+  return () => { demoUpdateListeners.delete(listener) }
+}
+
+export async function updateApp(): Promise<"current" | "restarting"> {
+  if (isTauri) return invoke("update_app")
+  for (const phase of ["checking", "downloading", "installing", "current"] as const) {
+    await new Promise(resolve => window.setTimeout(resolve, 650))
+    for (const listener of demoUpdateListeners) listener({ phase, downloaded: phase === "downloading" ? 54 : 0, total: phase === "downloading" ? 100 : null, version: null })
+  }
+  return "current"
+}
 
 export async function listProfiles(): Promise<Profile[]> {
   if (isTauri) return invoke<Profile[]>("list_profiles")
@@ -184,6 +205,7 @@ export async function getStorageUsage(): Promise<StorageUsage> {
       bytes: index === 0 ? 3_900_000_000 : index === 1 ? 3_100_000_000 : 2_876_531_210,
       reclaimableBytes: index === 0 ? 980_000_000 : index === 1 ? 720_000_000 : 443_000_000,
       running: profile.status === "running",
+      breakdown: { codexBytes: 900_000_000, vscodeBytes: 1_100_000_000, extensionsBytes: 1_400_000_000, desktopBytes: 200_000_000, chatBytes: 450_000_000 },
     })),
   }
 }
@@ -192,6 +214,30 @@ export async function clearProfileCache(id: string): Promise<number> {
   if (isTauri) return invoke<number>("clear_profile_cache", { id })
   const usage = await getStorageUsage()
   return usage.profiles.find((profile) => profile.id === id)?.reclaimableBytes ?? 0
+}
+
+const demoChatPlans = new Map<string, { id: string; count: number; transcriptBytes: number }>()
+const demoClearedChats = new Set<string>()
+
+export async function previewProfileChats(id: string, scope: ChatScope): Promise<ChatPreview> {
+  if (isTauri) return invoke("preview_profile_chats", { id, scope })
+  await wait()
+  const token = crypto.randomUUID()
+  const cleared = demoClearedChats.has(`${id}:${scope}`) || demoClearedChats.has(`${id}:all`)
+  const count = cleared ? 0 : scope === "all" ? 24 : 8
+  const transcriptBytes = cleared ? 0 : scope === "all" ? 450_000_000 : 150_000_000
+  demoChatPlans.set(token, { id, count, transcriptBytes })
+  return { token, count, transcriptBytes, protectedCount: 0 }
+}
+
+export async function clearProfileChats(id: string, token: string): Promise<ChatCleanupResult> {
+  if (isTauri) return invoke("clear_profile_chats", { id, token })
+  await wait()
+  const plan = demoChatPlans.get(token)
+  if (!plan || plan.id !== id) throw new Error("Check the chat deletion preview again.")
+  demoChatPlans.delete(token)
+  demoClearedChats.add(`${id}:${plan.count === 24 ? "all" : "olderThan30Days"}`)
+  return { deletedCount: plan.count, transcriptBytes: plan.transcriptBytes }
 }
 
 export async function getLaunchEnvironment(): Promise<LaunchEnvironment> {

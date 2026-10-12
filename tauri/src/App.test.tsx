@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import App, { formatStorage } from "./App"
 import { limitsCacheKey } from "./lib/limits-cache"
-import type { Profile } from "./lib/types"
+import type { Profile, UpdateProgress } from "./lib/types"
 
 const api = vi.hoisted(() => ({
   getDesktopInventory: vi.fn(),
@@ -17,6 +17,10 @@ const api = vi.hoisted(() => ({
   cancelDeviceLogin: vi.fn(),
   listWorkspaceDirectories: vi.fn(),
   clearProfileCache: vi.fn(),
+  previewProfileChats: vi.fn(),
+  clearProfileChats: vi.fn(),
+  subscribeAppUpdate: vi.fn(),
+  updateApp: vi.fn(),
   importCurrentProfile: vi.fn(),
   updateProfile: vi.fn(),
   checkProfileLimits: vi.fn(),
@@ -63,6 +67,10 @@ beforeEach(() => {
   api.cancelDeviceLogin.mockReset().mockResolvedValue(undefined)
   api.listWorkspaceDirectories.mockReset().mockImplementation(async (path: string) => ({ path, parentPath: "/home/rdp/Desktop", directories: [] }))
   api.clearProfileCache.mockReset().mockResolvedValue(256_000_000)
+  api.previewProfileChats.mockReset().mockResolvedValue({ token: "chat-preview", count: 2, transcriptBytes: 10_485_760, protectedCount: 0 })
+  api.clearProfileChats.mockReset().mockResolvedValue({ deletedCount: 2, transcriptBytes: 10_485_760 })
+  api.subscribeAppUpdate.mockReset().mockResolvedValue(() => undefined)
+  api.updateApp.mockReset().mockResolvedValue("current")
   api.importCurrentProfile.mockReset().mockResolvedValue(profile)
   api.updateProfile.mockReset().mockResolvedValue(profile)
   api.checkProfileLimits.mockReset().mockResolvedValue({
@@ -477,6 +485,88 @@ describe("Multi Codex", () => {
     expect(confirmation).toHaveTextContent("Credentials, conversations, settings, skills, plugins, and installed extensions stay intact")
     await user.click(within(confirmation).getByRole("button", { name: "Clear cache" }))
     await waitFor(() => expect(api.clearProfileCache).toHaveBeenCalledWith(profile.id))
+  })
+
+  it.each([
+    ["Clear all chats for Personal", "all"],
+    ["Clear chats older than 30 days for Personal", "olderThan30Days"],
+  ] as const)("previews and confirms %s without deleting the account", async (label, scope) => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: /used by Multi Codex.*View breakdown/ }))
+    await user.click(screen.getByText("Data and chats", { exact: true }))
+    await user.click(screen.getByRole("button", { name: label }))
+    const confirm = await screen.findByRole("alertdialog")
+    await waitFor(() => expect(confirm).toHaveTextContent("2 chats selected"))
+    expect(api.previewProfileChats).toHaveBeenCalledWith(profile.id, scope)
+    expect(api.clearProfileChats).not.toHaveBeenCalled()
+    await user.click(within(confirm).getByRole("button", { name: "Cancel" }))
+    expect(api.clearProfileChats).not.toHaveBeenCalled()
+    await user.click(screen.getByText("Data and chats", { exact: true }))
+    await user.click(screen.getByRole("button", { name: label }))
+    await user.click(await screen.findByRole("button", { name: "Delete selected chats" }))
+    await waitFor(() => expect(api.clearProfileChats).toHaveBeenCalledWith(profile.id, "chat-preview"))
+    await screen.findByText(/Deleted 2 local chats from Personal/)
+    expect(api.deleteProfile).not.toHaveBeenCalled()
+    expect(api.getStorageUsage.mock.calls.length).toBeGreaterThan(1)
+  })
+
+  it("blocks chat cleanup while a profile is in use", async () => {
+    api.getStorageUsage.mockResolvedValue({ bytes: 500, reclaimableBytes: 100, otherBytes: 0, profiles: [{ id: profile.id, name: profile.name, bytes: 500, reclaimableBytes: 100, running: true }] })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: /used by Multi Codex.*View breakdown/ }))
+    await user.click(screen.getByText("Data and chats", { exact: true }))
+    expect(screen.getByRole("button", { name: "Clear all chats for Personal" })).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Clear chats older than 30 days for Personal" })).toBeDisabled()
+    expect(api.previewProfileChats).not.toHaveBeenCalled()
+  })
+
+  it("requires a new preview after a chat cleanup failure", async () => {
+    api.clearProfileChats.mockRejectedValue(new Error("Chat history changed. Check the deletion preview again."))
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: /used by Multi Codex.*View breakdown/ }))
+    await user.click(screen.getByText("Data and chats", { exact: true }))
+    await user.click(screen.getByRole("button", { name: "Clear all chats for Personal" }))
+    await user.click(await screen.findByRole("button", { name: "Delete selected chats" }))
+    await screen.findByRole("alert")
+    expect(screen.getByRole("button", { name: "Delete selected chats" })).toBeDisabled()
+    await user.click(screen.getByRole("button", { name: "Check again" }))
+    await waitFor(() => expect(api.previewProfileChats).toHaveBeenCalledTimes(2))
+  })
+
+  it("runs an update from the top bar and reports an available retry on failure", async () => {
+    api.updateApp.mockRejectedValueOnce(new Error("Could not check for updates."))
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole("button", { name: "Update Multi Codex" }))
+    await screen.findByRole("alert")
+    expect(api.updateApp).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole("button", { name: "Try again" }))
+    await screen.findByText("You’re up to date")
+    expect(api.updateApp).toHaveBeenCalledTimes(2)
+  })
+
+  it("shows real update progress and prevents repeated update or account actions", async () => {
+    let progressListener: ((event: UpdateProgress) => void) | undefined
+    let complete: ((value: "restarting") => void) | undefined
+    api.subscribeAppUpdate.mockImplementation(async listener => { progressListener = listener; return () => undefined })
+    api.updateApp.mockImplementation(() => new Promise(resolve => { complete = resolve }))
+    const user = userEvent.setup()
+    render(<App />)
+    const update = await screen.findByRole("button", { name: "Update Multi Codex" })
+    await user.click(update)
+    fireEvent.click(update)
+    expect(api.updateApp).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole("button", { name: "Add account" })).toBeDisabled()
+    act(() => progressListener?.({ phase: "downloading", downloaded: 25, total: 100, version: "1.5.0" }))
+    expect(screen.getByRole("button", { name: "Downloading 25%" })).toBeDisabled()
+    expect(screen.getByRole("progressbar", { name: "Update progress" })).toHaveAttribute("aria-valuenow", "25")
+    act(() => progressListener?.({ phase: "installing", downloaded: 0, total: null, version: "1.5.0" }))
+    expect(screen.getByText("Verifying and installing")).toBeVisible()
+    await act(async () => complete?.("restarting"))
+    expect(screen.getByText("Restarting Multi Codex")).toBeVisible()
   })
 
   it("disables cache cleanup while a profile is running", async () => {
