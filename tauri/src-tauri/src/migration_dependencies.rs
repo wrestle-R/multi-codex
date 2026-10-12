@@ -37,7 +37,7 @@ pub fn inventory(data: &Path, source: &Path) -> Result<(Vec<Dependency>, Vec<Pat
                 .strip_prefix(source)
                 .map_err(|_| "Invalid dependency link")?
                 .to_path_buf();
-            let target = fs::canonicalize(path);
+            let target = files::resolved_owned(data, path);
             let Ok(target) = target else {
                 unresolved.push(relative);
                 return Ok(());
