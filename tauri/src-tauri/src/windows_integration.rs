@@ -26,4 +26,7 @@ impl DesktopIntegration {
     pub fn install(&self, _: bool) -> Result<DesktopIntegrationStatus, String> {
         Ok(self.status())
     }
+    pub fn refresh_after_update(&self) -> Result<(), String> {
+        Ok(())
+    }
 }
