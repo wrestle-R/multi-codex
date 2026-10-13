@@ -2,6 +2,10 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.5.2", publishedAt: "2026-10-13T05:44:01Z", title: "AppImage startup and system-wide Mac installation", highlights: [
+    "Linux AppImages locate bundled WebKit helper executables correctly when launched from other folders.",
+    "Mac install and update scripts use /Applications/Multi Codex.app while preserving account and conversation data.",
+  ] },
   { tag: "v1.5.1", publishedAt: "2026-10-12T06:47:27Z", title: "Quiet automatic update discovery", highlights: [
     "Checks for updates quietly at startup, on account refresh, when returning to the app and when reconnecting.",
     "The Update button appears when a newer release is available, with signed installation, progress and automatic restart.",
