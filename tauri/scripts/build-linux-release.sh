@@ -9,9 +9,13 @@ APPIMAGE_RUNTIME_SOURCE="${APPIMAGE_RUNTIME_SOURCE:-$HOME/.local/bin/multi-codex
 patch_appdir() {
   local appdir="$1"
   local app_bin="$appdir/usr/bin/multi-codex-desktop"
+  local webkit_dir="$appdir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
   local desktop_file root_desktop icon_name icon_path
   [[ -d "$appdir" ]] || { echo "AppDir not found: $appdir" >&2; exit 1; }
   [[ -x "$app_bin" ]] || { echo "Multi Codex binary not found: $app_bin" >&2; exit 1; }
+  [[ -x "$webkit_dir/WebKitNetworkProcess" ]] || { echo "Bundled WebKit network helper not found: $webkit_dir/WebKitNetworkProcess" >&2; exit 1; }
+  [[ -x "$webkit_dir/WebKitWebProcess" ]] || { echo "Bundled WebKit web helper not found: $webkit_dir/WebKitWebProcess" >&2; exit 1; }
+  [[ -f "$webkit_dir/injected-bundle/libwebkit2gtkinjectedbundle.so" ]] || { echo "Bundled WebKit injected bundle not found: $webkit_dir/injected-bundle/libwebkit2gtkinjectedbundle.so" >&2; exit 1; }
 
   cat > "$appdir/AppRun" <<'APP_RUN'
 #!/usr/bin/env bash
@@ -19,6 +23,7 @@ set -e
 this_dir="$(readlink -f "$(dirname "$0")")"
 export APPDIR="${APPDIR:-$this_dir}"
 export LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+cd "$this_dir/usr"
 exec "$this_dir/usr/bin/multi-codex-desktop" "$@"
 APP_RUN
   chmod +x "$appdir/AppRun"
