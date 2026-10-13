@@ -37,6 +37,7 @@ cat > "$APPDIR/usr/bin/multi-codex-desktop" <<'APP_BIN'
 [[ -x "././/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess" ]]
 [[ "${WEBKIT_DISABLE_DMABUF_RENDERER:-}" == "1" ]]
 [[ -z "${WEBKIT_DISABLE_COMPOSITING_MODE:-}" ]]
+[[ -z "${WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS:-}" ]]
 echo multi-codex
 APP_BIN
 chmod +x "$APPDIR/usr/bin/multi-codex-desktop"
@@ -60,6 +61,7 @@ ln -s "usr/share/applications/Multi Codex.desktop" "$APPDIR/Multi Codex.desktop"
 
 grep -Fq 'LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' "$APPDIR/AppRun"
 grep -Fq 'cd "$this_dir/usr"' "$APPDIR/AppRun"
+grep -Fq '/run/firejail/appimage|/run/firejail/appimage/*)' "$APPDIR/AppRun"
 grep -Fq 'unset WEBKIT_DISABLE_COMPOSITING_MODE' "$APPDIR/AppRun"
 if grep -Fq 'linuxdeploy-plugin-gtk.sh' "$APPDIR/AppRun"; then
   echo "AppRun still sources the linuxdeploy GTK hook" >&2
