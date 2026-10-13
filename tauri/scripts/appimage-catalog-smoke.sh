@@ -16,6 +16,7 @@ done
 appimage="$(readlink -f "$1")"
 test_root="$(mktemp -d)"
 app_pid=""
+wm_pid=""
 evidence_dir="${APPIMAGE_SMOKE_EVIDENCE_DIR:-}"
 
 diagnose() {
@@ -46,6 +47,7 @@ cleanup() {
     mkdir -p "$evidence_dir"
     cp "$test_root"/*.log "$test_root"/*.txt "$test_root"/*.strace "$test_root"/*.png "$evidence_dir/" 2>/dev/null || true
   fi
+  [[ -z "$wm_pid" ]] || kill "$wm_pid" 2>/dev/null || true
   rm -rf "$test_root"
   exit "$result"
 }
@@ -66,6 +68,7 @@ case "${APPIMAGE_SMOKE_MODE:-catalog}" in
   no-accessibility) launch_env+=(NO_AT_BRIDGE=1);;
   native-webkit) launch_env+=(LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib);;
   extended-startup) ;;
+  window-manager) icewm >"$test_root/wm.log" 2>&1 & wm_pid=$!; sleep 2;;
   *) echo "Unknown AppImage smoke mode" >&2; exit 2;;
 esac
 env "${launch_env[@]}" "${launch_command[@]}" \
@@ -74,6 +77,10 @@ app_pid=$!
 
 # Match AppImageHub's minimum startup allowance before accepting a window.
 sleep 10
+if [[ "${APPIMAGE_SMOKE_BACKTRACE:-0}" == "1" ]] && ! timeout 5 xdotool search --onlyvisible --name '^Multi Codex$' >/dev/null 2>&1; then
+  native_pid="$(pgrep -n -f '^.*/multi-codex-desktop$' || true)"
+  [[ -z "$native_pid" ]] || sudo timeout 10 gdb --batch -ex 'set pagination off' -ex 'thread apply all bt 12' -p "$native_pid" >"$test_root/startup-backtrace.txt" 2>&1 || true
+fi
 for _ in $(seq 1 "${APPIMAGE_SMOKE_EXTRA_WAIT_SECONDS:-20}"); do
   if ! kill -0 "$app_pid" 2>/dev/null; then
     echo "AppImage exited before presenting a window" >&2
@@ -82,7 +89,7 @@ for _ in $(seq 1 "${APPIMAGE_SMOKE_EXTRA_WAIT_SECONDS:-20}"); do
   fi
   # AppImageHub accepts the first visible named window on its otherwise empty
   # Xvfb display. Match that behavior rather than depending on WM_TITLE timing.
-  if timeout 5 xdotool search --onlyvisible --name '.' >/dev/null 2>&1; then
+  if timeout 5 xdotool search --onlyvisible --name '^Multi Codex$' >/dev/null 2>&1; then
     sleep 2
     break
   fi
@@ -94,7 +101,7 @@ if ! kill -0 "$app_pid" 2>/dev/null; then
   sed -n '1,160p' "$test_root/appimage.log" >&2
   exit 1
 fi
-window_id="$(timeout 5 xdotool search --onlyvisible --name '.' 2>/dev/null | head -n 1 || true)"
+window_id="$(timeout 5 xdotool search --onlyvisible --name '^Multi Codex$' 2>/dev/null | head -n 1 || true)"
 if [[ -z "$window_id" ]]; then
   echo "AppImage did not present a visible named application window" >&2
   sed -n '1,160p' "$test_root/appimage.log" >&2
