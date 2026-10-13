@@ -1,5 +1,8 @@
 name: Packaged Mac menu validation
 on:
+  push:
+    branches: [codex/windows-release]
+    paths: ['.github/workflows/macos-menu.yml', 'release/scripts/macos-menu-smoke.py']
   workflow_dispatch:
     inputs:
       candidate_run:
@@ -11,16 +14,20 @@ permissions:
 jobs:
   menu:
     runs-on: macos-26
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Download exact candidate and install native launch targets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run || '37901544757' }}
         run: |
           [[ "$CANDIDATE_RUN" =~ ^[0-9]+$ ]]
-          gh run download "$CANDIDATE_RUN" --name macos-package --dir "$RUNNER_TEMP/candidate"
+          for attempt in {1..24}; do
+            if gh run download "$CANDIDATE_RUN" --name macos-package --dir "$RUNNER_TEMP/candidate"; then break; fi
+            sleep 30
+          done
+          test -n "$(find "$RUNNER_TEMP/candidate" -name '*.dmg' -print -quit)"
           curl --fail --location --retry 3 https://update.code.visualstudio.com/latest/darwin-arm64/stable -o "$RUNNER_TEMP/vscode.zip"
           ditto -xk "$RUNNER_TEMP/vscode.zip" /Applications
           curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.930.51102.zip -o "$RUNNER_TEMP/standalone.zip"
