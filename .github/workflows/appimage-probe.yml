@@ -2,9 +2,14 @@ name: AppImage catalog probe
 
 on:
   workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: Prior probe run containing the exact AppImage (leave empty to build)
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   linux:
@@ -24,15 +29,31 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y firejail imagemagick libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm strace x11-utils xdotool xvfb
       - uses: dtolnay/rust-toolchain@stable
+        if: inputs.candidate_run == ''
       - uses: Swatinem/rust-cache@v2
+        if: inputs.candidate_run == ''
         with:
           workspaces: tauri/src-tauri
       - run: npm ci
+        if: inputs.candidate_run == ''
       - run: npm run release:linux
+        if: inputs.candidate_run == ''
+      - name: Reuse exact candidate from a prior probe
+        if: inputs.candidate_run != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+        run: |
+          [[ "$CANDIDATE_RUN" =~ ^[0-9]+$ ]]
+          gh run download "$CANDIDATE_RUN" --name appimage-probe --dir "$RUNNER_TEMP/prior-probe"
+          mkdir -p src-tauri/target/release/bundle/appimage
+          find "$RUNNER_TEMP/prior-probe" -type f -name '*.AppImage' -exec cp {} src-tauri/target/release/bundle/appimage/ \;
       - name: Compare catalog startup environments
         run: |
-          for mode in catalog direct native-home no-webkit-sandbox; do
-            APPIMAGE_SMOKE_MODE="$mode" APPIMAGE_SMOKE_EVIDENCE_DIR="$RUNNER_TEMP/appimage-probe/$mode" xvfb-run -a bash scripts/appimage-catalog-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage >"$RUNNER_TEMP/appimage-probe-$mode.log" 2>&1 && result=passed || result=failed
+          for mode in no-portal no-accessibility native-webkit extended-startup; do
+            extra_wait=20
+            [[ "$mode" != extended-startup ]] || extra_wait=50
+            APPIMAGE_SMOKE_EXTRA_WAIT_SECONDS="$extra_wait" APPIMAGE_SMOKE_MODE="$mode" APPIMAGE_SMOKE_EVIDENCE_DIR="$RUNNER_TEMP/appimage-probe/$mode" xvfb-run -a bash scripts/appimage-catalog-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage >"$RUNNER_TEMP/appimage-probe-$mode.log" 2>&1 && result=passed || result=failed
             echo "$mode: $result"
             tail -n 100 "$RUNNER_TEMP/appimage-probe-$mode.log"
           done
