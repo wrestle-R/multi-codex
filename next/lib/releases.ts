@@ -2,6 +2,10 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.5.3", publishedAt: "2026-10-13T06:25:57Z", title: "Self-contained AppImage helper libraries", highlights: [
+    "Bundled WebKit helper programs inherit the AppImage library directories, so startup works without system WebKit installed.",
+    "Release checks remove system WebKit before testing offline startup; Mac scripts retain /Applications/Multi Codex.app.",
+  ] },
   { tag: "v1.5.2", publishedAt: "2026-10-13T05:44:01Z", title: "AppImage startup and system-wide Mac installation", highlights: [
     "Linux AppImages locate bundled WebKit helper executables correctly when launched from other folders.",
     "Mac install and update scripts use /Applications/Multi Codex.app while preserving account and conversation data.",
