@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-desktop"
-version = "1.5.2"
+version = "1.5.3"
 description = "Run isolated Codex accounts in separate VS Code windows"
 default-run = "multi-codex-desktop"
 authors = ["Russell Daniel Paul"]
