@@ -195,6 +195,7 @@ export default function App() {
       if (!active) return
       setLaunchTargets(targets)
       setLaunchMode(settings.launchMode ?? 'vscode')
+      if (settings.colorTheme) setColorTheme(settings.colorTheme)
       setWelcomeNeeded(!settings.onboardingCompleted)
     }).catch(error => { if (active) setWelcomeError(String(error)) }).finally(() => { if (active) setWelcomeReady(true) })
     return () => { active = false }
@@ -266,6 +267,11 @@ export default function App() {
     document.documentElement.dataset.palette = colorTheme
     localStorage.setItem("multi-codex-color-theme", colorTheme)
   }, [colorTheme])
+
+  function changeColorTheme(value: ColorTheme) {
+    setColorTheme(value)
+    void getExecutableSettings().then(settings => saveExecutableSettings({ ...settings, colorTheme: value })).catch(error => setPageError(String(error)))
+  }
 
   const toggleTheme = useCallback((source: HTMLElement | null = null) => {
     const next: Theme = theme === "dark" ? "light" : "dark"
@@ -567,7 +573,7 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
-            <ThemePicker value={colorTheme} onChange={setColorTheme} />
+            <ThemePicker value={colorTheme} onChange={changeColorTheme} />
             <UpdateButton version={appUpdate.version} onCurrent={appUpdate.clear} disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
             <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
             <button className="storage-status" type="button" disabled={updating} title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>

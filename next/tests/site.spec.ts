@@ -154,3 +154,19 @@ test("Windows commands, menu-bar behavior and migrated detailed guides are acces
     }
   }
 })
+
+
+test("CLI guide explains package limits, shared deletion and recovery without release claims", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("link", { name: "Use Multi Codex from a terminal" }).click()
+  await expect(page).toHaveURL(/\/docs\/cli$/)
+  await expect(page.getByRole("heading", { name: "Multi Codex CLI", exact: true })).toBeVisible()
+  await expect(page.locator("article")).toContainText("glibc 2.39+")
+  await expect(page.locator("article")).toContainText("Shared conversations remain available")
+  await expect(page.locator("article")).toContainText("storage backups restore")
+  await expect(page.locator("article")).toContainText("native verification")
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+  }
+})

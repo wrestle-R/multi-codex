@@ -81,3 +81,22 @@ test ! -e "$ARTIFACT_DIR/deb/Multi Codex_${VERSION}_amd64.deb"
 test ! -e "$ARTIFACT_DIR/rpm/Multi Codex-${VERSION}-1.x86_64.rpm"
 
 echo "Release packaging checks passed"
+
+# Arch-style flat WebKit helpers must be accepted alongside Ubuntu multiarch.
+FLAT_APPDIR="$TMP_DIR/flat.AppDir"
+mkdir -p "$FLAT_APPDIR/usr/bin" "$FLAT_APPDIR/usr/lib/webkit2gtk-4.1/injected-bundle"
+cat > "$FLAT_APPDIR/usr/bin/multi-codex-desktop" <<'FLAT_BIN'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$PWD" == "$APPDIR/usr" ]]
+[[ -x "$APPDIR/usr/lib/webkit2gtk-4.1/WebKitNetworkProcess" ]]
+FLAT_BIN
+chmod +x "$FLAT_APPDIR/usr/bin/multi-codex-desktop"
+for helper in WebKitNetworkProcess WebKitWebProcess; do
+  printf '#!/bin/sh\nexit 0\n' > "$FLAT_APPDIR/usr/lib/webkit2gtk-4.1/$helper"
+  chmod +x "$FLAT_APPDIR/usr/lib/webkit2gtk-4.1/$helper"
+done
+touch "$FLAT_APPDIR/usr/lib/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so"
+bash "$ROOT_DIR/scripts/build-linux-release.sh" --patch-appdir "$FLAT_APPDIR"
+APPDIR="$FLAT_APPDIR" "$FLAT_APPDIR/AppRun"
+echo "Flat and multiarch WebKit packaging fixtures passed"

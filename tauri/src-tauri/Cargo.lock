@@ -2409,8 +2409,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "multi-codex-desktop"
-version = "1.5.1"
+name = "multi-codex-core"
+version = "1.6.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2421,6 +2421,33 @@ dependencies = [
  "junction",
  "keyring",
  "libc",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sysinfo",
+ "tempfile",
+ "toml_edit 0.25.13+spec-1.1.0",
+ "url",
+ "uuid",
+ "windows-sys 0.61.2",
+ "zbus",
+]
+
+[[package]]
+name = "multi-codex-desktop"
+version = "1.6.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "dirs",
+ "fs2",
+ "gio",
+ "jsonc-parser",
+ "junction",
+ "keyring",
+ "libc",
+ "multi-codex-core",
  "rusqlite",
  "serde",
  "serde_json",

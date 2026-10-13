@@ -13,7 +13,7 @@ const output = resolve(process.env.SHARED_GATE_OUTPUT);
 const code = process.env.MULTI_CODEX_TEST_VSCODE;
 if (!code) throw new Error('Native editor must be explicit');
 await mkdir(output, { recursive: true });
-const report = { source: process.env.GITHUB_SHA ?? 'local-uncommitted', platform: process.platform, architecture: process.arch, passed: false, checks: {} };
+const report = { source: process.env.GITHUB_SHA ?? 'local-uncommitted', platform: process.platform, architecture: process.arch, passed: false, checks: {}, stageDurationMs: {} };
 let phase = 'resolve-pinned-packages';
 let exported;
 try {
@@ -26,7 +26,7 @@ try {
   }
   if (!official) throw new Error('Pinned official package unavailable');
   const engine = await bundledEnginePath(official);
-  const bridge = join(repository, 'tauri/resources/managed-extension');
+  const bridge = process.env.MULTI_CODEX_TEST_BRIDGE_PACKAGE ? resolve(process.env.MULTI_CODEX_TEST_BRIDGE_PACKAGE) : join(repository, 'tauri/resources/managed-extension');
   const helper = join(bridge, 'bin', process.platform === 'win32' ? 'multi-codex-account-helper.exe' : 'multi-codex-account-helper');
   const stamp = JSON.parse(await readFile(join(bridge, 'desktop-helper.json'), 'utf8'));
   report.appVersion = stamp.version;
@@ -40,7 +40,9 @@ try {
     MULTI_CODEX_TEST_ROLLOUT_EXPORT: exported, MULTI_CODEX_TEST_OFFICIAL_PACKAGE: official,
     MULTI_CODEX_TEST_BRIDGE_PACKAGE: bridge, MULTI_CODEX_TEST_ROLLOUT: exported };
   function run(binary, args, cwd) {
+    const started = performance.now();
     const result = spawnSync(binary, args, { env, cwd, stdio: 'inherit', windowsHide: true });
+    report.stageDurationMs[phase] = Math.round(performance.now() - started);
     if (result.status !== 0) throw new Error('Native acceptance stage failed');
   }
   phase = 'production-broker-handoff';
@@ -49,6 +51,8 @@ try {
   phase = 'production-migration-rollback';
   run('cargo', ['test', '--locked', '--lib', 'native_shared_migration', '--', '--ignored'], join(repository, 'tauri/src-tauri'));
   report.checks.productionMigrationBackupCopilotImportAndRollback = true;
+  report.checks.verifiedRestoreActivatedAndLaterWorkRetained = true;
+  report.checks.restoredNativeEditorWorkspaceSettingsAndAuthFingerprint = true;
   report.passed = true;
 } catch {
   report.failedStage = phase;

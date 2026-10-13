@@ -68,7 +68,7 @@ try {
     const extensions = join(root, name, 'extensions'); const user = join(root, name, 'user');
     await mkdir(extensions, { recursive: true }); await mkdir(join(user, 'User'), { recursive: true });
     await writeFile(join(user, 'User', 'settings.json'), JSON.stringify({ 'extensions.autoUpdate': false,
-      'extensions.autoCheckUpdates': false, 'telemetry.telemetryLevel': 'off', 'workbench.startupEditor': 'none',
+      'extensions.autoCheckUpdates': false, 'update.mode': 'none', 'telemetry.telemetryLevel': 'off', 'workbench.startupEditor': 'none',
       'security.workspace.trust.enabled': false, 'chatgpt.openOnStartup': false }));
     const entries = [];
     for (const row of packages) {

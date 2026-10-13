@@ -37,3 +37,17 @@ output/
 /local-docs/
 
 /tauri/resources/managed-extension/
+
+/cli/target/
+
+/target/
+
+/cli/npm/platforms/*/bin/
+
+/cli/npm/platforms/*/resources/
+
+/cli/npm/platforms/*/payload.json
+
+/cli/npm/platforms/*/payload.sig
+
+/cli/artifacts/
