@@ -34,7 +34,7 @@ jobs:
           ditto -xk "$RUNNER_TEMP/standalone.zip" /Applications
           DMG=$(find "$RUNNER_TEMP/candidate" -name '*.dmg' -print -quit)
           shasum -a 256 "$DMG" > "$RUNNER_TEMP/candidate-sha256.txt"
-          hdiutil attach "$DMG" -mountpoint "$RUNNER_TEMP/candidate-volume" -nobrowse
+          printf 'Y\n' | hdiutil attach "$DMG" -mountpoint "$RUNNER_TEMP/candidate-volume" -nobrowse
           APP=$(find "$RUNNER_TEMP/candidate-volume" -maxdepth 1 -name '*.app' -print -quit)
           ditto "$APP" "$RUNNER_TEMP/Multi Codex.app"
           hdiutil detach "$RUNNER_TEMP/candidate-volume"
