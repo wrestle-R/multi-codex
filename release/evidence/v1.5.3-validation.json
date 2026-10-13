@@ -160,6 +160,14 @@
     "limits": "Native Mac/Windows installers and restart passed; their in-app updater SDK installation/restart paths were not directly rerun. Apple Developer ID/notarization, broader Linux distro/desktop matrix and real Windows cloud OAuth callback remain outside this hotfix validation.",
     "installedLocalApp": "Existing installed Linux launcher remains v1.5.1, SHA256 b6d06dc2b5705931fff69d6ccba229e1b3e698f720c5f1a5e50dde4f4ffd3edc. User performs the final Update-button installation."
   },
+  "websiteChecks": {
+    "status": "passed",
+    "evidence": "https://multi-codex.vercel.app/releases/v1.5.3",
+    "environment": "Production Next.js build; Chromium desktop and Pixel 7 mobile Playwright contexts",
+    "testedBy": "Codex local checks and against the deployed public website",
+    "testedAt": "2026-10-13T06:33:17Z",
+    "scope": "Build and typecheck passed; 14 local site checks and the same 14 live production checks passed. Latest release/history, exact Windows executable links, platform commands, screenshots, responsive layout and navigation verified. Actual catalog bot screenshot manually inspected as the complete welcome screen."
+  },
   "catalogSubmission": {
     "pullRequest": "https://github.com/AppImage/appimage.github.io/pull/9854",
     "status": "passed",
