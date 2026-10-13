@@ -40,6 +40,13 @@ else:
     for script in ("install-app.sh", "update-app.sh"):
         fixture = task / script
         fixture.mkdir()
+        # Keep native copy/signing/replacement checks isolated from installed
+        # apps while production scripts target the system /Applications folder.
+        source = (repository / "scripts" / script).read_text()
+        assert source.count('"/Applications/') == 3, "Expected system app/staging/backup paths"
+        assert 'mkdir -p "/Applications"' in source
+        fixture_script = fixture / script
+        fixture_script.write_text(source.replace('"/Applications', f'"{fixture}/Applications'))
         application = fixture / "Applications/Multi Codex.app"
         application.mkdir(parents=True)
         previous = application / "previous-app-sentinel"
@@ -65,7 +72,7 @@ else:
                and key not in ("ELECTRON_RUN_AS_NODE", "NODE_OPTIONS", "MULTI_CODEX_ALLOW_UNSIGNED_MAC")}
         env.update(HOME=str(fixture), PATH=str(bin_dir) + ":/usr/bin:/bin:/usr/sbin:/sbin",
                    MULTI_CODEX_NO_LAUNCH="1", INSTALLER_TEST_ASSETS=str(assets), INSTALLER_TEST_TAG=tag)
-        strict = subprocess.run(["/bin/bash", str(repository / "scripts" / script)], env=env,
+        strict = subprocess.run(["/bin/bash", str(fixture_script)], env=env,
                                 capture_output=True, text=True, timeout=180)
         assert strict.returncode != 0, "Unsigned install must require explicit opt-in"
         assert "no Apple Developer ID signature" in strict.stderr, strict.stderr
@@ -74,7 +81,7 @@ else:
         for path, contents in protected.items():
             assert path.read_bytes() == contents, f"Rejected install changed {path.name}"
         env["MULTI_CODEX_ALLOW_UNSIGNED_MAC"] = "1"
-        installed = subprocess.run(["/bin/bash", str(repository / "scripts" / script)], env=env,
+        installed = subprocess.run(["/bin/bash", str(fixture_script)], env=env,
                                   capture_output=True, text=True, timeout=180)
         if installed.returncode:
             raise RuntimeError(f"{script}: {installed.stdout}\n{installed.stderr}")

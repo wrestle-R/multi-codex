@@ -114,9 +114,9 @@ else
     printf 'The verified DMG does not contain Multi Codex.app.\n' >&2
     exit 1
   fi
-  mkdir -p "$HOME/Applications"
-  destination="$HOME/Applications/Multi Codex.app"
-  staged="$HOME/Applications/.Multi Codex.app.new.$$.app"
+  mkdir -p "/Applications"
+  destination="/Applications/Multi Codex.app"
+  staged="/Applications/.Multi Codex.app.new.$$.app"
   rm -rf "$staged"
   ditto "$app_source" "$staged"
   hdiutil detach "$mount_dir" >/dev/null
@@ -154,7 +154,7 @@ else
       printf 'Installing the checksum-verified app without Apple notarization. If macOS blocks first launch, use System Settings > Privacy & Security > Open Anyway for Multi Codex.\n'
     fi
   fi
-  backup="$HOME/Applications/.Multi Codex.app.previous.$$"
+  backup="/Applications/.Multi Codex.app.previous.$$"
   if [[ -e "$destination" ]]; then mv "$destination" "$backup"; fi
   if ! mv "$staged" "$destination"; then
     [[ ! -e "$backup" ]] || mv "$backup" "$destination"
