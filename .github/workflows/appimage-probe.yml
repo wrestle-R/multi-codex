@@ -50,6 +50,9 @@ jobs:
           find "$RUNNER_TEMP/prior-probe" -type f -name '*.AppImage' -exec cp {} src-tauri/target/release/bundle/appimage/ \;
       - name: Compare catalog startup environments
         run: |
+          APPIMAGE_SMOKE_EVIDENCE_DIR="$RUNNER_TEMP/appimage-probe/cold-raw-xvfb" bash scripts/appimage-catalog-display-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage >"$RUNNER_TEMP/appimage-probe-cold-raw-xvfb.log" 2>&1 && result=passed || result=failed
+          echo "cold-raw-xvfb: $result"
+          tail -n 100 "$RUNNER_TEMP/appimage-probe-cold-raw-xvfb.log"
           for mode in no-webkit-sandbox window-manager catalog; do
             extra_wait=20
             [[ "$mode" != extended-startup ]] || extra_wait=50
