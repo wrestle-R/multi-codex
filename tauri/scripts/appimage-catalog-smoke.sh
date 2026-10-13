@@ -62,6 +62,10 @@ case "${APPIMAGE_SMOKE_MODE:-catalog}" in
   direct) launch_command=("$appimage");;
   native-home) launch_env=(WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1);;
   no-webkit-sandbox) launch_env+=(WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1);;
+  no-portal) launch_env+=(WEBKIT_USE_PORTAL=0);;
+  no-accessibility) launch_env+=(NO_AT_BRIDGE=1);;
+  native-webkit) launch_env+=(LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/usr/lib);;
+  extended-startup) ;;
   *) echo "Unknown AppImage smoke mode" >&2; exit 2;;
 esac
 env "${launch_env[@]}" "${launch_command[@]}" \
@@ -70,7 +74,7 @@ app_pid=$!
 
 # Match AppImageHub's minimum startup allowance before accepting a window.
 sleep 10
-for _ in $(seq 1 20); do
+for _ in $(seq 1 "${APPIMAGE_SMOKE_EXTRA_WAIT_SECONDS:-20}"); do
   if ! kill -0 "$app_pid" 2>/dev/null; then
     echo "AppImage exited before presenting a window" >&2
     sed -n '1,160p' "$test_root/appimage.log" >&2
