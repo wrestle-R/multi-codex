@@ -23,6 +23,12 @@ set -e
 this_dir="$(readlink -f "$(dirname "$0")")"
 export APPDIR="${APPDIR:-$this_dir}"
 export LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# AppImageHub exports both WebKit software-rendering switches. WebKitGTK 4.1
+# can remain alive without mapping a window when both are enabled together;
+# keep its current DMABUF renderer override and drop the legacy compositing one.
+if [[ "${WEBKIT_DISABLE_DMABUF_RENDERER:-}" == "1" && "${WEBKIT_DISABLE_COMPOSITING_MODE:-}" == "1" ]]; then
+  unset WEBKIT_DISABLE_COMPOSITING_MODE
+fi
 cd "$this_dir/usr"
 exec "$this_dir/usr/bin/multi-codex-desktop" "$@"
 APP_RUN
