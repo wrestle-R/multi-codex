@@ -33,17 +33,20 @@ chmod +x "$APPDIR/AppRun"
 
 cat > "$APPDIR/usr/bin/multi-codex-desktop" <<'APP_BIN'
 #!/usr/bin/env bash
+set -euo pipefail
 [[ "$PWD" == "$APPDIR/usr" ]]
 [[ -x "././/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess" ]]
 [[ "${WEBKIT_DISABLE_DMABUF_RENDERER:-}" == "1" ]]
 [[ "${WEBKIT_DISABLE_COMPOSITING_MODE:-}" == "1" ]]
 [[ -z "${WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS:-}" ]]
+"././/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess"
 echo multi-codex
 APP_BIN
 chmod +x "$APPDIR/usr/bin/multi-codex-desktop"
 
-touch "$WEBKIT_DIR/WebKitNetworkProcess" "$WEBKIT_DIR/WebKitWebProcess"
-chmod +x "$WEBKIT_DIR/WebKitNetworkProcess" "$WEBKIT_DIR/WebKitWebProcess"
+cc -shared -fPIC "$ROOT_DIR/scripts/fixtures/appimage-helper-library.c" -o "$APPDIR/usr/lib/libmulti_codex_helper_fixture.so"
+cc "$ROOT_DIR/scripts/fixtures/appimage-helper.c" -L"$APPDIR/usr/lib" -lmulti_codex_helper_fixture -o "$WEBKIT_DIR/WebKitNetworkProcess"
+cp "$WEBKIT_DIR/WebKitNetworkProcess" "$WEBKIT_DIR/WebKitWebProcess"
 touch "$WEBKIT_DIR/injected-bundle/libwebkit2gtkinjectedbundle.so"
 
 cat > "$APPDIR/usr/share/applications/Multi Codex.desktop" <<'DESKTOP'
@@ -59,7 +62,6 @@ ln -s "usr/share/applications/Multi Codex.desktop" "$APPDIR/Multi Codex.desktop"
 
 "$ROOT_DIR/scripts/build-linux-release.sh" --patch-appdir "$APPDIR"
 
-grep -Fq 'LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' "$APPDIR/AppRun"
 grep -Fq 'cd "$this_dir/usr"' "$APPDIR/AppRun"
 if grep -Fq 'linuxdeploy-plugin-gtk.sh' "$APPDIR/AppRun"; then
   echo "AppRun still sources the linuxdeploy GTK hook" >&2

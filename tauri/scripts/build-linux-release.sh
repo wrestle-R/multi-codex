@@ -22,7 +22,9 @@ patch_appdir() {
 set -e
 this_dir="$(readlink -f "$(dirname "$0")")"
 export APPDIR="${APPDIR:-$this_dir}"
-export LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# WebKit helpers are separate executables: the main binary's RUNPATH is not
+# inherited by them. Include bundled libraries for hosts without system WebKit.
+export LD_LIBRARY_PATH="/usr/lib:$this_dir/usr/lib:$this_dir/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 cd "$this_dir/usr"
 exec "$this_dir/usr/bin/multi-codex-desktop" "$@"
 APP_RUN
