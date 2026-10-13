@@ -52,7 +52,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y firejail libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
+          sudo apt-get install -y firejail imagemagick libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
