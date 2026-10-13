@@ -1,0 +1,41 @@
+{
+  "name": "@russeldp/multi-codex",
+  "version": "1.0.5",
+  "description": "Manage isolated Codex accounts and workspaces from your terminal",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "multi-codex": "bin/multi-codex.mjs"
+  },
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "optionalDependencies": {
+    "multi-codex-linux-x64": "1.0.5",
+    "multi-codex-linux-arm64": "1.0.5",
+    "multi-codex-darwin-arm64": "1.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wrestle-R/multi-codex.git",
+    "directory": "cli/npm/root"
+  },
+  "homepage": "https://multi-codex.vercel.app/docs/cli",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

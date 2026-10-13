@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-desktop"
-version = "1.5.1"
+version = "1.6.0"
 description = "Run isolated Codex accounts in separate VS Code windows"
 default-run = "multi-codex-desktop"
 authors = ["Russell Daniel Paul"]
@@ -18,7 +18,12 @@ path = "src/bin/account-helper.rs"
 [build-dependencies]
 tauri-build = { version = "2.6.2", features = [] }
 
+[features]
+default = ["desktop-icons"]
+desktop-icons = ["multi-codex-core/desktop-icons"]
+
 [dependencies]
+multi-codex-core = { path = "../../cli/crates/core" }
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
@@ -46,6 +51,7 @@ libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"
+tauri = { version = "2.11.2", default-features = false, features = ["test"] }
 
 [target.'cfg(windows)'.dependencies]
 junction = "1"

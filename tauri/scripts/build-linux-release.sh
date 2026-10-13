@@ -9,7 +9,11 @@ APPIMAGE_RUNTIME_SOURCE="${APPIMAGE_RUNTIME_SOURCE:-$HOME/.local/bin/multi-codex
 patch_appdir() {
   local appdir="$1"
   local app_bin="$appdir/usr/bin/multi-codex-desktop"
-  local webkit_dir="$appdir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+  local webkit_dir="" candidate
+  for candidate in "$appdir/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1" "$appdir/usr/lib/webkit2gtk-4.1" "$appdir/usr/lib64/webkit2gtk-4.1"; do
+    if [[ -d "$candidate" ]]; then webkit_dir="$candidate"; break; fi
+  done
+  [[ -n "$webkit_dir" ]] || { echo "Bundled WebKit helper directory not found" >&2; exit 1; }
   local desktop_file root_desktop icon_name icon_path
   [[ -d "$appdir" ]] || { echo "AppDir not found: $appdir" >&2; exit 1; }
   [[ -x "$app_bin" ]] || { echo "Multi Codex binary not found: $app_bin" >&2; exit 1; }
@@ -24,13 +28,16 @@ this_dir="$(readlink -f "$(dirname "$0")")"
 export APPDIR="${APPDIR:-$this_dir}"
 # WebKit helpers are separate executables: the main binary's RUNPATH is not
 # inherited by them. Include bundled libraries for hosts without system WebKit.
-export LD_LIBRARY_PATH="/usr/lib:$this_dir/usr/lib:$this_dir/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="/usr/lib:$this_dir/usr/lib:$this_dir/usr/lib/x86_64-linux-gnu:$this_dir/usr/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 cd "$this_dir/usr"
 exec "$this_dir/usr/bin/multi-codex-desktop" "$@"
 APP_RUN
   chmod +x "$appdir/AppRun"
 
-  desktop_file="$(find "$appdir/usr/share/applications" -maxdepth 1 -type f -name '*.desktop' | sort | head -n 1)"
+  desktop_file=""
+  if [[ -d "$appdir/usr/share/applications" ]]; then
+    desktop_file="$(find "$appdir/usr/share/applications" -maxdepth 1 -type f -name '*.desktop' | sort | head -n 1)"
+  fi
   if [[ -n "$desktop_file" ]]; then
     root_desktop="$appdir/$(basename "$desktop_file")"
     if [[ "$(readlink -f "$desktop_file")" != "$(readlink -f "$root_desktop" 2>/dev/null || true)" ]]; then
@@ -95,7 +102,7 @@ artifact_name="Multi.Codex_${version}_amd64.AppImage"
 rm -rf "$bundle_dir"
 npm test
 npm run test:release-gates
-npm run build
+npm run build:desktop
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 npm run check:secrets

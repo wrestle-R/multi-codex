@@ -2,12 +2,25 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      sdk_package_run:
+        description: Optional existing signed Mac artifact run for SDK-only diagnostics
+        required: false
+        default: ''
+        type: string
+      platform:
+        description: Native package target for manual acceptance
+        required: false
+        default: all
+        type: choice
+        options: [all, linux, macos, windows]
   push:
     tags:
       - "v*.*.*"
 
 permissions:
   contents: write
+  actions: read
 
 env:
   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -15,6 +28,7 @@ env:
 
 jobs:
   linux:
+    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'linux') }}
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -66,6 +80,15 @@ jobs:
       - name: Require signed updater packages
         run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
       - run: npm run release:linux
+      - name: Exercise native SDK update and signed-payload refusal on Linux
+        run: |
+          cargo build --locked --manifest-path src-tauri/Cargo.toml --example native-updater
+          xvfb-run -a python3 scripts/native-updater-smoke.py --harness src-tauri/target/debug/examples/native-updater --payload src-tauri/target/release/bundle/appimage/*.AppImage --output "$RUNNER_TEMP/native-updater-linux/result.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-updater-linux-evidence
+          path: ${{ runner.temp }}/native-updater-linux/
       - name: Remove build-time WebKit to verify self-contained helpers
         run: |
           sudo apt-get remove -y libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0
@@ -94,6 +117,7 @@ jobs:
           name: linux-installer-evidence
           path: ${{ runner.temp }}/linux-installer-result.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: linux-packages
           path: |
@@ -104,6 +128,7 @@ jobs:
           if-no-files-found: error
 
   macos:
+    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'macos') }}
     runs-on: macos-26
     env:
       MACOSX_DEPLOYMENT_TARGET: "26.0"
@@ -207,8 +232,12 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          # Every updater bundle needs a complete Apple Silicon code seal. The
+          # default is ad hoc; optional configured Developer ID remains supported.
+          codesign --verify --deep --strict "$APP"
+          test -f "$APP/Contents/_CodeSignature/CodeResources"
           if [[ -z "$APPLE_SIGNING_IDENTITY" ]]; then
-            echo "Apple Developer ID signing is not configured; unsigned publication is supported."
+            echo "Complete ad hoc bundle signature verified; Developer ID and notarization are not configured."
           else
             codesign --verify --deep --strict "$APP"
             if [[ -n "$APPLE_ID" && -n "$APPLE_PASSWORD" && -n "$APPLE_TEAM_ID" ]]; then
@@ -235,6 +264,16 @@ jobs:
           (cd "$RUNNER_TEMP/mac-installer-assets" && shasum -a 256 *.dmg > SHA256SUMS)
           VERSION=$(node -p 'require("./package.json").version')
           python3 scripts/macos-installer-smoke.py "$RUNNER_TEMP/mac-installer-assets" "v$VERSION"
+      - name: Exercise native SDK update and signed-payload refusal on macOS
+        run: |
+          cargo build --locked --manifest-path src-tauri/Cargo.toml --example native-updater
+          APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          python3 scripts/native-updater-smoke.py --harness src-tauri/target/debug/examples/native-updater --payload Multi.Codex_*_aarch64.app.tar.gz --app "$APP" --output "$RUNNER_TEMP/native-updater-macos/result.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-updater-macos-evidence
+          path: ${{ runner.temp }}/native-updater-macos/
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -258,12 +297,14 @@ jobs:
           if-no-files-found: warn
 
   windows:
+    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'windows') }}
     uses: ./.github/workflows/windows.yml
     with:
       signed_updates: true
     secrets: inherit
 
   extensions:
+    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'all') }}
     uses: ./.github/workflows/extension.yml
 
   prepare-draft:
@@ -300,3 +341,46 @@ jobs:
             gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes ''
           fi
           echo "Draft created. Validate exact assets, then publish manually with a short website link."
+
+  mac-sdk-probe:
+    if: inputs.sdk_package_run
+    runs-on: macos-26
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+          cache-on-failure: true
+      - name: Record exact candidate workflow source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_RUN: ${{ inputs.sdk_package_run }}
+        run: |
+          [[ "$PACKAGE_RUN" =~ ^[0-9]+$ ]]
+          SOURCE=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PACKAGE_RUN" --jq .head_sha)
+          echo "NATIVE_UPDATER_CANDIDATE_SOURCE=$SOURCE" >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-package
+          path: candidate
+          run-id: ${{ inputs.sdk_package_run }}
+          github-token: ${{ github.token }}
+      - name: Compile pinned SDK harness without rebuilding the candidate
+        run: |
+          mkdir -p tauri/resources/managed-extension
+          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example native-updater
+      - name: Inspect actual signed candidate and native SDK replacement
+        run: |
+          mkdir candidate/source
+          tar -xzf candidate/*.app.tar.gz -C candidate/source
+          APP=$(find candidate/source -maxdepth 1 -type d -name '*.app' -print -quit)
+          test -n "$APP"
+          python3 tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater --payload candidate/*.app.tar.gz --app "$APP" --output "$RUNNER_TEMP/native-updater-macos/result.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-updater-macos-evidence
+          path: ${{ runner.temp }}/native-updater-macos/

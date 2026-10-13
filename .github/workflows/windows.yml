@@ -5,6 +5,12 @@ on:
       signed_updates:
         type: boolean
         default: false
+      gui_package_run:
+        type: string
+        default: ''
+      gui_auth_public_key:
+        type: string
+        default: ''
     secrets:
       TAURI_SIGNING_PRIVATE_KEY:
         required: false
@@ -16,6 +22,14 @@ on:
         description: Sign updater payloads for a release candidate
         type: boolean
         default: false
+      gui_package_run:
+        description: Reuse an existing SDK-verified candidate for GUI-only acceptance
+        type: string
+        default: ''
+      gui_auth_public_key:
+        description: Optional base64 RSA public key for one real GUI device sign-in
+        type: string
+        default: ''
   pull_request:
     paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
 concurrency:
@@ -24,8 +38,10 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 jobs:
   installer-scripts:
+    if: "!inputs.gui_package_run"
     runs-on: windows-2025
     timeout-minutes: 5
     strategy:
@@ -43,6 +59,7 @@ jobs:
         run: ./tauri/scripts/windows-installer-regressions.ps1
 
   windows:
+    if: "!inputs.gui_package_run"
     runs-on: windows-2025
     timeout-minutes: 50
     steps:
@@ -167,6 +184,77 @@ jobs:
       - name: Install, update and restart the exact packaged Windows app
         shell: pwsh
         run: ./tauri/scripts/windows-installer-smoke.ps1 -Installer $env:MULTI_CODEX_TEST_INSTALLER
+      - name: Exercise native SDK update and signed-payload refusal on Windows
+        if: inputs.signed_updates && !cancelled() && env.MULTI_CODEX_TEST_INSTALLER != ''
+        shell: pwsh
+        run: |
+          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example native-updater
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater.exe --payload $env:MULTI_CODEX_TEST_INSTALLER --output "$env:RUNNER_TEMP/native-updater-windows/result.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-updater-windows-evidence
+          path: ${{ runner.temp }}/native-updater-windows/
+      - name: Install isolated native GUI test driver
+        if: "!cancelled() && env.MULTI_CODEX_TEST_INSTALLER != ''"
+        shell: pwsh
+        run: |
+          npm install --prefix "$env:RUNNER_TEMP/multi-codex-gui-driver" --no-save --ignore-scripts playwright@1.56.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Observe actual Windows sign-in GUI and terminal windows
+        if: "!inputs.gui_auth_public_key && !cancelled() && env.MULTI_CODEX_TEST_INSTALLER != ''"
+        shell: pwsh
+        run: ./tauri/scripts/windows-gui-signin.ps1 -Binary "$env:GITHUB_WORKSPACE/tauri/src-tauri/target/release/multi-codex-desktop.exe" -Installer $env:MULTI_CODEX_TEST_INSTALLER
+      - name: Start real GUI authentication with private instructions
+        if: inputs.gui_auth_public_key && !cancelled() && env.MULTI_CODEX_TEST_INSTALLER != ''
+        shell: pwsh
+        env:
+          GUI_AUTH_PUBLIC_KEY: ${{ inputs.gui_auth_public_key }}
+        run: |
+          $arguments = @('-NoProfile','-File',"$env:GITHUB_WORKSPACE/tauri/scripts/windows-gui-signin-background.ps1",'-Binary',"$env:GITHUB_WORKSPACE/tauri/src-tauri/target/release/multi-codex-desktop.exe",'-Installer',$env:MULTI_CODEX_TEST_INSTALLER) | ForEach-Object { '"' + $_ + '"' }
+          # Keep the long-lived child independent of this step's redirected
+          # PowerShell pipe readers. Its test-driver console is hidden; native
+          # application/browser/console windows are observed separately.
+          $output = "$env:RUNNER_TEMP/multi-codex-gui-signin-evidence"
+          New-Item -ItemType Directory -Force $output | Out-Null
+          $started = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList $arguments -WindowStyle Hidden -PassThru
+          [ordered]@{ source=$env:GITHUB_SHA; processId=$started.Id } | ConvertTo-Json | Set-Content "$output/background-start.json"
+      - name: Wait for encrypted real GUI device instructions
+        id: gui_instructions
+        if: inputs.gui_auth_public_key && !cancelled() && env.MULTI_CODEX_TEST_INSTALLER != ''
+        shell: pwsh
+        run: |
+          $output = "$env:RUNNER_TEMP/multi-codex-gui-signin-evidence"
+          $deadline = [DateTime]::UtcNow.AddMinutes(4)
+          while (!(Test-Path "$output/signin.encrypted")) {
+            if (Test-Path "$output/exit-status") { throw 'GUI sign-in failed before user instructions; see sanitized result' }
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'GUI device instructions unavailable' }
+            Start-Sleep -Seconds 2
+          }
+      - uses: actions/upload-artifact@v4
+        if: inputs.gui_auth_public_key && steps.gui_instructions.outcome == 'success'
+        with:
+          name: windows-gui-signin-encrypted
+          path: ${{ runner.temp }}/multi-codex-gui-signin-evidence/signin.encrypted
+          retention-days: 1
+      - name: Verify real GUI authentication and cleanup completion
+        if: inputs.gui_auth_public_key && steps.gui_instructions.outcome == 'success'
+        shell: pwsh
+        run: |
+          $output = "$env:RUNNER_TEMP/multi-codex-gui-signin-evidence"
+          $deadline = [DateTime]::UtcNow.AddMinutes(18)
+          while (!(Test-Path "$output/exit-status")) {
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'Real GUI completion timed out' }
+            Start-Sleep -Seconds 2
+          }
+          if ((Get-Content "$output/exit-status" -Raw).Trim() -ne '0') { throw 'Real GUI acceptance failed; see sanitized result' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-gui-signin-evidence
+          path: ${{ runner.temp }}/multi-codex-gui-signin-evidence/
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -179,3 +267,110 @@ jobs:
           path: |
             tauri/src-tauri/target/release/bundle/nsis/*.exe
             tauri/src-tauri/target/release/bundle/nsis/*.exe.sig
+  gui:
+    if: inputs.gui_package_run
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Reuse the exact SDK-verified candidate
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_RUN: ${{ inputs.gui_package_run }}
+        run: |
+          if ($env:PACKAGE_RUN -notmatch '^\d+$') { throw 'Invalid candidate run' }
+          $packages = "$env:RUNNER_TEMP/gui-candidate"
+          $evidence = "$env:RUNNER_TEMP/gui-candidate-evidence"
+          gh run download $env:PACKAGE_RUN --name windows-installer --dir $packages
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate download failed' }
+          gh run download $env:PACKAGE_RUN --name native-updater-windows-evidence --dir $evidence
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate evidence download failed' }
+          $report = Get-Content "$evidence/result.json" -Raw | ConvertFrom-Json
+          if ($report.candidateSource -notmatch '^[0-9a-f]{40}$' -or !$report.passed) { throw 'Invalid candidate evidence' }
+          # The owned acceptance branch is amended; its previous candidate is
+          # retained by the completed run, but is no longer a branch ancestor.
+          git fetch --depth=1 origin $report.candidateSource
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate source fetch failed' }
+          git diff --quiet $report.candidateSource HEAD -- cli/crates/core tauri/src tauri/src-tauri/src tauri/src-tauri/Cargo.toml tauri/src-tauri/Cargo.lock tauri/src-tauri/tauri.conf.json extension/src ':(exclude)cli/crates/core/src/profiles_shared_native_tests.rs' ':(exclude)cli/crates/core/src/profiles_windows_tests.rs'
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate production source differs from this GUI harness source' }
+          $installer = @(Get-ChildItem $packages -Recurse -Filter '*.exe')
+          if ($installer.Count -ne 1 -or (Get-FileHash $installer[0].FullName).Hash -ne $report.payloadSha256) { throw 'Candidate payload hash mismatch' }
+          "MULTI_CODEX_TEST_INSTALLER=$($installer[0].FullName)" >> $env:GITHUB_ENV
+          "MULTI_CODEX_GUI_CANDIDATE_EVIDENCE=$evidence/result.json" >> $env:GITHUB_ENV
+      - name: Install pinned editor and engine in disposable directories
+        shell: pwsh
+        run: |
+          $codeRoot = Join-Path $env:RUNNER_TEMP 'vscode'
+          Invoke-WebRequest 'https://update.code.visualstudio.com/1.140.0/win32-x64-archive/stable' -OutFile "$env:RUNNER_TEMP/vscode.zip"
+          Expand-Archive "$env:RUNNER_TEMP/vscode.zip" $codeRoot
+          $extensions = Join-Path $env:RUNNER_TEMP 'codex-extensions'
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            & "$codeRoot/bin/code.cmd" --user-data-dir "$env:RUNNER_TEMP/install-profile" --extensions-dir $extensions --install-extension openai.chatgpt@26.1002.51308 --force
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq 3) { throw 'Official extension installation failed' }
+            Start-Sleep -Seconds 5
+          }
+          $official = (Get-ChildItem $extensions -Directory -Filter 'openai.chatgpt-*' | Select-Object -First 1).FullName
+          if (!$official) { throw 'Official extension missing' }
+          "MULTI_CODEX_TEST_VSCODE=$codeRoot/Code.exe" >> $env:GITHUB_ENV
+          "MULTI_CODEX_TEST_ENGINE=$official/bin/windows-x86_64/codex.exe" >> $env:GITHUB_ENV
+          npm install --prefix "$env:RUNNER_TEMP/multi-codex-gui-driver" --no-save --ignore-scripts playwright@1.56.1
+          if ($LASTEXITCODE -ne 0) { throw 'GUI driver installation failed' }
+      - name: Observe real GUI cancellation and cleanup
+        if: "!inputs.gui_auth_public_key"
+        shell: pwsh
+        run: ./tauri/scripts/windows-gui-signin.ps1 -Installer $env:MULTI_CODEX_TEST_INSTALLER -CandidateEvidence $env:MULTI_CODEX_GUI_CANDIDATE_EVIDENCE
+      - name: Start real GUI authentication with private instructions
+        if: inputs.gui_auth_public_key
+        shell: pwsh
+        env:
+          GUI_AUTH_PUBLIC_KEY: ${{ inputs.gui_auth_public_key }}
+        run: |
+          $arguments = @('-NoProfile','-File',"$env:GITHUB_WORKSPACE/tauri/scripts/windows-gui-signin-background.ps1",'-Installer',$env:MULTI_CODEX_TEST_INSTALLER,'-CandidateEvidence',$env:MULTI_CODEX_GUI_CANDIDATE_EVIDENCE) | ForEach-Object { '"' + $_ + '"' }
+          # Keep the long-lived child independent of this step's redirected
+          # PowerShell pipe readers. Its test-driver console is hidden; native
+          # application/browser/console windows are observed separately.
+          $output = "$env:RUNNER_TEMP/multi-codex-gui-signin-evidence"
+          New-Item -ItemType Directory -Force $output | Out-Null
+          $started = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList $arguments -WindowStyle Hidden -PassThru
+          [ordered]@{ source=$env:GITHUB_SHA; processId=$started.Id } | ConvertTo-Json | Set-Content "$output/background-start.json"
+      - name: Wait for encrypted real GUI device instructions
+        id: gui_instructions
+        if: inputs.gui_auth_public_key
+        shell: pwsh
+        run: |
+          $output = "$env:RUNNER_TEMP/multi-codex-gui-signin-evidence"
+          $deadline = [DateTime]::UtcNow.AddMinutes(4)
+          while (!(Test-Path "$output/signin.encrypted")) {
+            if (Test-Path "$output/exit-status") { throw 'GUI failed before user instructions; see sanitized result' }
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'GUI instructions unavailable' }
+            Start-Sleep -Seconds 2
+          }
+      - uses: actions/upload-artifact@v4
+        if: inputs.gui_auth_public_key && steps.gui_instructions.outcome == 'success'
+        with:
+          name: windows-gui-signin-encrypted
+          path: ${{ runner.temp }}/multi-codex-gui-signin-evidence/signin.encrypted
+          retention-days: 1
+      - name: Verify real GUI authentication and cleanup completion
+        if: inputs.gui_auth_public_key && steps.gui_instructions.outcome == 'success'
+        shell: pwsh
+        run: |
+          $output = "$env:RUNNER_TEMP/multi-codex-gui-signin-evidence"
+          $deadline = [DateTime]::UtcNow.AddMinutes(18)
+          while (!(Test-Path "$output/exit-status")) {
+            if ([DateTime]::UtcNow -ge $deadline) { throw 'GUI completion timed out' }
+            Start-Sleep -Seconds 2
+          }
+          if ((Get-Content "$output/exit-status" -Raw).Trim() -ne '0') { throw 'GUI acceptance failed; see sanitized result' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-gui-signin-evidence
+          path: ${{ runner.temp }}/multi-codex-gui-signin-evidence/
