@@ -1,0 +1,47 @@
+name: AppImage catalog probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: tauri
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tauri/package-lock.json
+      - name: Install native probe dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y firejail imagemagick libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm strace x11-utils xdotool xvfb
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+      - run: npm ci
+      - run: npm run release:linux
+      - name: Compare catalog startup environments
+        run: |
+          for mode in catalog direct native-home no-webkit-sandbox; do
+            APPIMAGE_SMOKE_MODE="$mode" APPIMAGE_SMOKE_EVIDENCE_DIR="$RUNNER_TEMP/appimage-probe/$mode" xvfb-run -a bash scripts/appimage-catalog-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage >"$RUNNER_TEMP/appimage-probe-$mode.log" 2>&1 && result=passed || result=failed
+            echo "$mode: $result"
+            tail -n 100 "$RUNNER_TEMP/appimage-probe-$mode.log"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: appimage-probe
+          path: |
+            ${{ runner.temp }}/appimage-probe/
+            ${{ runner.temp }}/appimage-probe-*.log
+            tauri/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn

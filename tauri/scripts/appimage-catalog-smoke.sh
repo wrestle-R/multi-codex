@@ -16,8 +16,24 @@ done
 appimage="$(readlink -f "$1")"
 test_root="$(mktemp -d)"
 app_pid=""
+evidence_dir="${APPIMAGE_SMOKE_EVIDENCE_DIR:-}"
+
+diagnose() {
+  timeout 5 xwininfo -root -tree >"$test_root/windows.txt" 2>&1 || true
+  ps -eo pid,ppid,stat,wchan:32,args | awk '/[m]ulti-codex-desktop|[W]ebKit.*Process|[f]irejail|[b]wrap/' >"$test_root/processes.txt"
+  sed -n '1,100p' "$test_root/windows.txt" >&2
+  sed -n '1,100p' "$test_root/processes.txt" >&2
+  local native_pid
+  native_pid="$(pgrep -n -f '^.*/multi-codex-desktop$' || true)"
+  if [[ -n "$native_pid" ]] && command -v strace >/dev/null; then
+    sudo timeout 6 strace -f -p "$native_pid" -e trace=process,network,openat,futex,poll,ppoll -o "$test_root/startup.strace" || true
+    tail -n 80 "$test_root/startup.strace" >&2 || true
+  fi
+}
 
 cleanup() {
+  local result=$?
+  if [[ "$result" -ne 0 ]]; then diagnose; fi
   if [[ -n "$app_pid" ]] && kill -0 "$app_pid" 2>/dev/null; then
     kill "$app_pid" 2>/dev/null || true
     for _ in 1 2 3 4 5; do
@@ -26,21 +42,29 @@ cleanup() {
     done
     kill -9 "$app_pid" 2>/dev/null || true
   fi
+  if [[ -n "$evidence_dir" ]]; then
+    mkdir -p "$evidence_dir"
+    cp "$test_root"/*.log "$test_root"/*.txt "$test_root"/*.strace "$test_root"/*.png "$evidence_dir/" 2>/dev/null || true
+  fi
   rm -rf "$test_root"
+  exit "$result"
 }
 trap cleanup EXIT
 
 chmod +x "$appimage"
 mkdir -p "$test_root/config" "$test_root/data" "$test_root/cache" "$test_root/home"
 
-env \
-  HOME="$test_root/home" \
-  WEBKIT_DISABLE_COMPOSITING_MODE=1 \
-  WEBKIT_DISABLE_DMABUF_RENDERER=1 \
-  XDG_CACHE_HOME="$test_root/cache" \
-  XDG_CONFIG_HOME="$test_root/config" \
-  XDG_DATA_HOME="$test_root/data" \
-  firejail --quiet --noprofile --net=none --appimage "$appimage" \
+launch_env=(HOME="$test_root/home" WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1
+  XDG_CACHE_HOME="$test_root/cache" XDG_CONFIG_HOME="$test_root/config" XDG_DATA_HOME="$test_root/data")
+launch_command=(firejail --quiet --noprofile --net=none --appimage "$appimage")
+case "${APPIMAGE_SMOKE_MODE:-catalog}" in
+  catalog) ;;
+  direct) launch_command=("$appimage");;
+  native-home) launch_env=(WEBKIT_DISABLE_COMPOSITING_MODE=1 WEBKIT_DISABLE_DMABUF_RENDERER=1);;
+  no-webkit-sandbox) launch_env+=(WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1);;
+  *) echo "Unknown AppImage smoke mode" >&2; exit 2;;
+esac
+env "${launch_env[@]}" "${launch_command[@]}" \
   >"$test_root/appimage.log" 2>&1 &
 app_pid=$!
 
