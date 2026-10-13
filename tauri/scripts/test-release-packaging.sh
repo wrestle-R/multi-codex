@@ -21,7 +21,8 @@ if ! grep -Fq 'LDAI_RUNTIME_FILE' "$ROOT_DIR/scripts/build-linux-release.sh"; th
 fi
 
 APPDIR="$TMP_DIR/Multi Codex.AppDir"
-mkdir -p "$APPDIR/usr/bin" "$APPDIR/apprun-hooks" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/128x128/apps"
+WEBKIT_DIR="$APPDIR/usr/lib/x86_64-linux-gnu/webkit2gtk-4.1"
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/apprun-hooks" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/128x128/apps" "$WEBKIT_DIR/injected-bundle"
 
 cat > "$APPDIR/AppRun" <<'APP_RUN'
 #!/usr/bin/env bash
@@ -32,9 +33,15 @@ chmod +x "$APPDIR/AppRun"
 
 cat > "$APPDIR/usr/bin/multi-codex-desktop" <<'APP_BIN'
 #!/usr/bin/env bash
+[[ "$PWD" == "$APPDIR/usr" ]]
+[[ -x "././/lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess" ]]
 echo multi-codex
 APP_BIN
 chmod +x "$APPDIR/usr/bin/multi-codex-desktop"
+
+touch "$WEBKIT_DIR/WebKitNetworkProcess" "$WEBKIT_DIR/WebKitWebProcess"
+chmod +x "$WEBKIT_DIR/WebKitNetworkProcess" "$WEBKIT_DIR/WebKitWebProcess"
+touch "$WEBKIT_DIR/injected-bundle/libwebkit2gtkinjectedbundle.so"
 
 cat > "$APPDIR/usr/share/applications/Multi Codex.desktop" <<'DESKTOP'
 [Desktop Entry]
@@ -50,6 +57,7 @@ ln -s "usr/share/applications/Multi Codex.desktop" "$APPDIR/Multi Codex.desktop"
 "$ROOT_DIR/scripts/build-linux-release.sh" --patch-appdir "$APPDIR"
 
 grep -Fq 'LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' "$APPDIR/AppRun"
+grep -Fq 'cd "$this_dir/usr"' "$APPDIR/AppRun"
 if grep -Fq 'linuxdeploy-plugin-gtk.sh' "$APPDIR/AppRun"; then
   echo "AppRun still sources the linuxdeploy GTK hook" >&2
   exit 1
