@@ -1,8 +1,5 @@
 name: Packaged Mac menu validation
 on:
-  push:
-    branches: [codex/windows-release]
-    paths: ['.github/workflows/macos-menu.yml', 'release/scripts/macos-menu-smoke.py']
   workflow_dispatch:
     inputs:
       candidate_run:
@@ -20,7 +17,7 @@ jobs:
       - name: Download exact candidate and install native launch targets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CANDIDATE_RUN: ${{ inputs.candidate_run || '37901544757' }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
         run: |
           [[ "$CANDIDATE_RUN" =~ ^[0-9]+$ ]]
           for attempt in {1..24}; do
