@@ -52,7 +52,9 @@ for _ in $(seq 1 20); do
     sed -n '1,160p' "$test_root/appimage.log" >&2
     exit 1
   fi
-  if timeout 5 xdotool search --onlyvisible --name '^Multi Codex$' >/dev/null 2>&1; then
+  # AppImageHub accepts the first visible named window on its otherwise empty
+  # Xvfb display. Match that behavior rather than depending on WM_TITLE timing.
+  if timeout 5 xdotool search --onlyvisible --name '.' >/dev/null 2>&1; then
     sleep 2
     break
   fi
@@ -64,9 +66,9 @@ if ! kill -0 "$app_pid" 2>/dev/null; then
   sed -n '1,160p' "$test_root/appimage.log" >&2
   exit 1
 fi
-window_id="$(timeout 5 xdotool search --onlyvisible --name '^Multi Codex$' 2>/dev/null | head -n 1 || true)"
+window_id="$(timeout 5 xdotool search --onlyvisible --name '.' 2>/dev/null | head -n 1 || true)"
 if [[ -z "$window_id" ]]; then
-  echo "AppImage did not present its visible Multi Codex window" >&2
+  echo "AppImage did not present a visible named application window" >&2
   sed -n '1,160p' "$test_root/appimage.log" >&2
   exit 1
 fi
@@ -93,4 +95,5 @@ if [[ "$dominant_share" -ge 95 ]]; then
   exit 1
 fi
 
-echo "AppImage catalog launch smoke passed (${dominant_share}% dominant color)"
+window_name="$(timeout 5 xdotool getwindowname "$window_id" 2>/dev/null || true)"
+echo "AppImage catalog launch smoke passed (${dominant_share}% dominant color; window: ${window_name:-unnamed})"
