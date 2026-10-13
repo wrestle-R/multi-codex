@@ -66,6 +66,13 @@ jobs:
       - name: Require signed updater packages
         run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
       - run: npm run release:linux
+      - name: Remove build-time WebKit to verify self-contained helpers
+        run: |
+          sudo apt-get remove -y libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0
+          if ldconfig -p | grep -Eq 'lib(webkit2gtk|javascriptcoregtk)-4\.1\.so'; then
+            echo "System WebKit still present; the catalog test would not prove bundled helper loading" >&2
+            exit 1
+          fi
       - name: Verify AppImageHub-compatible launch and visible window
         env:
           APPIMAGE_SMOKE_EVIDENCE_DIR: ${{ runner.temp }}/appimage-catalog-evidence
