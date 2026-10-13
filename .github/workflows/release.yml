@@ -67,7 +67,7 @@ jobs:
       - name: Verify AppImageHub-compatible launch and visible window
         env:
           APPIMAGE_SMOKE_EVIDENCE_DIR: ${{ runner.temp }}/appimage-catalog-evidence
-        run: xvfb-run -a bash scripts/appimage-catalog-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage
+        run: bash scripts/appimage-catalog-display-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage
       - uses: actions/upload-artifact@v4
         if: always()
         with:
