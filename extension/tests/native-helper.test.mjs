@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, symlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
@@ -24,6 +24,10 @@ test('packaged helper protects Windows runtime and inherited child files', { ski
     assert.equal(acl.protected, true);
     for (const identities of [acl.directory, acl.child]) assert.deepEqual([...new Set(identities)].sort(), [acl.owner, 'S-1-5-18'].sort());
     await assert.rejects(() => promisify(execFile)(helper, ['--protect-directory', '.'], { windowsHide: true }));
+    const linked = join(root, 'linked-runtime');
+    await symlink(root, linked, 'junction');
+    try { await assert.rejects(() => promisify(execFile)(helper, ['--protect-directory', linked], { windowsHide: true })); }
+    finally { await rm(linked); }
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 test('native storage supports standalone add/import, shared discovery and cross-process leases', { skip: !engine }, async () => {

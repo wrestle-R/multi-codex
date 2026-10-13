@@ -13,7 +13,7 @@ const externalClass = target === 'standalone' ? /chatgpt|codex/i : /code/i;
 if (!process.env.HYPRLAND_INSTANCE_SIGNATURE) throw new Error('A live Hyprland session is required');
 const root = await mkdtemp(join(tmpdir(), 'multi-codex-launcher-'));
 const env = { ...process.env, XDG_DATA_HOME: join(root, 'data'), XDG_CONFIG_HOME: join(root, 'config'), CODEX_HOME: join(root, 'codex-home') };
-delete env.ELECTRON_RUN_AS_NODE; delete env.APPIMAGE; delete env.VSCODE_IPC_HOOK_CLI;
+for (const key of ['ELECTRON_RUN_AS_NODE', 'APPIMAGE', 'VSCODE_IPC_HOOK_CLI', 'NODE_OPTIONS', 'OPENAI_API_KEY', 'CODEX_API_KEY']) delete env[key];
 await mkdir(env.CODEX_HOME, { recursive: true }); await mkdir(join(root, 'workspace'));
 await writeFile(join(env.CODEX_HOME, 'config.toml'), 'cli_auth_credentials_store = "file"\n', { mode: 0o600 });
 const launcher = process.env.MULTI_CODEX_TEST_LAUNCHER || resolve('src-tauri/target/debug/multi-codex-desktop');
