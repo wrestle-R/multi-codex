@@ -20,6 +20,11 @@ async function until(read, check) {
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
   throw new Error(`Disposable Desktop GUI did not reach the expected state: ${stage}`);
 }
+async function dismissFixtureAnnouncement(record) {
+  // A first-launch product announcement can cover the selected transcript.
+  // Exercise its normal UI in these disposable profiles; retain their model.
+  await record.eval("(()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Continue with current model');if(button&&button.getBoundingClientRect().width)button.click();})()");
+}
 const quote = value => `'${value.replaceAll("'", "'\"'\"'")}'`;
 async function open(suffix, reopen) {
   const home = join(root, suffix); const codexHome = join(home, '.codex'); const desktop = join(home, 'desktop-data'); const id = reopen?.id ?? randomUUID();
@@ -73,6 +78,7 @@ try {
   await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]?.status === 'idle' && s.sessions[id]?.tokens));
   await a.rpc('thread/name/set', { threadId: id, name: 'Fixture A navigation' });
   const uri = `codex://threads/${id}`;
+  await dismissFixtureAnnouncement(a);
   stage = 'exact-account warm navigation';
   const forward = spawn(binary, [`--user-data-dir=${a.env.CODEX_ELECTRON_USER_DATA_PATH}`, uri], { cwd: root, env: a.env, stdio: 'ignore' }); await once(forward, 'exit');
   // Desktop uses a memory router; its address bar stays index.html. Prove
@@ -83,6 +89,7 @@ try {
   a.socket.close();
   const aExited = once(a.child, 'exit'); process.kill(-a.child.pid, 'SIGTERM'); await aExited;
   const reopened = await open('a', { id:a.id, uri });
+  await dismissFixtureAnnouncement(reopened);
   stage = 'cold transcript reopen';
   await until(() => reopened.eval("document.querySelector('main')?.innerText ?? document.body.innerText"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
   for (const record of [reopened, b]) assert.equal((await readFile(join(record.codexHome, 'auth.json'), 'utf8')) === record.auth, true, 'Disposable login bytes must remain unchanged');
