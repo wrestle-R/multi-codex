@@ -7,10 +7,11 @@ import { createRequire } from 'node:module';
 const { defaultDataDirectory, resolveAccountPaths } = createRequire(import.meta.url)('../dist/core.cjs');
 
 test('storage discovers the desktop directory on Mac and honors only absolute Linux XDG paths', () => {
-  assert.equal(defaultDataDirectory('linux', '/home/user', {}), '/home/user/.local/share/multi-codex');
-  assert.equal(defaultDataDirectory('linux', '/home/user', { XDG_DATA_HOME: '/custom/data' }), '/custom/data/multi-codex');
-  assert.equal(defaultDataDirectory('linux', '/home/user', { XDG_DATA_HOME: 'relative' }), '/home/user/.local/share/multi-codex');
-  assert.equal(defaultDataDirectory('darwin', '/Users/user', {}), '/Users/user/Library/Application Support/multi-codex');
+  assert.equal(defaultDataDirectory('linux', '/home/user', {}), join('/home/user', '.local/share/multi-codex'));
+  assert.equal(defaultDataDirectory('linux', '/home/user', { XDG_DATA_HOME: '/custom/data' }), join('/custom/data', 'multi-codex'));
+  assert.equal(defaultDataDirectory('linux', '/home/user', { XDG_DATA_HOME: 'relative' }), join('/home/user', '.local/share/multi-codex'));
+  assert.equal(defaultDataDirectory('darwin', '/Users/user', {}), join('/Users/user', 'Library/Application Support/multi-codex'));
+  assert.equal(defaultDataDirectory('win32', '/Users/user', { APPDATA: '/roaming' }), join('/roaming', 'multi-codex'));
 });
 
 test('app-launched account home cannot hide desktop accounts, including through symlinks', async () => {
@@ -20,7 +21,7 @@ test('app-launched account home cannot hide desktop accounts, including through 
   const global = join(home, 'configured-global');
   await mkdir(profile, { recursive: true });
   await writeFile(join(root, 'executables.json'), JSON.stringify({ globalCodexHome: global }));
-  await symlink(profile, join(home, 'profile-alias'));
+  await symlink(profile, join(home, 'profile-alias'), process.platform === 'win32' ? 'junction' : 'dir');
   try {
     for (const inherited of [profile, join(home, 'profile-alias')]) {
       const paths = await resolveAccountPaths({ platform: 'linux', home, env: { CODEX_HOME: inherited } });

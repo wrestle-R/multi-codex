@@ -7,11 +7,15 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 const exec = promisify(execFile);
+const target = process.env.MULTI_CODEX_TEST_LAUNCH_TARGET || 'vscode';
+if (!['vscode', 'standalone'].includes(target)) throw new Error('Choose vscode or standalone for the launch check');
+const externalClass = target === 'standalone' ? /chatgpt|codex/i : /code/i;
 if (!process.env.HYPRLAND_INSTANCE_SIGNATURE) throw new Error('A live Hyprland session is required');
 const root = await mkdtemp(join(tmpdir(), 'multi-codex-launcher-'));
 const env = { ...process.env, XDG_DATA_HOME: join(root, 'data'), XDG_CONFIG_HOME: join(root, 'config'), CODEX_HOME: join(root, 'codex-home') };
-delete env.ELECTRON_RUN_AS_NODE; delete env.APPIMAGE; delete env.VSCODE_IPC_HOOK_CLI;
+for (const key of ['ELECTRON_RUN_AS_NODE', 'APPIMAGE', 'VSCODE_IPC_HOOK_CLI', 'NODE_OPTIONS', 'OPENAI_API_KEY', 'CODEX_API_KEY']) delete env[key];
 await mkdir(env.CODEX_HOME, { recursive: true }); await mkdir(join(root, 'workspace'));
+await writeFile(join(env.CODEX_HOME, 'config.toml'), 'cli_auth_credentials_store = "file"\n', { mode: 0o600 });
 const launcher = process.env.MULTI_CODEX_TEST_LAUNCHER || resolve('src-tauri/target/debug/multi-codex-desktop');
 const app = spawn(launcher, [], { env, stdio: ['ignore', 'pipe', 'pipe'] });
 let diagnostics = '';
@@ -32,20 +36,34 @@ async function stop(child) {
 }
 try {
   const before = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
+  const originalWorkspace = before.workspace.id;
   const addresses = new Set((await clients()).map(c => c.address));
-  code = spawn('/usr/share/code/code', ['--user-data-dir', join(root, 'code-user'), '--extensions-dir', join(root, 'code-extensions'),
-    '--disable-extensions', '--skip-welcome', '--skip-release-notes', '--disable-gpu', '--no-sandbox', '--ozone-platform=x11', join(root, 'workspace')], { env, stdio: 'ignore' });
-  await until(clients, list => list.some(c => !addresses.has(c.address) && /code/i.test(c.class)));
+  code = target === 'standalone'
+    ? spawn(process.env.MULTI_CODEX_TEST_STANDALONE || '/usr/lib/chatgpt/ChatGPT', ['--user-data-dir', join(root, 'desktop-user'), '--disable-gpu', '--no-sandbox', '--ozone-platform=x11'], { env, stdio: 'ignore' })
+    : spawn('/usr/share/code/code', ['--user-data-dir', join(root, 'code-user'), '--extensions-dir', join(root, 'code-extensions'),
+      '--disable-extensions', '--skip-welcome', '--skip-release-notes', '--disable-gpu', '--no-sandbox', '--ozone-platform=x11', join(root, 'workspace')], { env, stdio: 'ignore' });
+  await until(clients, list => list.some(c => !addresses.has(c.address) && externalClass.test(c.class)));
   // Let focus and maximize transitions settle after the new window maps.
   await new Promise(resolve => setTimeout(resolve, 1000));
-  const afterLaunch = (await clients()).find(c => c.pid === app.pid);
+  const afterLaunch = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
   assert.ok(afterLaunch, 'The launcher disappeared'); assert.equal(afterLaunch.floating, false, 'Launching Code turned Multi Codex into a floating popup');
+  for (let cycle = 0; cycle < 3; cycle++) {
+    await exec('hyprctl', ['eval', `hl.dispatch(hl.dsp.focus({workspace=${originalWorkspace + 20}}))`]);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await exec('hyprctl', ['eval', `hl.dispatch(hl.dsp.focus({workspace=${originalWorkspace}}))`]);
+    const restored = await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
+    assert.equal(restored.workspace.id, originalWorkspace, 'The launcher moved desktops');
+  }
+  // Reproduce the screenshot state after startup; the long-lived guard must
+  // repair it without stealing focus or moving the launcher.
+  await exec('hyprctl', ['eval', `local w=hl.get_window('address:${before.address}'); assert(w); hl.dispatch(hl.dsp.window.fullscreen_state({internal=0,client=0,window=w})); hl.dispatch(hl.dsp.window.float({action='set',window=w}))`]);
+  await until(async () => (await clients()).find(c => c.pid === app.pid), c => c && c.fullscreen === 1 && !c.floating);
   code.kill('SIGTERM');
-  await until(clients, list => !list.some(c => !addresses.has(c.address) && /code/i.test(c.class)));
+  await until(clients, list => !list.some(c => !addresses.has(c.address) && externalClass.test(c.class)));
   const afterClose = (await clients()).find(c => c.pid === app.pid);
   assert.equal(afterClose.floating, false, 'The launcher retained a floating restore state');
   const details = value => ({ floating: value.floating, fullscreen: value.fullscreen, size: value.size });
-  const report = { passed: true, before: details(before), afterLaunch: details(afterLaunch), afterClose: details(afterClose), temporaryData: true };
+  const report = { passed: true, target, before: details(before), afterLaunch: details(afterLaunch), afterClose: details(afterClose), desktopSwitchCycles: 3, repairedFloatingRestore: true, temporaryData: true };
   await mkdir('test-results', { recursive: true }); await writeFile('test-results/launcher-window.json', JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {

@@ -12,7 +12,7 @@ impl AuthRecognizer for BundledRecognizer {
             tempfile::tempdir().map_err(|_| "Could not prepare credential validation")?;
         profiles::write_private_file(&directory.path().join("auth.json"), auth.as_bytes())?;
         profiles::write_codex_config(directory.path())?;
-        let output = std::process::Command::new(&self.0)
+        let output = crate::process::background(&mut std::process::Command::new(&self.0))
             .args(["login", "status"])
             .env("CODEX_HOME", directory.path())
             .env_remove("OPENAI_API_KEY")
@@ -29,6 +29,15 @@ impl AuthRecognizer for BundledRecognizer {
 
 pub fn run_account_helper() -> profiles::Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if args.len() == 2 && args[0] == "--protect-directory" {
+        let path = PathBuf::from(&args[1]);
+        let metadata = std::fs::symlink_metadata(&path)
+            .map_err(|_| "The private runtime directory is unavailable")?;
+        if !path.is_absolute() || !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err("The private runtime must be an absolute directory, not a link".into());
+        }
+        return crate::file_security::protect(&path, true);
+    }
     if args.len() != 3 {
         return Err("Expected engine, data directory and global Codex home".into());
     }
@@ -146,4 +155,53 @@ fn dispatch(
         }
         _ => Err("Unknown account helper method".into()),
     }
+}
+
+/// Windows uses a native executable wrapper, avoiding cmd.exe and shell quoting.
+pub fn run_bridge_launcher() -> profiles::Result<bool> {
+    #[cfg(windows)]
+    {
+        let executable =
+            std::env::current_exe().map_err(|_| "Could not resolve bridge launcher")?;
+        let config = executable.with_extension("json");
+        if !config.is_file() {
+            return Ok(false);
+        }
+        let settings: Value = serde_json::from_slice(
+            &std::fs::read(&config).map_err(|_| "Could not read bridge config")?,
+        )
+        .map_err(|_| "Invalid bridge config")?;
+        let mut command = std::process::Command::new(
+            settings["nodeExecutable"]
+                .as_str()
+                .ok_or("Missing bridge runtime")?,
+        );
+        command
+            .arg(
+                settings["bridgeScript"]
+                    .as_str()
+                    .ok_or("Missing bridge script")?,
+            )
+            .arg("--bridge-config")
+            .arg(config)
+            .args(std::env::args_os().skip(1))
+            .env("ELECTRON_RUN_AS_NODE", "1");
+        let mut system = sysinfo::System::new();
+        system.refresh_processes(
+            sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(std::process::id())]),
+            true,
+        );
+        if let Some(parent) = system
+            .process(sysinfo::Pid::from_u32(std::process::id()))
+            .and_then(|p| p.parent())
+        {
+            command.env("MULTI_CODEX_HOST_PID", parent.as_u32().to_string());
+        }
+        let status = command
+            .status()
+            .map_err(|_| "Could not start bridge runtime")?;
+        std::process::exit(status.code().unwrap_or(1));
+    }
+    #[cfg(not(windows))]
+    Ok(false)
 }

@@ -33,3 +33,4 @@ next/tsconfig.tsbuildinfo
 
 temp/
 output/
+/docs/

@@ -30,15 +30,15 @@ export async function startupEnginePath(savedEngine: string, officialExtensionPa
 
 /** Resolve only this official extension's native executable, never another installation. */
 export async function bundledEnginePath(extensionPath: string, platform = process.platform, architecture = process.arch): Promise<string> {
-  if (!['x64', 'arm64'].includes(architecture) || !['linux', 'darwin'].includes(platform)) {
+  if (!['x64', 'arm64'].includes(architecture) || !['linux', 'darwin', 'win32'].includes(platform) || (platform === 'win32' && architecture !== 'x64')) {
     throw new Error(`Multi Codex does not support ${platform} ${architecture}.`);
   }
   const cpu = architecture === 'arm64' ? 'aarch64' : 'x86_64';
   const directories = platform === 'darwin'
     ? [`macos-${cpu}`, architecture === 'arm64' ? 'darwin-arm64' : 'darwin-x86_64', `darwin-${cpu}`]
-    : [`linux-${cpu}`];
+    : platform === 'win32' ? [`windows-${cpu}`] : [`linux-${cpu}`];
   for (const directory of new Set(directories)) {
-    const path = join(extensionPath, 'bin', directory, 'codex');
+    const path = join(extensionPath, 'bin', directory, platform === 'win32' ? 'codex.exe' : 'codex');
     try { await access(path, constants.X_OK); return path; } catch { /* Try the older official layout. */ }
   }
   throw new Error(`The official Codex extension has no executable for ${platform} ${architecture}. Reinstall its matching platform build.`);
