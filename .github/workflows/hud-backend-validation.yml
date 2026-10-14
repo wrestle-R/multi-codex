@@ -29,7 +29,7 @@ jobs:
           ditto -xk "$RUNNER_TEMP/codex.zip" /Applications
           CODE_CLI='/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code'
           "$CODE_CLI" --user-data-dir "$RUNNER_TEMP/install-user" --extensions-dir "$RUNNER_TEMP/official-extension" --install-extension openai.chatgpt@26.1002.51308 --force
-          ENGINE=$(find "$RUNNER_TEMP/official-extension" -path '*/bin/darwin-arm64/codex' -print -quit)
+          ENGINE=$(find "$RUNNER_TEMP/official-extension" -path '*/bin/*/codex' -print -quit)
           test -x "$ENGINE"
           echo "MULTI_CODEX_TEST_ENGINE=$ENGINE" >> "$GITHUB_ENV"
       - name: Download and identify latest published package
