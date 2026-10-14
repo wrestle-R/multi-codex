@@ -89,7 +89,10 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex lifecycle 測試 ') as temp
         return applescript(f'tell application "System Events" to tell first application process whose unix id is {process.pid}\n{command}\nend tell')
 
     def launcher_count():
-        return int(ui('return count of windows whose name is "Multi Codex"'))
+        return int(ui('return count of (windows whose name is "Multi Codex")'))
+
+    def hud_count():
+        return int(ui('return count of (windows whose name is "Multi Codex HUD")'))
 
     def menu_icon_count():
         return int(ui('return count of menu bar items of menu bar 2'))
@@ -143,6 +146,22 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex lifecycle 測試 ') as temp
     try:
         original = start()
         account_menu()
+        if variant == 'candidate':
+            wait_for('compact native HUD visible', lambda: hud_count() == 1)
+            dimensions = [int(value.strip()) for value in ui('return size of window "Multi Codex HUD"').split(',')]
+            if len(dimensions) != 2 or not (32 <= dimensions[0] < 400 and 32 <= dimensions[1] < 150):
+                raise RuntimeError(f'Unexpected compact HUD size: {dimensions}')
+            foreground()
+            ui('keystroke "h" using {command down, shift down}')
+            wait_for('native shortcut hides HUD', lambda: hud_count() == 0)
+            ui('keystroke "h" using {command down, shift down}')
+            wait_for('native shortcut restores HUD', lambda: hud_count() == 1)
+            ui('set value of attribute "AXFullScreen" of window "Multi Codex" to true')
+            wait_for('fullscreen hides native HUD', lambda: hud_count() == 0)
+            ui('set value of attribute "AXFullScreen" of window "Multi Codex" to false')
+            wait_for('ordinary Space restores native HUD', lambda: hud_count() == 1)
+            report['checks'].append({'nativeHudDimensions': dimensions, 'shortcutHideRestore': True,
+                                     'fullscreenHideRestore': True})
         for cycle in range(1, 4):
             for kind, via in [('red-button', 'menu-bar'), ('command-w', 'dock')]:
                 close(kind)
@@ -182,6 +201,12 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex lifecycle 測試 ') as temp
     except Exception as error:
         report['failure'] = str(error)
         report['processAlive'] = process is not None and process.poll() is None
+        if report['processAlive']:
+            try:
+                report['accessibleWindowNames'] = ui('return name of every window')
+                subprocess.run(['/usr/sbin/screencapture', '-x', str(evidence / 'failure.png')], check=True)
+            except Exception as diagnostic_error:
+                report['diagnosticFailure'] = str(diagnostic_error)
         raise
     finally:
         if process and process.poll() is None:
