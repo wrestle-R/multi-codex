@@ -3,6 +3,10 @@ on:
   workflow_dispatch:
   push:
     branches: ['codex/hud-backend-*']
+    paths-ignore:
+      - '.github/workflows/hud-backend-validation.yml'
+      - 'release/scripts/macos-lifecycle-probe.py'
+      - 'tauri/scripts/test-hud-desktop.mjs'
 permissions:
   contents: read
 jobs:
