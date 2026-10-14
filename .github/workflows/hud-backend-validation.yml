@@ -68,6 +68,7 @@ jobs:
           MULTI_CODEX_TEST_ENGINE='/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex' node --test tests/hud-native.test.mjs
       - name: Real Desktop exact-account navigation and cold reopen
         env:
+          HUD_GUI_OUTPUT: ${{ runner.temp }}/hud-backend-evidence/desktop-gui
           MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
           MULTI_CODEX_TEST_STANDALONE: /Applications/ChatGPT.app/Contents/MacOS/ChatGPT
           MULTI_CODEX_TEST_ENGINE: /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex

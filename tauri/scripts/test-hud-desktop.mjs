@@ -13,10 +13,12 @@ const engine = process.env.MULTI_CODEX_TEST_ENGINE || '/usr/lib/chatgpt/resource
 const helper = process.env.MULTI_CODEX_TEST_SHARED_HELPER;
 if (!helper || !helper.startsWith('/')) throw new Error('Supply an explicit freshly built native helper');
 const root = await mkdtemp(join(tmpdir(), 'mc-hud-desktop-')); const service = await localService(); const windows = [];
+const evidence = process.env.HUD_GUI_OUTPUT;
+let stage = 'initialization';
 async function until(read, check) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
-  throw new Error('Disposable Desktop GUI did not reach the expected state');
+  throw new Error(`Disposable Desktop GUI did not reach the expected state: ${stage}`);
 }
 const quote = value => `'${value.replaceAll("'", "'\"'\"'")}'`;
 async function open(suffix, reopen) {
@@ -38,9 +40,12 @@ async function open(suffix, reopen) {
   const target = pages.find(page => page.type === 'page' && page.url.startsWith('app:'));
   const socket = new WebSocket(target.webSocketDebuggerUrl); await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
   let next = 1; const replies = new Map(); socket.onmessage = event => { const message = JSON.parse(event.data); const pending = replies.get(message.id); if (pending) { replies.delete(message.id); pending(message); } };
-  record.eval = async expression => {
+  record.cdp = async (method, params) => {
     const id = next++;
-    const reply = await new Promise((resolve, reject) => { const timeout = setTimeout(() => reject(new Error('Disposable GUI evaluation timeout')), 30000); replies.set(id, value => { clearTimeout(timeout); resolve(value); }); socket.send(JSON.stringify({ id, method: 'Runtime.evaluate', params: { expression, awaitPromise: true, returnByValue: true } })); });
+    return new Promise((resolve, reject) => { const timeout = setTimeout(() => reject(new Error('Disposable GUI evaluation timeout')), 30000); replies.set(id, value => { clearTimeout(timeout); resolve(value); }); socket.send(JSON.stringify({ id, method, params })); });
+  };
+  record.eval = async expression => {
+    const reply = await record.cdp('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
     if (reply.result?.exceptionDetails) throw new Error('Disposable GUI RPC evaluation failed');
     return reply.result?.result?.value;
   };
@@ -56,6 +61,7 @@ async function open(suffix, reopen) {
   record.socket = socket; return record;
 }
 try {
+  stage = 'opening isolated Desktop instances';
   const a = await open('a'); const b = await open('b');
   for (const record of [a, b]) {
     const account = await record.rpc('account/read', { refreshToken: false }); assert.equal(account.error, undefined); assert.ok(account.result.account.email.includes('synthetic-account-'));
@@ -67,6 +73,7 @@ try {
   await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]?.status === 'idle' && s.sessions[id]?.tokens));
   await a.rpc('thread/name/set', { threadId: id, name: 'Fixture A navigation' });
   const uri = `codex://threads/${id}`;
+  stage = 'exact-account warm navigation';
   const forward = spawn(binary, [`--user-data-dir=${a.env.CODEX_ELECTRON_USER_DATA_PATH}`, uri], { cwd: root, env: a.env, stdio: 'ignore' }); await once(forward, 'exit');
   // Desktop uses a memory router; its address bar stays index.html. Prove
   // the exact transcript is visible rather than mistaking URL stability for
@@ -76,9 +83,23 @@ try {
   a.socket.close();
   const aExited = once(a.child, 'exit'); process.kill(-a.child.pid, 'SIGTERM'); await aExited;
   const reopened = await open('a', { id:a.id, uri });
+  stage = 'cold transcript reopen';
   await until(() => reopened.eval("document.querySelector('main')?.innerText ?? document.body.innerText"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
   for (const record of [reopened, b]) assert.equal((await readFile(join(record.codexHome, 'auth.json'), 'utf8')) === record.auth, true, 'Disposable login bytes must remain unchanged');
   console.log('Verified actual Desktop GUI uses the passive proxy, exact thread URI reaches only the scoped account, cold reopening restores its transcript, and both inert logins stay unchanged.');
+  if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, fixtureLoginsUnchanged: true })); }
+} catch (error) {
+  if (evidence) {
+    await mkdir(evidence, { recursive: true }); const states = [];
+    for (const [index, record] of windows.entries()) {
+      if (!record.eval || record.child.exitCode !== null) continue;
+      states.push(await record.eval("({url:location.href,title:document.title,text:document.body.innerText.slice(0,4000)})").catch(() => ({ unavailable: true })));
+      const capture = await record.cdp('Page.captureScreenshot', {}).catch(() => null);
+      if (capture?.result?.data) await writeFile(join(evidence, `fixture-${index}.png`), Buffer.from(capture.result.data, 'base64'));
+    }
+    await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: false, source: process.env.GITHUB_SHA, stage, failure: error.message, states }, null, 2));
+  }
+  throw error;
 } finally {
   for (const record of windows) { record.socket?.close(); try { process.kill(-record.child.pid, 'SIGTERM'); } catch {} }
   for (const record of windows) if (record.child.exitCode === null) await Promise.race([once(record.child, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]);
