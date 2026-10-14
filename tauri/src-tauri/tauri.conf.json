@@ -11,6 +11,7 @@
     "beforeBundleCommand": "node scripts/bundle-desktop-helper.mjs"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
         "label": "main",

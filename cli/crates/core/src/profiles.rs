@@ -799,6 +799,113 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(())
     }
 
+    pub fn data_directory(&self) -> &Path {
+        &self.data_root
+    }
+
+    /// Focus/reopen uses the exact same Electron single-instance directory.
+    /// Focusing a running account never restores or rewrites its credentials.
+    pub fn open_desktop_session(
+        &self,
+        id: &str,
+        thread: Option<&str>,
+        workspace: &Path,
+    ) -> Result<()> {
+        validate_id(id)?;
+        if let Some(thread) = thread {
+            validate_id(thread)?;
+        }
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        let paths = self.profile_paths(id)?;
+        let binary = crate::launch_targets::resolve_standalone()?;
+        if !profile_process_running(&paths.desktop_home) {
+            self.launch_standalone_with_thread(id, workspace, &binary, thread)?;
+            return Ok(());
+        }
+        let workspace = if workspace.is_dir() {
+            canonical_workspace(workspace)?
+        } else {
+            dirs::home_dir().ok_or("Home directory unavailable")?
+        };
+        #[cfg(target_os = "macos")]
+        let (codex_home, desktop_home) = {
+            let uid = unsafe { libc::geteuid() };
+            (
+                macos_vscode_alias_in(
+                    &PathBuf::from(format!("/tmp/multi-codex-codex-{uid}")),
+                    &paths.codex_home,
+                    id,
+                )?,
+                macos_vscode_alias_in(
+                    &PathBuf::from(format!("/tmp/multi-codex-desktop-{uid}")),
+                    &paths.desktop_home,
+                    id,
+                )?,
+            )
+        };
+        #[cfg(not(target_os = "macos"))]
+        let (codex_home, desktop_home) = (paths.codex_home, paths.desktop_home);
+        let mut command = build_standalone_command(&binary, &codex_home, &desktop_home, &workspace);
+        if let Some(thread) = thread {
+            command.arg(format!("codex://threads/{thread}"));
+        }
+        let mut child = command
+            .spawn()
+            .map_err(|_| "Could not open the account's Codex chat")?;
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        Ok(())
+    }
+
+    fn attach_hud_observer(&self, command: &mut Command, id: &str) -> Result<()> {
+        if !matches!(
+            crate::desktop_environment::backend(),
+            "macos" | "hyprland" | "gnome" | "kde"
+        ) {
+            return Ok(());
+        }
+        let resource = self
+            .managed_bridge
+            .lock()
+            .map_err(|_| "Managed resources unavailable")?
+            .clone();
+        let Some(resource) = resource else {
+            return Ok(());
+        };
+        let helper = resource.join("bin/multi-codex-account-helper");
+        let Some(engine) = crate::launch_targets::bundled_standalone_cli() else {
+            return Ok(());
+        };
+        if !is_executable_file(&helper) {
+            return Ok(());
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let path = self
+                .data_root
+                .join("hud/launchers")
+                .join(format!("{id}.sh"));
+            ensure_private_dir(path.parent().unwrap())?;
+            let quote = |p: &Path| format!("'{}'", p.to_string_lossy().replace('\'', "'\"'\"'"));
+            let script = format!(
+                "#!/bin/sh\nexec {} --hud-proxy {} {} '{}' \"$@\"\n",
+                quote(&helper),
+                quote(&engine),
+                quote(&self.data_root),
+                id
+            );
+            write_private_file(&path, script.as_bytes())?;
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o700))
+                .map_err(|_| "Could not enable Desktop observer")?;
+            command.env("CODEX_CLI_PATH", path);
+        }
+        Ok(())
+    }
+
     pub fn launch_standalone_profile(&self, id: &str, workspace: &Path) -> Result<()> {
         let binary = crate::launch_targets::resolve_standalone()?;
         self.launch_standalone_with_command(id, workspace, &binary)
@@ -809,6 +916,16 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         id: &str,
         workspace: &Path,
         binary: &Path,
+    ) -> Result<()> {
+        self.launch_standalone_with_thread(id, workspace, binary, None)
+    }
+
+    fn launch_standalone_with_thread(
+        &self,
+        id: &str,
+        workspace: &Path,
+        binary: &Path,
+        thread: Option<&str>,
     ) -> Result<()> {
         let _write_lock = self.metadata_write_lock()?;
         validate_id(id)?;
@@ -840,7 +957,12 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         };
         #[cfg(not(target_os = "macos"))]
         let (codex_home, desktop_home) = (paths.codex_home.clone(), paths.desktop_home.clone());
-        let mut child = build_standalone_command(binary, &codex_home, &desktop_home, &workspace)
+        let mut command = build_standalone_command(binary, &codex_home, &desktop_home, &workspace);
+        self.attach_hud_observer(&mut command, id)?;
+        if let Some(thread) = thread {
+            command.arg(format!("codex://threads/{thread}"));
+        }
+        let mut child = command
             .spawn()
             .map_err(|error| format!("Could not launch the Codex app: {error}"))?;
         {

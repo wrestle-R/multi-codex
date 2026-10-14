@@ -110,6 +110,37 @@ impl KWinReply {
 }
 
 fn kde_request(operation: Option<(&str, &str)>) -> Result<DesktopInventory> {
+    let (action, window, destination) =
+        operation
+            .map(|(w, d)| ("move", w, d))
+            .unwrap_or(("inventory", "", ""));
+    parse_snapshot(
+        &kde_call(serde_json::json!({"action":action,"window":window,"destination":destination}))?,
+        "kde",
+    )
+}
+
+pub fn hud_state(pid: u32, x: f64, y: f64) -> Result<serde_json::Value> {
+    hud_operation(pid, x, y, None)
+}
+
+pub fn hud_operation(
+    pid: u32,
+    x: f64,
+    y: f64,
+    rectangle: Option<serde_json::Value>,
+) -> Result<serde_json::Value> {
+    let raw =
+        kde_call(serde_json::json!({"action":"hud","pid":pid,"x":x,"y":y,"rectangle":rectangle}))?;
+    let value: serde_json::Value =
+        serde_json::from_str(&raw).map_err(|_| "Invalid KDE HUD state")?;
+    if value.get("error").is_some() {
+        return Err("KDE HUD integration unavailable".into());
+    }
+    Ok(value)
+}
+
+fn kde_call(mut request: serde_json::Value) -> Result<String> {
     let _guard = KWIN_REQUEST_LOCK
         .lock()
         .map_err(|_| "KWin bridge state unavailable")?;
@@ -132,11 +163,8 @@ fn kde_request(operation: Option<(&str, &str)>) -> Result<DesktopInventory> {
         .unique_name()
         .ok_or("Desktop callback name unavailable")?
         .as_str();
-    let (action, window, destination) =
-        operation
-            .map(|(w, d)| ("move", w, d))
-            .unwrap_or(("inventory", "", ""));
-    let request = serde_json::json!({ "callback": callback, "nonce": nonce, "action": action, "window": window, "destination": destination });
+    request["callback"] = serde_json::json!(callback);
+    request["nonce"] = serde_json::json!(nonce);
     let mut file = tempfile::Builder::new()
         .prefix("multi-codex-kwin-")
         .suffix(".js")
@@ -185,7 +213,7 @@ fn kde_request(operation: Option<(&str, &str)>) -> Result<DesktopInventory> {
         let raw = reply
             .as_ref()
             .ok_or("KWin desktop bridge timed out. Plasma 6 is required.")?;
-        parse_snapshot(raw, "kde")
+        Ok(raw.to_owned())
     })();
     let _: std::result::Result<bool, _> = scripting.call("unloadScript", &(name.as_str(),));
     result

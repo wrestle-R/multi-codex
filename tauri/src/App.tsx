@@ -15,6 +15,8 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import "./App.css"
+import "./Hud.css"
+import { HudSettingsDialog } from "./components/hud-settings-dialog"
 import { BrandMark } from "./components/brand-mark"
 import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
 import { MigrationBackupDialog } from "./components/migration-backup-dialog"
@@ -115,6 +117,13 @@ export default function App() {
   const [launchEnvironment, setLaunchEnvironment] = useState<LaunchEnvironment | null>(null)
   const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string; target: LaunchTarget } | null>(null)
   const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string; target: LaunchTarget } | null>(null)
+  const [showHudSettings, setShowHudSettings] = useState(false)
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return
+    let active = true; let cleanup: (() => void) | undefined
+    void listen("hud-settings", () => setShowHudSettings(true)).then(off => { if (active) cleanup = off; else off() })
+    return () => { active = false; cleanup?.() }
+  }, [])
   const [showLaunchSettings, setShowLaunchSettings] = useState(false)
   const [launchTargets, setLaunchTargets] = useState<LaunchTargets | null>(null)
   const [launchMode, setLaunchMode] = useState<LaunchMode>('vscode')
@@ -575,6 +584,7 @@ export default function App() {
           <div className="topbar-actions">
             <ThemePicker value={colorTheme} onChange={changeColorTheme} />
             <UpdateButton version={appUpdate.version} onCurrent={appUpdate.clear} disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
+            <button className="button secondary" type="button" disabled={updating} onClick={() => setShowHudSettings(true)}>HUD</button>
             <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
             <button className="storage-status" type="button" disabled={updating} title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
@@ -692,6 +702,7 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
+      {showHudSettings ? <HudSettingsDialog onClose={() => setShowHudSettings(false)} /> : null}
       {showLaunchSettings ? <LaunchSettingsDialog onClose={() => {
         setShowLaunchSettings(false)
         void Promise.all([getExecutableSettings(), getLaunchTargets()]).then(([settings, apps]) => {

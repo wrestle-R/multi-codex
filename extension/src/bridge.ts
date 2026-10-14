@@ -6,7 +6,7 @@ import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { ActivityGuard } from './activity';
 import { AccountClient } from './accounts';
-import { claims, loginParams, matchesIdentity, type StoredAuth } from './auth';
+import { accountIdentity, claims, loginParams, matchesIdentity, type StoredAuth } from './auth';
 import { JsonLines, RpcPeer, type Message } from './protocol';
 import { withAccountBackend } from './worker';
 import { SharedChats } from './shared-chats';
@@ -36,6 +36,7 @@ export class CodexBridge {
   private stopping = false;
   private initializeParams: any;
   private sharedRequests = new Set<string | number>();
+  private queueVersions = new Map<string, number>();
   private catalogTimer?: ReturnType<typeof setInterval>;
   private catalogPolling = false;
   private readonly engineArgs: string[];
@@ -77,11 +78,12 @@ export class CodexBridge {
     if (!this.selectedId || !this.selectedAuth || this.authenticationUnverified) throw new Error('Choose and verify a saved account before continuing a shared chat.');
     const actual = await this.currentAuth();
     if (!actual) throw new Error('Codex is signed out. Choose the account again.');
-    const selected = loginParams(this.selectedAuth); const current = loginParams(actual);
+    const selected = accountIdentity(this.selectedAuth); const current = loginParams(actual);
     if (selected.type !== current.type || (selected.type === 'apiKey' ? selected.apiKey !== current.apiKey : selected.chatgptAccountId !== current.chatgptAccountId)) {
       this.authenticationUnverified = true;
       throw new Error('Codex did not verify the selected account. Shared work is blocked.');
     }
+    this.selectedAuth = actual;
   }
   async attachReady() {
     if (!this.existing) throw new Error('No existing backend');
@@ -114,7 +116,7 @@ export class CodexBridge {
     if (!current.account) return null;
     const home = this.config.attached ? this.config.sourceHome ?? this.config.globalHome : this.config.sessionHome;
     const auth: StoredAuth = JSON.parse(await readFile(join(home, 'auth.json'), 'utf8'));
-    const login = loginParams(auth);
+    const login = accountIdentity(auth);
     if (current.account.type !== 'chatgpt' || login.type !== 'chatgptAuthTokens' || login.chatgptAccountId !== current.workspaceRouting?.chatgptAccountId) {
       throw new Error('The current Codex identity could not be verified. Account switching was not started.');
     }
@@ -192,10 +194,6 @@ export class CodexBridge {
           }
           const response = { id: request.id, result };
           this.activity.incoming(response); this.frontend.send(response);
-          if (['thread/archive', 'thread/unarchive', 'thread/delete'].includes(request.method!)) {
-            const kind = request.method === 'thread/archive' ? 'archived' : request.method === 'thread/unarchive' ? 'unarchived' : 'deleted';
-            this.frontend.send({ method: `thread/${kind}`, params: { threadId: request.params.threadId } });
-          }
         } catch (error) {
           const response = { id: request.id, error: { code: -32000, message: error instanceof Error ? error.message : 'Shared chat operation failed' } };
           this.activity.incoming(response); this.frontend.send(response);
@@ -219,6 +217,16 @@ export class CodexBridge {
     this.broadcast();
     if (this.shared && message.method === 'turn/completed' && message.params?.threadId) {
       this.shared.queueCheckpoint(message.params.threadId, () => { this.activity.unknown = true; this.broadcast(); });
+    }
+    if (message.method === 'thread/queue/changed' && typeof message.params?.threadId === 'string' && this.activity.unverifiedQueues.has(message.params.threadId)) {
+      const threadId = message.params.threadId;
+      const version = (this.queueVersions.get(threadId) ?? 0) + 1;
+      this.queueVersions.set(threadId, version);
+      const backend = this.backend;
+      void (this.shared ? this.shared.request('thread/queue/list', { threadId }) : this.backendRpc.request('thread/queue/list', { threadId }))
+        .then(result => {
+          if (this.backend === backend && this.queueVersions.get(threadId) === version && Array.isArray(result.data) && (!result.nextCursor || result.data.length)) this.activity.verifyQueue(threadId, result.data);
+        }).catch(() => { /* Retain the unverified fence when queue reads fail. */ }).finally(() => this.broadcast());
     }
   }
   private async refreshToken(id: string | number, params: any) {
