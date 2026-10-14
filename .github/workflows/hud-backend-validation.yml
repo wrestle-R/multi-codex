@@ -53,6 +53,7 @@ jobs:
         run: |
           npm ci --prefix extension
           npm ci --prefix tauri
+          npm run build:helper --prefix extension
           npm test --prefix extension
           npm test --prefix tauri
           npm run build:desktop --prefix tauri
