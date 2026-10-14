@@ -51,3 +51,5 @@ output/
 /cli/npm/platforms/*/payload.sig
 
 /cli/artifacts/
+
+/cli/**/__pycache__/

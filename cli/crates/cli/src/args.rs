@@ -262,7 +262,11 @@ pub enum Migration {
         #[arg(long)]
         yes: bool,
     },
-    Queue,
+    Queue {
+        /// Retry queued migrations using the native closed-account guards
+        #[arg(long)]
+        process: bool,
+    },
 }
 #[derive(Subcommand, Debug)]
 pub enum Extensions {

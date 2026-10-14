@@ -32,6 +32,7 @@ pub mod shared_chat_leases;
 pub mod shared_chats;
 pub mod shared_storage_queue;
 pub mod shared_vscode;
+pub mod storage_inventory;
 pub mod terminals;
 pub mod usage;
 #[cfg(windows)]

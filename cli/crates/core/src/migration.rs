@@ -224,7 +224,10 @@ impl MigrationStore {
                 .map_err(|_| "Could not check migration disk space")?,
             external_links,
             running,
-            snapshot: self.record(id)?,
+            snapshot: self.record(id)?.filter(|record| {
+                self.snapshot_directory(record)
+                    .is_ok_and(|path| path.is_dir())
+            }),
         })
     }
 
