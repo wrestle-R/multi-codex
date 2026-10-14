@@ -67,6 +67,7 @@ jobs:
           node --test tests/shared-native.test.mjs
           MULTI_CODEX_TEST_ENGINE='/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex' node --test tests/hud-native.test.mjs
       - name: Real Desktop exact-account navigation and cold reopen
+        continue-on-error: true
         env:
           HUD_GUI_OUTPUT: ${{ runner.temp }}/hud-backend-evidence/desktop-gui
           MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
@@ -80,6 +81,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build --bundles app --config src-tauri/tauri.updater.conf.json
       - name: Verify candidate path/version and native lifecycle
+        continue-on-error: true
         env:
           MAC_LIFECYCLE_VARIANT: candidate
         run: |
@@ -89,12 +91,28 @@ jobs:
           ditto "$APP" '/Applications/Multi Codex.app'
           python3 release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
       - name: Native updater installation/restart regression
+        continue-on-error: true
         run: |
           cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example native-updater
           PAYLOAD=$(find tauri/src-tauri/target/release/bundle/macos -name '*.app.tar.gz' -print -quit)
           python3 tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater --payload "$PAYLOAD" --app '/Applications/Multi Codex.app' --output "$RUNNER_TEMP/hud-backend-evidence/updater/result.json"
       - name: GNOME and KDE adapter contracts
         run: node --test tauri/scripts/hud-platform.test.mjs
+      - name: Require successful native evidence for this exact candidate
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'hud-backend-evidence'
+          for name in ('candidate', 'desktop-gui', 'updater'):
+              path = root / name / 'result.json'
+              assert path.is_file(), f'Missing required native evidence: {name}'
+              result = json.loads(path.read_text())
+              assert result.get('passed') is True, f'Native acceptance failed: {name}: {result.get("failure", result.get("stage"))}'
+              assert result.get('source') == os.environ['GITHUB_SHA'], f'Wrong source tested: {name}'
+          print('Candidate lifecycle, exact-account Desktop navigation and signed updater evidence all pass for this source.')
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
