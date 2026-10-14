@@ -1,3 +1,6 @@
+#[cfg(all(test, target_os = "macos"))]
+#[path = "../../../cli/crates/core/src/macos_navigation.rs"]
+mod macos_navigation;
 #[cfg(test)]
 #[path = "../../../cli/crates/core/src/storage_inventory.rs"]
 mod storage_inventory;
