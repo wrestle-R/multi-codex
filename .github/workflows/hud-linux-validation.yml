@@ -1,0 +1,51 @@
+name: HUD GNOME native validation
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/hud-backend-*']
+permissions:
+  contents: read
+jobs:
+  gnome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+          cache-on-failure: true
+      - name: Install native GNOME and Tauri libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnome-shell python3-gi dbus-x11 libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          gnome-shell --version
+          gnome-shell --help
+      - name: Build current native launcher
+        run: |
+          npm ci --prefix extension
+          npm ci --prefix tauri
+          node tauri/scripts/build-desktop-resources.mjs --bridge-only
+          npm run build --prefix tauri
+          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --bin multi-codex-desktop --no-default-features
+      - name: Start disposable GNOME session and verify actual HUD
+        env:
+          HUD_EVIDENCE: ${{ runner.temp }}/gnome-hud-evidence
+          HUD_LAUNCHER: ${{ github.workspace }}/tauri/src-tauri/target/debug/multi-codex-desktop
+        run: |
+          mkdir -p "$HUD_EVIDENCE"
+          npm run dev --prefix tauri -- --host 127.0.0.1 > "$HUD_EVIDENCE/vite.log" 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do curl -sSf http://127.0.0.1:1420/ >/dev/null && break || sleep 1; done
+          dbus-run-session -- bash tauri/scripts/test-hud-gnome-session.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gnome-hud-native-evidence
+          path: ${{ runner.temp }}/gnome-hud-evidence/
+          if-no-files-found: warn
