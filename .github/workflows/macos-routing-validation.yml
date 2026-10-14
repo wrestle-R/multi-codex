@@ -1,0 +1,48 @@
+name: Mac Desktop routing acceptance
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/hud-backend-*']
+    paths:
+      - '.github/workflows/macos-routing-validation.yml'
+      - 'tauri/scripts/test-hud-desktop.mjs'
+      - 'cli/crates/core/examples/hud-navigation.rs'
+permissions:
+  contents: read
+jobs:
+  native-routing:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+          cache-on-failure: true
+      - name: Install exact pinned Desktop runtime
+        run: |
+          curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.930.51102.zip -o "$RUNNER_TEMP/codex.zip"
+          ditto -xk "$RUNNER_TEMP/codex.zip" /Applications
+      - name: Build production core helper and credential-free warm-navigation driver
+        run: |
+          npm ci --prefix extension
+          npm run build --prefix extension
+          cargo build --locked --manifest-path cli/Cargo.toml --bin multi-codex-account-helper --example hud-navigation
+      - name: Actual native Desktop exact-account routing and cold reopen
+        env:
+          HUD_GUI_OUTPUT: ${{ runner.temp }}/desktop-routing
+          MULTI_CODEX_TEST_HUD_NAVIGATION: ${{ github.workspace }}/cli/target/debug/examples/hud-navigation
+          MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/cli/target/debug/multi-codex-account-helper
+          MULTI_CODEX_TEST_STANDALONE: /Applications/ChatGPT.app/Contents/MacOS/ChatGPT
+          MULTI_CODEX_TEST_ENGINE: /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
+        run: node tauri/scripts/test-hud-desktop.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-routing-evidence
+          path: ${{ runner.temp }}/desktop-routing/
+          if-no-files-found: warn

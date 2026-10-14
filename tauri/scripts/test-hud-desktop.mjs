@@ -4,21 +4,25 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, symlink, readlink, realpath } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { localService, syntheticAuth } from '../../extension/tests/fixtures/local-service.mjs';
 const binary = process.env.MULTI_CODEX_TEST_STANDALONE || '/usr/lib/chatgpt/ChatGPT';
 const engine = process.env.MULTI_CODEX_TEST_ENGINE || '/usr/lib/chatgpt/resources/codex';
 const helper = process.env.MULTI_CODEX_TEST_SHARED_HELPER;
 const navigation = process.env.MULTI_CODEX_TEST_HUD_NAVIGATION;
+const runtimeArchive = process.platform === 'darwin' ? join(dirname(binary), '../Resources/app.asar') : join(dirname(binary), 'resources/app.asar');
+async function digest(path) { const hash = createHash('sha256'); for await (const chunk of createReadStream(path)) hash.update(chunk); return hash.digest('hex'); }
+const runtimeSha256 = await digest(runtimeArchive);
 if (!helper || !helper.startsWith('/')) throw new Error('Supply an explicit freshly built native helper');
 const root = await mkdtemp(join(tmpdir(), 'mc-hud-desktop-')); const service = await localService(); const windows = [];
 const evidence = process.env.HUD_GUI_OUTPUT;
 await writeFile(join(root, 'disposable-hud-fixture'), 'inert-fixture');
 const dataRoot = join(root, 'data');
 const profiles = [];
-const aliasRoot = process.platform === 'darwin' ? await mkdtemp('/tmp/mc-hud-links-') : null;
+const macAliases = process.platform === 'darwin';
 let stage = 'initialization';
 async function until(read, check) {
   const deadline = Date.now() + 30000;
@@ -44,11 +48,14 @@ async function open(suffix, reopen) {
   if (!reopen) await writeFile(join(codexHome, 'auth.json'), auth, { mode: 0o600 });
   await writeFile(join(codexHome, 'config.toml'), service.config + '\ncli_auth_credentials_store = "file"\n');
   const wrapper = join(home, 'engine.sh'); await writeFile(wrapper, `#!/bin/sh\nexec ${quote(helper)} --hud-proxy ${quote(engine)} ${quote(dataRoot)} ${quote(id)} "$@"\n`, { mode: 0o700 });
-  const desktopLaunch = aliasRoot ? join(aliasRoot, `${suffix}-desktop`) : desktop;
-  const codexLaunch = aliasRoot ? join(aliasRoot, `${suffix}-codex`) : codexHome;
-  if (aliasRoot && !reopen) { await symlink(desktop, desktopLaunch); await symlink(codexHome, codexLaunch); }
+  const desktopLaunch = macAliases ? `/tmp/multi-codex-desktop-${process.getuid()}/${id}` : desktop;
+  const codexLaunch = macAliases ? `/tmp/multi-codex-codex-${process.getuid()}/${id}` : codexHome;
+  if (macAliases && !reopen) {
+    for (const alias of [desktopLaunch, codexLaunch]) await mkdir(dirname(alias), { recursive: true, mode: 0o700 });
+    await symlink(await realpath(desktop), desktopLaunch); await symlink(await realpath(codexHome), codexLaunch);
+  }
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(CODEX_|OPENAI_|VSCODE_)/.test(key) && !['NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'APPIMAGE'].includes(key)));
-  Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
+  Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
   const args = [`--user-data-dir=${desktopLaunch}`, '--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1', '--disable-gpu', '--no-sandbox'];
   if (reopen?.uri) args.push(reopen.uri);
   await rm(join(desktop, 'DevToolsActivePort'), { force: true });
@@ -128,18 +135,19 @@ try {
     return reopened.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''");
   }, value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
   for (const record of [reopened, b]) assert.equal((await readFile(join(record.codexHome, 'auth.json'), 'utf8')) === record.auth, true, 'Disposable login bytes must remain unchanged');
+  assert.equal(await digest(runtimeArchive), runtimeSha256, 'Pinned Desktop runtime changed during acceptance');
   console.log('Verified actual Desktop GUI uses the passive proxy, exact thread URI reaches only the scoped account, cold reopening restores its transcript, and both inert logins stay unchanged.');
-  if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, fixtureLoginsUnchanged: true, productionWarmRoute: Boolean(navigation), warmCredentialAccess: navigation ? 'forbidden by fixture store' : 'not instrumented' })); }
+  if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, runtimeSha256, pinnedRuntimeUnchanged: true, fixtureLoginsUnchanged: true, productionWarmRoute: Boolean(navigation), warmCredentialAccess: navigation ? 'forbidden by fixture store' : 'not instrumented' })); }
 } catch (error) {
   if (evidence) {
     await mkdir(evidence, { recursive: true }); const states = [];
     for (const [index, record] of windows.entries()) {
       if (!record.eval || record.child.exitCode !== null) continue;
-      states.push(await record.eval("({url:location.href,title:document.title,text:(document.body?.innerText??'').slice(0,4000)})").catch(() => ({ unavailable: true })));
+      states.push(await record.eval("({url:location.href,title:document.title,text:(document.body?.innerText??'').slice(0,4000),buttons:[...document.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().width).map(b=>b.innerText)})").catch(() => ({ unavailable: true })));
       const capture = await record.cdp('Page.captureScreenshot', {}).catch(() => null);
       if (capture?.result?.data) await writeFile(join(evidence, `fixture-${index}.png`), Buffer.from(capture.result.data, 'base64'));
     }
-    await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: false, source: process.env.GITHUB_SHA, stage, failure: error.message, states }, null, 2));
+    await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: false, source: process.env.GITHUB_SHA, stage, runtimeSha256, failure: error.message, states }, null, 2));
   }
   throw error;
 } finally {
@@ -147,8 +155,7 @@ try {
   for (const record of windows) if (record.child.exitCode === null) await Promise.race([once(record.child, 'exit'), new Promise(resolve => setTimeout(resolve, 3000))]);
   for (const record of windows) { try { process.kill(-record.child.pid, 'SIGKILL'); } catch {} }
   await service.close();
-  if (aliasRoot) {
-    await rm(aliasRoot, { recursive: true, force: true });
+  if (macAliases) {
     for (const profile of profiles) for (const [stem, target] of [['codex', 'codex-home'], ['desktop', 'desktop-data']]) {
       const alias = `/tmp/multi-codex-${stem}-${process.getuid()}/${profile.id}`;
       const expected = await realpath(join(dataRoot, 'profiles', profile.id, target));

@@ -47,6 +47,7 @@ jobs:
           awk -v name="$NAME" '$2 == name {print}' SHA256SUMS | shasum -a 256 -c -
           tar -xzf "$NAME" -C /Applications
           echo "LATEST_PACKAGE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "CODEX_SPARKLE_ENABLED=false" >> "$GITHUB_ENV"
       - name: Reproduce published close/menu behavior
         id: published
         continue-on-error: true
@@ -64,7 +65,7 @@ jobs:
           npm run build:desktop --prefix tauri
           cargo test --locked --manifest-path cli/Cargo.toml -p multi-codex-core
           cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml
-          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example hud-navigation
+          cargo build --locked --manifest-path cli/Cargo.toml --example hud-navigation --example native-keychain
       - name: Native shared storage and passive Desktop protocol checks
         working-directory: extension
         env:
@@ -74,12 +75,18 @@ jobs:
           MULTI_CODEX_TEST_ENGINE='/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex' node --test tests/hud-native.test.mjs
       - name: Real Desktop exact-account navigation and cold reopen
         env:
-          MULTI_CODEX_TEST_HUD_NAVIGATION: ${{ github.workspace }}/tauri/src-tauri/target/debug/examples/hud-navigation
+          MULTI_CODEX_TEST_HUD_NAVIGATION: ${{ github.workspace }}/cli/target/debug/examples/hud-navigation
           HUD_GUI_OUTPUT: ${{ runner.temp }}/hud-backend-evidence/desktop-gui
           MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
           MULTI_CODEX_TEST_STANDALONE: /Applications/ChatGPT.app/Contents/MacOS/ChatGPT
           MULTI_CODEX_TEST_ENGINE: /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
         run: node tauri/scripts/test-hud-desktop.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: macos-desktop-navigation-evidence
+          path: ${{ runner.temp }}/hud-backend-evidence/desktop-gui/
+          if-no-files-found: warn
       - name: Build packaged candidate without publishing
         id: package
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -92,6 +99,7 @@ jobs:
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           MAC_LIFECYCLE_VARIANT: candidate
+          MAC_KEYCHAIN_PROBE: ${{ github.workspace }}/cli/target/debug/examples/native-keychain
         run: |
           APP=$(find tauri/src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)
           codesign --verify --deep --strict "$APP"
@@ -129,7 +137,7 @@ jobs:
           path: ${{ runner.temp }}/hud-backend-evidence/
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
-        if: success()
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         with:
           name: macos-hud-backend-candidate
           path: |
