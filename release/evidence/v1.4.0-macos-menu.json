@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "checks": [
+    "Native account menu contains all three installed supported launch targets",
+    "Native menu updates account names without restarting",
+    "Native menu removes and restores launch targets when installed apps change",
+    "Close hides the window and tray Open restores it in the same process",
+    "Dock/LaunchServices reopen restores the hidden main window",
+    "Quit exits the native application cleanly"
+  ],
+  "accountMetadataUnchanged": true,
+  "metadataSha256": "970f311e31bf6efce864d50eed0a2fd3bd6d88c6680c3520878bdb838eddf56f",
+  "authenticatedLaunches": "Not tested by this menu probe",
+  "artifact": "Multi.Codex_1.4.0_aarch64.dmg",
+  "artifactSha256": "e7be16589d9d223d97b3e039a07259f2fb1e35ed21427ab69f933bc0a15cc852",
+  "environment": "GitHub macos-26, native System Events UI automation",
+  "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/37909325891"
+}
