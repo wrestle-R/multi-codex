@@ -293,11 +293,15 @@
     }
   },
   "publication": {
-    "status": "validated-awaiting-publication",
+    "status": "published-stable",
     "fullValidationChecksRemainPending": true,
     "signingAndNotarizationOptional": true,
     "marketplaceVersion": "0.2.0",
-    "marketplaceStatus": "Awaiting owner manual upload and Marketplace validation"
+    "marketplaceStatus": "Awaiting owner manual upload and Marketplace validation",
+    "publishedAt": "2026-10-09T10:08:39Z",
+    "releaseUrl": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.0",
+    "publicationWorkflow": "https://github.com/wrestle-R/multi-codex/actions/runs/37915742835",
+    "publishedAssetDigestsVerified": true
   },
   "limitations": [
     "Windows fixtures do not certify real OAuth/browser sign-in, credential rotation, cloud authorization or quota enforcement.",

@@ -2,6 +2,10 @@
 // Highlights come from release notes or the commits between published tags.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.4.0", publishedAt: "2026-10-09T10:08:39Z", title: "Windows support and reliable account switching", highlights: [
+    "Native Windows x64 launcher and extension packages add private account storage, isolated launches and verified install/update scripts.",
+    "Mac account menus, all-account usage refresh, connection recovery, long-chat support and persistent Hyprland maximization improve everyday use.",
+  ] },
   { tag: "v1.3.8", publishedAt: "2026-10-07T06:27:55Z", title: "Launch settings and terminal picker improvements", highlights: [
     "A cleaner terminal picker shows Automatic and installed terminals, with keyboard navigation and a checkmark for your selection.",
     "Workspace and Launching have their own settings sections. Save and Cancel stay visible while advanced options scroll.",
@@ -65,6 +69,7 @@ export const releaseHistory = [
 // Group summaries describe the series as a whole; individual entries retain
 // their published versions, dates, anchors and links to the original notes.
 const releaseSeries = [
+  { series: "1.4", title: "Windows support and account switching", description: "Native Windows packages, Mac account menus, all-account usage refresh and connection recovery, with tested platform downloads." },
   { series: "1.3", title: "Desktop and CLI launch options", description: "Launch saved accounts in VS Code, Codex desktop or CLI, with folder preferences, terminal selection and usage reminders." },
   { series: "1.2", title: "Workspace and storage controls", description: "Choose a workspace folder, place VS Code windows on Hyprland desktops and manage account caches." },
   { series: "1.1", title: "Live usage and account isolation", description: "Read account limits from Codex and improve session separation, usage refresh and repeated launches." },

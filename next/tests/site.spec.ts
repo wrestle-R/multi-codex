@@ -19,12 +19,12 @@ test("extension installation links use the public Marketplace and explain shared
 })
 
 test("changelog groups selected updates by series and preserves version links and permalinks", async ({ page }) => {
-  const tags = ["v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
+  const tags = ["v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
   await page.goto("/releases")
   const groups = page.locator(".release-group")
-  await expect(groups).toHaveCount(6)
-  expect(await groups.locator(".release-group-heading .eyebrow").allTextContents()).toEqual(["1.3.x", "1.2.x", "1.1.x", "1.0.x", "0.2.x", "0.1.x"])
-  await expect(page.locator(".release-history-summary")).toContainText("Latest: v1.3.8")
+  await expect(groups).toHaveCount(7)
+  expect(await groups.locator(".release-group-heading .eyebrow").allTextContents()).toEqual(["1.4.x", "1.3.x", "1.2.x", "1.1.x", "1.0.x", "0.2.x", "0.1.x"])
+  await expect(page.locator(".release-history-summary")).toContainText("Latest: v1.4.0")
   await expect(page.locator(".release-history-summary")).toContainText("Selected updates")
   const timeline = page.locator(".release-timeline")
   const entries = timeline.locator(":scope > li")
