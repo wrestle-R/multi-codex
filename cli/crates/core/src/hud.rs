@@ -213,11 +213,9 @@ impl Observer {
             epoch: 0,
             tokens: None,
         });
-        entry.title = title(if thread["name"].is_string() {
-            &thread["name"]
-        } else {
-            &thread["preview"]
-        });
+        // Preview is the first user message, not an allowlisted chat name.
+        // Keep it out of HUD files even for resumed or forked unnamed chats.
+        entry.title = title(&thread["name"]);
         entry.cwd = thread["cwd"]
             .as_str()
             .unwrap_or("")
@@ -587,6 +585,19 @@ mod tests {
         state.client(&json!({"id":3,"method":"thread/unsubscribe","params":{"threadId":id}}));
         state.server(&json!({"id":3,"result":{}}));
         assert!(state.snapshot.sessions.is_empty());
+    }
+    #[test]
+    fn unnamed_resumed_chats_never_persist_message_previews() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let mut state = Observer::default();
+        state.client(&json!({"id":1,"method":"thread/resume","params":{"threadId":id}}));
+        state.server(&json!({"id":1,"result":{"thread":{"id":id,"name":null,"preview":"NEVER_PERSIST_THIS_MESSAGE","cwd":"/tmp"}}}));
+        assert_eq!(state.snapshot.sessions[&id].title, "Codex chat");
+        assert!(!serde_json::to_string(&state.snapshot)
+            .unwrap()
+            .contains("NEVER_PERSIST"));
+        state.server(&json!({"method":"thread/name/updated","params":{"threadId":id,"threadName":"Named fixture"}}));
+        assert_eq!(state.snapshot.sessions[&id].title, "Named fixture");
     }
     #[test]
     fn stopped_or_reused_pid_is_not_an_open_session() {
