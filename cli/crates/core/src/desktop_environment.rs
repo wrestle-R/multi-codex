@@ -393,12 +393,15 @@ pub fn configure_main_window() {
         if let Ok(clients) = hypr_json::<Vec<HyprClient>>("clients") {
             if let Some(client) = clients
                 .into_iter()
-                .find(|client| client.pid == pid && client.mapped)
+                .find(|client| client.pid == pid && client.mapped && client.title == "Multi Codex")
             {
                 // GTK/compositor focus transitions can restore a floating window
                 // long after startup. Keep its tiled, maximized state throughout
                 // launches and desktop changes without focusing or moving it.
-                if (client.floating || client.fullscreen != 1) && valid_address(&client.address) {
+                if client.fullscreen & 2 == 0
+                    && (client.floating || client.fullscreen != 1)
+                    && valid_address(&client.address)
+                {
                     let _ = crate::process::output(
                         Command::new("hyprctl").args(["eval", &main_window_lua(&client.address)]),
                         Duration::from_secs(3),

@@ -1,7 +1,8 @@
-import { copyFile, lstat, mkdir, readFile, realpath } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
+import { copyFile, lstat, mkdir, open, readFile, realpath, rename, rm } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
 import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Message } from './protocol';
+import { ThreadOperations } from './thread-operations';
 
 type Request = (method: string, params?: any) => Promise<any>;
 export type SharedChat = { id: string; nativeId: string; sourceProfileId: string; checkpoint: string; revision: number; metadata: any; archived: boolean };
@@ -11,18 +12,25 @@ export type SharedContext = {
   profile: () => string | null; verifyAccount: () => Promise<void>;
 };
 const LOCAL_TYPES = new Set(['localImage', 'local_image', 'localAudio', 'local_audio']);
-const MUTATIONS = new Set(['turn/start', 'turn/steer', 'turn/addUserMessage', 'review/start', 'thread/compact/start', 'thread/name/set', 'thread/shellCommand', 'thread/queue/add', 'thread/queue/enqueue', 'thread/queue/submit', 'thread/realtime/start', 'thread/realtime/appendAudio', 'thread/realtime/appendText', 'thread/realtime/appendSpeech', 'command/exec', 'process/start']);
-const READS = new Set(['thread/loaded/list', 'thread/unsubscribe', 'turn/interrupt', 'thread/realtime/stop', 'thread/queue/list', 'thread/queue/remove', 'thread/queue/clear']);
+const MUTATIONS = new Set(['turn/start', 'turn/steer', 'turn/addUserMessage', 'review/start', 'thread/compact/start', 'thread/shellCommand', 'thread/queue/add', 'thread/queue/enqueue', 'thread/queue/submit', 'thread/queue/start', 'thread/realtime/start', 'thread/realtime/appendAudio', 'thread/realtime/appendText', 'thread/realtime/appendSpeech', 'command/exec', 'process/start']);
+const LOCAL_MUTATIONS = new Set(['thread/settings/update', 'turn/settings/update', 'thread/metadata/update', 'thread/name/set', 'thread/queue/delete', 'thread/queue/update', 'thread/queue/reorder', 'thread/queue/remove', 'thread/queue/clear']);
+const LIBRARY_MUTATIONS = new Set(['thread/archive', 'thread/unarchive', 'thread/delete']);
+const READS = new Set(['thread/loaded/list', 'thread/unsubscribe', 'turn/interrupt', 'thread/realtime/stop', 'thread/queue/list']);
+const SETTINGS_KEY = '_multiCodexSettings';
+const SETTING_FIELDS = ['model', 'effort', 'summary', 'serviceTier'];
+type LifecycleIntent = { schema: 1; id: string; nativeId: string; method: string; phase: 'prepared' | 'nativeApplied'; registered: boolean };
 
 /** Canonical bytes are published only by a kernel-locked, verified native writer. */
 export class SharedChats {
-  private owned = new Map<string, { nativeId: string; path?: string; registered: boolean; metadata?: any; profileId?: string; hasWork?: boolean }>();
+  private owned = new Map<string, { nativeId: string; path?: string; registered: boolean; metadata?: any; profileId?: string; hasWork?: boolean; settings?: Record<string, unknown> }>();
   private nativeIds = new Map<string, string>();
   private deleted = new Set<string>();
   private checkpoints = Promise.resolve();
   private catalogCursor: number | undefined;
   private known = new Set<string>();
   private observers = new Map<string, string>();
+  private starting = new Set<Promise<void>>();
+  private operations = new ThreadOperations();
   constructor(private context: SharedContext) {}
   get threadIds() { return [...this.owned.keys()]; }
   logical(nativeId: string) { return this.nativeIds.get(nativeId) ?? nativeId; }
@@ -30,20 +38,45 @@ export class SharedChats {
   private async acquire(id: string) {
     await this.context.helper('chats/acquire', { threadId: id, profileId: this.context.profile(), ...this.context.owner() });
   }
-  private async verify(id: string) {
+  private async verify(id: string, authenticate = true) {
     if (this.deleted.has(id)) throw new Error('This shared chat was deleted. Create or choose another chat.');
     await this.context.helper('chats/verify', { threadId: id });
-    await this.context.verifyAccount();
+    if (authenticate) await this.context.verifyAccount();
   }
-  private thread(thread: any, id: string) { return { ...thread, id }; }
+  private thread(thread: any, id: string) { const { [SETTINGS_KEY]: _settings, ...publicThread } = thread ?? {}; return { ...publicThread, id }; }
+  private settingsPath(id: string) { return join(this.context.home(), 'chat-settings', `${id}.json`); }
+  private async persistSettings(id: string, params: any) {
+    const owned = this.owned.get(id)!;
+    const settings = { ...owned.settings };
+    for (const field of SETTING_FIELDS) if (Object.hasOwn(params, field)) {
+      if (params[field] === null) delete settings[field]; else settings[field] = params[field];
+    }
+    owned.settings = settings;
+    await mkdir(join(this.context.home(), 'chat-settings'), { recursive: true, mode: 0o700 });
+    const temporary = `${this.settingsPath(id)}.${randomUUID()}.tmp`;
+    const file = await open(temporary, 'wx', 0o600);
+    try { await file.writeFile(JSON.stringify(settings)); await file.sync(); } finally { await file.close(); }
+    try { await rename(temporary, this.settingsPath(id)); } finally { await rm(temporary, { force: true }); }
+  }
 
   async request(method: string, params: any = {}): Promise<any> {
-    if (MUTATIONS.has(method) || ['thread/start', 'thread/resume', 'thread/fork'].includes(method)) await this.checkpoints;
+    if (typeof params.threadId === 'string') {
+      await Promise.all([...this.starting]);
+      if (MUTATIONS.has(method) || LOCAL_MUTATIONS.has(method) || LIBRARY_MUTATIONS.has(method) || method === 'thread/resume' || method === 'thread/fork') {
+        return this.operations.run(params.threadId, () => this.execute(method, params));
+      }
+    }
+    return this.execute(method, params);
+  }
+  private async execute(method: string, params: any): Promise<any> {
+    if (method === 'thread/start') await this.checkpoints;
     if (method === 'thread/list') return this.list(params);
     if (method === 'thread/read') {
       const id = params.threadId;
       if (this.owned.has(id)) {
-        const result = await this.context.backend(method, { ...params, threadId: this.native(id) });
+        const empty = this.owned.get(id)!;
+        const includeTurns = params.includeTurns && !empty.hasWork && !empty.registered && !await this.hasRollout(empty.path) ? false : params.includeTurns;
+        const result = await this.context.backend(method, { ...params, includeTurns, threadId: this.native(id) });
         return { ...result, thread: this.thread(result.thread, id) };
       }
       return this.context.helper('chats/read', { threadId: id, includeTurns: params.includeTurns });
@@ -58,6 +91,10 @@ export class SharedChats {
       if (params.ephemeral === true) throw new Error('Shared chats require a saved history. Start a persistent chat.');
       await this.context.verifyAccount();
       if (method === 'thread/fork') { await this.ensureLoaded(params.threadId); await this.verify(params.threadId); }
+      let ready!: () => void;
+      const starting = new Promise<void>(resolve => { ready = resolve; });
+      this.starting.add(starting);
+      try {
       const result = await this.context.backend(method, { ...params, ...(method === 'thread/fork' ? { threadId: this.native(params.threadId) } : {}) });
       const id = result.thread?.id;
       if (typeof id !== 'string') throw new Error('Codex did not provide a stable new thread identity.');
@@ -68,14 +105,9 @@ export class SharedChats {
       // new chat still holds its writer lease; never manufacture history bytes.
       if (method === 'thread/fork' || await this.hasRollout(result.thread.path)) await this.checkpoint(id);
       return result;
+      } finally { this.starting.delete(starting); ready(); }
     }
-    if (['thread/archive', 'thread/unarchive', 'thread/delete'].includes(method)) {
-      await this.ensureLoaded(params.threadId); await this.verify(params.threadId);
-      await this.checkpoint(params.threadId);
-      await this.context.helper(`chats/${method.split('/')[1]}`, { threadId: params.threadId });
-      if (method === 'thread/delete') this.deleted.add(params.threadId);
-      return {};
-    }
+    if (LIBRARY_MUTATIONS.has(method)) return this.lifecycle(method, params);
     if (method === 'thread/loaded/list') {
       const result = await this.context.backend(method, params);
       return { ...result, data: result.data.map((id: string) => this.logical(id)) };
@@ -86,12 +118,28 @@ export class SharedChats {
       const prepared = await this.copyInputAssets(params);
       this.owned.get(params.threadId)!.hasWork = true;
       const result = await this.context.backend(method, { ...prepared, threadId: this.native(params.threadId) });
-      if (method === 'thread/name/set') await this.checkpoint(params.threadId);
       return result;
+    }
+    if (LOCAL_MUTATIONS.has(method)) {
+      if (typeof params.threadId !== 'string') throw new Error('Choose a saved chat before changing its settings.');
+      await this.ensureLoaded(params.threadId, false); await this.verify(params.threadId, false);
+      const result = await this.context.backend(method, { ...params, threadId: this.native(params.threadId) });
+      if (method === 'thread/settings/update') await this.persistSettings(params.threadId, params);
+      const current = await this.context.backend('thread/read', { threadId: this.native(params.threadId), includeTurns: false });
+      const owned = this.owned.get(params.threadId)!;
+      owned.metadata = current.thread; owned.path = current.thread?.path ?? owned.path;
+      if (['idle', 'notLoaded'].includes(current.thread?.status?.type) && await this.hasRollout(owned.path)) await this.checkpoint(params.threadId, false, true);
+      return result.thread ? { ...result, thread: this.thread(result.thread, params.threadId) } : result;
     }
     if (READS.has(method)) {
       if (typeof params.threadId === 'string') {
-        if (!this.owned.has(params.threadId)) throw new Error('This window does not own the shared chat.');
+        if (!this.owned.has(params.threadId)) {
+          if (method === 'thread/queue/list') {
+            await this.context.helper('chats/get', { threadId: params.threadId });
+            return { data: [], nextCursor: null };
+          }
+          throw new Error('This window does not own the shared chat.');
+        }
         // Cancellation remains possible after token expiry; it cannot start a
         // model request or transfer this window's writer ownership.
         await this.context.helper('chats/verify', { threadId: params.threadId });
@@ -107,6 +155,62 @@ export class SharedChats {
       throw new Error('Use Multi Codex to sign in or choose an account for this shared window.');
     }
     return this.context.backend(method, params);
+  }
+
+  private intentPath(id: string) {
+    if (!/^[A-Za-z0-9-]+$/.test(id)) throw new Error('Invalid chat operation identity');
+    return join(this.context.home(), 'chat-operations', `${id}.json`);
+  }
+  private async saveIntent(intent: LifecycleIntent) {
+    const path = this.intentPath(intent.id);
+    await mkdir(join(this.context.home(), 'chat-operations'), { recursive: true, mode: 0o700 });
+    const temp = `${path}.${randomUUID()}.tmp`;
+    const file = await open(temp, 'wx', 0o600);
+    try { await file.writeFile(JSON.stringify(intent)); await file.sync(); }
+    finally { await file.close(); }
+    try {
+      await rename(temp, path);
+      if (process.platform !== 'win32') {
+        const directory = await open(join(this.context.home(), 'chat-operations'), 'r');
+        try { await directory.sync(); } finally { await directory.close(); }
+      }
+    } finally { await rm(temp, { force: true }); }
+  }
+  private async lifecycle(method: string, params: any) {
+    const id = params.threadId;
+    if (typeof id !== 'string') throw new Error('Choose a saved chat before changing its library state.');
+    let intent: LifecycleIntent | undefined;
+    try {
+      const path = this.intentPath(id);
+      const info = await lstat(path);
+      if (!info.isFile() || info.isSymbolicLink()) throw new Error('Chat operation recovery cannot follow links.');
+      intent = JSON.parse(await readFile(path, 'utf8'));
+      if (intent?.schema !== 1 || intent.id !== id || typeof intent.nativeId !== 'string' || !['prepared', 'nativeApplied'].includes(intent.phase) || typeof intent.registered !== 'boolean' || !LIBRARY_MUTATIONS.has(intent.method)) throw new Error('Chat operation recovery is invalid.');
+      if (intent.method !== method) throw new Error('Retry the unfinished library operation before making another change.');
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    await this.ensureLoaded(id, false); await this.verify(id, false);
+    const owned = this.owned.get(id)!;
+    if (intent && intent.nativeId !== owned.nativeId) throw new Error('Chat operation recovery has a different native identity.');
+    if (!intent) {
+      const state = await this.context.backend('thread/read', { threadId: owned.nativeId, includeTurns: false });
+      if (!['idle', 'notLoaded'].includes(state.thread?.status?.type)) throw new Error('Wait for this chat and its tools to finish before changing its library state.');
+      if (await this.hasRollout(state.thread?.path ?? owned.path)) await this.checkpoint(id, false);
+      else if (owned.registered || owned.hasWork) throw new Error('This chat has unverified history. Keep the window open for recovery.');
+      intent = { schema: 1, id, nativeId: owned.nativeId, method, phase: 'prepared', registered: owned.registered };
+      await this.saveIntent(intent);
+    }
+    let result: any = {};
+    if (intent.phase === 'prepared') {
+      result = await this.context.backend(method, { ...params, threadId: intent.nativeId });
+      intent.phase = 'nativeApplied'; await this.saveIntent(intent);
+    } else if (method === 'thread/unarchive') {
+      result = await this.context.backend('thread/read', { threadId: intent.nativeId, includeTurns: false });
+    }
+    if (method !== 'thread/delete') await this.checkpoint(id, false);
+    if (method !== 'thread/delete' || intent.registered) await this.context.helper(`chats/${method.split('/')[1]}`, { threadId: id });
+    if (method === 'thread/delete') this.deleted.add(id);
+    await rm(this.intentPath(id));
+    return result.thread ? { ...result, thread: this.thread(result.thread, id) } : result;
   }
 
   private async list(params: any) {
@@ -136,7 +240,7 @@ export class SharedChats {
           if (data.length === limit) return { data, nextCursor: Buffer.from(JSON.stringify({ offset, filter })).toString('base64url') };
           const owned = this.owned.get(saved.id);
           this.known.add(saved.id);
-          data.push({ ...thread, id: saved.id, turns: [], status: owned?.metadata?.status ?? { type: owned ? 'idle' : 'notLoaded' } });
+          data.push({ ...this.thread(thread, saved.id), id: saved.id, turns: [], status: owned?.metadata?.status ?? { type: owned ? 'idle' : 'notLoaded' } });
         }
         offset++;
       }
@@ -177,12 +281,12 @@ export class SharedChats {
     return events;
   }
 
-  private async ensureLoaded(id: string) {
-    if (!this.owned.has(id)) await this.resume(id, { threadId: id });
+  private async ensureLoaded(id: string, authenticate = true) {
+    if (!this.owned.has(id)) await this.resume(id, { threadId: id }, authenticate);
     if (!this.owned.has(id)) throw new Error(this.observers.get(id) ?? 'Another window owns this shared chat. Release it there before continuing.');
   }
-  private async resume(id: string, params: any) {
-    await this.context.verifyAccount();
+  private async resume(id: string, params: any, authenticate = true) {
+    if (authenticate) await this.context.verifyAccount();
     if (!this.owned.has(id)) {
       const saved: SharedChat = await this.context.helper('chats/get', { threadId: id });
       const conflict = this.nativeIds.get(saved.nativeId);
@@ -196,31 +300,42 @@ export class SharedChats {
         return this.context.helper('chats/observe', { threadId: id, includeTurns: true });
       }
       const hydrated = await this.context.helper('chats/hydrate', { threadId: id });
-      this.owned.set(id, { nativeId: saved.nativeId, path: hydrated.path, registered: true });
+      this.owned.set(id, { nativeId: saved.nativeId, path: hydrated.path, registered: true, settings: saved.metadata?.[SETTINGS_KEY] });
       this.nativeIds.set(saved.nativeId, id);
       this.observers.delete(id);
     }
-    await this.verify(id);
+    await this.verify(id, authenticate);
     const saved = this.owned.get(id)!;
-    const result = await this.context.backend('thread/resume', { ...params, threadId: saved.nativeId, path: saved.path });
+    const preferences = saved.settings ?? {};
+    const restored = { model: preferences.model, serviceTier: preferences.serviceTier };
+    const config = { ...(Object.hasOwn(preferences, 'effort') ? { model_reasoning_effort: preferences.effort } : {}), ...(Object.hasOwn(preferences, 'summary') ? { model_reasoning_summary: preferences.summary } : {}), ...params.config };
+    const result = await this.context.backend('thread/resume', { ...restored, ...params, config, threadId: saved.nativeId, path: saved.path });
     saved.path = result.thread?.path ?? saved.path;
     saved.metadata = result.thread;
     return { ...result, thread: this.thread(result.thread, id) };
   }
 
-  async checkpoint(id: string) {
+  async checkpoint(id: string, authenticate = false, deferBusy = false) {
     if (this.deleted.has(id)) return;
     const owned = this.owned.get(id); if (!owned) return;
-    await this.verify(id);
+    await this.verify(id, authenticate);
     const result = await this.context.backend('thread/read', { threadId: owned.nativeId, includeTurns: false });
-    if (!result.thread || !['idle', 'notLoaded'].includes(result.thread.status?.type)) throw new Error('Wait for this chat and its tools to finish before publishing or handing it off.');
+    if (!result.thread || !['idle', 'notLoaded'].includes(result.thread.status?.type)) {
+      if (deferBusy && result.thread) return;
+      throw new Error('Wait for this chat and its tools to finish before publishing or handing it off.');
+    }
     const path = result.thread.path ?? owned.path;
     owned.metadata = result.thread; owned.path = path;
     if (!path) throw new Error('Codex has not persisted a complete rollout for this chat.');
     const assets = await this.assets(path);
+    const stable = await this.context.backend('thread/read', { threadId: owned.nativeId, includeTurns: false });
+    if (!['idle', 'notLoaded'].includes(stable.thread?.status?.type)) {
+      if (deferBusy) return;
+      throw new Error('Chat work resumed during publication. Wait for it to finish before handing it off.');
+    }
     const profileId = this.context.profile();
     if (!profileId) throw new Error('Choose a saved account before publishing a shared chat.');
-    const committed = await this.context.helper(owned.registered ? 'chats/checkpoint' : 'chats/register', { threadId: id, profileId, path, metadata: result.thread, assets });
+    const committed = await this.context.helper(owned.registered ? 'chats/checkpoint' : 'chats/register', { threadId: id, profileId, path, metadata: { ...result.thread, [SETTINGS_KEY]: owned.settings }, assets });
     if (committed.id !== id) throw new Error('Shared chat identity changed during publication. Reopen this window before continuing.');
     owned.path = path; owned.registered = true;
   }
@@ -251,17 +366,22 @@ export class SharedChats {
       if (!['idle', 'notLoaded'].includes(owned.metadata.status?.type)) throw new Error('Stopped chat work is incomplete. Its private history and ownership are retained for explicit recovery.');
       await this.context.helper(owned.registered ? 'chats/checkpointStopped' : 'chats/registerStopped', {
         threadId: id, profileId: owned.profileId ?? this.context.profile(), path: owned.path,
-        metadata: { ...owned.metadata, status: { type: 'notLoaded' } }, assets: await this.assets(owned.path),
+        metadata: { ...owned.metadata, [SETTINGS_KEY]: owned.settings, status: { type: 'notLoaded' } }, assets: await this.assets(owned.path),
       });
     }
   }
   queueCheckpoint(id: string, failed: (error: unknown) => void) {
-    this.checkpoints = this.checkpoints.then(async () => { await this.adoptLoaded(); await this.checkpoint(id); }).catch(failed);
+    this.checkpoints = this.checkpoints.then(async () => {
+      await this.adoptLoaded();
+      await this.operations.run(id, () => this.checkpoint(id, false, true));
+    }).catch(failed);
   }
   async drain() {
+    await this.operations.drain();
     await this.checkpoints;
     await this.adoptLoaded();
     for (const [id, owned] of this.owned) {
+      if (this.deleted.has(id)) continue;
       if (!owned.registered && !await this.hasRollout(owned.path)) {
         if (owned.hasWork || owned.metadata?.turns?.length !== 0) throw new Error('A new chat has not persisted its history. Keep this window open and retry.');
         continue;

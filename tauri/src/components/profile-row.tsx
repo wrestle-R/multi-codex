@@ -6,6 +6,8 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react"
 import type { LaunchTarget, LimitCheckState, LimitWindow, Profile, ProfileLimits } from "../lib/types"
 
+import { AccountAvatar } from "./account-avatar"
+
 interface ProfileRowProps {
   disabled?: boolean
   profile: Profile
@@ -63,7 +65,7 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
   return (
     <article className="profile-row" data-testid={`profile-${profile.id}`}>
       <div className="profile-avatar" aria-hidden="true">
-        {profile.name.slice(0, 1).toUpperCase()}
+        <AccountAvatar id={profile.id} />
       </div>
       <div className="profile-main">
         <div className="profile-heading">

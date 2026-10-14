@@ -135,8 +135,14 @@ mod usage;
 #[cfg(windows)]
 #[cfg(not(test))]
 use multi_codex_core::desktop_integration;
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod account_menu;
+mod hud;
+mod hud_platform;
+#[cfg(test)]
+use multi_codex_core::hud as hud_model;
+#[cfg(all(target_os = "linux", not(test)))]
+use multi_codex_core::linux_desktops;
 #[cfg(all(windows, test))]
 #[path = "../../../cli/crates/core/src/windows_integration.rs"]
 mod desktop_integration;
@@ -918,8 +924,9 @@ pub fn run() {
                 window.set_icon(icon)?;
             }
             desktop_environment::configure_main_window();
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             account_menu::setup(app.handle())?;
+            hud::setup(app.handle())?;
             let resource = app.path().resource_dir()?.join("managed-vscode/bridge");
             let service = Arc::clone(&app.state::<AppState>().service);
             service.set_managed_bridge(resource)?;
@@ -930,7 +937,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            #[cfg(target_os = "macos")]
+            #[cfg(any(target_os = "macos", target_os = "linux"))]
             if window.label() == "main" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
@@ -946,6 +953,14 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            hud::hud_snapshot,
+            hud::hud_save_settings,
+            hud::hud_toggle,
+            hud::hud_set_expanded,
+            hud::hud_open_session,
+            hud::hud_acknowledge,
+            hud::hud_monitors,
+            hud::hud_drag,
             get_desktop_inventory,
             get_executable_settings,
             get_terminal_options,
@@ -995,6 +1010,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Multi Codex");
     app.run(|_app, _event| {
+        if matches!(_event, tauri::RunEvent::Exit) {
+            hud_platform::cleanup();
+        }
         #[cfg(target_os = "macos")]
         if matches!(_event, tauri::RunEvent::Reopen { .. }) {
             account_menu::show(_app);

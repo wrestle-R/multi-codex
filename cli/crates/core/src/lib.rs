@@ -10,6 +10,8 @@ pub mod desktop_integration;
 pub mod desktop_integration;
 pub mod extension_accounts;
 pub mod file_security;
+pub mod hud;
+pub use hud as hud_model;
 pub mod launch;
 pub mod launch_targets;
 pub mod legacy_cleanup;
