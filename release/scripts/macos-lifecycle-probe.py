@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -124,6 +125,29 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         XDG_CONFIG_HOME=str(root / "config"),
         PATH="/usr/bin:/bin:/usr/sbin:/sbin",
     )
+    # A synthetic HOME has no login Keychain. Provision one for this fixture
+    # so account callbacks exercise the real credential backup, not an absent
+    # or locked runner keychain. Restore the runner selection before disposal.
+    def security(*arguments, check=True):
+        return subprocess.run(
+            ["/usr/bin/security", *arguments], env=env, check=check,
+            capture_output=True, text=True, timeout=20,
+        )
+
+    previous_default = security("default-keychain", "-d", "user", check=False)
+    previous_search = security("list-keychains", "-d", "user", check=False)
+    old_default = shlex.split(previous_default.stdout)
+    old_search = shlex.split(previous_search.stdout)
+    keychain = root / "fixture.keychain-db"
+    fixture_password = "disposable-lifecycle-keychain"
+    security("create-keychain", "-p", fixture_password, str(keychain))
+    security("set-keychain-settings", "-lut", "3600", str(keychain))
+    security("unlock-keychain", "-p", fixture_password, str(keychain))
+    security("default-keychain", "-d", "user", "-s", str(keychain))
+    security("list-keychains", "-d", "user", "-s", str(keychain), *old_search)
+    security("add-generic-password", "-a", profile_id, "-s", "multi-codex",
+             "-w", fixtures[profile / "auth.json"].decode(), "-T", str(binary), str(keychain))
+    report["disposableNativeKeychain"] = True
     log = (evidence / "application.log").open("wb")
 
     def start():
@@ -347,6 +371,11 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
                     except ProcessLookupError:
                         pass
         log.close()
+        if old_default:
+            security("default-keychain", "-d", "user", "-s", *old_default)
+        security("list-keychains", "-d", "user", "-s", *old_search)
+        security("delete-keychain", str(keychain))
+        report["disposableKeychainRemoved"] = not keychain.exists()
         subprocess.run(
             [
                 "/usr/bin/log",

@@ -23,7 +23,7 @@ async function until(read, check) {
 async function dismissFixtureAnnouncement(record) {
   // A first-launch product announcement can cover the selected transcript.
   // Exercise its normal UI in these disposable profiles; retain their model.
-  await record.eval("(()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Continue with current model');if(button&&button.getBoundingClientRect().width)button.click();})()");
+  return record.eval("(()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Continue with current model');if(button&&button.getBoundingClientRect().width){button.click();return true}return false})()");
 }
 const quote = value => `'${value.replaceAll("'", "'\"'\"'")}'`;
 async function open(suffix, reopen) {
@@ -84,14 +84,28 @@ try {
   // Desktop uses a memory router; its address bar stays index.html. Prove
   // the exact transcript is visible rather than mistaking URL stability for
   // a failed deeplink or matching a title in the sidebar.
-  await until(() => a.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
+  await until(async () => {
+    // The announcement mounts asynchronously. If it covers navigation after
+    // the initial URI, close it normally and deliver the scoped URI again.
+    if (await dismissFixtureAnnouncement(a)) {
+      const retry = spawn(binary, [`--user-data-dir=${a.env.CODEX_ELECTRON_USER_DATA_PATH}`, uri], { cwd: root, env: a.env, stdio: 'ignore' });
+      await once(retry, 'exit');
+    }
+    return a.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''");
+  }, value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
   assert.equal((await b.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''")).includes('HUD_EXACT_SESSION_A_FIXTURE'), false);
   a.socket.close();
   const aExited = once(a.child, 'exit'); process.kill(-a.child.pid, 'SIGTERM'); await aExited;
   const reopened = await open('a', { id:a.id, uri });
   await dismissFixtureAnnouncement(reopened);
   stage = 'cold transcript reopen';
-  await until(() => reopened.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
+  await until(async () => {
+    if (await dismissFixtureAnnouncement(reopened)) {
+      const retry = spawn(binary, [`--user-data-dir=${reopened.env.CODEX_ELECTRON_USER_DATA_PATH}`, uri], { cwd: root, env: reopened.env, stdio: 'ignore' });
+      await once(retry, 'exit');
+    }
+    return reopened.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''");
+  }, value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
   for (const record of [reopened, b]) assert.equal((await readFile(join(record.codexHome, 'auth.json'), 'utf8')) === record.auth, true, 'Disposable login bytes must remain unchanged');
   console.log('Verified actual Desktop GUI uses the passive proxy, exact thread URI reaches only the scoped account, cold reopening restores its transcript, and both inert logins stay unchanged.');
   if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, fixtureLoginsUnchanged: true })); }

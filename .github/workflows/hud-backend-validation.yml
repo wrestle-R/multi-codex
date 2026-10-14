@@ -54,6 +54,7 @@ jobs:
           MAC_LIFECYCLE_VARIANT: published
         run: python3 release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
       - name: Build and test current implementation
+        id: build
         run: |
           npm ci --prefix extension
           npm ci --prefix tauri
@@ -71,7 +72,6 @@ jobs:
           node --test tests/shared-native.test.mjs
           MULTI_CODEX_TEST_ENGINE='/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex' node --test tests/hud-native.test.mjs
       - name: Real Desktop exact-account navigation and cold reopen
-        continue-on-error: true
         env:
           HUD_GUI_OUTPUT: ${{ runner.temp }}/hud-backend-evidence/desktop-gui
           MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
@@ -79,13 +79,15 @@ jobs:
           MULTI_CODEX_TEST_ENGINE: /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
         run: node tauri/scripts/test-hud-desktop.mjs
       - name: Build packaged candidate without publishing
+        id: package
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         working-directory: tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build --bundles app --config src-tauri/tauri.updater.conf.json
       - name: Verify candidate path/version and native lifecycle
-        continue-on-error: true
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           MAC_LIFECYCLE_VARIANT: candidate
         run: |
@@ -95,12 +97,13 @@ jobs:
           ditto "$APP" '/Applications/Multi Codex.app'
           python3 release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
       - name: Native updater installation/restart regression
-        continue-on-error: true
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         run: |
           cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example native-updater
           PAYLOAD=$(find tauri/src-tauri/target/release/bundle/macos -name '*.app.tar.gz' -print -quit)
           python3 tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater --payload "$PAYLOAD" --app '/Applications/Multi Codex.app' --output "$RUNNER_TEMP/hud-backend-evidence/updater/result.json"
       - name: GNOME and KDE adapter contracts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: node --test tauri/scripts/hud-platform.test.mjs
       - name: Require successful native evidence for this exact candidate
         if: always()
