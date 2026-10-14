@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "version": "1.6.1",
+  "extensionVersion": "0.2.1",
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697099713",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:36:02Z",
+      "scope": "Signed AppImage/DEB/RPM build; native updater SDK installs exact signed payload, rejects malformed/altered/truncated payloads and preserves private-data sentinels."
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697099713",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:36:02Z",
+      "scope": "Exact AppImage install/update scripts preserve account/chat/default-login sentinels."
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100343",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:31:28Z",
+      "scope": "Packaged native bridge startup/live attachment; A\u2192B\u2192A switching, active-turn refusal, continued conversation, native keyring and current-account restoration."
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100041",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:40:46Z",
+      "scope": "Signed native ARM64 app/DMG/updater archive; actual packaged window/restart and sealed bundle integrity; SDK signature and private-data checks."
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100041",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:40:46Z",
+      "scope": "Exact DMG install/update, strict unsigned refusal/explicit opt-in, native startup/restart and account/history preservation."
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100041",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:40:46Z",
+      "scope": "Native Keychain, actual VS Code/CLI/verified standalone isolated launches and private-home detection tests."
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100343",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:31:28Z",
+      "scope": "Exact packaged VSIX startup/live attachment, current login restoration, account switching/activity guards and conversation continuation."
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100272",
+      "environment": "macOS 26 ARM64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:35:23Z",
+      "scope": "Exact packaged VSIX startup/live attachment, current login restoration, account switching/activity guards and conversation continuation."
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100359",
+      "environment": "macOS 26 Intel",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:38:04Z",
+      "scope": "Exact packaged VSIX startup/live attachment, current login restoration, account switching/activity guards and conversation continuation."
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100170",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:50:10Z",
+      "scope": "Native build/core/React/format tests, signed NSIS package and real updater SDK signature/restart/preservation checks. Original job failed ONLY after installer assertions at disposable folder cleanup; supplemental exact-payload recheck passes that cleanup."
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100170",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:50:10Z",
+      "scope": "Actual two VS Code accounts/PowerShell CLI isolation, native credential store and standalone launch/safe refusal checks."
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697100170",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:50:10Z",
+      "scope": "Exact packaged VSIX live attachment/startup, native helper/account restoration and activity guards."
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38519038137/job/115704260202",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:55:26Z",
+      "scope": "Exact original signed NSIS checksum/source-verified recheck: install/update/start-menu/window/restart/sentinels and complete disposable fixture removal; process handles disposed and transient WebView/COM locks awaited."
+    },
+    "launcher-window": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38516730191/job/115697099713",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T05:36:02Z",
+      "scope": "Exact AppImage visible nonblank window under offline catalog sandbox/Xvfb with system WebKit removed; screenshot visually inspected."
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/38521250032/job/115711203809",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "GitHub Actions native runner; evidence reviewed by Codex",
+      "testedAt": "2026-10-14T06:17:55Z",
+      "scope": "Exact signed candidate DMG hash verified. Native account/launch-target menu refresh, Close/tray Open/Dock reopen/Quit and account metadata preservation passed; fixture uses supported saved sharing pause to isolate menu checks and complete cleanup."
+    }
+  },
+  "artifacts": {
+    "Multi.Codex-1.6.1-1.x86_64.rpm": "aff942cf5fcc6221dcfcbd55e3ba8611440537ad171d553e2244359e870551c0",
+    "Multi.Codex_1.6.1_aarch64.app.tar.gz": "20669ea91dd86b640432d4bc0e42656e510d016221d4332baa1dcd975c9f09c7",
+    "Multi.Codex_1.6.1_aarch64.app.tar.gz.sig": "91822fef2d31dfa9e61319dc1bf2e3ddab3aa230328b5afb04954a9eafb3d92d",
+    "Multi.Codex_1.6.1_aarch64.dmg": "c180122f708f2f98e6e5f20c77759ce23eb6500c8d3fe2115fbdd42e7c309cbb",
+    "Multi.Codex_1.6.1_amd64.AppImage": "dd0695594458f3e4a1e2a1a37677e413f049164f11cad0da6f5c36a0f9cbe209",
+    "Multi.Codex_1.6.1_amd64.AppImage.sig": "3866e2ce39900015c2d9d068ef6439a5154b618648e4dc9bb4ae57c398407846",
+    "Multi.Codex_1.6.1_amd64.deb": "6b9b8de5bd82507789d4cdbcdea8cdaa217656ab11730732ee501be97019c72c",
+    "Multi.Codex_1.6.1_x64-setup.exe": "c698c8ec2847e6c55809113f6fe3d9b0628120f0c2891f83ddae2ef441ff8ac5",
+    "Multi.Codex_1.6.1_x64-setup.exe.sig": "acbaa478abbb9b84c98bae5ff43b04580e9cbab9dd81a556c38a00c382a9e0c0",
+    "SHA256SUMS": "cf044e753e46398e3cc788b8a8a08d9b5d00938a9169cf19a6450249acec6641",
+    "install-app.ps1": "320e0389ffa6db2f82c2d914f64200a36dfb5b55bbb39d182c4b6d3d820a46de",
+    "install-app.sh": "c7ee1cd6b98c337d3da12ce9aceb786d37d31fcb76f685c5a01a46b387aab1dc",
+    "latest.json": "60f37621a5d006e5762b8ccf6621b92e6ee11fc3485f9454070207c074e921be",
+    "multi-codex-darwin-arm64-0.2.1.vsix": "82ef098c0ed5da334aed3ac9a63048f77f72ca99b185a3128d2e62c30b70a789",
+    "multi-codex-darwin-x64-0.2.1.vsix": "2b1ead6a292a9224d9e198cec53f3f91434fef6e1c33d864797b6768a107e996",
+    "multi-codex-linux-x64-0.2.1.vsix": "348ed5861918c982de4a23c24b1bcc575c9821a597f1e81dd4e55a021719d891",
+    "multi-codex-win32-x64-0.2.1.vsix": "33c6adb95b774d37967c36b07435488c8718ccc693a0b2bc720a4c13b7f46aca",
+    "update-app.ps1": "320e0389ffa6db2f82c2d914f64200a36dfb5b55bbb39d182c4b6d3d820a46de",
+    "update-app.sh": "c7ee1cd6b98c337d3da12ce9aceb786d37d31fcb76f685c5a01a46b387aab1dc"
+  },
+  "localValidation": {
+    "core": "162 passed, 4 native environment cases ignored; six CLI tests passed",
+    "frontend": "106 passed; production build passed",
+    "repairScript": "6 passed",
+    "storage": "Unique allocated inventory agrees with du to one live filesystem block; real six-account totals retain all credentials and shared chat library",
+    "layout": "Desktop and 480px screenshots visually inspected",
+    "cleanup": "4794953728 allocated bytes reclaimed from verified obsolete staging/runtime/snapshot trees; six credentials and shared chats preserved",
+    "website": "Production build/typecheck and 16 local Chromium/mobile checks passed. Production release details page verified; targeted production browser checks completed."
+  },
+  "limitations": [
+    "Production Update button is reserved for the user to test locally; SDK harnesses install the exact signed payloads in disposable fixtures.",
+    "Real end-user GUI authentication completion was not performed; native GUI cancellation/device-instruction/credential fixtures passed.",
+    "Apple notarization and the broader Linux desktop/distribution/full shared-history acceptance matrix are not claimed."
+  ],
+  "candidateSource": "8828ff7c344732ba51bf46b76d34f04e11931326",
+  "workflowRuns": [
+    {
+      "id": 38515135513,
+      "outcome": "canceled after Mac Unix socket test fixture path-limit failure; superseded candidate"
+    },
+    {
+      "id": 38516730191,
+      "outcome": "Native production checks passed; aggregate failed solely at Windows test fixture directory cleanup"
+    },
+    {
+      "id": 38519038137,
+      "outcome": "passed; exact SDK-verified signed Windows payload retested with corrected fixture cleanup and native GUI checks"
+    },
+    {
+      "id": 38519578155,
+      "outcome": "Menu assertions passed; cleanup raced with unrelated automatic storage setup in disposable fixture"
+    },
+    {
+      "id": 38521250032,
+      "outcome": "passed; exact DMG menu probe with explicit saved storage pause and complete fixture cleanup"
+    }
+  ],
+  "publication": {
+    "publishedAt": "2026-10-14T06:22:51Z",
+    "url": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.6.1",
+    "publicAssetCount": 19,
+    "allGitHubAssetDigestsMatch": true,
+    "publicUpdaterVersion": "1.6.1",
+    "localGUIUpdatePerformed": false,
+    "transportVerification": "All 19 published GitHub SHA256 digests independently match the exact tested assets and the public latest updater manifest is v1.6.1. Direct public downloads/hash checks completed for 18 assets; redundant full Linux AppImage re-download stopped because this environment was slow. Its published server SHA256 matches the exact signed AppImage installed/restarted by the native Linux SDK harness.",
+    "directPublicDownloadHashChecks": [
+      "Multi.Codex-1.6.1-1.x86_64.rpm",
+      "Multi.Codex_1.6.1_aarch64.app.tar.gz",
+      "Multi.Codex_1.6.1_aarch64.app.tar.gz.sig",
+      "Multi.Codex_1.6.1_aarch64.dmg",
+      "Multi.Codex_1.6.1_amd64.AppImage.sig",
+      "Multi.Codex_1.6.1_amd64.deb",
+      "Multi.Codex_1.6.1_x64-setup.exe",
+      "Multi.Codex_1.6.1_x64-setup.exe.sig",
+      "SHA256SUMS",
+      "install-app.ps1",
+      "install-app.sh",
+      "latest.json",
+      "multi-codex-darwin-arm64-0.2.1.vsix",
+      "multi-codex-darwin-x64-0.2.1.vsix",
+      "multi-codex-linux-x64-0.2.1.vsix",
+      "multi-codex-win32-x64-0.2.1.vsix",
+      "update-app.ps1",
+      "update-app.sh"
+    ]
+  }
+}

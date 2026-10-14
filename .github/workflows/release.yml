@@ -76,6 +76,7 @@ jobs:
       - run: npm ci
       - run: npm run check:secrets
       - run: npm run test:release
+      - run: cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core
       - run: npm run test:release-gates
       - name: Require signed updater packages
         run: test -n "$TAURI_SIGNING_PRIVATE_KEY"

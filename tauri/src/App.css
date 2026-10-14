@@ -607,3 +607,22 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 @media (max-width: 760px) {
   .update-popover { position: fixed; top: 90px; right: 1rem; left: 1rem; width: auto; }
 }
+
+/* Storage keeps the account list compact; destructive controls stay in details. */
+.storage-summary > div { border: 0; background: var(--muted); padding: 1.2rem; }
+.storage-summary strong, .storage-row-copy span, .storage-breakdown dd { font-variant-numeric: tabular-nums; }
+.storage-list { gap: 0; }
+.storage-row { border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; padding: .9rem 0; }
+.storage-row-details { border-top: 0; padding-top: 0; }
+.storage-row-details:not([open]) { margin-top: -.25rem; }
+.storage-row-details summary, .storage-advanced summary { color: var(--muted-foreground); cursor: pointer; font-size: .78rem; }
+.storage-row-details .danger-button { margin-top: .65rem; }
+.storage-advanced { padding: 1.1rem 0 .3rem; }
+.storage-dialog { max-width: 42rem; }
+@media (max-width: 600px) {
+  .storage-row { grid-template-columns: minmax(0, 1fr) auto; gap: .45rem .8rem; }
+  .storage-row-actions { grid-column: 2; grid-row: 1; }
+  .storage-bar { display: none; }
+  .storage-summary { grid-template-columns: 1fr 1fr; }
+  .storage-summary > div { padding: .8rem; }
+}

@@ -303,6 +303,14 @@ jobs:
           if ($installer.Count -ne 1 -or (Get-FileHash $installer[0].FullName).Hash -ne $report.payloadSha256) { throw 'Candidate payload hash mismatch' }
           "MULTI_CODEX_TEST_INSTALLER=$($installer[0].FullName)" >> $env:GITHUB_ENV
           "MULTI_CODEX_GUI_CANDIDATE_EVIDENCE=$evidence/result.json" >> $env:GITHUB_ENV
+      - name: Recheck exact signed installer and complete disposable cleanup
+        shell: pwsh
+        run: ./tauri/scripts/windows-installer-smoke.ps1 -Installer $env:MULTI_CODEX_TEST_INSTALLER
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-installer-evidence
+          path: ${{ runner.temp }}/multi-codex-windows-evidence/
       - name: Install pinned editor and engine in disposable directories
         shell: pwsh
         run: |

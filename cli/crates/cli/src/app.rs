@@ -709,7 +709,14 @@ fn chat_command(service: &Service, command: Chats) -> Result<Value> {
 }
 fn migration(service: &Service, command: Migration) -> Result<Value> {
     match command {
-        Migration::Queue => value(service.shared_storage_queue()?),
+        Migration::Queue { process } => {
+            if process {
+                service.set_managed_bridge(bridge()?)?;
+                value(service.process_shared_storage_queue()?)
+            } else {
+                value(service.shared_storage_queue()?)
+            }
+        }
         Migration::Enable { yes } => {
             confirm(
                 yes,
