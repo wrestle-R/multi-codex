@@ -129,7 +129,9 @@ def execute(body):
         None,
     ).unpack()
     assert success, raw
-    return json.loads(raw)
+    decoded = json.loads(raw)
+    # GNOME Shell serializes the evaluated result, which can itself be JSON.
+    return json.loads(decoded) if isinstance(decoded, str) else decoded
 
 
 def windows():
@@ -140,7 +142,7 @@ def windows():
             )
         )
     return execute(
-        "return JSON.stringify(global.get_window_actors().map(a=>a.meta_window).map(w=>({title:w.get_title(),pid:w.get_pid(),geometry:w.get_frame_rect(),above:w.is_above(),sticky:w.is_on_all_workspaces(),fullscreen:w.is_fullscreen()})));"
+        "return JSON.stringify(global.get_window_actors().map(a=>a.meta_window).map(w=>({title:w.get_title(),pid:w.get_pid(),geometry:(()=>{const r=w.get_frame_rect();return {x:r.x,y:r.y,width:r.width,height:r.height}})(),above:w.is_above(),sticky:w.is_on_all_workspaces(),fullscreen:w.is_fullscreen()})));"
     )
 
 
