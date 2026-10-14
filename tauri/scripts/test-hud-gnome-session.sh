@@ -15,8 +15,13 @@ mkdir -p "$XDG_DATA_HOME/gnome-shell/extensions"
 cp -r "tauri/platform/gnome/$EXTENSION_ID" "$XDG_DATA_HOME/gnome-shell/extensions/$EXTENSION_ID"
 # Use a private dconf database shared by this shell and its child compositor.
 export GSETTINGS_BACKEND=dconf
+# dbus-run-session started before the private HOME was set. Services activated
+# later (especially dconf) must inherit the same disposable paths as Shell.
+export WAYLAND_DISPLAY=wayland-0
+dbus-update-activation-environment HOME XDG_CONFIG_HOME XDG_DATA_HOME XDG_RUNTIME_DIR XDG_CURRENT_DESKTOP WAYLAND_DISPLAY
 gsettings set org.gnome.shell enabled-extensions "['$EXTENSION_ID']"
 gsettings set org.gnome.shell disable-user-extensions false
+gsettings get org.gnome.shell enabled-extensions
 gnome-shell --wayland --headless --virtual-monitor=1280x800 --unsafe-mode > "$HUD_EVIDENCE/compositor.log" 2>&1 &
 HUD_GNOME_PID=$!
 for attempt in {1..100}; do
