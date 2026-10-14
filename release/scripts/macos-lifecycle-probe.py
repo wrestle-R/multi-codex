@@ -128,9 +128,10 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
     # A synthetic HOME has no login Keychain. Provision one for this fixture
     # so account callbacks exercise the real credential backup, not an absent
     # or locked runner keychain. Restore the runner selection before disposal.
+    assert os.environ.get("GITHUB_ACTIONS") == "true", "Native Keychain selection is runner-only"
     def security(*arguments, check=True):
         return subprocess.run(
-            ["/usr/bin/security", *arguments], env=env, check=check,
+            ["/usr/bin/security", *arguments], check=check,
             capture_output=True, text=True, timeout=20,
         )
 
@@ -145,9 +146,10 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
     security("unlock-keychain", "-p", fixture_password, str(keychain))
     security("default-keychain", "-d", "user", "-s", str(keychain))
     security("list-keychains", "-d", "user", "-s", str(keychain), *old_search)
-    security("add-generic-password", "-a", profile_id, "-s", "multi-codex",
-             "-w", fixtures[profile / "auth.json"].decode(), "-T", str(binary), str(keychain))
     report["disposableNativeKeychain"] = True
+    if probe := os.environ.get("MAC_KEYCHAIN_PROBE"):
+        diagnostic = subprocess.run([probe], env=env, capture_output=True, text=True, timeout=20)
+        report["nativeKeychainDiagnostic"] = json.loads(diagnostic.stdout)
     log = (evidence / "application.log").open("wb")
 
     def start():
@@ -156,6 +158,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             [str(binary)], cwd=workspace, env=env, stdout=log, stderr=subprocess.STDOUT
         )
         wait_for("one visible launcher", lambda: launcher_count() == 1)
+        foreground()
         wait_for("visible menu-bar icon", lambda: menu_icon_count() == 1)
         return process.pid
 
@@ -187,7 +190,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
     def open_menu():
         ui("click menu bar item 1 of menu bar 2")
 
-    def account_menu():
+    def account_menu_once():
         open_menu()
         ui(
             'click menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2'
@@ -200,6 +203,18 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
                 raise RuntimeError(f"Missing installed account action: {expected}")
         ui("key code 53")
         ui("key code 53")
+
+    def account_menu():
+        def ready():
+            account_menu_once()
+            return True
+        wait_for("native account menu actions", ready)
+
+    def fullscreen(target):
+        def settled():
+            ui('set value of attribute "AXFullScreen" of window "Multi Codex" to ' + str(target).lower())
+            return ui('return value of attribute "AXFullScreen" of window "Multi Codex"') == str(target).lower()
+        wait_for("native fullscreen transition", settled)
 
     def foreground():
         ui('set frontmost to true\nperform action "AXRaise" of window "Multi Codex"')
@@ -251,9 +266,9 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             wait_for("native shortcut hides HUD", lambda: hud_count() == 0)
             ui('keystroke "h" using {command down, shift down}')
             wait_for("native shortcut restores HUD", lambda: hud_count() == 1)
-            ui('set value of attribute "AXFullScreen" of window "Multi Codex" to true')
+            fullscreen(True)
             wait_for("fullscreen hides native HUD", lambda: hud_count() == 0)
-            ui('set value of attribute "AXFullScreen" of window "Multi Codex" to false')
+            fullscreen(False)
             wait_for("ordinary Space restores native HUD", lambda: hud_count() == 1)
             report["checks"].append(
                 {
