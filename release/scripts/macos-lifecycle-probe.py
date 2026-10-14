@@ -267,19 +267,21 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             'click menu item "Open VS Code" of menu 1 of menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2'
         )
 
-        def choose_workspace():
-            return (
-                ui(
-                    'repeat with element in entire contents of window "Multi Codex"\ntry\nif role of element is "AXButton" and (name of element is "Choose this folder" or description of element is "Choose this folder") then\nperform action "AXPress" of element\nreturn "clicked"\nend if\nend try\nend repeat\nreturn "waiting"'
-                )
-                == "clicked"
-            )
-
-        wait_for("workspace chooser opened by the account menu", choose_workspace)
+        # The modal traps focus with its close button first and folder choice
+        # last. Use native keyboard input because System Events does not always
+        # enumerate descendants of WKWebView's accessibility web area.
+        time.sleep(1)
+        foreground()
+        ui("key code 48 using shift down")
+        ui("keystroke space")
         wait_for(
             "account menu launches isolated editor",
-            lambda: str(data / "profiles" / profile_id / "vscode-user-data")
-            in subprocess.check_output(["/bin/ps", "-axo", "command="], text=True),
+            lambda: any(
+                profile_id in line and "Code" in line
+                for line in subprocess.check_output(
+                    ["/bin/ps", "-axo", "command="], text=True
+                ).splitlines()
+            ),
             timeout=60,
         )
         report["checks"].append({"accountLaunchAfterCloseCycles": True})
