@@ -153,13 +153,19 @@ try {
       const nativeThread = nativeRead?.result?.thread;
       states.push({ pages: await record.targets().then(pages => pages.map(p => ({id:p.id,type:p.type,title:p.title,url:p.url}))).catch(() => []), nativeReadError: nativeRead?.error?.code ?? null, nativeTurns: nativeThread?.turns?.length ?? null,
         fixtureInputInNativeHistory: JSON.stringify(nativeThread?.turns ?? []).includes('HUD_EXACT_SESSION_A_FIXTURE') });
-      if (record.trace) await writeFile(join(evidence, `rpc-metadata-${index}.jsonl`), await readFile(record.trace).catch(() => ''));
+      if (record.trace) {
+        const metadata = await readFile(record.trace, 'utf8').catch(() => '');
+        await writeFile(join(evidence, `rpc-metadata-${index}.jsonl`), metadata);
+        console.log(`Native RPC metadata ${index}:`, metadata.split('\n').filter(Boolean).slice(-80).join('\n'));
+      }
       states.push(await record.eval("({url:location.href,title:document.title,text:(document.body?.innerText??'').slice(0,4000),buttons:[...document.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().width).map(b=>b.innerText)})").catch(() => ({ unavailable: true })));
       const capture = await record.cdp('Page.captureScreenshot', {}).catch(() => null);
       if (capture?.result?.data) await writeFile(join(evidence, `fixture-${index}.png`), Buffer.from(capture.result.data, 'base64'));
     }
     if (process.platform === 'darwin') { try { execFileSync('/usr/sbin/screencapture', ['-x', join(evidence, 'native-screen.png')]); } catch {} }
-    await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: false, source: process.env.GITHUB_SHA, stage, runtimeSha256, failure: error.message, states }, null, 2));
+    const report = { passed: false, source: process.env.GITHUB_SHA, stage, runtimeSha256, failure: error.message, states };
+    console.log(JSON.stringify(report, null, 2));
+    await writeFile(join(evidence, 'result.json'), JSON.stringify(report, null, 2));
   }
   throw error;
 } finally {
