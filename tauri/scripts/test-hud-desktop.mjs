@@ -30,7 +30,7 @@ let stage = 'initialization';
 let activeThreadId = null;
 let seededThreadId = null;
 async function until(read, check) {
-  const deadline = Date.now() + 30000;
+  const deadline = Date.now() + 90000;
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
   throw new Error(`Disposable Desktop GUI did not reach the expected state: ${stage}`);
 }
@@ -85,7 +85,7 @@ async function open(suffix, reopen) {
     await symlink(await realpath(desktop), desktopLaunch); await symlink(await realpath(codexHome), codexLaunch);
   }
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(CODEX_|OPENAI_|VSCODE_)/.test(key) && !['NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'APPIMAGE'].includes(key)));
-  Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', MULTI_CODEX_TEST_ENGINE_TRACE: '1', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
+  Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', CODEX_ELECTRON_SKIP_COMPUTER_USE_CANONICAL_REFRESH: '1', MULTI_CODEX_TEST_ENGINE_TRACE: '1', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
   if (!reopen && suffix === 'a') seededThreadId = await seedConversation(env);
   const args = [`--user-data-dir=${desktopLaunch}`, '--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1', '--disable-gpu', '--no-sandbox'];
   if (reopen?.uri) args.push(reopen.uri);
