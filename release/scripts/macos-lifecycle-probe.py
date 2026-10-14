@@ -118,14 +118,15 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         and key not in ("ELECTRON_RUN_AS_NODE", "NODE_OPTIONS")
     }
     env.update(
-        HOME=str(root),
         CODEX_HOME=str(global_home),
         MULTI_CODEX_DATA_DIR=str(data),
         XDG_DATA_HOME=str(root / "xdg-data"),
         XDG_CONFIG_HOME=str(root / "config"),
         PATH="/usr/bin:/bin:/usr/sbin:/sbin",
     )
-    # A synthetic HOME has no login Keychain. Provision one for this fixture
+    # Keep the native runner HOME so Keychain Services resolves the user
+    # domain correctly; explicit app/Codex/XDG paths remain disposable.
+    # Provision a private Keychain for this fixture
     # so account callbacks exercise the real credential backup, not an absent
     # or locked runner keychain. Restore the runner selection before disposal.
     assert os.environ.get("GITHUB_ACTIONS") == "true", "Native Keychain selection is runner-only"
