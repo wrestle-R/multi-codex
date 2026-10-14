@@ -337,9 +337,15 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
                 foreground()
                 ui('keystroke "q" using command down')
             else:
-                applescript(
-                    'tell application "System Events" to tell process "Dock"\nperform action "AXShowMenu" of UI element "Multi Codex" of list 1\nclick menu item "Quit" of menu 1 of UI element "Multi Codex" of list 1\nend tell'
-                )
+                def quit_from_dock():
+                    return applescript(
+                        'tell application "System Events" to tell process "Dock"\n'
+                        'if not (exists menu 1 of UI element "Multi Codex" of list 1) then perform action "AXShowMenu" of UI element "Multi Codex" of list 1\n'
+                        'if exists menu item "Quit" of menu 1 of UI element "Multi Codex" of list 1 then\n'
+                        'click menu item "Quit" of menu 1 of UI element "Multi Codex" of list 1\nreturn "clicked"\n'
+                        'end if\nreturn "waiting"\nend tell'
+                    ) == "clicked"
+                wait_for("Dock Quit menu available", quit_from_dock)
             if process.wait(timeout=15) != 0 or process_ids():
                 raise RuntimeError(f"{quit_kind} did not exit cleanly")
             report["checks"].append(

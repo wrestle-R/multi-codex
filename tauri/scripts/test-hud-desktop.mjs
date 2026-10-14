@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
+import { createRequire } from 'node:module';
 import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, symlink, readlink, realpath } from 'node:fs/promises';
 import { randomUUID, createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
@@ -17,7 +18,9 @@ const runtimeArchive = process.platform === 'darwin' ? join(dirname(binary), '..
 async function digest(path) { const hash = createHash('sha256'); for await (const chunk of createReadStream(path)) hash.update(chunk); return hash.digest('hex'); }
 const runtimeSha256 = await digest(runtimeArchive);
 if (!helper || !helper.startsWith('/')) throw new Error('Supply an explicit freshly built native helper');
-const root = await mkdtemp(join(tmpdir(), 'mc-hud-desktop-')); const service = await localService(); const windows = [];
+const { JsonLines, RpcPeer } = createRequire(import.meta.url)('../../extension/dist/core.cjs');
+const responseMarker = 'HUD_EXACT_SESSION_A_RESPONSE_FIXTURE';
+const root = await mkdtemp(join(tmpdir(), 'mc-hud-desktop-')); const service = await localService({ responseText: responseMarker }); const windows = [];
 const evidence = process.env.HUD_GUI_OUTPUT;
 await writeFile(join(root, 'disposable-hud-fixture'), 'inert-fixture');
 const dataRoot = join(root, 'data');
@@ -25,6 +28,7 @@ const profiles = [];
 const macAliases = process.platform === 'darwin';
 let stage = 'initialization';
 let activeThreadId = null;
+let seededThreadId = null;
 async function until(read, check) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
@@ -36,6 +40,28 @@ async function dismissFixtureAnnouncement(record) {
   return record.eval("(()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Continue with current model');if(button&&button.getBoundingClientRect().width){button.click();return true}return false})()");
 }
 const quote = value => `'${value.replaceAll("'", "'\"'\"'")}'`;
+async function seedConversation(env) {
+  const child = spawn(engine, ['app-server'], { cwd: root, env, stdio: ['pipe', 'pipe', 'ignore'] });
+  const lines = new JsonLines(child.stdout, child.stdin); const rpc = new RpcPeer(lines, 'hud-seed:');
+  const completed = [];
+  lines.on('message', message => { if (message.method === 'turn/completed') completed.push(message.params.threadId); });
+  try {
+    await rpc.request('initialize', { clientInfo: { name: 'hud_persisted_fixture', version: '1' }, capabilities: { experimentalApi: true } });
+    const started = await rpc.request('thread/start', { cwd: root, model: 'gpt-5.4' });
+    const id = started.thread.id;
+    await rpc.request('turn/start', { threadId: id, input: [{ type: 'text', text: 'HUD_EXACT_SESSION_A_FIXTURE' }] });
+    await until(async () => completed, completed => completed.includes(id));
+    await rpc.request('thread/name/set', { threadId: id, name: 'Fixture A navigation' });
+    const read = await rpc.request('thread/read', { threadId: id, includeTurns: true });
+    assert.ok(JSON.stringify(read.thread.turns).includes('HUD_EXACT_SESSION_A_FIXTURE'));
+    assert.ok(JSON.stringify(read.thread.turns).includes(responseMarker));
+    return id;
+  } finally {
+    rpc.close(); child.stdin.end();
+    if (child.exitCode === null) { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited; }
+  }
+}
+
 async function open(suffix, reopen) {
   const id = reopen?.id ?? randomUUID();
   const home = join(dataRoot, 'profiles', id); const codexHome = join(home, 'codex-home'); const desktop = join(home, 'desktop-data');
@@ -60,6 +86,7 @@ async function open(suffix, reopen) {
   }
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(CODEX_|OPENAI_|VSCODE_)/.test(key) && !['NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'APPIMAGE'].includes(key)));
   Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', MULTI_CODEX_TEST_ENGINE_TRACE: '1', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
+  if (!reopen && suffix === 'a') seededThreadId = await seedConversation(env);
   const args = [`--user-data-dir=${desktopLaunch}`, '--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1', '--disable-gpu', '--no-sandbox'];
   if (reopen?.uri) args.push(reopen.uri);
   await rm(join(desktop, 'DevToolsActivePort'), { force: true });
@@ -98,12 +125,8 @@ try {
   for (const record of [a, b]) {
     const account = await record.rpc('account/read', { refreshToken: false }); assert.equal(account.error, undefined); assert.ok(account.result.account.email.includes('synthetic-account-'));
   }
-  const started = await a.rpc('thread/start', { cwd: root, model: 'gpt-5.4' }); assert.equal(started.error, undefined); const id = started.result.thread.id; activeThreadId = id;
+  const id = seededThreadId; assert.ok(id); activeThreadId = id;
   const snapshots = async () => Promise.all((await readdir(join(dataRoot, 'hud/instances')).catch(() => [])).filter(name => name.endsWith('.json')).map(async name => JSON.parse(await readFile(join(dataRoot, 'hud/instances', name), 'utf8').catch(() => 'null'))));
-  await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]));
-  const turn = await a.rpc('turn/start', { threadId: id, input: [{ type: 'text', text: 'HUD_EXACT_SESSION_A_FIXTURE' }] }); assert.equal(turn.error, undefined);
-  await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]?.status === 'idle' && s.sessions[id]?.tokens));
-  await a.rpc('thread/name/set', { threadId: id, name: 'Fixture A navigation' });
   const uri = `codex://threads/${id}`;
   await dismissFixtureAnnouncement(a);
   stage = 'exact-account warm navigation';
@@ -126,8 +149,11 @@ try {
       await navigateWarm();
     }
     return a.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''");
-  }, value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
-  assert.equal((await b.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''")).includes('HUD_EXACT_SESSION_A_FIXTURE'), false);
+  }, value => value?.includes(responseMarker));
+  assert.equal((await b.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''")).includes(responseMarker), false);
+  const warmHistory = await a.rpc('thread/read', { threadId: id, includeTurns: true });
+  assert.ok(JSON.stringify(warmHistory.result.thread.turns).includes('HUD_EXACT_SESSION_A_FIXTURE'));
+  await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]));
   a.socket.close();
   const aExited = once(a.child, 'exit'); process.kill(-a.child.pid, 'SIGTERM'); await aExited;
   const reopened = await open('a', { id:a.id, uri });
@@ -139,7 +165,9 @@ try {
       await once(retry, 'exit');
     }
     return reopened.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''");
-  }, value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
+  }, value => value?.includes(responseMarker));
+  const coldHistory = await reopened.rpc('thread/read', { threadId: id, includeTurns: true });
+  assert.deepEqual(coldHistory.result.thread.turns, warmHistory.result.thread.turns);
   for (const record of [reopened, b]) assert.equal((await readFile(join(record.codexHome, 'auth.json'), 'utf8')) === record.auth, true, 'Disposable login bytes must remain unchanged');
   assert.equal(await digest(runtimeArchive), runtimeSha256, 'Pinned Desktop runtime changed during acceptance');
   console.log('Verified actual Desktop GUI uses the passive proxy, exact thread URI reaches only the scoped account, cold reopening restores its transcript, and both inert logins stay unchanged.');
