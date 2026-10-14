@@ -71,7 +71,7 @@ fn kde_shortcut() -> Result<(), String> {
         .tempfile()
         .map_err(|e| e.to_string())?;
     use std::io::Write;
-    file.write_all(b"registerShortcut('MultiCodexHud', 'Show or hide Multi Codex HUD', 'Meta+Shift+H', function(){ callDBus('com.multicodex.Hud','/com/multicodex/Hud','com.multicodex.Hud1','Toggle'); });").map_err(|e| e.to_string())?;
+    file.write_all(b"registerShortcut('MultiCodexHud', 'Show or hide Multi Codex Orbit', 'Meta+Shift+H', function(){ callDBus('com.multicodex.Hud','/com/multicodex/Hud','com.multicodex.Hud1','Toggle'); });").map_err(|e| e.to_string())?;
     let index: i32 = scripting
         .call(
             "loadScript",
@@ -161,7 +161,7 @@ fn hyprland_visible(x: f64, y: f64) -> Result<bool, String> {
     let clients = json_command("clients")?;
     let clients = clients.as_array().ok_or("Missing window inventory")?;
     for window in clients {
-        if window["pid"] == std::process::id() && window["title"] == "Multi Codex HUD" {
+        if window["pid"] == std::process::id() && window["title"] == "Multi Codex Orbit" {
             if let Some(address) = window["address"]
                 .as_str()
                 .filter(|a| a.starts_with("0x") && a[2..].chars().all(|c| c.is_ascii_hexdigit()))
@@ -250,7 +250,7 @@ pub fn geometry(x: f64, y: f64, width: f64, height: f64) {
             if let Some(window) = clients.as_array().and_then(|windows| {
                 windows
                     .iter()
-                    .find(|w| w["pid"] == std::process::id() && w["title"] == "Multi Codex HUD")
+                    .find(|w| w["pid"] == std::process::id() && w["title"] == "Multi Codex Orbit")
             }) {
                 if let Some(address) = window["address"].as_str().filter(|a| {
                     a.starts_with("0x") && a[2..].chars().all(|c| c.is_ascii_hexdigit())
@@ -287,7 +287,7 @@ pub fn position(window: &tauri::WebviewWindow, scale: f64) -> Option<(f64, f64)>
         let client = clients
             .as_array()?
             .iter()
-            .find(|w| w["pid"] == std::process::id() && w["title"] == "Multi Codex HUD")?;
+            .find(|w| w["pid"] == std::process::id() && w["title"] == "Multi Codex Orbit")?;
         return Some((client["at"][0].as_f64()?, client["at"][1].as_f64()?));
     }
     #[cfg(target_os = "linux")]

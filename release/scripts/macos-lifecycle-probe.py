@@ -161,6 +161,14 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         wait_for("one visible launcher", lambda: launcher_count() == 1)
         foreground()
         wait_for("visible menu-bar icon", lambda: menu_icon_count() == 1)
+        if variant == "candidate" and tuple(map(int, report["version"].split("."))) >= (1, 7, 0):
+            receipt = data / "release-notes.json"
+            if not receipt.exists():
+                def dismiss_upgrade_notes():
+                    return ui('set elements to entire contents of window "Multi Codex"\nrepeat with element in elements\ntry\nif role of element is "AXButton" and name of element is "Got it" then\nperform action "AXPress" of element\nreturn "dismissed"\nend if\nend try\nend repeat\nreturn "waiting"') == "dismissed"
+                wait_for("minimal upgrade notes", dismiss_upgrade_notes)
+                wait_for("durable upgrade acknowledgement", lambda: receipt.is_file() and json.loads(receipt.read_text())["version"] == report["version"])
+                report["checks"].append({"minimalUpgradeNotesAcknowledged": True})
         return process.pid
 
     def ui(command):
@@ -172,7 +180,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         return int(ui('return count of (windows whose name is "Multi Codex")'))
 
     def hud_count():
-        return int(ui('return count of (windows whose name is "Multi Codex HUD")'))
+        return int(ui('return count of (windows whose name is "Multi Codex Orbit")'))
 
     def menu_icon_count():
         return int(ui("return count of menu bar items of menu bar 2"))
@@ -256,7 +264,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             wait_for("compact native HUD visible", lambda: hud_count() == 1)
             dimensions = [
                 int(value.strip())
-                for value in ui('return size of window "Multi Codex HUD"').split(",")
+                for value in ui('return size of window "Multi Codex Orbit"').split(",")
             ]
             if len(dimensions) != 2 or not (
                 32 <= dimensions[0] < 400 and 32 <= dimensions[1] < 150

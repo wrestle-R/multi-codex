@@ -44,6 +44,7 @@ export default function Hud() {
         setView(next)
         const attention = next.accounts.flatMap(account => orderedSessions(account.sessions).filter(s => s.needsAttention && !seen.current.has(s.eventKey)).map(session => ({ account, session })))
         for (const event of attention) seen.current.add(event.session.eventKey)
+        if (!next.settings.enabled) { clearTimeout(popupTimer.current); setPopup(null); setHovered(null); return }
         if (attention.length) {
           // Receipts prevent redisplaying a popup after a renderer restart;
           // these are separate from acknowledging the persistent badge.
@@ -67,9 +68,10 @@ export default function Hud() {
   const accounts = view.accounts.filter(account => !view.settings.onlyOpen || account.sessions.length > 0)
   const account = view.accounts.find(a => a.id === hovered)
   const reduced = view.settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches
+  if (!view.settings.enabled) return null
   return <main className="hud-shell" style={{ opacity: view.settings.opacity, "--hud-slot": `${view.settings.size}px` } as React.CSSProperties} onMouseLeave={() => setHovered(null)} onKeyDown={event => { if (event.key === "Escape") { setHovered(null); setError("") } }}>
     <div className="hud-strip" aria-label="Codex Desktop accounts">
-      <button className="hud-drag" aria-label="Drag HUD" onPointerDown={event => { if (event.button === 0) void hudCall("hud_drag") }}>⠿</button>
+      <button className="hud-drag" aria-label="Drag Orbit" onPointerDown={event => { if (event.button === 0) void hudCall("hud_drag") }}>⠿</button>
       {accounts.map(account => {
         const sessions = orderedSessions(account.sessions)
         return <div className="hud-account" key={account.id} onMouseEnter={() => setHovered(account.id)} onFocus={() => setHovered(account.id)}>
@@ -80,7 +82,7 @@ export default function Hud() {
         </div>
       })}
       {!accounts.length && <span className="hud-empty">Codex</span>}
-      <button className="hud-hide" aria-label="Hide HUD" onClick={() => { void hudCall("hud_toggle") }}>−</button>
+      <button className="hud-hide" aria-label="Hide Orbit" onClick={() => { void hudCall("hud_toggle") }}>−</button>
     </div>
     {account && <section className="hud-panel" aria-label={`${account.name} usage and sessions`}>
       <header><AccountAvatar id={account.id} identity={account.avatar} size={36} /><div><strong>{account.name}</strong><small>{account.sessions.length} open {account.sessions.length === 1 ? "chat" : "chats"}</small></div></header>

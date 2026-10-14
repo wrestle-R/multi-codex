@@ -3,9 +3,12 @@ import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import App, { formatStorage } from "./App"
 import { limitsCacheKey } from "./lib/limits-cache"
+import { defaultHudSettings } from "./lib/hud"
 import type { Profile, UpdateProgress } from "./lib/types"
 
 const api = vi.hoisted(() => ({
+  getAppRelease: vi.fn(),
+  acknowledgeAppRelease: vi.fn(),
   getDesktopInventory: vi.fn(),
   discardPlacement: vi.fn(),
   getExecutableSettings: vi.fn(),
@@ -43,6 +46,8 @@ const api = vi.hoisted(() => ({
 }))
 
 vi.mock("./lib/desktop-api", () => api)
+const orbitApi = vi.hoisted(() => ({ call: vi.fn() }))
+vi.mock("./lib/hud", async importOriginal => ({ ...await importOriginal<typeof import("./lib/hud")>(), hudCall: orbitApi.call }))
 const menuEvents = vi.hoisted(() => new Map<string, (event: any) => unknown>())
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async (name: string, handler: (event: any) => unknown) => {
   menuEvents.set(name, handler)
@@ -63,6 +68,9 @@ let deviceLoginListener: ((event: { id: string; output?: string; completed: bool
 
 beforeEach(() => {
   menuEvents.clear()
+  orbitApi.call.mockReset().mockImplementation(async (method: string) => method === "hud_snapshot" ? { settings: defaultHudSettings, accounts: [] } : method === "hud_monitors" ? [] : undefined)
+  api.getAppRelease.mockReset().mockResolvedValue({ version: "1.7.0", showNotes: false })
+  api.acknowledgeAppRelease.mockReset().mockResolvedValue(undefined)
   localStorage.clear()
   api.getTerminalOptions.mockReset().mockResolvedValue([{ id: "automatic", label: "Automatic", available: true }, { id: "konsole", label: "Konsole", available: true }, { id: "kitty", label: "Kitty", available: true }, { id: "ghostty", label: "Ghostty", available: false }])
   api.listProfiles.mockReset().mockResolvedValue([profile])
@@ -257,7 +265,7 @@ describe("Multi Codex", () => {
     await waitFor(() => expect(api.launchProfile).toHaveBeenCalledWith(profile.id, "/Users/test/My Projects", null, null))
     expect(api.getDesktopInventory).not.toHaveBeenCalled()
     expect(screen.queryByRole("dialog", { name: "Choose a desktop" })).not.toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Launch settings" }))
+    await user.click(screen.getByRole("button", { name: "Settings" }))
     expect(screen.queryByLabelText("Show desktop picker before launching")).not.toBeInTheDocument()
   })
 
@@ -265,7 +273,7 @@ describe("Multi Codex", () => {
     const user = userEvent.setup()
     api.launchProfile.mockRejectedValueOnce(new Error("VS Code unavailable"))
     render(<App />)
-    await user.click(screen.getByRole("button", { name: "Launch settings" }))
+    await user.click(screen.getByRole("button", { name: "Settings" }))
     const toggle = await screen.findByLabelText("Show desktop picker before launching")
     await waitFor(() => expect(toggle).toBeEnabled())
     await user.click(toggle)
@@ -285,7 +293,7 @@ describe("Multi Codex", () => {
   it("saves explicit tool paths through launch settings", async () => {
     const user = userEvent.setup()
     render(<App />)
-    await user.click(screen.getByRole("button", { name: "Launch settings" }))
+    await user.click(screen.getByRole("button", { name: "Settings" }))
     await user.click(await screen.findByText("Advanced"))
     const input = await screen.findByLabelText("VS Code executable")
     await waitFor(() => expect(input).toBeEnabled())
@@ -864,7 +872,7 @@ it("uses the existing picker for a preferred folder without launching or saving 
   api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, preferredWorkspace: "/home/test/Projects" })
   api.listWorkspaceDirectories.mockImplementation(async (path: string) => ({ path, parentPath: "/home/test", directories: path.endsWith("Projects") ? [{ name: "Client work", path: `${path}/Client work` }] : [] }))
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   await waitFor(() => expect(screen.getByRole("button", { name: "Browse" })).toBeEnabled())
   await user.click(screen.getByRole("button", { name: "Browse" }))
   await user.click(await screen.findByRole("button", { name: /Client work/ }))
@@ -875,7 +883,7 @@ it("uses the existing picker for a preferred folder without launching or saving 
   await user.click(screen.getByRole("button", { name: "Browse" }))
   await screen.findByRole("button", { name: "Choose this folder" })
   await user.keyboard("{Escape}")
-  expect(screen.getByRole("dialog", { name: "Folders and launching" })).toBeInTheDocument()
+  expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument()
   expect(screen.getByLabelText("Preferred folder")).toHaveValue("/home/test/Projects/Client work")
   await user.click(screen.getByRole("button", { name: "Save settings" }))
   await waitFor(() => expect(api.saveExecutableSettings).toHaveBeenCalledWith(expect.objectContaining({ preferredWorkspace: "/home/test/Projects/Client work" })))
@@ -885,7 +893,7 @@ it.each([[true, false], [false, true], [false, false]])("hides the whole app-cho
   const user = userEvent.setup()
   api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled, codexCliAvailable: false, standaloneInstalled, standaloneVerified: false })
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   await waitFor(() => expect(screen.getByRole("button", { name: "Save settings" })).toBeEnabled())
   expect(screen.getByText("Open accounts with")).toBeInTheDocument()
   expect(screen.getByRole("radio", { name: "CLI only" })).toBeDisabled()
@@ -895,7 +903,7 @@ it("shows the isolation gate only when both apps are installed", async () => {
   const user = userEvent.setup()
   api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: false })
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   expect(await screen.findByText("Open accounts with")).toBeInTheDocument()
   expect(screen.getByRole("radio", { name: "VS Code" })).toBeChecked()
   expect(screen.getByRole("radio", { name: "Codex" })).toBeDisabled()
@@ -908,7 +916,7 @@ it("hides the Linux toggle during detection and on Mac after detection", async (
   let detect: ((value: unknown) => void) | undefined
   api.getLaunchTargets.mockImplementation(() => new Promise(resolve => { detect = resolve }))
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   expect(screen.queryByLabelText("Show desktop picker before launching")).not.toBeInTheDocument()
   detect?.({ platform: "macos", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false })
   await waitFor(() => expect(screen.getByRole("button", { name: "Save settings" })).toBeEnabled())
@@ -932,7 +940,7 @@ it("does not overwrite saved settings when detection fails", async () => {
   const user = userEvent.setup()
   api.getLaunchTargets.mockRejectedValue(new Error("Detection unavailable"))
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   expect(await screen.findByRole("alert")).toHaveTextContent("Detection unavailable")
   expect(screen.getByRole("button", { name: "Save settings" })).toBeDisabled()
   expect(api.saveExecutableSettings).not.toHaveBeenCalled()
@@ -959,7 +967,7 @@ it('saves Both and updates the account buttons without restarting', async () => 
   api.saveExecutableSettings.mockImplementation(async value => { settings = value; return value })
   api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: true })
   render(<App />)
-  await user.click(screen.getByRole('button', { name: 'Launch settings' }))
+  await user.click(screen.getByRole('button', { name: 'Settings' }))
   await user.click(await screen.findByRole('radio', { name: 'All available' }))
   await user.click(screen.getByRole('button', { name: 'Save settings' }))
   expect(await screen.findByRole('button', { name: 'Codex' })).toBeEnabled()
@@ -973,7 +981,7 @@ it('uses the only installed app on Mac and hides choices and desktops', async ()
   api.getLaunchEnvironment.mockResolvedValue({ defaultWorkspace: '/Users/Test/Project', capabilities: { backend: 'macos', enumerateDesktops: false, enumerateWindows: false, moveWindows: false, reason: null } })
   render(<App />)
   await screen.findByRole('heading', { name: 'Personal' })
-  await user.click(screen.getByRole('button', { name: 'Launch settings' }))
+  await user.click(screen.getByRole('button', { name: 'Settings' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Save settings' })).toBeEnabled())
   expect(screen.getByRole('radio', { name: 'CLI only' })).toBeEnabled()
   expect(screen.queryByLabelText('Show desktop picker before launching')).not.toBeInTheDocument()
@@ -1120,7 +1128,7 @@ it("saves a selected CLI terminal without changing the account or executable set
   const user = userEvent.setup()
   api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: "/home/test/.local/bin/codex", globalCodexHome: null, cliTerminal: "konsole", launchMode: "cli" })
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   const terminal = await screen.findByRole("combobox", { name: "CLI terminal" })
   await waitFor(() => expect(terminal).toHaveTextContent("Konsole"))
   await user.click(terminal)
@@ -1136,7 +1144,7 @@ it("preserves a saved terminal preference when it is no longer installed", async
   const user = userEvent.setup()
   api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, cliTerminal: "ghostty" })
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   const terminal = await screen.findByRole("combobox", { name: "CLI terminal" })
   await waitFor(() => expect(terminal).toHaveTextContent("Ghostty"))
   expect(terminal).toHaveTextContent("Unavailable")
@@ -1150,7 +1158,7 @@ it("preserves a saved terminal preference when it is no longer installed", async
 it("supports terminal keyboard selection and Escape without dismissing settings", async () => {
   const user = userEvent.setup()
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   const terminal = await screen.findByRole("combobox", { name: "CLI terminal" })
   await waitFor(() => expect(terminal).toBeEnabled())
   terminal.focus()
@@ -1162,7 +1170,7 @@ it("supports terminal keyboard selection and Escape without dismissing settings"
   await user.keyboard("{Enter}{ArrowUp}{Escape}")
   expect(terminal).toHaveTextContent("Konsole")
   expect(terminal).toHaveFocus()
-  expect(screen.getByRole("dialog", { name: "Folders and launching" })).toBeInTheDocument()
+  expect(screen.getByRole("dialog", { name: "Settings" })).toBeInTheDocument()
   await user.keyboard("{Enter}")
   await user.click(screen.getByLabelText("Preferred folder"))
   expect(screen.queryByRole("listbox")).not.toBeInTheDocument()
@@ -1175,7 +1183,7 @@ it("explains missing terminals without silently replacing an unavailable saved p
   api.getTerminalOptions.mockResolvedValue([{ id: "automatic", label: "Automatic", available: false }, { id: "kitty", label: "Kitty", available: false }])
   api.getExecutableSettings.mockResolvedValue({ codePath: null, codexPath: null, globalCodexHome: null, cliTerminal: "terminal" })
   render(<App />)
-  await user.click(screen.getByRole("button", { name: "Launch settings" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
   const terminal = await screen.findByRole("combobox", { name: "CLI terminal" })
   await waitFor(() => expect(terminal).toBeEnabled())
   expect(terminal).toHaveTextContent("Unavailable")
@@ -1244,4 +1252,42 @@ it("Mac menu refresh checks every saved account without opening a launch dialog"
   expect(api.checkProfileLimits).toHaveBeenCalledWith(profile.id)
   expect(api.checkProfileLimits).toHaveBeenCalledWith(peer.id)
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+})
+
+
+it("disables Orbit from Settings without overwriting other Orbit preferences", async () => {
+  const user = userEvent.setup()
+  render(<App />)
+  await screen.findByText("Personal")
+  await user.click(screen.getByRole("button", { name: "Settings" }))
+  const toggle = await screen.findByRole("checkbox", { name: /Enable Orbit/ })
+  await waitFor(() => expect(toggle).not.toBeDisabled())
+  await user.click(toggle)
+  await user.click(screen.getByRole("button", { name: "Save settings" }))
+  await waitFor(() => expect(orbitApi.call).toHaveBeenCalledWith("hud_set_enabled", { enabled: false }))
+  expect(orbitApi.call).not.toHaveBeenCalledWith("hud_save_settings", expect.anything())
+})
+
+it("shows minimal notes after upgrade, saves dismissal and reopens them from the version", async () => {
+  api.getAppRelease.mockResolvedValue({ version: "1.7.0", showNotes: true })
+  const user = userEvent.setup()
+  render(<App />)
+  const notes = await screen.findByRole("dialog", { name: "What’s new" })
+  expect(within(notes).getByText("Orbit.")).toBeVisible()
+  await user.click(within(notes).getByRole("button", { name: "Got it" }))
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "What’s new" })).not.toBeInTheDocument())
+  expect(api.acknowledgeAppRelease).toHaveBeenCalledTimes(1)
+  await user.click(screen.getByRole("button", { name: /Version 1.7.0/ }))
+  expect(await screen.findByRole("dialog", { name: "What’s new" })).toBeVisible()
+})
+
+it("keeps release notes available when saving their receipt fails", async () => {
+  api.getAppRelease.mockResolvedValue({ version: "1.7.0", showNotes: true })
+  api.acknowledgeAppRelease.mockRejectedValueOnce(new Error("disk unavailable"))
+  const user = userEvent.setup()
+  render(<App />)
+  await user.click(await screen.findByRole("button", { name: "Got it" }))
+  expect(await screen.findByRole("alert")).toHaveTextContent("Could not save your preference")
+  await user.click(screen.getByRole("button", { name: "Got it" }))
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "What’s new" })).not.toBeInTheDocument())
 })

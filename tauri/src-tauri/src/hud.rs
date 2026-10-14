@@ -107,6 +107,19 @@ pub fn hud_save_settings(
     *current = settings;
     Ok(())
 }
+/// Change only the enabled flag, preserving concurrent display/position edits.
+#[tauri::command]
+pub fn hud_set_enabled(enabled: bool, state: State<'_, HudState>) -> Result<(), String> {
+    let mut current = state
+        .settings
+        .lock()
+        .map_err(|_| "Orbit settings unavailable")?;
+    let mut next = current.clone();
+    next.enabled = enabled;
+    model::save_settings(&state.root, &next)?;
+    *current = next;
+    Ok(())
+}
 #[tauri::command]
 pub fn hud_toggle(state: State<'_, HudState>) {
     state.hidden.fetch_xor(true, Ordering::SeqCst);
@@ -219,7 +232,7 @@ pub fn setup(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
         "hud",
         tauri::WebviewUrl::App("index.html?view=hud".into()),
     )
-    .title("Multi Codex HUD")
+    .title("Multi Codex Orbit")
     .inner_size(400.0, 88.0)
     .min_inner_size(32.0, 32.0)
     .decorations(false)

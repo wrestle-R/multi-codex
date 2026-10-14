@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react"
 import { getExecutableSettings, getLaunchEnvironment, getLaunchTargets, getTerminalOptions, saveExecutableSettings } from "../lib/desktop-api"
 import type { ExecutableSettings, LaunchTargets, TerminalOption } from "../lib/types"
+import { defaultHudSettings, hudCall, type HudView } from "../lib/hud"
 import { TerminalPicker } from "./terminal-picker"
 import { useDialogFocus } from "./use-dialog-focus"
 import { WorkspacePickerDialog } from "./workspace-picker-dialog"
@@ -8,6 +9,7 @@ import { WorkspacePickerDialog } from "./workspace-picker-dialog"
 export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   const titleId = useId()
   const [settings, setSettings] = useState<ExecutableSettings>({ codePath: null, codexPath: null, globalCodexHome: null })
+  const [agentiersEnabled, setOrbitEnabled] = useState(defaultHudSettings.enabled)
   const [targets, setTargets] = useState<LaunchTargets | null>(null)
   const [terminals, setTerminals] = useState<TerminalOption[]>([])
   const [defaultFolder, setDefaultFolder] = useState("")
@@ -18,12 +20,13 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   const dialogRef = useDialogFocus(onClose, busy, !browsing)
   useEffect(() => {
     let active = true
-    void Promise.all([getExecutableSettings(), getLaunchTargets(), getLaunchEnvironment(), getTerminalOptions()])
-      .then(([value, apps, environment, terminalOptions]) => {
+    void Promise.all([getExecutableSettings(), getLaunchTargets(), getLaunchEnvironment(), getTerminalOptions(), hudCall<HudView>("hud_snapshot")])
+      .then(([value, apps, environment, terminalOptions, hud]) => {
         if (!active) return
         setSettings(value)
         setTargets(apps)
         setTerminals(terminalOptions)
+        setOrbitEnabled(hud.settings.enabled)
         setDefaultFolder(environment.defaultWorkspace)
       })
       .catch(error => { if (active) setError(String(error)) })
@@ -36,6 +39,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
     setError(null)
     try {
       await saveExecutableSettings(settings)
+      await hudCall("hud_set_enabled", { enabled: agentiersEnabled })
       onClose()
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))
@@ -46,7 +50,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
     <div className="dialog-layer" role="presentation" onMouseDown={event => event.target === event.currentTarget && !busy && onClose()}>
       <section ref={dialogRef} className="dialog launch-settings-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="settings-header">
-          <div><span className="eyebrow">Launch settings</span><h2 id={titleId}>Folders and launching</h2><p className="settings-intro">Make yourself at home.</p></div>
+          <div><span className="eyebrow">Settings</span><h2 id={titleId}>Settings</h2><p className="settings-intro">Make yourself at home.</p></div>
           <button type="button" className="dialog-close" aria-label="Close launch settings" disabled={busy} onClick={onClose}><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg></button>
         </header>
         <form onSubmit={event => void save(event)} className="launch-settings-form">
@@ -71,6 +75,11 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
           <TerminalPicker value={settings.cliTerminal ?? "automatic"} options={terminals} disabled={loading || busy || !targets} onChange={cliTerminal => setSettings(value => ({ ...value, cliTerminal }))} />
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
           </section>
+          {targets?.platform !== "windows" ? <section className="settings-section" aria-label="Orbit preferences">
+            <div className="settings-section-heading"><h3>Orbit</h3><p>Your Orbiters, at a glance.</p></div>
+            <label className="desktop-picker-setting"><input type="checkbox" checked={agentiersEnabled} disabled={loading || busy} onChange={event => setOrbitEnabled(event.target.checked)} /><span className="desktop-setting-copy">Enable Orbit<small>Show Orbiters and live Codex Desktop sessions.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label>
+            <p className="settings-help">Turn it off to hide the Orbiters and their reminders. Your chats keep running.</p>
+          </section> : null}
           <details className="advanced-settings">
             <summary>Advanced <span>Executable paths and Codex home</span></summary>
             <div className="advanced-settings-fields">

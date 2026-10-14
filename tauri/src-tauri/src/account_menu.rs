@@ -60,14 +60,14 @@ pub fn menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     menu.append(&MenuItem::with_id(
         app,
         "hud-toggle",
-        "Show / hide HUD",
+        "Show / hide Orbit",
         true,
         None::<&str>,
     )?)?;
     menu.append(&MenuItem::with_id(
         app,
         "hud-settings",
-        "HUD settings…",
+        "Orbit settings…",
         true,
         None::<&str>,
     )?)?;

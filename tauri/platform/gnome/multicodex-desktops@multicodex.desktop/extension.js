@@ -45,7 +45,7 @@ export default class MultiCodexDesktops extends Extension {
     }
     Hud(raw) {
         const request = JSON.parse(raw);
-        const hud = this._windows().find(w => w.get_pid() === request.pid && w.get_title() === 'Multi Codex HUD');
+        const hud = this._windows().find(w => w.get_pid() === request.pid && w.get_title() === 'Multi Codex Orbit');
         if (hud) { hud.make_above(); hud.stick(); if (request.rectangle) { const r = request.rectangle; hud.move_resize_frame(false, Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)); } }
         const monitor = global.display.get_monitor_index_for_rect(new Meta.Rectangle({x:Math.round(request.x), y:Math.round(request.y), width:1, height:1}));
         if (monitor < 0) throw new Error('HUD display no longer exists');

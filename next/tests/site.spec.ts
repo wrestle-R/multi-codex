@@ -170,3 +170,20 @@ test("CLI guide explains package limits, shared deletion and recovery without re
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
   }
 })
+
+
+test("Orbit is documented with its screenshot and an off switch on narrow screens", async ({ page }) => {
+  await page.goto("/")
+  const orbit = page.locator("#orbit")
+  await expect(orbit).toContainText("Orbiters")
+  await expect(orbit.getByRole("img")).toBeVisible()
+  await orbit.getByRole("link", { name: /Set up Orbit/ }).click()
+  await expect(page).toHaveURL(/\/docs\/orbit$/)
+  await expect(page.locator("article")).toContainText("Enable Orbit")
+  await expect(page.locator("article")).toContainText("next managed launch")
+  for (const width of [360, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto("/")
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+  }
+})
