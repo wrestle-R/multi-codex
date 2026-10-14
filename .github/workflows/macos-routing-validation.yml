@@ -7,6 +7,9 @@ on:
       - '.github/workflows/macos-routing-validation.yml'
       - 'tauri/scripts/test-hud-desktop.mjs'
       - 'cli/crates/core/examples/hud-navigation.rs'
+      - 'cli/crates/core/src/macos_navigation.rs'
+      - 'cli/crates/core/src/profiles.rs'
+      - 'cli/crates/core/src/lib.rs'
 permissions:
   contents: read
 jobs:
