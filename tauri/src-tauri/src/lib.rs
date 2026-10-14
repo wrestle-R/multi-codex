@@ -1,3 +1,6 @@
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/storage_inventory.rs"]
+mod storage_inventory;
 #[cfg(not(test))]
 use multi_codex_core::settings;
 #[cfg(test)]

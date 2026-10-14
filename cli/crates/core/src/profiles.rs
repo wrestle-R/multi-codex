@@ -697,22 +697,6 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     pub fn launch_profile(&self, id: &str, workspace: &Path) -> Result<()> {
         let code = resolve_command("code")?;
-        let bridge = self
-            .managed_bridge
-            .lock()
-            .map_err(|_| "Managed resource state unavailable")?
-            .clone();
-        if let Some(bridge) = bridge {
-            if !self.is_running(id)?
-                && crate::profile_layout::LayoutStore::open(&self.data_root)?
-                    .record(id)?
-                    .is_some_and(|record| {
-                        record.phase == crate::profile_layout::LayoutPhase::Committed
-                    })
-            {
-                self.migrate_profile_shared_storage(id, &bridge)?;
-            }
-        }
         self.launch_profile_with_command(id, workspace, &code)
     }
 
@@ -930,37 +914,33 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     pub fn storage_usage(&self) -> Result<StorageUsage> {
-        let bytes = directory_size(&self.data_root)?;
+        let inventory = crate::storage_inventory::Inventory::scan(&self.data_root)
+            .map_err(|_| "Could not measure allocated app storage")?;
+        let bytes = inventory.total();
         let mut profile_bytes = 0_u64;
         let mut reclaimable_bytes = 0_u64;
         let mut profiles = Vec::new();
         for profile in self.load_metadata()? {
             let root = self.data_root.join("profiles").join(&profile.id);
             let size = if root.exists() {
-                directory_size(&root)?
+                inventory.under(&root)
             } else {
                 0
             };
-            let reclaimable = reclaimable_size(&root)?;
-            let size_if_present = |path: PathBuf| -> Result<u64> {
-                // Do not follow a linked ancestor when computing nested categories.
-                for ancestor in path
-                    .ancestors()
-                    .take_while(|ancestor| *ancestor != self.data_root)
-                {
-                    match fs::symlink_metadata(ancestor) {
-                        Ok(metadata) if crate::managed_files::is_link(&metadata) => return Ok(0),
-                        Ok(_) => {}
-                        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(0),
-                        Err(_) => return Err("Could not inspect profile storage".into()),
-                    }
-                }
-                match fs::symlink_metadata(&path) {
-                    Ok(_) => directory_size(&path),
-                    Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(0),
-                    Err(_) => Err("Could not inspect profile storage".into()),
-                }
+            let cache_roots: Vec<_> = RECLAIMABLE_PATHS
+                .iter()
+                .map(|parts| {
+                    parts
+                        .iter()
+                        .fold(root.clone(), |path, part| path.join(part))
+                })
+                .collect();
+            let reclaimable = if self.is_running(&profile.id)? {
+                0
+            } else {
+                inventory.reclaimable(&cache_roots)
             };
+            let size_if_present = |path: PathBuf| -> Result<u64> { Ok(inventory.under(&path)) };
             let breakdown = ProfileStorageBreakdown {
                 codex_bytes: size_if_present(root.join("codex-home"))?,
                 vscode_bytes: size_if_present(root.join("vscode-user-data"))?,
@@ -999,22 +979,22 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             });
         }
         profiles.sort_by_key(|profile| std::cmp::Reverse(profile.bytes));
-        let size_if_present = |path: PathBuf| {
-            if path.exists() {
-                directory_size(&path)
-            } else {
-                Ok(0)
-            }
-        };
+        let size_if_present = |path: PathBuf| -> Result<u64> { Ok(inventory.under(&path)) };
         let shared_extensions_bytes = size_if_present(self.data_root.join("shared-vscode"))?;
         let shared_chats_bytes = size_if_present(self.data_root.join("shared-chats"))?;
         let migration_bytes = size_if_present(self.data_root.join("migrations"))?;
-        let backup_bytes = size_if_present(
-            self.data_root
-                .parent()
-                .ok_or("Backup parent is unavailable")?
-                .join("multi-codex-backups"),
-        )?;
+        let backups = self
+            .data_root
+            .parent()
+            .ok_or("Backup parent is unavailable")?
+            .join("multi-codex-backups");
+        let backup_bytes = if backups.exists() {
+            crate::storage_inventory::Inventory::scan(&backups)
+                .map_err(|_| "Could not measure backup storage")?
+                .total()
+        } else {
+            0
+        };
         Ok(StorageUsage {
             bytes,
             reclaimable_bytes,
@@ -1041,7 +1021,17 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             return Err("Close this profile's app windows before clearing its cache".to_string());
         }
         let root = self.data_root.join("profiles").join(id);
-        let reclaimed = reclaimable_size(&root)?;
+        let cache_roots: Vec<_> = RECLAIMABLE_PATHS
+            .iter()
+            .map(|parts| {
+                parts
+                    .iter()
+                    .fold(root.clone(), |path, part| path.join(part))
+            })
+            .collect();
+        let reclaimed = crate::storage_inventory::Inventory::scan(&self.data_root)
+            .map_err(|_| "Could not measure clearable cache")?
+            .reclaimable(&cache_roots);
         for components in RECLAIMABLE_PATHS {
             let path = components
                 .iter()
@@ -1495,9 +1485,11 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             }) {
                 continue;
             }
-            if queue.profiles.get(id).is_some_and(|status| {
-                status.state == "ready" && status.version == env!("CARGO_PKG_VERSION")
-            }) {
+            if queue
+                .profiles
+                .get(id)
+                .is_some_and(|status| status.state == "ready")
+            {
                 if crate::profile_layout::LayoutStore::open(&self.data_root)?
                     .catalog_structure(id)
                     .is_ok_and(|catalog| catalog.is_some())
@@ -3141,7 +3133,9 @@ mod tests {
     }
 
     fn fixture() -> (TempDir, ProfileService<MemorySecrets, AcceptAuth>) {
-        let temp = tempfile::tempdir().unwrap();
+        fixture_with_temp(tempfile::tempdir().unwrap())
+    }
+    fn fixture_with_temp(temp: TempDir) -> (TempDir, ProfileService<MemorySecrets, AcceptAuth>) {
         let root = temp.path().join("data/multi-codex");
         let service = ProfileService::new(
             root,
@@ -3513,7 +3507,12 @@ mod tests {
         fs::write(&outside, vec![0_u8; 1_000]).unwrap();
         symlink(&outside, service.data_root.join("profiles/outside-link")).unwrap();
 
-        assert_eq!(service.storage_usage().unwrap().bytes, 28);
+        assert_eq!(
+            service.storage_usage().unwrap().bytes,
+            crate::storage_inventory::Inventory::scan(&service.data_root)
+                .unwrap()
+                .total()
+        );
     }
 
     #[test]
@@ -3533,9 +3532,14 @@ mod tests {
             .iter()
             .find(|item| item.id == profile.metadata.id)
             .unwrap();
-        assert_eq!(item.reclaimable_bytes, 31);
+        assert_eq!(
+            item.reclaimable_bytes,
+            crate::storage_inventory::Inventory::scan(&service.data_root)
+                .unwrap()
+                .reclaimable(&[cache.clone()])
+        );
         assert!(item.bytes >= item.reclaimable_bytes);
-        assert_eq!(usage.reclaimable_bytes, 31);
+        assert_eq!(usage.reclaimable_bytes, item.reclaimable_bytes);
     }
 
     #[test]
@@ -3559,9 +3563,11 @@ mod tests {
         fs::write(&extension, "extension").unwrap();
         fs::write(&session, "session").unwrap();
 
+        let expected = service.storage_usage().unwrap().reclaimable_bytes;
+        assert!(expected > 0);
         assert_eq!(
             service.clear_profile_cache(&profile.metadata.id).unwrap(),
-            31
+            expected
         );
         assert!(!cache.exists());
         assert!(settings.exists());
@@ -3574,7 +3580,12 @@ mod tests {
     #[test]
     fn runtime_retention_never_touches_a_busy_profile() {
         use std::os::unix::net::UnixListener;
-        let (_temporary, service) = fixture();
+        let (_temporary, service) = fixture_with_temp(
+            tempfile::Builder::new()
+                .prefix("mc")
+                .tempdir_in("/tmp")
+                .unwrap(),
+        );
         let profile = service
             .add_profile(sample_input("Busy runtime fixture"))
             .unwrap();
@@ -3813,7 +3824,7 @@ mod tests {
         let workspace = temp.path().join("Project with spaces 工具");
         fs::create_dir(&workspace).unwrap();
         let launcher = temp.path().join("desktop");
-        write_executable(&launcher, b"#!/bin/sh\nprintf '%s\\n' \"$CODEX_HOME\" \"$CODEX_ELECTRON_USER_DATA_PATH\" \"$CODEX_SQLITE_HOME\" \"$PWD\" \"$@\" > \"$CODEX_HOME/launch-test\"\n");
+        write_executable(&launcher, b"#!/bin/sh\nprintf '%s\\n' \"$CODEX_HOME\" \"$CODEX_ELECTRON_USER_DATA_PATH\" \"$CODEX_SQLITE_HOME\" \"$PWD\" \"$@\" > \"$CODEX_HOME/launch-test.tmp\"\nmv \"$CODEX_HOME/launch-test.tmp\" \"$CODEX_HOME/launch-test\"\n");
         service
             .launch_standalone_with_command(&profile.metadata.id, &workspace, &launcher)
             .unwrap();

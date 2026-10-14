@@ -45,6 +45,12 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
     metadata = json.dumps(profiles).encode()
     (data / 'profiles.json').write_bytes(metadata)
     (data / 'profiles.json').chmod(0o600)
+    # This probe covers menus, not initial storage migration. Use the product's
+    # saved pause so an unrelated extension installer cannot outlive the fixture.
+    (data / 'migrations').mkdir()
+    queue = data / 'migrations/sharing-queue.json'
+    queue.write_text(json.dumps({'schema': 1, 'enabled': False, 'profiles': {}}))
+    queue.chmod(0o600)
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('CODEX_', 'VSCODE_', 'OPENAI_'))
            and key not in ('ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS')}
@@ -133,8 +139,6 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
             result = {'passed': True, 'checks': checks, 'accountMetadataUnchanged': True,
                       'metadataSha256': hashlib.sha256(metadata).hexdigest(),
                       'authenticatedLaunches': 'Not tested by this menu probe'}
-            (report_dir / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
-            print(json.dumps(result, indent=2))
         finally:
             if moved_codex and moved_codex.exists():
                 moved_codex.rename(codex_app)
@@ -145,3 +149,8 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
+
+# Emit success only after the disposable home has been completely removed.
+result['disposableFixtureCleanup'] = True
+(report_dir / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+print(json.dumps(result, indent=2))

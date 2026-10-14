@@ -989,6 +989,8 @@ fn validate_rollout(path: &Path, native_id: &str) -> Result<()> {
                     | "event_msg"
                     | "world_state"
                     | "token_usage_record"
+                    | "inter_agent_communication_metadata"
+                    | "retained_context"
             )
         ) {
             return Err("This native history contains an unverified record type; its original copy is retained".into());
@@ -1213,6 +1215,8 @@ mod tests {
             serde_json::json!({"type":"response_item","payload":{"type":"function_call","call_id":"call-inert","name":"fixture_tool","arguments":"{\"text\":\"測試 complete context\"}"}}),
             serde_json::json!({"type":"response_item","payload":{"type":"function_call_output","call_id":"call-inert","output":"original tool output\nsecond line"}}),
             serde_json::json!({"type":"compacted","payload":{"message":"retained native compaction","replacement_history":[{"role":"user","content":[{"type":"input_text","text":"original user context"}]}]}}),
+            serde_json::json!({"type":"inter_agent_communication_metadata","payload":{"source":"fixture-agent","target":"fixture-parent","message":"complete retained coordination"}}),
+            serde_json::json!({"type":"retained_context","payload":{"context":"complete retained context 測試","items":[{"role":"user","content":"original context"}]}}),
             serde_json::json!({"type":"event_msg","payload":{"type":"agent_message","message":"after compaction continuation"}}),
         ];
         let original = rows
@@ -1242,6 +1246,30 @@ mod tests {
             .map(|line| serde_json::from_str(line).unwrap())
             .collect();
         assert_eq!(actual, rows);
+    }
+    #[test]
+    fn unknown_native_records_still_block_import_without_changing_the_original() {
+        let (_temp, library, profile, thread, rollout, metadata) = fixture();
+        let original = format!(
+            "{}\n{}\n",
+            serde_json::json!({"type":"session_meta","payload":{"id":thread}}),
+            serde_json::json!({"type":"unknown_future_record","payload":{"context":"keep this intact"}})
+        );
+        fs::write(&rollout, &original).unwrap();
+        assert!(library
+            .import(
+                &profile,
+                &thread,
+                rollout.parent().unwrap(),
+                &rollout,
+                &metadata,
+                false,
+                &[]
+            )
+            .unwrap_err()
+            .contains("unverified record type"));
+        assert_eq!(fs::read_to_string(&rollout).unwrap(), original);
+        assert!(library.list(false, 0, 100).unwrap().is_empty());
     }
     #[test]
     fn catalog_events_follow_committed_updates_and_do_not_expose_turns_or_paths() {

@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-desktop"
-version = "1.6.0"
+version = "1.6.1"
 description = "Run isolated Codex accounts in separate VS Code windows"
 default-run = "multi-codex-desktop"
 authors = ["Russell Daniel Paul"]
@@ -55,4 +55,4 @@ tauri = { version = "2.11.2", default-features = false, features = ["test"] }
 
 [target.'cfg(windows)'.dependencies]
 junction = "1"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Memory"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_Memory"] }

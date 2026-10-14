@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.6.1", publishedAt: "2026-10-14T06:22:51Z", title: "Accurate disk usage and simpler storage settings", highlights: [
+    "Storage counts unique allocated files, shows honest GiB units and excludes active accounts from clearable cache.",
+    "Compact account rows keep detailed recovery and shared-chat controls under expandable sections.",
+    "Verified account launches reuse pinned shared packages; failed publications clear temporary staging.",
+  ] },
   { tag: "v1.5.3", publishedAt: "2026-10-13T06:25:57Z", title: "Self-contained AppImage helper libraries", highlights: [
     "Bundled WebKit helper programs inherit the AppImage library directories, so startup works without system WebKit installed.",
     "Release checks remove system WebKit before testing offline startup; Mac scripts retain /Applications/Multi Codex.app.",
@@ -90,6 +95,7 @@ export const releaseHistory = [
 // Group summaries describe the series as a whole; individual entries retain
 // their published versions, dates, anchors and website detail pages.
 const releaseSeries = [
+  { series: "1.6", title: "Shared storage and accurate disk usage", description: "Share Codex packages and conversations across saved accounts, measure disk space accurately and keep storage controls compact." },
   { series: "1.5", title: "Storage cleanup and signed updates", description: "Understand account storage, clear selected local conversations with a preview, and update the launcher through signed packages." },
   { series: "1.4", title: "Windows support and account switching", description: "Native Windows packages, Mac account menus, all-account usage refresh and connection recovery, with tested platform downloads." },
   { series: "1.3", title: "Desktop and CLI launch options", description: "Launch saved accounts in VS Code, Codex desktop or CLI, with folder preferences, terminal selection and usage reminders." },

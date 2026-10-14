@@ -2410,7 +2410,7 @@ dependencies = [
 
 [[package]]
 name = "multi-codex-core"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2436,7 +2436,7 @@ dependencies = [
 
 [[package]]
 name = "multi-codex-desktop"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "base64 0.22.1",
  "chrono",

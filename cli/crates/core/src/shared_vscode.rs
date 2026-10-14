@@ -39,6 +39,39 @@ pub struct GenerationCleanup {
     pub bytes: u64,
 }
 
+// Failed publications must not strand readonly copies in staging.
+struct StagingCleanup(PathBuf);
+impl Drop for StagingCleanup {
+    fn drop(&mut self) {
+        fn writable(path: &Path) -> std::io::Result<()> {
+            let metadata = fs::symlink_metadata(path)?;
+            if metadata.is_dir() && !files::is_link(&metadata) {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(
+                        path,
+                        fs::Permissions::from_mode(metadata.permissions().mode() | 0o700),
+                    )?;
+                }
+                for child in fs::read_dir(path)? {
+                    writable(&child?.path())?;
+                }
+            }
+            #[cfg(windows)]
+            if !files::is_link(&metadata) {
+                let mut permissions = metadata.permissions();
+                permissions.set_readonly(false);
+                fs::set_permissions(path, permissions)?;
+            }
+            Ok(())
+        }
+        if self.0.exists() && writable(&self.0).is_ok() {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+}
+
 pub struct ExtensionStore {
     data_root: PathBuf,
     root: PathBuf,
@@ -176,9 +209,11 @@ impl ExtensionStore {
         sources: &[PathBuf],
         consumers_closed: impl Fn() -> Result<()>,
     ) -> Result<Generation> {
+        consumers_closed()?;
         let mut packages = Vec::new();
         let id = Uuid::new_v4().to_string();
         let stage = self.root.join("staging").join(&id);
+        let _cleanup = StagingCleanup(stage.clone());
         files::directory(&self.data_root, &stage.join("packages"))?;
         for source in sources {
             let manifest = package_manifest(source)?;
@@ -979,7 +1014,19 @@ mod tests {
         assert!(store
             .publish(&sources, || Err("Consumer is running".into()))
             .is_err());
+        let checks = std::cell::Cell::new(0);
+        assert!(store
+            .publish(&sources, || {
+                checks.set(checks.get() + 1);
+                if checks.get() > 1 {
+                    Err("Consumer started during staging".into())
+                } else {
+                    Ok(())
+                }
+            })
+            .is_err());
         assert_eq!(store.active().unwrap().unwrap().id, first.id);
+        assert_eq!(fs::read_dir(store.root.join("staging")).unwrap().count(), 0);
         unprotect(&store.root);
     }
     #[test]
