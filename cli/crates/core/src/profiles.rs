@@ -820,19 +820,27 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         }
         let paths = self.profile_paths(id)?;
         let binary = crate::launch_targets::resolve_standalone()?;
-        if !profile_process_running(&paths.desktop_home) {
-            self.launch_standalone_with_thread(id, workspace, &binary, thread)?;
-            return Ok(());
-        }
         #[cfg(target_os = "macos")]
         {
-            crate::managed_files::checked(&self.data_root, &paths.desktop_home, false)?;
-            let pid = macos_desktop_pid(&binary, &paths.desktop_home)
-                .ok_or("The account's Codex window is starting or closing. Retry in a moment.")?;
-            return crate::macos_navigation::open(pid, thread);
+            // Electron can rewrite argv after focus/activation. Resolve the
+            // main executable and exact user-data environment before deciding
+            // this is a cold launch; a live account must never restore auth.
+            if let Some(pid) = macos_desktop_pid(&binary, &paths.desktop_home) {
+                crate::managed_files::checked(&self.data_root, &paths.desktop_home, false)?;
+                return crate::macos_navigation::open(pid, thread);
+            }
+            if profile_process_running(&paths.desktop_home) {
+                return Err(
+                    "The account's Codex window is starting or closing. Retry in a moment.".into(),
+                );
+            }
+            return self.launch_standalone_with_thread(id, workspace, &binary, thread);
         }
         #[cfg(not(target_os = "macos"))]
         {
+            if !profile_process_running(&paths.desktop_home) {
+                return self.launch_standalone_with_thread(id, workspace, &binary, thread);
+            }
             let workspace = if workspace.is_dir() {
                 canonical_workspace(workspace)?
             } else {
