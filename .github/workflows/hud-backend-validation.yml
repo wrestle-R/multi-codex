@@ -64,6 +64,7 @@ jobs:
           npm run build:desktop --prefix tauri
           cargo test --locked --manifest-path cli/Cargo.toml -p multi-codex-core
           cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml
+          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example hud-navigation
       - name: Native shared storage and passive Desktop protocol checks
         working-directory: extension
         env:
@@ -73,6 +74,7 @@ jobs:
           MULTI_CODEX_TEST_ENGINE='/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex' node --test tests/hud-native.test.mjs
       - name: Real Desktop exact-account navigation and cold reopen
         env:
+          MULTI_CODEX_TEST_HUD_NAVIGATION: ${{ github.workspace }}/tauri/src-tauri/target/debug/examples/hud-navigation
           HUD_GUI_OUTPUT: ${{ runner.temp }}/hud-backend-evidence/desktop-gui
           MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
           MULTI_CODEX_TEST_STANDALONE: /Applications/ChatGPT.app/Contents/MacOS/ChatGPT
