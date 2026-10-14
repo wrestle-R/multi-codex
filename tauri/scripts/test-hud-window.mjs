@@ -29,24 +29,24 @@ const app = spawn(process.env.MULTI_CODEX_TEST_LAUNCHER || resolve('src-tauri/ta
 let diagnostic = ''; app.stderr.on('data', chunk => { diagnostic = (diagnostic + chunk).slice(-3000); });
 try {
   const main = await until(async () => (await clients()).find(w => w.pid === app.pid && w.title === 'Multi Codex'), w => w && w.fullscreen === 1 && !w.floating);
-  const hud = await until(async () => (await clients()).find(w => w.pid === app.pid && w.title === 'Multi Codex HUD'), w => w?.mapped && w.floating && w.pinned && w.size[1] < 150);
+  const hud = await until(async () => (await clients()).find(w => w.pid === app.pid && w.title === 'Multi Codex Orbit'), w => w?.mapped && w.floating && w.pinned && w.size[1] < 150);
   assert.equal(hud.fullscreen, 0); assert.ok(hud.size[0] < 400); assert.ok(hud.size[1] < 150);
   await exec('busctl', ['--user', 'call', 'com.multicodex.Hud', '/com/multicodex/Hud', 'com.multicodex.Hud1', 'Toggle']);
-  await until(clients, windows => !windows.some(w => w.pid === app.pid && w.title === 'Multi Codex HUD' && w.mapped));
+  await until(clients, windows => !windows.some(w => w.pid === app.pid && w.title === 'Multi Codex Orbit' && w.mapped));
   await exec('busctl', ['--user', 'call', 'com.multicodex.Hud', '/com/multicodex/Hud', 'com.multicodex.Hud1', 'Toggle']);
-  await until(clients, windows => windows.some(w => w.pid === app.pid && w.title === 'Multi Codex HUD' && w.mapped));
+  await until(clients, windows => windows.some(w => w.pid === app.pid && w.title === 'Multi Codex Orbit' && w.mapped));
   await exec('hyprctl', ['eval', `local w=hl.get_window('address:${main.address}'); assert(w); hl.dispatch(hl.dsp.window.fullscreen_state({internal=2,client=2,window=w}))`]);
-  await until(clients, windows => !windows.some(w => w.pid === app.pid && w.title === 'Multi Codex HUD' && w.mapped));
+  await until(clients, windows => !windows.some(w => w.pid === app.pid && w.title === 'Multi Codex Orbit' && w.mapped));
   await exec('hyprctl', ['eval', `local w=hl.get_window('address:${main.address}'); assert(w); hl.dispatch(hl.dsp.window.fullscreen_state({internal=0,client=0,window=w}))`]);
-  await until(clients, windows => windows.some(w => w.pid === app.pid && w.title === 'Multi Codex HUD' && w.mapped));
+  await until(clients, windows => windows.some(w => w.pid === app.pid && w.title === 'Multi Codex Orbit' && w.mapped));
   await exec('hyprctl', ['eval', `local w=hl.get_window('address:${main.address}'); assert(w); hl.dispatch(hl.dsp.window.close({window=w}))`]);
   await until(clients, windows => !windows.some(w => w.pid === app.pid && w.title === 'Multi Codex' && w.mapped));
   assert.equal(app.exitCode, null);
-  assert.ok((await clients()).some(w => w.pid === app.pid && w.title === 'Multi Codex HUD' && w.mapped));
+  assert.ok((await clients()).some(w => w.pid === app.pid && w.title === 'Multi Codex Orbit' && w.mapped));
   console.log('Verified Hyprland HUD size/stacking, hide toggle, fullscreen hide/restore, and close-to-tray; saved accounts untouched.');
 } catch (error) {
   const windows = (await clients()).filter(w => w.pid === app.pid);
-  const hud = windows.find(w => w.title === 'Multi Codex HUD');
+  const hud = windows.find(w => w.title === 'Multi Codex Orbit');
   if (hud && process.env.MULTI_CODEX_TEST_HUD_SCREENSHOT) await exec('grim', ['-g', `${hud.at[0]},${hud.at[1]} ${hud.size[0]}x${hud.size[1]}`, process.env.MULTI_CODEX_TEST_HUD_SCREENSHOT]).catch(() => {});
   throw new Error(`${error.message}\n${diagnostic}\n${JSON.stringify(windows.map(w => ({title:w.title,at:w.at,size:w.size,pinned:w.pinned,floating:w.floating,fullscreen:w.fullscreen})))}`);
 }

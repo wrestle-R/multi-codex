@@ -149,6 +149,7 @@ use multi_codex_core::linux_desktops;
 #[cfg(all(windows, test))]
 #[path = "../../../cli/crates/core/src/windows_integration.rs"]
 mod desktop_integration;
+mod release_notes;
 mod updater;
 
 pub use extension_accounts::{run_account_helper, run_bridge_launcher};
@@ -958,6 +959,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             hud::hud_snapshot,
             hud::hud_save_settings,
+            hud::hud_set_enabled,
+            release_notes::get_app_release,
+            release_notes::acknowledge_app_release,
             hud::hud_toggle,
             hud::hud_set_expanded,
             hud::hud_open_session,

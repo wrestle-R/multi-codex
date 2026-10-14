@@ -42,3 +42,15 @@ it("shows an icon-only reminder with no chat title or reply controls", async () 
   fireEvent.click(popup)
   await waitFor(() => expect(api.call).toHaveBeenCalledWith("hud_open_session", expect.objectContaining({ eventKey: "account/private-title/1" })))
 })
+
+it("disabling Orbit suppresses Orbiters, popups and sound while leaving chats untouched", async () => {
+  const sound = vi.fn()
+  vi.stubGlobal("AudioContext", sound)
+  view.settings = { ...defaultHudSettings, enabled: false, sound: true }
+  view.accounts[0].sessions = [session("waiting", true)]
+  const { container } = render(<Hud />)
+  await waitFor(() => expect(container.querySelector(".hud-shell")).toBeNull())
+  expect(sound).not.toHaveBeenCalled()
+  expect(api.call).not.toHaveBeenCalledWith("hud_open_session", expect.anything())
+  vi.unstubAllGlobals()
+})

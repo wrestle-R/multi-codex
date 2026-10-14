@@ -6,7 +6,7 @@
         if (request.action === 'hud') {
             const output = workspace.screens.find(o => request.x >= o.geometry.x && request.y >= o.geometry.y && request.x < o.geometry.x + o.geometry.width && request.y < o.geometry.y + o.geometry.height);
             if (!output) throw new Error('HUD display no longer exists');
-            const hud = windows.find(w => w.pid === request.pid && w.caption === 'Multi Codex HUD');
+            const hud = windows.find(w => w.pid === request.pid && w.caption === 'Multi Codex Orbit');
             if (hud) { hud.keepAbove = true; hud.onAllDesktops = true; hud.skipTaskbar = true; hud.skipPager = true; if (request.rectangle) hud.frameGeometry = request.rectangle; }
             const fullscreen = windows.some(w => w.fullScreen && !w.minimized && w.output === output && (w.onAllDesktops || w.desktops.some(d => d.id === workspace.currentDesktop.id)));
             callDBus(request.callback, '/com/multicodex/KWinReply', 'com.multicodex.KWinReply1', 'Publish', request.nonce, JSON.stringify({supported:true, fullscreen, position:hud ? {x:hud.frameGeometry.x,y:hud.frameGeometry.y} : null}));

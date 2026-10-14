@@ -213,7 +213,7 @@ try:
     v = until(
         lambda v: any(
             (
-                w["title"] == "Multi Codex HUD"
+                w["title"] == "Multi Codex Orbit"
                 and w["above"]
                 and w["sticky"]
                 and (w["geometry"]["height"] < 150)
@@ -234,7 +234,7 @@ try:
             "Toggle",
         ]
     )
-    until(lambda v: all((w["title"] != "Multi Codex HUD" for w in v)))
+    until(lambda v: all((w["title"] != "Multi Codex Orbit" for w in v)))
     report["checks"].append("native HUD toggle hides")
     subprocess.check_call(
         [
@@ -247,19 +247,19 @@ try:
             "Toggle",
         ]
     )
-    until(lambda v: any((w["title"] == "Multi Codex HUD" for w in v)))
+    until(lambda v: any((w["title"] == "Multi Codex Orbit" for w in v)))
     report["checks"].append("native HUD toggle restores")
     mutate(
         "workspace.windowList().find(w=>w.caption==='Multi Codex').fullScreen=true;",
         "global.get_window_actors().find(a=>a.meta_window.get_title()==='Multi Codex').meta_window.make_fullscreen();",
     )
-    until(lambda v: all((w["title"] != "Multi Codex HUD" for w in v)))
+    until(lambda v: all((w["title"] != "Multi Codex Orbit" for w in v)))
     report["checks"].append("fullscreen hides HUD")
     mutate(
         "workspace.windowList().find(w=>w.caption==='Multi Codex').fullScreen=false;",
         "global.get_window_actors().find(a=>a.meta_window.get_title()==='Multi Codex').meta_window.unmake_fullscreen();",
     )
-    until(lambda v: any((w["title"] == "Multi Codex HUD" for w in v)))
+    until(lambda v: any((w["title"] == "Multi Codex Orbit" for w in v)))
     report["checks"].append("leaving fullscreen restores HUD")
     mutate(
         "workspace.windowList().find(w=>w.caption==='Multi Codex').closeWindow();",
@@ -267,7 +267,7 @@ try:
     )
     until(
         lambda v: all((w["title"] != "Multi Codex" for w in v))
-        and any((w["title"] == "Multi Codex HUD" for w in v))
+        and any((w["title"] == "Multi Codex Orbit" for w in v))
     )
     assert app.poll() is None
     report["checks"].append("closing launcher preserves HUD and process")
