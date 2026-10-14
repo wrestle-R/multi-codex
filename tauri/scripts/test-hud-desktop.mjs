@@ -1,7 +1,7 @@
 // Real Desktop GUI + passive proxy/deeplink proof with two inert local accounts.
 // No stored account, keychain login, global home or browser profile is imported.
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import { mkdtemp, mkdir, readFile, writeFile, readdir, rm, symlink, readlink, realpath } from 'node:fs/promises';
 import { randomUUID, createHash } from 'node:crypto';
@@ -24,6 +24,7 @@ const dataRoot = join(root, 'data');
 const profiles = [];
 const macAliases = process.platform === 'darwin';
 let stage = 'initialization';
+let activeThreadId = null;
 async function until(read, check) {
   const deadline = Date.now() + 30000;
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
@@ -47,7 +48,10 @@ async function open(suffix, reopen) {
   const auth = reopen ? await readFile(join(codexHome, 'auth.json'), 'utf8') : JSON.stringify(syntheticAuth(`synthetic-account-${suffix}`));
   if (!reopen) await writeFile(join(codexHome, 'auth.json'), auth, { mode: 0o600 });
   await writeFile(join(codexHome, 'config.toml'), service.config + '\ncli_auth_credentials_store = "file"\n');
-  const wrapper = join(home, 'engine.sh'); await writeFile(wrapper, `#!/bin/sh\nexec ${quote(helper)} --hud-proxy ${quote(engine)} ${quote(dataRoot)} ${quote(id)} "$@"\n`, { mode: 0o700 });
+  const trace = join(home, 'rpc-metadata.jsonl');
+  const instrumented = join(home, 'native-engine.sh');
+  await writeFile(instrumented, `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(resolve('tauri/scripts/fixtures/hud-engine-trace.mjs'))} ${quote(engine)} ${quote(trace)} "$@"\n`, { mode: 0o700 });
+  const wrapper = join(home, 'engine.sh'); await writeFile(wrapper, `#!/bin/sh\nexec ${quote(helper)} --hud-proxy ${quote(instrumented)} ${quote(dataRoot)} ${quote(id)} "$@"\n`, { mode: 0o700 });
   const desktopLaunch = macAliases ? `/tmp/multi-codex-desktop-${process.getuid()}/${id}` : desktop;
   const codexLaunch = macAliases ? `/tmp/multi-codex-codex-${process.getuid()}/${id}` : codexHome;
   if (macAliases && !reopen) {
@@ -55,13 +59,15 @@ async function open(suffix, reopen) {
     await symlink(await realpath(desktop), desktopLaunch); await symlink(await realpath(codexHome), codexLaunch);
   }
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(CODEX_|OPENAI_|VSCODE_)/.test(key) && !['NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'APPIMAGE'].includes(key)));
-  Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
+  Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', MULTI_CODEX_TEST_ENGINE_TRACE: '1', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
   const args = [`--user-data-dir=${desktopLaunch}`, '--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1', '--disable-gpu', '--no-sandbox'];
   if (reopen?.uri) args.push(reopen.uri);
   await rm(join(desktop, 'DevToolsActivePort'), { force: true });
   const child = spawn(binary, args, { cwd: home, env, stdio: 'ignore', detached: true });
-  const record = { child, id, env, args, codexHome, auth }; windows.push(record);
+  const record = { child, id, env, args, codexHome, auth, trace };
+  record.targets = () => fetch(`http://127.0.0.1:${record.port}/json`).then(response => response.json()); windows.push(record);
   const port = await until(async () => Number((await readFile(join(desktop, 'DevToolsActivePort'), 'utf8').catch(() => '')).split('\n')[0]), value => Number.isInteger(value) && value > 0 && value < 65536);
+  record.port = port;
   const pages = await until(async () => fetch(`http://127.0.0.1:${port}/json`).then(response => response.json()).catch(() => []), pages => pages.some(page => page.type === 'page' && page.url.startsWith('app:')));
   const target = pages.find(page => page.type === 'page' && page.url.startsWith('app:'));
   const socket = new WebSocket(target.webSocketDebuggerUrl); await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
@@ -92,7 +98,7 @@ try {
   for (const record of [a, b]) {
     const account = await record.rpc('account/read', { refreshToken: false }); assert.equal(account.error, undefined); assert.ok(account.result.account.email.includes('synthetic-account-'));
   }
-  const started = await a.rpc('thread/start', { cwd: root, model: 'gpt-5.4' }); assert.equal(started.error, undefined); const id = started.result.thread.id;
+  const started = await a.rpc('thread/start', { cwd: root, model: 'gpt-5.4' }); assert.equal(started.error, undefined); const id = started.result.thread.id; activeThreadId = id;
   const snapshots = async () => Promise.all((await readdir(join(dataRoot, 'hud/instances')).catch(() => [])).filter(name => name.endsWith('.json')).map(async name => JSON.parse(await readFile(join(dataRoot, 'hud/instances', name), 'utf8').catch(() => 'null'))));
   await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]));
   const turn = await a.rpc('turn/start', { threadId: id, input: [{ type: 'text', text: 'HUD_EXACT_SESSION_A_FIXTURE' }] }); assert.equal(turn.error, undefined);
@@ -143,10 +149,16 @@ try {
     await mkdir(evidence, { recursive: true }); const states = [];
     for (const [index, record] of windows.entries()) {
       if (!record.eval || record.child.exitCode !== null) continue;
+      const nativeRead = activeThreadId ? await record.rpc('thread/read', { threadId: activeThreadId, includeTurns: true }).catch(() => null) : null;
+      const nativeThread = nativeRead?.result?.thread;
+      states.push({ pages: await record.targets().then(pages => pages.map(p => ({id:p.id,type:p.type,title:p.title,url:p.url}))).catch(() => []), nativeReadError: nativeRead?.error?.code ?? null, nativeTurns: nativeThread?.turns?.length ?? null,
+        fixtureInputInNativeHistory: JSON.stringify(nativeThread?.turns ?? []).includes('HUD_EXACT_SESSION_A_FIXTURE') });
+      if (record.trace) await writeFile(join(evidence, `rpc-metadata-${index}.jsonl`), await readFile(record.trace).catch(() => ''));
       states.push(await record.eval("({url:location.href,title:document.title,text:(document.body?.innerText??'').slice(0,4000),buttons:[...document.querySelectorAll('button')].filter(b=>b.getBoundingClientRect().width).map(b=>b.innerText)})").catch(() => ({ unavailable: true })));
       const capture = await record.cdp('Page.captureScreenshot', {}).catch(() => null);
       if (capture?.result?.data) await writeFile(join(evidence, `fixture-${index}.png`), Buffer.from(capture.result.data, 'base64'));
     }
+    if (process.platform === 'darwin') { try { execFileSync('/usr/sbin/screencapture', ['-x', join(evidence, 'native-screen.png')]); } catch {} }
     await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: false, source: process.env.GITHUB_SHA, stage, runtimeSha256, failure: error.message, states }, null, 2));
   }
   throw error;

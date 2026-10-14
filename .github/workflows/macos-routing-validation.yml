@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/macos-routing-validation.yml'
       - 'tauri/scripts/test-hud-desktop.mjs'
+      - 'tauri/scripts/fixtures/hud-engine-trace.mjs'
       - 'cli/crates/core/examples/hud-navigation.rs'
       - 'cli/crates/core/src/macos_navigation.rs'
       - 'cli/crates/core/src/profiles.rs'
