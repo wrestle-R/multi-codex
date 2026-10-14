@@ -824,40 +824,34 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             self.launch_standalone_with_thread(id, workspace, &binary, thread)?;
             return Ok(());
         }
-        let workspace = if workspace.is_dir() {
-            canonical_workspace(workspace)?
-        } else {
-            dirs::home_dir().ok_or("Home directory unavailable")?
-        };
         #[cfg(target_os = "macos")]
-        let (codex_home, desktop_home) = {
-            let uid = unsafe { libc::geteuid() };
-            (
-                macos_vscode_alias_in(
-                    &PathBuf::from(format!("/tmp/multi-codex-codex-{uid}")),
-                    &paths.codex_home,
-                    id,
-                )?,
-                macos_vscode_alias_in(
-                    &PathBuf::from(format!("/tmp/multi-codex-desktop-{uid}")),
-                    &paths.desktop_home,
-                    id,
-                )?,
-            )
-        };
-        #[cfg(not(target_os = "macos"))]
-        let (codex_home, desktop_home) = (paths.codex_home, paths.desktop_home);
-        let mut command = build_standalone_command(&binary, &codex_home, &desktop_home, &workspace);
-        if let Some(thread) = thread {
-            command.arg(format!("codex://threads/{thread}"));
+        {
+            crate::managed_files::checked(&self.data_root, &paths.desktop_home, false)?;
+            let pid = macos_desktop_pid(&binary, &paths.desktop_home)
+                .ok_or("The account's Codex window is starting or closing. Retry in a moment.")?;
+            return crate::macos_navigation::open(pid, thread);
         }
-        let mut child = command
-            .spawn()
-            .map_err(|_| "Could not open the account's Codex chat")?;
-        std::thread::spawn(move || {
-            let _ = child.wait();
-        });
-        Ok(())
+        #[cfg(not(target_os = "macos"))]
+        {
+            let workspace = if workspace.is_dir() {
+                canonical_workspace(workspace)?
+            } else {
+                dirs::home_dir().ok_or("Home directory unavailable")?
+            };
+            let (codex_home, desktop_home) = (paths.codex_home, paths.desktop_home);
+            let mut command =
+                build_standalone_command(&binary, &codex_home, &desktop_home, &workspace);
+            if let Some(thread) = thread {
+                command.arg(format!("codex://threads/{thread}"));
+            }
+            let mut child = command
+                .spawn()
+                .map_err(|_| "Could not open the account's Codex chat")?;
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+            Ok(())
+        }
     }
 
     fn attach_hud_observer(&self, command: &mut Command, id: &str) -> Result<()> {
@@ -3093,6 +3087,52 @@ fn profile_process_running(vscode_home: &Path) -> bool {
         .flatten()
         .filter_map(|entry| entry.file_name().to_str()?.parse::<u32>().ok())
         .any(|pid| process_uses_profile(pid, vscode_home))
+}
+
+#[cfg(target_os = "macos")]
+fn macos_desktop_pid(binary: &Path, home: &Path) -> Option<u32> {
+    use std::os::unix::ffi::OsStrExt;
+    let binary = binary.canonicalize().ok()?;
+    let home = home.canonicalize().ok()?;
+    let output = crate::process::output(
+        Command::new("/bin/ps").args(["-axo", "pid="]),
+        Duration::from_secs(3),
+    )
+    .ok()?;
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter_map(|line| line.trim().parse::<u32>().ok())
+        .find(|pid| {
+            let mut buffer = [0u8; 4096];
+            // SAFETY: proc_pidpath writes at most the provided initialized buffer.
+            let length = unsafe {
+                libc::proc_pidpath(*pid as i32, buffer.as_mut_ptr().cast(), buffer.len() as u32)
+            };
+            if length <= 0 {
+                return false;
+            }
+            let end = buffer
+                .iter()
+                .position(|byte| *byte == 0)
+                .unwrap_or(buffer.len());
+            let executable = Path::new(std::ffi::OsStr::from_bytes(&buffer[..end]));
+            if executable.canonicalize().ok().as_ref() != Some(&binary) {
+                return false;
+            }
+            process_uses_profile(*pid, &home)
+                || macos_process_info(*pid).is_some_and(|bytes| {
+                    bytes
+                        .split(|byte| *byte == 0)
+                        .filter_map(|entry| entry.strip_prefix(b"CODEX_ELECTRON_USER_DATA_PATH="))
+                        .any(|value| {
+                            Path::new(std::ffi::OsStr::from_bytes(value))
+                                .canonicalize()
+                                .ok()
+                                .as_ref()
+                                == Some(&home)
+                        })
+                })
+        })
 }
 
 #[cfg(target_os = "macos")]
