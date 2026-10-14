@@ -3,6 +3,10 @@ on:
   workflow_dispatch:
   push:
     branches: ['codex/hud-backend-*']
+    paths-ignore:
+      - '.github/workflows/hud-linux-validation.yml'
+      - 'tauri/scripts/test-hud-compositor.py'
+      - 'tauri/scripts/test-hud-gnome-session.sh'
 permissions:
   contents: read
 jobs:

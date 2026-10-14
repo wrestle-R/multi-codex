@@ -84,14 +84,14 @@ try {
   // Desktop uses a memory router; its address bar stays index.html. Prove
   // the exact transcript is visible rather than mistaking URL stability for
   // a failed deeplink or matching a title in the sidebar.
-  await until(() => a.eval("document.querySelector('main')?.innerText ?? document.body.innerText"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
-  assert.equal((await b.eval("document.querySelector('main')?.innerText ?? document.body.innerText")).includes('HUD_EXACT_SESSION_A_FIXTURE'), false);
+  await until(() => a.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
+  assert.equal((await b.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''")).includes('HUD_EXACT_SESSION_A_FIXTURE'), false);
   a.socket.close();
   const aExited = once(a.child, 'exit'); process.kill(-a.child.pid, 'SIGTERM'); await aExited;
   const reopened = await open('a', { id:a.id, uri });
   await dismissFixtureAnnouncement(reopened);
   stage = 'cold transcript reopen';
-  await until(() => reopened.eval("document.querySelector('main')?.innerText ?? document.body.innerText"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
+  await until(() => reopened.eval("document.querySelector('main')?.innerText ?? document.body?.innerText ?? ''"), value => value?.includes('HUD_EXACT_SESSION_A_FIXTURE'));
   for (const record of [reopened, b]) assert.equal((await readFile(join(record.codexHome, 'auth.json'), 'utf8')) === record.auth, true, 'Disposable login bytes must remain unchanged');
   console.log('Verified actual Desktop GUI uses the passive proxy, exact thread URI reaches only the scoped account, cold reopening restores its transcript, and both inert logins stay unchanged.');
   if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, fixtureLoginsUnchanged: true })); }
@@ -100,7 +100,7 @@ try {
     await mkdir(evidence, { recursive: true }); const states = [];
     for (const [index, record] of windows.entries()) {
       if (!record.eval || record.child.exitCode !== null) continue;
-      states.push(await record.eval("({url:location.href,title:document.title,text:document.body.innerText.slice(0,4000)})").catch(() => ({ unavailable: true })));
+      states.push(await record.eval("({url:location.href,title:document.title,text:(document.body?.innerText??'').slice(0,4000)})").catch(() => ({ unavailable: true })));
       const capture = await record.cdp('Page.captureScreenshot', {}).catch(() => null);
       if (capture?.result?.data) await writeFile(join(evidence, `fixture-${index}.png`), Buffer.from(capture.result.data, 'base64'));
     }

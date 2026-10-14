@@ -3,7 +3,23 @@
 set -euo pipefail
 HUD_FIXTURE=$(mktemp -d)
 HUD_GNOME_PID=''
-trap 'if [[ -n "$HUD_GNOME_PID" ]]; then kill "$HUD_GNOME_PID" 2>/dev/null || true; wait "$HUD_GNOME_PID" 2>/dev/null || true; fi; rm -rf "$HUD_FIXTURE"' EXIT
+cleanup() {
+  if [[ -n "$HUD_GNOME_PID" ]]; then
+    kill "$HUD_GNOME_PID" 2>/dev/null || true
+    wait "$HUD_GNOME_PID" 2>/dev/null || true
+  fi
+  # xdg-document-portal mounts a private FUSE filesystem here. Detach this
+  # fixture's mount before removing it; never touch the desktop owner's mount.
+  if mountpoint -q "$HUD_FIXTURE/runtime/doc"; then
+    if command -v fusermount3 >/dev/null; then
+      fusermount3 -uz "$HUD_FIXTURE/runtime/doc"
+    else
+      fusermount -uz "$HUD_FIXTURE/runtime/doc"
+    fi
+  fi
+  rm -rf "$HUD_FIXTURE"
+}
+trap cleanup EXIT
 mkdir -p "$HUD_FIXTURE/home" "$HUD_FIXTURE/config" "$HUD_FIXTURE/data" "$HUD_FIXTURE/runtime"
 chmod 700 "$HUD_FIXTURE/runtime"
 export HOME="$HUD_FIXTURE/home" XDG_CONFIG_HOME="$HUD_FIXTURE/config" XDG_DATA_HOME="$HUD_FIXTURE/data" XDG_RUNTIME_DIR="$HUD_FIXTURE/runtime"
