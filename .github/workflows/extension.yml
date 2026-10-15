@@ -58,7 +58,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb gnome-keyring dbus-x11
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf xvfb gnome-keyring dbus-x11
       - name: Start an unlocked disposable Linux credential store
         if: runner.os == 'Linux'
         run: |
@@ -138,6 +138,8 @@ jobs:
           fi
           cp .test-results/vscode-result.json .test-results/packaged-live-attachment.json
       - name: Test packaged isolated startup and project account restoration
+        env:
+          MULTI_CODEX_TEST_ORBIT_UI: '1'
         run: |
           if [[ "$RUNNER_OS" == 'Linux' ]]; then
             xvfb-run -a node scripts/test-vscode.mjs

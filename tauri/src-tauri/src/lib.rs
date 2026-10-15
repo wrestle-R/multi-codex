@@ -141,9 +141,14 @@ use multi_codex_core::desktop_integration;
 #[cfg(any(target_os = "macos", target_os = "linux", test))]
 mod account_menu;
 mod hud;
+mod hud_layer;
 mod hud_platform;
 #[cfg(test)]
 use multi_codex_core::hud as hud_model;
+#[cfg(test)]
+use multi_codex_core::hud_desktop;
+#[cfg(test)]
+use multi_codex_core::hud_sessions;
 #[cfg(all(target_os = "linux", not(test)))]
 use multi_codex_core::linux_desktops;
 #[cfg(all(windows, test))]
@@ -901,6 +906,13 @@ async fn install_desktop_integration(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // linuxdeploy's GTK hook can force XWayland. Hyprland's actual overlay
+    // protocol requires the native Wayland backend, before GTK initializes.
+    #[cfg(target_os = "linux")]
+    if desktop_environment::backend() == "hyprland" && std::env::var_os("WAYLAND_DISPLAY").is_some()
+    {
+        std::env::set_var("GDK_BACKEND", "wayland");
+    }
     let service = default_service().unwrap_or_else(|error| {
         eprintln!("Multi Codex could not initialize: {error}");
         std::process::exit(1);
@@ -968,6 +980,7 @@ pub fn run() {
             hud::hud_acknowledge,
             hud::hud_monitors,
             hud::hud_drag,
+            hud::hud_set_input_regions,
             get_desktop_inventory,
             get_executable_settings,
             get_terminal_options,
@@ -1007,6 +1020,8 @@ pub fn run() {
             clear_shared_chats,
             updater::update_app,
             updater::check_app_update,
+            updater::get_update_channel,
+            updater::set_update_channel,
             get_launch_environment,
             get_launch_targets,
             list_workspace_directories,

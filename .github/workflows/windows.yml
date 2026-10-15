@@ -137,6 +137,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Packaged Windows live attachment failed' }
           Copy-Item .test-results/vscode-result.json .test-results/packaged-live-attachment.json
       - name: Verify packaged native wrapper startup and account restoration
+        env:
+          MULTI_CODEX_TEST_ORBIT_UI: '1'
         working-directory: extension
         shell: pwsh
         run: |

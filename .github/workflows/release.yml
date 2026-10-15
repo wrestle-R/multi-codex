@@ -68,7 +68,7 @@ jobs:
           sudo apt-get update
           # Recommended desktop portals wait for a graphical login on headless
           # runners, blocking GTK startup. Required libraries remain installed.
-          sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
+          sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

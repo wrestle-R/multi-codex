@@ -1,10 +1,12 @@
 [CmdletBinding()]
-param([switch]$NoLaunch, [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA 'Multi Codex'))
+param([string]$Version = '', [switch]$NoLaunch, [string]$InstallDirectory = (Join-Path $env:LOCALAPPDATA 'Multi Codex'))
 $ErrorActionPreference = 'Stop'
 if (![Environment]::Is64BitOperatingSystem -or $env:PROCESSOR_ARCHITECTURE -notin @('AMD64', 'x86') -or ($env:PROCESSOR_ARCHITEW6432 -and $env:PROCESSOR_ARCHITEW6432 -ne 'AMD64')) { throw 'Multi Codex requires native Windows x64.' }
 if (Get-Process -Name 'multi-codex-desktop' -ErrorAction SilentlyContinue) { throw 'Close Multi Codex before installing or updating. Saved accounts will be preserved.' }
 if (![System.IO.Path]::IsPathRooted($InstallDirectory)) { throw 'InstallDirectory must be an absolute path.' }
-$release = Invoke-RestMethod 'https://api.github.com/repos/wrestle-R/multi-codex/releases/latest'
+if ($Version -and $Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$') { throw 'Version must be a release number such as 1.6.1.' }
+$releaseUrl = if ($Version) { 'https://api.github.com/repos/wrestle-R/multi-codex/releases/tags/v' + $Version } else { 'https://api.github.com/repos/wrestle-R/multi-codex/releases/latest' }
+$release = Invoke-RestMethod $releaseUrl
 $installer = @($release.assets | Where-Object { $_.name -match '_x64-setup\.exe$' })
 $sums = @($release.assets | Where-Object { $_.name -eq 'SHA256SUMS' })
 if ($installer.Count -ne 1 -or $sums.Count -ne 1) { throw 'The latest release has no unique Windows installer and checksum manifest.' }

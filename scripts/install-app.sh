@@ -45,10 +45,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-resolved_url=$(curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 --output /dev/null --write-out '%{url_effective}' "$latest_url")
-tag=${resolved_url##*/}
-if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  printf 'Could not determine the latest Multi Codex release.\n' >&2
+if [[ -n "${MULTI_CODEX_TAG:-}" ]]; then
+  tag="$MULTI_CODEX_TAG"
+else
+  resolved_url=$(curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 --output /dev/null --write-out '%{url_effective}' "$latest_url")
+  tag=${resolved_url##*/}
+fi
+if [[ ! "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
+  printf 'The Multi Codex release tag is invalid.\n' >&2
   exit 1
 fi
 version=${tag#v}
