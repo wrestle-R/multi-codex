@@ -61,10 +61,18 @@ function Check-StartMenu {
     $application = Join-Path $install 'multi-codex-desktop.exe'
     $shell = New-Object -ComObject WScript.Shell
     try {
-        $programs = [Environment]::GetFolderPath('Programs')
-        $links = @(Get-ChildItem -LiteralPath $programs -Filter 'Multi Codex.lnk' -Recurse -File | Where-Object {
-            $shell.CreateShortcut($_.FullName).TargetPath -ieq $application
+        # This fixture redirects APPDATA after PowerShell has initialized its
+        # known-folder cache. The newly spawned NSIS process expands that path.
+        $programs = @([Environment]::GetFolderPath('Programs'), (Join-Path $env:APPDATA 'Microsoft/Windows/Start Menu/Programs')) | Select-Object -Unique
+        $observed = @(foreach ($directory in $programs) {
+            if (Test-Path -LiteralPath $directory) {
+                foreach ($link in Get-ChildItem -LiteralPath $directory -Filter 'Multi Codex.lnk' -Recurse -File) {
+                    @{ path=$link.FullName; target=$shell.CreateShortcut($link.FullName).TargetPath }
+                }
+            }
         })
+        $observed | ConvertTo-Json | Set-Content (Join-Path $evidence 'start-menu-shortcuts.json')
+        $links = @($observed | Where-Object { $_.target -ieq $application } | Sort-Object -Property path -Unique)
         if ($links.Count -ne 1) { throw 'The installer must create one Start menu shortcut to the installed app.' }
     } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($shell) }
 }
