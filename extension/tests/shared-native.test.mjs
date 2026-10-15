@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { once } from 'node:events';
 import { copyFile, mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises';
 import { PassThrough } from 'node:stream';
 import { randomUUID, createHash } from 'node:crypto';
@@ -13,6 +14,7 @@ const helper = process.env.MULTI_CODEX_TEST_SHARED_HELPER;
 const digest = value => createHash('sha256').update(value).digest('hex');
 
 test('native broker lists foreign full history, fences writers, and continues with B after A handoff', { skip: !engine || !helper }, async () => {
+  const { DatabaseSync } = await import('node:sqlite');
   const root = await realpath(await mkdtemp(join(tmpdir(), 'mc-shared-native-')));
   const dataRoot = join(root, 'data'); const globalHome = join(root, 'global');
   const service = await localService(); const profiles = [];
@@ -34,15 +36,60 @@ test('native broker lists foreign full history, fences writers, and continues wi
       const bridge = new CodexBridge({ engine, helper: resolve('tests/fixtures/native-chat-helper-proxy.mjs'), dataRoot, globalHome, sessionHome, profileId: profile.id, sharedChats: true, socket: controlEndpoint(sessionHome), token: randomUUID(), workspace: root }, new JsonLines(input, output), ['app-server']);
       const lines = new JsonLines(output, input); lines.on('message', message => { if (message.method) notifications.push(message); });
       const rpc = new RpcPeer(lines, 'native-frontend:');
+      const request = rpc.request.bind(rpc);
+      rpc.request = async (method, ...args) => {
+        try { return await request(method, ...args); }
+        catch (error) { throw new Error(`Native fixture ${method}: ${error.message}`, { cause: error }); }
+      };
       const handle = { bridge, rpc }; open.push(handle);
       await bridge.listen(); await rpc.request('initialize', { clientInfo: { name: 'multi_codex_native_shared_test', version: '1' }, capabilities: { experimentalApi: true } }, 60000);
       handle.control = await BridgeClient.connect(bridge.config.socket, bridge.config.token);
       return { ...handle, notifications };
     }
     const a = await window(profiles[0]); const b = await window(profiles[1]);
+    // Simulate the in-memory selection aging while the engine has a newer token.
+    const remembered = syntheticAuth('synthetic-account-a');
+    const claims = JSON.parse(Buffer.from(remembered.tokens.access_token.split('.')[1], 'base64url'));
+    claims.exp = Math.floor(Date.now() / 1000) - 60;
+    remembered.tokens.access_token = `e30.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.fixture`;
+    a.bridge.selectedAuth = remembered;
+    for (const method of ['thread/archive', 'thread/delete']) {
+      const fresh = await a.rpc.request('thread/start', { cwd: root, model: 'gpt-5.4' });
+      await a.rpc.request(method, { threadId: fresh.thread.id });
+      if (method === 'thread/archive') await a.rpc.request('thread/delete', { threadId: fresh.thread.id });
+    }
+    // The installed IDE creates empty chats before any turn. The native engine
+    // must persist them before they can be shared, archived, restored or deleted.
+    const blank = await a.rpc.request('thread/start', { cwd: root, model: 'gpt-5.4' });
+    const blankId = blank.thread.id;
+    await a.rpc.request('thread/settings/update', { threadId: blankId, model: 'gpt-5.4', effort: 'medium' });
+    const updated = await a.rpc.request('thread/metadata/update', { threadId: blankId, gitInfo: { branch: 'shared-fixture' } });
+    assert.equal(updated.thread.id, blankId);
+    assert.equal(updated.thread.gitInfo.branch, 'shared-fixture');
+    assert.deepEqual((await a.rpc.request('thread/queue/list', { threadId: blankId })).data, []);
+    const catalog = new DatabaseSync(join(dataRoot, 'shared-chats/catalog.sqlite'));
+    catalog.exec("CREATE TRIGGER fixture_archive_failure BEFORE UPDATE OF archived ON threads BEGIN SELECT RAISE(ABORT, 'inert fixture archive failure'); END;");
+    await assert.rejects(a.rpc.request('thread/archive', { threadId: blankId }), /catalog|archive failure|shared chat storage/i);
+    catalog.exec('DROP TRIGGER fixture_archive_failure'); catalog.close();
+    await a.rpc.request('thread/archive', { threadId: blankId });
+    assert.ok((await b.rpc.request('thread/list', { archived: true })).data.some(thread => thread.id === blankId));
+    assert.ok((await a.rpc.request('thread/read', { threadId: blankId })).thread.path.includes('archived_sessions'));
+    const unarchived = await a.rpc.request('thread/unarchive', { threadId: blankId });
+    assert.equal(unarchived.thread.id, blankId);
+    assert.ok((await b.rpc.request('thread/list', { archived: false })).data.some(thread => thread.id === blankId));
+    await a.rpc.request('thread/delete', { threadId: blankId });
+    assert.equal((await b.rpc.request('thread/list', { archived: false })).data.some(thread => thread.id === blankId), false);
     const started = await a.rpc.request('thread/start', { cwd: root, model: 'gpt-5.4' }, 60000);
     const id = started.thread.id;
+    service.hold();
     await a.rpc.request('turn/start', { threadId: id, input: [{ type: 'text', text: 'preserve the complete first-account context' }] }, 60000);
+    await a.rpc.request('thread/settings/update', { threadId: id, model: 'gpt-5.4', effort: 'high' });
+    await a.rpc.request('thread/name/set', { threadId: id, name: 'Renamed during live work' });
+    const queued = await a.rpc.request('thread/queue/add', { threadId: id, clientUserMessageId: randomUUID(), input: [{ type: 'text', text: 'disposable queued input' }] });
+    const queuedId = queued.queuedSubmission.id;
+    await a.rpc.request('thread/queue/update', { threadId: id, queuedSubmissionId: queuedId, input: [{ type: 'text', text: 'edited disposable queued input' }] });
+    await a.rpc.request('thread/queue/delete', { threadId: id, queuedSubmissionId: queuedId });
+    service.release();
     async function completed(window, count) {
       const deadline = Date.now() + 45000;
       while (window.notifications.filter(message => message.method === 'turn/completed').length < count || !window.bridge.state().canSwitch) {
@@ -51,6 +98,8 @@ test('native broker lists foreign full history, fences writers, and continues wi
       }
     }
     await completed(a, 1);
+    assert.equal(a.bridge.activity.unverifiedQueues.size, 0);
+    assert.equal(a.bridge.activity.queuedThreads.size, 0);
     const original = (await a.rpc.request('thread/read', { threadId: id, includeTurns: true })).thread;
     const publishedDeadline = Date.now() + 10000;
     while (!b.notifications.some(message => message.method === 'thread/started' && message.params?.thread?.id === id)) {
@@ -64,6 +113,8 @@ test('native broker lists foreign full history, fences writers, and continues wi
     for (const key of ['cliVersion', 'createdAt', 'cwd', 'ephemeral', 'id', 'modelProvider', 'preview', 'projectId', 'sessionId', 'source', 'status', 'turns', 'updatedAt']) assert.ok(Object.hasOwn(listed, key), `Native sidebar field missing: ${key}`);
     assert.deepEqual(listed.turns, []);
     const before = await b.rpc.request('thread/read', { threadId: id, includeTurns: true }, 60000);
+    await readFile(before.thread.path); // returned UI path must outlive the helper reply
+    await b.rpc.request('fs/getMetadata', { path: before.thread.path });
     assert.ok(JSON.stringify(before.thread.turns).includes('preserve the complete first-account context'));
     assert.deepEqual(before.thread.turns, original.turns, 'observer retains every native turn item');
     const pagedTurns = await b.rpc.request('thread/turns/list', { threadId: id, limit: 100 });
@@ -77,6 +128,7 @@ test('native broker lists foreign full history, fences writers, and continues wi
     await a.bridge.switchAccount(profiles[1].id);
     assert.ok(oldA.exitCode !== null || oldA.signalCode !== null, 'old native writer must be confirmed stopped');
     const resumed = await b.rpc.request('thread/resume', { threadId: id }, 60000);
+    assert.equal(resumed.reasoningEffort, 'high', 'saved model effort survives a different-account handoff');
     assert.ok(JSON.stringify(resumed.thread.turns).includes('preserve the complete first-account context'));
     assert.deepEqual(resumed.thread.turns, original.turns, 'writer hydration retains every native turn item');
     const requestStart = service.requests.length;
@@ -94,6 +146,21 @@ test('native broker lists foreign full history, fences writers, and continues wi
     await a.control.request('releaseSharedChats');
     assert.ok(emptyWriter.exitCode !== null || emptyWriter.signalCode !== null);
     assert.equal(a.bridge.state().selectedId, profiles[1].id);
+    assert.deepEqual(await Promise.all(profiles.map(async p => digest(await readFile(join(dataRoot, 'profiles', p.id, 'codex-home/auth.json'))))), originals);
+    const recoverable = await a.rpc.request('thread/start', { cwd: root, model: 'gpt-5.4' });
+    const recoverId = recoverable.thread.id;
+    await a.rpc.request('thread/metadata/update', { threadId: recoverId, gitInfo: { branch: 'recover-deletion' } });
+    await a.rpc.request('thread/archive', { threadId: recoverId });
+    await a.rpc.request('thread/unarchive', { threadId: recoverId });
+    const failingCatalog = new DatabaseSync(join(dataRoot, 'shared-chats/catalog.sqlite'));
+    failingCatalog.exec("CREATE TRIGGER fixture_delete_failure BEFORE UPDATE OF deleted ON threads BEGIN SELECT RAISE(ABORT, 'inert fixture delete failure'); END;");
+    await assert.rejects(a.rpc.request('thread/delete', { threadId: recoverId }), /catalog operation failed/i);
+    failingCatalog.exec('DROP TRIGGER fixture_delete_failure'); failingCatalog.close();
+    const stopped = a.bridge.backend; const exited = once(stopped, 'exit'); stopped.kill('SIGTERM'); await exited;
+    await a.bridge.accounts.dispose(); // crashed helper drops only its test lease
+    await storage.request('chats/recover', { threadId: recoverId });
+    await assert.rejects(storage.request('chats/get', { threadId: recoverId }), /deleted|not found|unavailable/i);
+    assert.equal((await storage.request('chats/recoverable')).includes(recoverId), false);
     assert.deepEqual(await Promise.all(profiles.map(async p => digest(await readFile(join(dataRoot, 'profiles', p.id, 'codex-home/auth.json'))))), originals);
     if (process.env.MULTI_CODEX_TEST_ROLLOUT_EXPORT) {
       const exported = resolve(process.env.MULTI_CODEX_TEST_ROLLOUT_EXPORT);

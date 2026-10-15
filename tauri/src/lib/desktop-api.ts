@@ -395,3 +395,13 @@ export async function clearSharedGenerations(preview: GenerationCleanup): Promis
   if (!isTauri) throw new Error("Shared package cleanup requires the desktop app.")
   return invoke("clear_shared_generations", { preview })
 }
+
+export type AppRelease = { version: string; showNotes: boolean }
+export async function getAppRelease(): Promise<AppRelease> {
+  if (isTauri) return invoke("get_app_release")
+  const { version } = await import("../../package.json")
+  return { version, showNotes: import.meta.env.DEV && new URLSearchParams(window.location.search).get("releaseNotes") === "1" }
+}
+export async function acknowledgeAppRelease(): Promise<void> {
+  if (isTauri) await invoke("acknowledge_app_release")
+}

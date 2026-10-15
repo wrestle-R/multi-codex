@@ -88,6 +88,13 @@ try {
   await page.waitForFunction(() => Boolean(window.__TAURI_INTERNALS__));
   assert.equal(await page.evaluate(() => Boolean(window.__TAURI_INTERNALS__)), true);
   await page.getByRole('button', { name: 'Add account', exact: true }).waitFor();
+  const notes = page.getByRole('dialog', { name: 'What’s new' });
+  await notes.waitFor({ timeout: 3000 }).catch(() => {});
+  if (await notes.isVisible()) {
+    await notes.getByRole('button', { name: 'Got it', exact: true }).click();
+    await notes.waitFor({ state: 'hidden' });
+    report.checks.minimalUpgradeNotesDismissed = true;
+  }
   const screenshot = name => page.screenshot({ path: join(output, `${name}.png`),
     mask: [page.locator('.device-sign-in'), page.locator('.login-output')], animations: 'disabled' });
   await screenshot('native-account-ui');

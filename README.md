@@ -4,11 +4,19 @@ Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your 
 
 [Read the full changelog and release details on the website](https://multi-codex.vercel.app/releases). GitHub hosts the downloadable packages.
 
+## Orbit
+
+Orbit keeps your Codex Desktop accounts in view with a small companion for each account—an **Orbiter**. Hover for usage and open sessions; click to return to the right chat. Questions and approvals get a quiet visual reminder.
+
+Enable or disable Orbit in **Settings**, and adjust size, display, animation and sound under **Orbit**. Available on Apple Silicon macOS 26+ and supported Linux desktops (Hyprland, GNOME and KDE). Closing the launcher keeps Orbit and the tray running; choosing Quit exits them.
+
+<img src="tauri/public/orbit.png" alt="Orbiters with live session indicators and an expanded usage panel, using fictional accounts" width="100%" />
+
 ## Install
 
 ### Windows x64
 
-[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.5.3/Multi.Codex_1.5.3_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
+[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.7.0/Multi.Codex_1.7.0_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
 
 Or run in PowerShell:
 
@@ -39,7 +47,7 @@ Close Multi Codex before updating. Saved accounts and profile data are preserved
 
 ### Windows x64
 
-Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.5.3/Multi.Codex_1.5.3_x64-setup.exe) again to update.
+Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.7.0/Multi.Codex_1.7.0_x64-setup.exe) again to update.
 
 Or run in PowerShell:
 

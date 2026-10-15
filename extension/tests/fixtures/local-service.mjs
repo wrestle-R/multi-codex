@@ -8,7 +8,7 @@ export function syntheticAuth(id) {
   return { auth_mode: 'chatgpt', tokens: { access_token: token, id_token: token, refresh_token: 'synthetic-refresh', account_id: id } };
 }
 
-export async function localService({ port = 0 } = {}) {
+export async function localService({ port = 0, responseText = 'local-fixture-ok' } = {}) {
   const requests = []; let origin; let holdResponse = false; const held = new Set();
   const server = createServer(async (req, res) => {
     requests.push({ method: req.method, path: req.url, account: req.headers['chatgpt-account-id'] });
@@ -27,9 +27,9 @@ export async function localService({ port = 0 } = {}) {
       emit('response.created', { response });
       const complete = () => {
         if (res.destroyed) return;
-        const item = { id: 'msg-local', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'local-fixture-ok', annotations: [] }] };
+        const item = { id: 'msg-local', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: responseText, annotations: [] }] };
         emit('response.output_item.added', { output_index: 0, item: { ...item, status: 'in_progress', content: [] } });
-        emit('response.output_text.delta', { item_id: item.id, output_index: 0, content_index: 0, delta: 'local-fixture-ok' });
+        emit('response.output_text.delta', { item_id: item.id, output_index: 0, content_index: 0, delta: responseText });
         emit('response.output_item.done', { output_index: 0, item });
         emit('response.completed', { response: { ...response, status: 'completed', output: [item], usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } } } });
         res.end(); held.delete(complete);
