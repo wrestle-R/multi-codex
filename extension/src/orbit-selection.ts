@@ -20,6 +20,7 @@ export class OrbitSelection {
       if (!ephemeral) { this.selected = null; this.generation++; }
       this.trace(`send ${message.method} ephemeral=${ephemeral}`);
       if (message.id !== undefined) this.pending.set(message.id, { method: message.method!, generation: this.generation, ephemeral });
+      if (this.pending.size > 4096) this.pending.delete(this.pending.keys().next().value!);
       return;
     }
     // The editor prewarms extra thread/start results. A submitted turn or an
@@ -39,7 +40,7 @@ export class OrbitSelection {
     if (message.method || message.id === undefined) return;
     const request = this.pending.get(message.id); this.pending.delete(message.id);
     if (request) this.trace(`reply ${request.method} ${message.error ? 'error' : 'ok'}`);
-    if (!request || message.error || request.generation !== this.generation) return;
+    if (!request || message.error) return;
     if (['thread/start', 'thread/startAeon', 'thread/fork'].includes(request.method)) {
       const id = message.result?.thread?.id;
       if (request.ephemeral && typeof id === 'string') {
@@ -48,6 +49,7 @@ export class OrbitSelection {
       }
       return;
     }
+    if (request.generation !== this.generation) return;
     if (['thread/unsubscribe', 'thread/archive', 'thread/delete'].includes(request.method)) {
       if (request.threadId === this.selected) this.selected = null;
     } else {
