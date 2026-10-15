@@ -48,6 +48,8 @@ Native deletion can complete some selected chats before a later operation fails.
 
 Starting with v1.5.1, Multi Codex checks quietly on startup, account and all-account refresh, returning to the app, and reconnecting. It also checks every 15 minutes while visible. The **Update** button appears in the header only when a newer compatible stable release is available. Background connection failures stay quiet and retry on the next check.
 
+In builds with release-channel settings, **Settings → Release channel** offers **Stable updates** (the default) or **All updates, including previews**. Stability is classified explicitly; a major, minor or patch number does not make a release stable. The website’s release filters use the same classification. Changing channels does not downgrade an installed app, and the channel cannot change during an installation.
+
 Click **Update** to download the matching package, verify its signature, install it and restart. Progress and the restart state are shown in the app. An explicit installation failure offers a retry.
 
 Saved accounts and profile data are preserved. Updating the launcher does not intentionally close separately launched Codex sessions.
