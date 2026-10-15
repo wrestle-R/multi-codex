@@ -112,8 +112,10 @@ export async function run() {
     await new Promise(resolve => setTimeout(resolve, 1800));
     assert.deepEqual(Object.keys((await selected()).find(s => s.profileId === b.id).sessions), [visibleId]);
     checks.push('Orbit counts the actual submitted VS Code UI chat and ignores retained backend history');
-    await vscode.commands.executeCommand('chatgpt.newChat');
-    await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 0));
+    const newChatPhase = 'orbit-newchat Account B';
+    await writeFile(join(root, 'ui-phase.json'), JSON.stringify({ label: newChatPhase, orbitNewChat: true }));
+    await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === newChatPhase);
+    await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 0)).catch(async error => { throw new Error(`${error.message}; New Chat selected=${(await api.getState()).bridge.testOrbitSelected}; events=${JSON.stringify((await api.getState()).bridge.testOrbitEvents)}`); });
     checks.push('VS Code New Chat removes the previous UI conversation from Orbit');
   }
   await assert.rejects(() => api.switchAccount('00000000-0000-4000-8000-000000000000'), /not found/);

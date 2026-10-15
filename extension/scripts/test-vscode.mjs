@@ -136,6 +136,17 @@ const uiPolling = setInterval(async () => {
       if (!sent.some(frame => frame.submitted)) return;
       orbitSubmissions.add(phase.label);
     }
+    if (phase.orbitNewChat && !orbitSubmissions.has(phase.label)) {
+      const clicked = await inspectWebview(browser, `(() => {
+        const button = document.querySelector('button[aria-label="New chat"]');
+        if (!button || button.disabled || !button.getBoundingClientRect().width) return JSON.stringify({clicked:false});
+        button.click(); return JSON.stringify({clicked:true});
+      })()`);
+      if (!clicked.some(frame => frame.clicked)) return;
+      orbitSubmissions.add(phase.label);
+      return; // Capture the resulting composer on the next UI observation.
+    }
+    if (phase.orbitNewChat && frames.some(frame => frame.targetId && frame.text?.includes('Orbit UI visibility fixture.'))) return;
     const expectedLabel = phase.label.includes('Account A') ? 'Account A' : 'Account B';
     if (!frames.some(frame => !frame.targetId && frame.text?.includes(expectedLabel))) return;
     if (phase.accountsPanel) {
