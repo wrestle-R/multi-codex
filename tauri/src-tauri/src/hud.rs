@@ -435,9 +435,12 @@ pub fn setup(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     )
     .title("Multi Codex Orbit")
     .inner_size(400.0, 88.0)
-    .min_inner_size(32.0, 32.0)
+    .min_inner_size(400.0, 88.0)
+    .max_inner_size(400.0, 88.0)
     .decorations(false)
-    .resizable(false)
+    // GTK's non-resizable mode requests WebKit's natural 200px height.
+    // Equal minimum/maximum bounds constrain resizing without that fallback.
+    .resizable(cfg!(target_os = "linux"))
     .transparent(true)
     .shadow(false)
     .always_on_top(true)
@@ -533,11 +536,13 @@ pub fn setup(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
                     if crate::hud_layer::active() {
                         crate::hud_layer::geometry(&window, x, y, width, height);
                     } else {
-                        let _ = window.set_min_size(None::<tauri::LogicalSize<f64>>);
-                        let _ = window.set_max_size(None::<tauri::LogicalSize<f64>>);
+                        let _ = window.set_size_constraints(tauri::WindowSizeConstraints {
+                            min_width: Some(tauri::LogicalUnit::new(width).into()),
+                            min_height: Some(tauri::LogicalUnit::new(height).into()),
+                            max_width: Some(tauri::LogicalUnit::new(width).into()),
+                            max_height: Some(tauri::LogicalUnit::new(height).into()),
+                        });
                         let _ = window.set_size(tauri::LogicalSize::new(width, height));
-                        let _ = window.set_min_size(Some(tauri::LogicalSize::new(width, height)));
-                        let _ = window.set_max_size(Some(tauri::LogicalSize::new(width, height)));
                         let _ = window.set_position(tauri::LogicalPosition::new(x, y));
                         crate::hud_platform::geometry(x, y, width, height);
                     }

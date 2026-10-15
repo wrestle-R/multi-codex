@@ -81,7 +81,7 @@ await writeFile(join(testRoot, 'user-data', 'User', 'settings.json'), JSON.strin
   ...(!liveAttach ? { 'chatgpt.cliExecutable': wrapper } : {}), 'chatgpt.openOnStartup': true,
   'chatgpt.apiEndpoint': 'localhost',
   'security.workspace.trust.enabled': false, 'telemetry.telemetryLevel': 'off', 'extensions.autoUpdate': false,
-  'extensions.autoCheckUpdates': false, 'workbench.startupEditor': 'none',
+  'extensions.autoCheckUpdates': false, 'update.mode': 'none', 'workbench.startupEditor': 'none',
 }));
 // The extension's storage root is fixed by VS Code; point discovery at the same fixture runtime.
 await mkdir(ownStorage, { recursive: true });

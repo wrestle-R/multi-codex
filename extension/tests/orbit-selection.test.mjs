@@ -25,3 +25,12 @@ test('fresh composer invalidates the prior view and prewarmed results never sele
  ui.outgoing({id:5,method:'thread/unsubscribe',params:{threadId:b}});ui.incoming({id:5,result:{}});assert.equal(ui.selected,null);
  ui.outgoing({id:6,method:'turn/start',params:{threadId:a}});ui.outgoing({id:7,method:'thread/start'});ui.incoming({id:6,result:{turn:{id:'stale'}}});assert.equal(ui.selected,null);
 });
+
+test('ephemeral title workers neither clear the visible chat nor become selected conversations',()=>{
+ const ui=new OrbitSelection();
+ ui.outgoing({id:1,method:'turn/start',params:{threadId:a}});ui.incoming({id:1,result:{turn:{id:'visible'}}});
+ ui.outgoing({id:2,method:'thread/start',params:{ephemeral:true}});ui.incoming({id:2,result:{thread:{id:b}}});assert.equal(ui.selected,a);
+ ui.outgoing({id:3,method:'turn/start',params:{threadId:b}});ui.incoming({id:3,result:{turn:{id:'title'}}});assert.equal(ui.selected,a);
+ ui.outgoing({id:4,method:'thread/unsubscribe',params:{threadId:b}});ui.incoming({id:4,result:{}});assert.equal(ui.selected,a);
+ ui.reset();assert.equal(ui.selected,null);
+});

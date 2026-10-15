@@ -55,7 +55,9 @@ export async function cleanupFixture(root, engine, helper) {
       while (Date.now() < deadline) {
         try { await client.request('accounts/delete', { id: profile.id }); deleted = true; break; }
         catch (error) {
-          if (!/Close this profile's app window before deleting it/.test(error.message)) throw error;
+          const closing = /Close this profile's app window before deleting it/.test(error.message);
+          const sharingViolation = process.platform === 'win32' && /Could not delete isolated profile data:.*\(os error 32\)/.test(error.message);
+          if (!closing && !sharingViolation) throw error;
           lastError = error; await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
