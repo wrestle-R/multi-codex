@@ -29,12 +29,29 @@ def digest(path):
     return checksum.hexdigest()
 
 
+
+def cleanup_private_fixture(temporary, system):
+    # A stopped WebView can briefly finish writing its disposable user home.
+    # Retry only Windows sharing/access/nonempty errors, and require removal.
+    deadline = time.monotonic() + 30
+    while True:
+        try:
+            temporary.cleanup()
+            assert not Path(temporary.name).exists(), "Disposable SDK fixture remains"
+            return
+        except OSError as error:
+            if system != "Windows" or getattr(error, "winerror", None) not in (5, 32, 145) or time.monotonic() >= deadline:
+                raise
+            time.sleep(0.2)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--harness", required=True, type=Path)
     parser.add_argument("--payload", required=True, type=Path)
     parser.add_argument("--app", type=Path, help="macOS source .app bundle")
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--packaged-reference", type=Path, help="Windows binary extracted from the exact signed NSIS candidate for a package-only recheck")
     args = parser.parse_args()
     repository = Path(__file__).resolve().parents[2]
     config = json.loads((repository / "tauri/src-tauri/tauri.conf.json").read_text())
@@ -76,7 +93,7 @@ def main():
                                     env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=180)
             assert result.returncode == 0
             binary = install / "multi-codex-desktop.exe"
-            source_binary = repository / "tauri/src-tauri/target/release/multi-codex-desktop.exe"
+            source_binary = args.packaged_reference or repository / "tauri/src-tauri/target/release/multi-codex-desktop.exe"
         elif system == "Darwin":
             assert args.app and args.app.suffix == ".app"
             data = Path(env["HOME"]) / "Library/Application Support/multi-codex"
@@ -94,7 +111,8 @@ def main():
             shutil.copy2(source_binary, binary)
         else:
             raise RuntimeError("Unsupported native platform")
-        expected_binary = expected_nsis_digest(source_binary) if system == "Windows" else digest(source_binary)
+        assert not args.packaged_reference or system == "Windows", "Packaged references are Windows-only"
+        expected_binary = expected_nsis_digest(source_binary) if system == "Windows" and not args.packaged_reference else digest(source_binary)
         assert digest(binary) == expected_binary
         def verify_signature(label):
             result = subprocess.run(["codesign", "--verify", "--deep", "--strict", str(install)],
@@ -263,10 +281,17 @@ def main():
             deadline = time.monotonic() + 30
             while (install / "uninstall.exe").exists() and time.monotonic() < deadline:
                 time.sleep(0.2)
-        if temporary:
-            temporary.cleanup()
-        args.output.write_text(json.dumps(report, indent=2) + "\n")
-        print(json.dumps(report, indent=2))
+        try:
+            if temporary:
+                cleanup_private_fixture(temporary, system)
+                report["checks"]["disposableFixtureRemoved"] = True
+        except Exception as error:
+            report.update(passed=False, failedStage="cleanup-private-fixture", errorClass=type(error).__name__)
+            raise
+        finally:
+            # A cleanup failure must remain visible without hiding SDK evidence.
+            args.output.write_text(json.dumps(report, indent=2) + "\n")
+            print(json.dumps(report, indent=2))
 
 
 if __name__ == "__main__":

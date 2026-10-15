@@ -1,0 +1,73 @@
+name: Exact Windows updater recheck
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run:
+        description: Release run containing the exact signed windows-installer artifact
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  updater:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+          cache-on-failure: true
+      - name: Verify source and download the existing signed candidate
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:CANDIDATE_RUN -notmatch '^[0-9]+$') { throw 'Invalid run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:CANDIDATE_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.repository.full_name -ne $env:GITHUB_REPOSITORY -or $run.path -ne '.github/workflows/release.yml') { throw 'Unexpected candidate workflow' }
+          git fetch --depth=1 origin $run.head_sha
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate source fetch failed' }
+          git diff --quiet $run.head_sha HEAD -- cli/crates/core tauri/src tauri/src-tauri extension/src extension/package.json extension/package-lock.json ':(exclude)extension/src/vscode-tests.ts'
+          if ($LASTEXITCODE -ne 0) { throw 'Production source differs from the existing candidate' }
+          $candidate = Join-Path $env:RUNNER_TEMP 'signed-candidate'
+          gh run download $env:CANDIDATE_RUN --name windows-installer --dir $candidate
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate download failed' }
+          $installers = @(Get-ChildItem $candidate -Recurse -Filter '*.exe')
+          if ($installers.Count -ne 1 -or !(Test-Path "$($installers[0].FullName).sig")) { throw 'Expected exactly one signed installer' }
+          $extracted = Join-Path $env:RUNNER_TEMP 'candidate-reference'
+          7z x $installers[0].FullName "-o$extracted" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate extraction failed' }
+          $binaries = @(Get-ChildItem $extracted -Recurse -Filter 'multi-codex-desktop.exe')
+          if ($binaries.Count -ne 1) { throw 'Expected exactly one packaged reference binary' }
+          "NATIVE_UPDATER_CANDIDATE_SOURCE=$($run.head_sha)" >> $env:GITHUB_ENV
+          "NATIVE_UPDATER_PAYLOAD=$($installers[0].FullName)" >> $env:GITHUB_ENV
+          "NATIVE_UPDATER_REFERENCE=$($binaries[0].FullName)" >> $env:GITHUB_ENV
+      - name: Build only the updater harness and its mock GUI resources
+        shell: pwsh
+        run: |
+          npm ci --prefix tauri
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node tauri/scripts/build-desktop-resources.mjs --bridge-only
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build --prefix tauri
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example native-updater
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Recheck the exact signed payload and require complete fixture removal
+        shell: pwsh
+        run: |
+          python tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater.exe --payload $env:NATIVE_UPDATER_PAYLOAD --packaged-reference $env:NATIVE_UPDATER_REFERENCE --output "$env:RUNNER_TEMP/native-updater-windows/result.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-updater-windows-evidence
+          path: ${{ runner.temp }}/native-updater-windows/
+          if-no-files-found: warn
