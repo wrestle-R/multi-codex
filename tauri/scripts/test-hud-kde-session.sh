@@ -1,8 +1,35 @@
 #!/usr/bin/env bash
 # Use an isolated compositor, home and session bus, including on hosted runners.
 set -euo pipefail
-HUD_FIXTURE=$(mktemp -d)
+HUD_FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/mc-orbit-kde.XXXXXX")
 cleanup() {
+  # Session-bus activation can leave portal/accessibility children writing to
+  # this home after the compositor exits. Stop only this fixture's processes.
+  python3 - "$HUD_FIXTURE/runtime" <<'PY'
+import os, signal, select, sys
+from pathlib import Path
+runtime = os.fsencode(sys.argv[1])
+handles = []
+for entry in Path('/proc').iterdir():
+    if not entry.name.isdigit() or int(entry.name) in (os.getpid(), os.getppid()):
+        continue
+    try:
+        if entry.stat().st_uid != os.getuid():
+            continue
+        handle = os.pidfd_open(int(entry.name))
+        fields = (entry / 'environ').read_bytes().split(b'\0')
+        if b'XDG_RUNTIME_DIR=' + runtime not in fields:
+            os.close(handle)
+            continue
+        signal.pidfd_send_signal(handle, signal.SIGTERM)
+        handles.append(handle)
+    except (ProcessLookupError, PermissionError, FileNotFoundError):
+        continue
+for handle in handles:
+    if not select.select([handle], [], [], 2)[0]:
+        signal.pidfd_send_signal(handle, signal.SIGKILL)
+    os.close(handle)
+PY
   if mountpoint -q "$HUD_FIXTURE/runtime/doc"; then
     fusermount3 -uz "$HUD_FIXTURE/runtime/doc"
   fi
