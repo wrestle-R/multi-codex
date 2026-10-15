@@ -22,8 +22,13 @@ jobs:
         shell: [powershell, pwsh]
     steps:
       - uses: actions/checkout@v4
-      - name: Verify binary checksum manifests and reject invalid downloads
-        shell: ${{ matrix.shell }}
+      - name: Verify checksum manifests in Windows PowerShell 5.1
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./tauri/scripts/windows-installer-regressions.ps1
+      - name: Verify checksum manifests in PowerShell 7
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
         run: ./tauri/scripts/windows-installer-regressions.ps1
 
   windows:
