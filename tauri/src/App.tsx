@@ -15,6 +15,11 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import "./App.css"
+import "./Hud.css"
+import { ReleaseNotesDialog } from "./components/release-notes-dialog"
+import { getAppRelease } from "./lib/desktop-api"
+import { version as bundledVersion } from "../package.json"
+import { HudSettingsDialog } from "./components/hud-settings-dialog"
 import { BrandMark } from "./components/brand-mark"
 import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
 import { MigrationBackupDialog } from "./components/migration-backup-dialog"
@@ -115,6 +120,20 @@ export default function App() {
   const [launchEnvironment, setLaunchEnvironment] = useState<LaunchEnvironment | null>(null)
   const [launchRequest, setLaunchRequest] = useState<{ profile: Profile; workspace: string; target: LaunchTarget } | null>(null)
   const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string; target: LaunchTarget } | null>(null)
+  const [appVersion, setAppVersion] = useState(bundledVersion)
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false)
+  useEffect(() => {
+    let active = true
+    void getAppRelease().then(release => { if (active) { setAppVersion(release.version); setShowReleaseNotes(release.showNotes) } }).catch(() => {})
+    return () => { active = false }
+  }, [])
+  const [showHudSettings, setShowHudSettings] = useState(false)
+  useEffect(() => {
+    if (!window.__TAURI_INTERNALS__) return
+    let active = true; let cleanup: (() => void) | undefined
+    void listen("hud-settings", () => setShowHudSettings(true)).then(off => { if (active) cleanup = off; else off() })
+    return () => { active = false; cleanup?.() }
+  }, [])
   const [showLaunchSettings, setShowLaunchSettings] = useState(false)
   const [launchTargets, setLaunchTargets] = useState<LaunchTargets | null>(null)
   const [launchMode, setLaunchMode] = useState<LaunchMode>('vscode')
@@ -418,9 +437,9 @@ export default function App() {
       setLaunchEnvironment(environment)
       const targets = await getLaunchTargets()
       setLaunchTargets(targets)
-      if (target === 'vscode' && !targets.vscodeInstalled) throw new Error("VS Code was not found. Install it or set its executable path in Launch settings.")
-      if (target === 'standalone' && (!targets.standaloneInstalled || !targets.standaloneVerified)) throw new Error("The verified Codex desktop app is unavailable. Reopen Launch settings to check the installed apps.")
-      if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Launch settings.")
+      if (target === 'vscode' && !targets.vscodeInstalled) throw new Error("VS Code was not found. Install it or set its executable path in Settings.")
+      if (target === 'standalone' && (!targets.standaloneInstalled || !targets.standaloneVerified)) throw new Error("The verified Codex desktop app is unavailable. Reopen Settings to check the installed apps.")
+      if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
       setHideDesktopPicker(environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker))
@@ -562,7 +581,7 @@ export default function App() {
 
   return (
     <main className="app-shell" aria-busy={updating}>
-      <ResetExpiryReminder profiles={profiles} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />
+      <ResetExpiryReminder profiles={profiles} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits && !showReleaseNotes} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand-block">
@@ -575,7 +594,8 @@ export default function App() {
           <div className="topbar-actions">
             <ThemePicker value={colorTheme} onChange={changeColorTheme} />
             <UpdateButton version={appUpdate.version} onCurrent={appUpdate.clear} disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
-            <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
+            {launchTargets?.platform !== "windows" ? <button className="button secondary" type="button" disabled={updating} onClick={() => setShowHudSettings(true)}>Orbit</button> : null}
+            <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Settings</button>
             <button className="storage-status" type="button" disabled={updating} title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
               <span>{storageUsage == null ? "Calculating" : formatStorage(storageUsage.bytes)}</span>
@@ -629,7 +649,7 @@ export default function App() {
 
           {launchPreparationError ? <p className="form-error" role="alert">{launchPreparationError}</p> : null}
 
-          {launchTargets && rowLaunchTargets.length === 0 ? <div className="state-panel launch-requirements" role="status"><p>{launchTargets.standaloneInstalled ? "Isolated standalone launch is awaiting verification for this installed version. Use VS Code from Launch settings." : "Install VS Code or the supported Codex desktop app to launch your accounts."}</p></div> : null}
+          {launchTargets && rowLaunchTargets.length === 0 ? <div className="state-panel launch-requirements" role="status"><p>{launchTargets.standaloneInstalled ? "Isolated standalone launch is awaiting verification for this installed version. Use VS Code from Settings." : "Install VS Code or the supported Codex desktop app to launch your accounts."}</p></div> : null}
 
           {loading ? (
             <div className="profile-list" aria-label="Loading accounts">
@@ -658,7 +678,7 @@ export default function App() {
             </div>
           )}
 
-          <footer>Credentials stay in your system keyring. Multi Codex never edits your default auth file.</footer>
+          <footer><button type="button" className="version-label" disabled={updating} title="What’s new" aria-label={`Version ${appVersion}. View what’s new`} onClick={() => setShowReleaseNotes(true)}>v{appVersion}</button></footer>
         </div>
       </section>
 
@@ -692,6 +712,8 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
+      {showReleaseNotes && !loading && !pageError && !showLaunchSettings && !showHudSettings && !showIntegration && dialogProfile === undefined && !deleteTarget && !deviceLogin ? <ReleaseNotesDialog platform={launchTargets?.platform} version={appVersion} onClose={() => setShowReleaseNotes(false)} /> : null}
+      {showHudSettings ? <HudSettingsDialog onClose={() => setShowHudSettings(false)} /> : null}
       {showLaunchSettings ? <LaunchSettingsDialog onClose={() => {
         setShowLaunchSettings(false)
         void Promise.all([getExecutableSettings(), getLaunchTargets()]).then(([settings, apps]) => {

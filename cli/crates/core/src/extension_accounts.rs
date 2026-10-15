@@ -29,6 +29,9 @@ impl AuthRecognizer for BundledRecognizer {
 
 pub fn run_account_helper() -> profiles::Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "--hud-proxy") {
+        return crate::hud_model::proxy(&args[1..]);
+    }
     if args.len() == 2 && args[0] == "--protect-directory" {
         let path = PathBuf::from(&args[1]);
         let metadata = std::fs::symlink_metadata(&path)
@@ -62,6 +65,7 @@ pub fn run_account_helper() -> profiles::Result<()> {
     let mut thread_store = None;
     let mut thread_leases = HashMap::new();
     let mut library = None;
+    let mut readers: HashMap<String, (tempfile::TempDir, PathBuf)> = HashMap::new();
     for line in std::io::stdin().lock().lines() {
         let line = line.map_err(|_| "Account helper input closed")?;
         if line.len() > 2 * 1024 * 1024 {
@@ -90,6 +94,7 @@ pub fn run_account_helper() -> profiles::Result<()> {
                     library.as_ref().unwrap(),
                     &request,
                     &mut thread_leases,
+                    &mut readers,
                 )?;
                 if matches!(
                     request["method"].as_str(),
@@ -124,6 +129,7 @@ fn dispatch_thread(
     library: &crate::shared_chats::ChatLibrary,
     request: &Value,
     leases: &mut HashMap<String, crate::shared_chat_leases::WriterLease>,
+    readers: &mut HashMap<String, (tempfile::TempDir, PathBuf)>,
 ) -> profiles::Result<Value> {
     let params = &request["params"];
     if request["method"] == "chats/changes" {
@@ -161,9 +167,17 @@ fn dispatch_thread(
         )?)
         .map_err(|_| "Could not encode recovered chat".into()),
         "chats/read" | "chats/observe" | "chats/nativeRead" => {
-            let home = store.read_home()?;
-            let path = library.hydrate(thread, home.path())?;
             let saved = library.get(thread)?;
+            // Keep revision-specific read views alive for this frontend's
+            // helper lifetime. Returning paths into a dropped TempDir caused
+            // fs/getMetadata errors and disappearing attachment previews.
+            let key = format!("{}:{}", saved.id, saved.checkpoint);
+            if !readers.contains_key(&key) {
+                let home = store.read_home()?;
+                let path = library.hydrate(thread, home.path())?;
+                readers.insert(key.clone(), (home, path));
+            }
+            let (home, path) = readers.get(&key).ok_or("Snapshot reader unavailable")?;
             let mut server = crate::chat_cleanup::LocalServer::start(&store.engine, home.path())?;
             let mut resumed = server.request(
                 "thread/resume",

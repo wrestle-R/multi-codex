@@ -225,6 +225,19 @@ jobs:
           [[ " $ARCHS " == *" arm64 "* ]]
           [[ " $ARCHS " != *" x86_64 "* ]]
           python3 scripts/macos-smoke.py "$BINARY"
+      - name: Verify Orbit, minimal upgrade notes and packaged close/reopen lifecycle
+        env:
+          MAC_LIFECYCLE_VARIANT: candidate
+        run: |
+          APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          ditto "$APP" '/Applications/Multi Codex.app'
+          python3 ../release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: orbit-macos-lifecycle-evidence
+          path: ${{ runner.temp }}/hud-backend-evidence/candidate/
+          if-no-files-found: warn
       - name: Check signing and notarization
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}

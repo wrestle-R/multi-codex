@@ -10,11 +10,15 @@ pub mod desktop_integration;
 pub mod desktop_integration;
 pub mod extension_accounts;
 pub mod file_security;
+pub mod hud;
+pub use hud as hud_model;
 pub mod launch;
 pub mod launch_targets;
 pub mod legacy_cleanup;
 #[cfg(target_os = "linux")]
 pub mod linux_desktops;
+#[cfg(target_os = "macos")]
+mod macos_navigation;
 pub mod managed_files;
 pub mod managed_launch;
 pub mod managed_settings;

@@ -12,7 +12,12 @@ export class ActivityGuard {
   readonly queuedThreads = new Set<string>();
   readonly processes = new Set<string>();
   private workMethods = new Map<string | number, string>();
-  isWork(method?: string) { return !!method && (WORK_METHODS.has(method) || /^thread\/queue\/(?:add|enqueue|submit)$/.test(method)); }
+  readonly unverifiedQueues = new Set<string>();
+  verifyQueue(threadId: string, queue: unknown[]) {
+    this.unverifiedQueues.delete(threadId);
+    if (queue.length) this.queuedThreads.add(threadId); else this.queuedThreads.delete(threadId);
+  }
+  isWork(method?: string) { return !!method && (WORK_METHODS.has(method) || /^thread\/queue\/(?:add|enqueue|submit|start)$/.test(method)); }
   outgoing(message: Message) {
     if (this.isWork(message.method) && message.id !== undefined) { this.pendingWork.add(message.id); this.workMethods.set(message.id, message.method!); }
     if (!message.method && message.id !== undefined) this.pendingApprovals.delete(message.id);
@@ -36,11 +41,10 @@ export class ActivityGuard {
         else this.unknown = true;
         break;
       case 'thread/queue/changed':
-        // Current IDE backends emit only a thread ID and expose no queue listing API.
-        // An opaque queue change must never be treated as an empty queue.
-        if (!Array.isArray(params.queue ?? params.queuedSubmissions)) this.unknown = true;
-        else if ((params.queue ?? params.queuedSubmissions).length) this.queuedThreads.add(params.threadId);
-        else this.queuedThreads.delete(params.threadId);
+        // An ID-only notification stays unverified until the bridge retrieves
+        // the authoritative native queue; old unsupported engines stay fenced.
+        if (!Array.isArray(params.queue ?? params.queuedSubmissions)) this.unverifiedQueues.add(params.threadId);
+        else this.verifyQueue(params.threadId, params.queue ?? params.queuedSubmissions);
         break;
       case 'process/started': this.processes.add(params.processId ?? params.id ?? 'unknown-process'); break;
       case 'process/exited': this.processes.delete(params.processId ?? params.id); break;
@@ -54,7 +58,7 @@ export class ActivityGuard {
     let reason: string | null = null;
     if (!this.ready) reason = 'Codex has not finished connecting.';
     else if (this.switching) reason = 'An account switch is already in progress.';
-    else if (this.unknown) reason = 'Codex activity could not be verified. Switching is blocked.';
+    else if (this.unknown || this.unverifiedQueues.size) reason = 'Codex activity could not be verified. Switching is blocked.';
     else if (this.pendingWork.size || this.activeTurns.size || this.activeThreads.size || this.processes.size) reason = 'A Codex chat, subagent, or tool is still running.';
     else if (this.pendingApprovals.size) reason = 'Codex is waiting for approval or input.';
     else if (this.queuedThreads.size) reason = 'Resolve queued messages before switching accounts.';

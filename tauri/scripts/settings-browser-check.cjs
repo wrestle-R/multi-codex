@@ -11,8 +11,8 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
  for(const viewport of [{width:1180,height:820},{width:480,height:520}])for(const mode of ['light','dark']){
   const page=await browser.newPage({viewport,reducedMotion:'reduce'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(mode=>{localStorage.setItem('multi-codex-theme',mode);localStorage.setItem('multi-codex-palette','sand');localStorage.setItem('multi-codex-executables',JSON.stringify({codePath:null,codexPath:'/opt/example/codex',globalCodexHome:null,preferredWorkspace:'/home/example/Projects',launchMode:'both',cliTerminal:'konsole'}));},mode);
-  await page.goto(`${process.env.SETTINGS_BASE_URL || 'http://127.0.0.1:1420'}/?demo=1`);await page.getByRole('button',{name:'Launch settings',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'Folders and launching'});const picker=page.getByRole('combobox',{name:'CLI terminal'});await picker.click();
+  await page.goto(`${process.env.SETTINGS_BASE_URL || 'http://127.0.0.1:1420'}/?demo=1`);await page.getByRole('button',{name:'Settings',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'Settings'});const picker=page.getByRole('combobox',{name:'CLI terminal'});await picker.click();
   const list=page.getByRole('listbox',{name:'CLI terminal'});assert.equal(await list.getByRole('option').count(),3);assert.equal(await list.getByRole('option',{name:/Ghostty/}).count(),0);
   const bounds=await page.locator('.terminal-picker-menu').boundingBox();const clip=await page.locator('.settings-body').boundingBox();
   assert(bounds.y>=clip.y-1&&bounds.y+bounds.height<=clip.y+clip.height+1,`Menu clipped: ${engine}/${mode}/${viewport.width} ${JSON.stringify({bounds,clip})}`);

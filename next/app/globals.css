@@ -331,3 +331,11 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .markdown-guide pre { overflow-x: auto; padding: 1rem; background: var(--panel); }
 .markdown-guide table { display: block; overflow-x: auto; border-collapse: collapse; }
 .markdown-guide td, .markdown-guide th { padding: .75rem; border: 1px solid var(--border); text-align: left; }
+
+.orbit-section { display: grid; grid-template-columns: .75fr 1.25fr; align-items: center; gap: 3rem; padding-top: 5rem; padding-bottom: 5rem; }
+.orbit-section h2 { font-size: clamp(2.2rem, 4vw, 3.6rem); line-height: 1.1; margin: 1rem 0; }
+.orbit-section p { color: var(--muted-foreground, #71717a); line-height: 1.6; }
+.orbit-compatibility { font-size: .78rem; margin: 1.1rem 0; }
+.orbit-screenshot { min-width: 0; }
+.orbit-screenshot img { width: 100%; height: auto; display: block; border-radius: 1rem; }
+@media(max-width:900px) { .orbit-section { grid-template-columns: 1fr; gap: 2rem; padding-top: 3rem; padding-bottom: 3rem; } }

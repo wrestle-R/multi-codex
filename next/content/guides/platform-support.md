@@ -13,9 +13,9 @@ Multi Codex v1.4 adds native Windows x64 support, a Mac menu-bar account picker,
 
 Standalone isolation is enabled only for desktop app version `26.930.51102` on Linux x86_64 and macOS arm64, and the official Windows x64 MSIX app build `26.930.61225`. Other versions and architectures fail closed until tested. Linux releases use AppImage, DEB and RPM; their availability does not mean every distribution/version has been tested. The desktop launcher has no macOS 27 or Intel Mac validation claim; the extension separately supports both Mac architectures. Windows support targets native x64; WSL, Remote SSH, containers and Windows virtual-desktop placement are outside this scope. Linux requires its usual session bus, native libraries and credential-store dependencies.
 
-## Launch settings and account data
+## Settings and account data
 
-The first-run welcome saves platform and installed-app detection; installed apps are checked again later. Launch settings offers **VS Code**, **Codex**, **All available** and **CLI only**, disabling unavailable targets. The CLI button appears alongside the selected apps whenever a CLI is available. Existing launch preferences remain in place, and an unverified standalone version cannot be selected.
+The first-run welcome saves platform and installed-app detection; installed apps are checked again later. Settings offers **VS Code**, **Codex**, **All available** and **CLI only**, disabling unavailable targets. The CLI button appears alongside the selected apps whenever a CLI is available. Existing launch preferences remain in place, and an unverified standalone version cannot be selected.
 
 **Preferred folder + Browse** uses the built-in folder picker. The saved folder is its starting location on each launch; a different project can be chosen then. On Linux, **Show desktop picker** is on by default and can be turned off. The option does not appear on macOS or Windows. Mac and Windows launches continue on the current desktop after the folder choice. Executable paths and global Codex home are under Advanced.
 

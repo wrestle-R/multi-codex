@@ -268,6 +268,50 @@ pub fn recover_writer(
         .map(|thread| thread.native_id.as_str())
         .unwrap_or(thread_id);
     let home = &lease.owner.session_home;
+    // An applied native deletion has no rollout to scan. The private intent is
+    // the commit record; a prepared-only delete remains ambiguous and retained.
+    let operation_path = home
+        .join("chat-operations")
+        .join(format!("{thread_id}.json"));
+    let operation = match fs::symlink_metadata(&operation_path) {
+        Ok(info) => {
+            if !info.is_file() || info.file_type().is_symlink() || info.len() > 4096 {
+                return Err("Invalid retained chat operation; ownership has been kept".into());
+            }
+            let value: Value = serde_json::from_slice(
+                &fs::read(&operation_path).map_err(|_| "Could not read retained chat operation")?,
+            )
+            .map_err(|_| "Invalid retained chat operation")?;
+            if value["schema"] != 1
+                || value["id"] != thread_id
+                || value["nativeId"] != native_id
+                || !matches!(
+                    value["method"].as_str(),
+                    Some("thread/archive" | "thread/unarchive" | "thread/delete")
+                )
+                || !matches!(value["phase"].as_str(), Some("prepared" | "nativeApplied"))
+            {
+                return Err("Unverified chat operation; ownership has been kept".into());
+            }
+            Some(value)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(_) => return Err("Could not verify retained chat operation".into()),
+    };
+    if operation
+        .as_ref()
+        .is_some_and(|op| op["method"] == "thread/delete")
+    {
+        let op = operation.as_ref().unwrap();
+        if op["phase"] != "nativeApplied" {
+            return Err("Deletion was interrupted before its result was recorded. Retained history and ownership require explicit recovery".into());
+        }
+        let retained = saved.ok_or("Deleted empty chat has no canonical record to recover")?;
+        library.tombstone_stopped(leases, &lease)?;
+        fs::remove_file(&operation_path).map_err(|_| "Could not finish chat operation recovery")?;
+        leases.release(&lease)?;
+        return Ok(retained);
+    }
     let mut candidates = Vec::new();
     for name in ["sessions", "archived_sessions"] {
         for rollout in rollouts(home, &home.join(name))? {
@@ -280,7 +324,22 @@ pub fn recover_writer(
         return Err("Stopped writer recovery needs one unambiguous retained rollout; all copies and ownership have been kept".into());
     }
     let rollout = &candidates[0];
-    let metadata = read_thread(data_root, binary, rollout)?;
+    let mut metadata = read_thread(data_root, binary, rollout)?;
+    let settings_path = home.join("chat-settings").join(format!("{thread_id}.json"));
+    if let Ok(info) = fs::symlink_metadata(&settings_path) {
+        if !info.is_file() || info.file_type().is_symlink() || info.len() > 16384 {
+            return Err("Invalid retained chat settings".into());
+        }
+        let settings: Value = serde_json::from_slice(
+            &fs::read(settings_path).map_err(|_| "Could not read retained chat settings")?,
+        )
+        .map_err(|_| "Invalid retained chat settings")?;
+        metadata["_multiCodexSettings"] = settings;
+    } else if let Some(saved) = &saved {
+        if let Some(settings) = saved.metadata.get("_multiCodexSettings") {
+            metadata["_multiCodexSettings"] = settings.clone();
+        }
+    }
     let mappings = assets(home, home, rollout)?;
     let committed = if saved.is_some() {
         library.publish_stopped(leases, &lease, rollout, &metadata, &mappings)?
@@ -288,6 +347,15 @@ pub fn recover_writer(
         let profile = lease.owner.profile_id.as_deref().ok_or("The stopped new chat has no verified source profile; its private history remains retained")?;
         library.import_owned(leases, &lease, profile, rollout, &metadata, &mappings, true)?
     };
+    if let Some(operation) = operation {
+        let archived = operation["method"] == "thread/archive";
+        let native_archived = rollout.starts_with(home.join("archived_sessions"));
+        if native_archived != archived {
+            return Err("Interrupted native library operation has an unverified result. Retained bytes and ownership have been kept".into());
+        }
+        library.set_archived_stopped(leases, &lease, archived)?;
+        fs::remove_file(&operation_path).map_err(|_| "Could not finish chat operation recovery")?;
+    }
     leases.release(&lease)?;
     Ok(committed)
 }
