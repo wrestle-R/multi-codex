@@ -94,7 +94,7 @@ pub fn save_settings(root: &Path, settings: &HudSettings) -> Result<()> {
     settings.validate()?;
     atomic_json(&root.join("hud/settings.json"), settings)
 }
-fn read_private(path: &Path) -> Result<Vec<u8>> {
+pub(crate) fn read_private(path: &Path) -> Result<Vec<u8>> {
     let info = fs::symlink_metadata(path).map_err(|_| "HUD state is unavailable")?;
     if !info.is_file() || info.file_type().is_symlink() || info.len() > 2 * 1024 * 1024 {
         return Err("Invalid HUD state file".into());
@@ -149,6 +149,11 @@ pub struct Snapshot {
     pub start_time: u64,
     pub sessions: BTreeMap<String, Session>,
     pub limits: Option<Value>,
+    #[serde(default = "desktop_client")]
+    pub client: String,
+}
+fn desktop_client() -> String {
+    "desktop".into()
 }
 #[derive(Default)]
 pub struct Observer {
@@ -195,6 +200,7 @@ impl Observer {
                 profile_id: profile,
                 pid,
                 start_time,
+                client: desktop_client(),
                 ..Default::default()
             },
             ..Default::default()
@@ -279,6 +285,14 @@ impl Observer {
         }
         let method = message["method"].as_str().unwrap_or("");
         let params = &message["params"];
+        if method == "thread/closed" || method == "thread/deleted" {
+            if let Some(id) = identity(&params["threadId"]) {
+                self.snapshot.sessions.remove(&id);
+                self.last_reply.remove(&id);
+                self.approvals.retain(|_, thread| thread != &id);
+            }
+            return;
+        }
         if method == "thread/started" {
             self.loaded(&params["thread"]);
             return;
@@ -326,6 +340,10 @@ impl Observer {
                 }
             }
             "thread/status/changed" => {
+                if params["status"]["type"] == "notLoaded" {
+                    self.snapshot.sessions.remove(&id);
+                    return;
+                }
                 if let Some(session) = self.snapshot.sessions.get_mut(&id) {
                     session.status = params["status"]["type"]
                         .as_str()
@@ -414,9 +432,10 @@ pub fn needs_user(text: &str) -> bool {
 }
 pub fn process_start(pid: u32) -> Option<u64> {
     let mut system = sysinfo::System::new();
-    system.refresh_processes(
+    system.refresh_processes_specifics(
         sysinfo::ProcessesToUpdate::Some(&[sysinfo::Pid::from_u32(pid)]),
         true,
+        sysinfo::ProcessRefreshKind::nothing().without_tasks(),
     );
     system
         .process(sysinfo::Pid::from_u32(pid))
@@ -438,9 +457,82 @@ pub fn snapshots(root: &Path) -> Vec<Snapshot> {
         if let Ok(bytes) = read_private(&entry.path()) {
             if let Ok(snapshot) = serde_json::from_slice::<Snapshot>(&bytes) {
                 if process_start(snapshot.pid) == Some(snapshot.start_time) {
+                    let mut snapshot = snapshot;
+                    snapshot.sessions.retain(|_, s| s.status != "notLoaded");
                     result.push(snapshot);
                 }
             }
+        }
+    }
+    result
+}
+
+/// Existing sessions are discovered without restarting or altering a client.
+/// Saved history is never scanned: only rollouts held open by a live Codex
+/// engine contribute. Rich proxy events take precedence for the same process.
+pub fn live_snapshots(root: &Path) -> Vec<Snapshot> {
+    let mut result = snapshots(root);
+    for native in crate::hud_sessions::snapshots(root) {
+        if result
+            .iter_mut()
+            .any(|s| s.pid == native.pid && s.start_time == native.start_time)
+        {
+            // Native engines can retain rollout writer descriptors after an
+            // unsubscribe. An authoritative empty proxy/bridge snapshot wins.
+            continue;
+        } else {
+            result.push(native);
+        }
+    }
+    result.sort_by_key(|s| std::cmp::Reverse((s.start_time, s.pid)));
+    // UI selection owns presence; backend residency only enriches it. An
+    // idle visible chat remains open when the engine evicts its cached state.
+    let states = crate::hud_desktop::states(root);
+    let mut visible = BTreeMap::<String, std::collections::BTreeSet<String>>::new();
+    for state in &states {
+        visible
+            .entry(state.profile_id.clone())
+            .or_default()
+            .extend(state.threads.iter().cloned());
+    }
+    let mut matched = std::collections::BTreeSet::new();
+    for snapshot in result.iter_mut().filter(|s| s.client == "desktop") {
+        snapshot.sessions.retain(|id, _| {
+            visible
+                .get(&snapshot.profile_id)
+                .is_some_and(|ids| ids.contains(id))
+                && matched.insert((snapshot.profile_id.clone(), id.clone()))
+        });
+    }
+    for state in states {
+        let sessions = state
+            .threads
+            .into_iter()
+            .filter(|id| matched.insert((state.profile_id.clone(), id.clone())))
+            .map(|id| {
+                (
+                    id.clone(),
+                    Session {
+                        id,
+                        title: "Codex Desktop chat".into(),
+                        cwd: String::new(),
+                        status: "unknown".into(),
+                        attention: None,
+                        epoch: 0,
+                        tokens: None,
+                    },
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        if !sessions.is_empty() {
+            result.push(Snapshot {
+                profile_id: state.profile_id,
+                pid: state.pid,
+                start_time: state.start_time,
+                client: "desktop".into(),
+                sessions,
+                limits: None,
+            });
         }
     }
     result
@@ -598,6 +690,20 @@ mod tests {
             .contains("NEVER_PERSIST"));
         state.server(&json!({"method":"thread/name/updated","params":{"threadId":id,"threadName":"Named fixture"}}));
         assert_eq!(state.snapshot.sessions[&id].title, "Named fixture");
+    }
+    #[test]
+    fn closed_and_unloaded_chats_do_not_remain_in_only_open_accounts() {
+        let id = uuid::Uuid::new_v4().to_string();
+        let mut state = Observer::default();
+        for closed in [
+            json!({"method":"thread/closed","params":{"threadId":id}}),
+            json!({"method":"thread/status/changed","params":{"threadId":id,"status":{"type":"notLoaded"}}}),
+        ] {
+            state.server(&json!({"method":"thread/started","params":{"thread":{"id":id}}}));
+            assert_eq!(state.snapshot.sessions.len(), 1);
+            state.server(&closed);
+            assert!(state.snapshot.sessions.is_empty());
+        }
     }
     #[test]
     fn stopped_or_reused_pid_is_not_an_open_session() {

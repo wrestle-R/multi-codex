@@ -280,6 +280,25 @@ fn group_hyprland(
     }
 }
 
+pub fn focus_window(id: &str) -> Result<()> {
+    if backend() != "hyprland" {
+        return Err("Window focus is unavailable".into());
+    }
+    let client = hypr_json::<Vec<HyprClient>>("clients")?
+        .into_iter()
+        .find(|client| client.window_id() == id)
+        .ok_or("The chat window has closed")?;
+    if !valid_address(&client.address) {
+        return Err("Invalid chat window".into());
+    }
+    let output = crate::process::output(Command::new("hyprctl").args(["eval", &format!("local w=hl.get_window('address:{}'); assert(w); hl.dispatch(hl.dsp.focus({{window=w}}))", client.address)]), Duration::from_secs(2))?;
+    if output.status.success() && String::from_utf8_lossy(&output.stdout).trim() == "ok" {
+        Ok(())
+    } else {
+        Err("Could not focus the chat window".into())
+    }
+}
+
 pub fn move_window(id: &str, destination: &str) -> Result<()> {
     inventory()?.require_destination(destination)?;
     match backend() {

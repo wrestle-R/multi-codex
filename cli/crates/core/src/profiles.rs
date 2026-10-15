@@ -904,6 +904,28 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             fs::set_permissions(&path, fs::Permissions::from_mode(0o700))
                 .map_err(|_| "Could not enable Desktop observer")?;
             command.env("CODEX_CLI_PATH", path);
+            let mut observer = Command::new(&helper);
+            observer
+                .arg("--hud-desktop")
+                .arg(command.get_program())
+                .arg(&self.data_root)
+                .arg(id)
+                .args(command.get_args());
+            for (key, value) in command.get_envs() {
+                if let Some(value) = value {
+                    observer.env(key, value);
+                } else {
+                    observer.env_remove(key);
+                }
+            }
+            if let Some(directory) = command.get_current_dir() {
+                observer.current_dir(directory);
+            }
+            observer
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
+            *command = observer;
         }
         Ok(())
     }

@@ -11,6 +11,8 @@ pub mod desktop_integration;
 pub mod extension_accounts;
 pub mod file_security;
 pub mod hud;
+pub mod hud_desktop;
+pub mod hud_sessions;
 pub use hud as hud_model;
 pub mod launch;
 pub mod launch_targets;
