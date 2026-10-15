@@ -51,7 +51,6 @@ jobs:
         with:
           workspaces: tauri/src-tauri
           cache-on-failure: true
-          cache-on-failure: true
       - name: Install Linux native dependencies
         if: runner.os == 'Linux'
         run: |
