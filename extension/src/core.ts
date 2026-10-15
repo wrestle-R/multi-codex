@@ -14,3 +14,5 @@ export * from './usage';
 export * from './connection';
 export * from './shared-chats';
 export * from './thread-operations';
+
+export { OrbitSelection } from "./orbit-selection";

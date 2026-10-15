@@ -5,6 +5,7 @@ import { chmod, lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/
 import { basename, dirname, isAbsolute, join, relative } from 'node:path';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { ActivityGuard } from './activity';
+import { OrbitSelection } from './orbit-selection';
 import { AccountClient } from './accounts';
 import { accountIdentity, claims, loginParams, matchesIdentity, type StoredAuth } from './auth';
 import { JsonLines, RpcPeer, type Message } from './protocol';
@@ -16,6 +17,7 @@ export type BridgeConfig = { engine: string; helper: string; dataRoot: string; g
 export type ExistingBackend = { child: ChildProcessWithoutNullStreams; lines: JsonLines; restore: () => void };
 export class CodexBridge {
   readonly activity = new ActivityGuard();
+  readonly orbit = new OrbitSelection();
   readonly instanceId = randomUUID();
   backend: ChildProcessWithoutNullStreams;
   backendLines: JsonLines;
@@ -38,6 +40,9 @@ export class CodexBridge {
   private sharedRequests = new Set<string | number>();
   private queueVersions = new Map<string, number>();
   private catalogTimer?: ReturnType<typeof setInterval>;
+  private orbitTimer?: ReturnType<typeof setInterval>;
+  private orbitPolling = false;
+  private orbitProfile: string | null = null;
   private catalogPolling = false;
   private readonly engineArgs: string[];
   constructor(readonly config: BridgeConfig, readonly frontend: JsonLines, args: string[], private existing?: ExistingBackend) {
@@ -128,6 +133,30 @@ export class CodexBridge {
     await new Promise<void>((resolve, reject) => { this.server!.once('error', reject); this.server!.listen(this.config.socket, resolve); });
     if (process.platform !== 'win32') await chmod(this.config.socket, 0o600);
     await this.recordBackend();
+    // The already-bundled bridge supplies the selected frontend session. No
+    // additional editor extension or reload is needed for future launches.
+    this.orbitTimer = setInterval(() => { void this.publishOrbit(); }, 1500);
+  }
+  private async publishOrbit() {
+    if (this.orbitPolling || this.disposed || this.stopping || this.activity.switching || !this.activity.ready || this.connectionFailed) return;
+    const profile = this.selectedId;
+    if (!profile && !this.orbitProfile) return;
+    const backend = this.backend;
+    this.orbitPolling = true;
+    try {
+      const id = this.orbit.selected;
+      const threads = [];
+      if (profile && id) {
+        const { thread } = this.shared
+          ? await this.shared.request('thread/read', { threadId: id, includeTurns: false })
+          : await this.backendRpc.request('thread/read', { threadId: id, includeTurns: false });
+        if (thread) threads.push({ id, name: thread.name, cwd: thread.cwd, status: thread.status?.type === 'notLoaded' ? { type: 'idle' } : thread.status });
+      }
+      if (backend !== this.backend || profile !== this.selectedId || id !== this.orbit.selected || this.activity.switching || this.disposed) return;
+      await this.accounts.request('orbit/publish', { pid: backend.pid, profileId: profile ?? this.orbitProfile, threads });
+      this.orbitProfile = profile;
+    } catch { /* Telemetry failure never interrupts the actual chat or account switch. */ }
+    finally { this.orbitPolling = false; }
   }
   private accept(socket: Socket) {
     const lines = new JsonLines(socket, socket, 2 * 1024 * 1024); let authorized = false;
@@ -160,6 +189,7 @@ export class CodexBridge {
       if (message.id !== undefined) this.frontend.send({ id: message.id, error: { code: -32001, message: 'Multi Codex is changing accounts. Retry when the account is verified.' } });
       return;
     }
+    this.orbit.outgoing(message);
     if (authMutation && !this.shared) {
       // Direct login in the official panel leaves managed-account mode explicitly.
       if (this.selectedId) void this.accounts.request('accounts/release', { id: this.selectedId }).catch(() => {});
@@ -193,10 +223,10 @@ export class CodexBridge {
             }, 2000);
           }
           const response = { id: request.id, result };
-          this.activity.incoming(response); this.frontend.send(response);
+          this.orbit.incoming(response); this.activity.incoming(response); this.frontend.send(response);
         } catch (error) {
           const response = { id: request.id, error: { code: -32000, message: error instanceof Error ? error.message : 'Shared chat operation failed' } };
-          this.activity.incoming(response); this.frontend.send(response);
+          this.orbit.incoming(response); this.activity.incoming(response); this.frontend.send(response);
         } finally { this.sharedRequests.delete(request.id!); this.broadcast(); }
       })();
       return;
@@ -206,6 +236,7 @@ export class CodexBridge {
   }
   private fromBackend(message: Message) {
     if (this.shared) message = this.shared.notification(message);
+    if (message.method || !this.backendRpc.owns(message.id)) this.orbit.incoming(message);
     if (message.id === this.initializeId && !message.method) {
       this.activity.ready = !message.error;
     }
@@ -242,7 +273,7 @@ export class CodexBridge {
     } catch { this.backendLines.send({ id, error: { code: -32000, message: 'The saved account needs fresh credentials. Sign in again in Multi Codex.' } }); }
     finally { this.credentialRequests.delete(id); this.activity.pendingApprovals.delete(id); this.broadcast(); }
   }
-  state() { return { ...this.activity.snapshot(), ...(this.connectionFailed ? { canSwitch: false, reason: this.connectionFailure?.includes('protocol') ? 'Codex protocol connection could no longer be verified. Save your work and reopen Codex, then retry.' : 'Codex backend disconnected. Save your work and reopen Codex, then retry.' } : {}), selectedId: this.selectedId, sourceHome: this.config.sourceHome ?? this.config.globalHome, bridgePid: process.pid, backendPid: this.backend.pid, instanceId: this.instanceId, connectionFailed: this.connectionFailed, connectionFailure: this.connectionFailure, authenticationUnverified: this.authenticationUnverified }; }
+  state() { return { ...this.activity.snapshot(), ...(process.env.MULTI_CODEX_TEST_MODE === "1" ? { testOrbitSelected: this.orbit.selected, testOrbitEvents: this.orbit.testEvents } : {}), ...(this.connectionFailed ? { canSwitch: false, reason: this.connectionFailure?.includes('protocol') ? 'Codex protocol connection could no longer be verified. Save your work and reopen Codex, then retry.' : 'Codex backend disconnected. Save your work and reopen Codex, then retry.' } : {}), selectedId: this.selectedId, sourceHome: this.config.sourceHome ?? this.config.globalHome, bridgePid: process.pid, backendPid: this.backend.pid, instanceId: this.instanceId, connectionFailed: this.connectionFailed, connectionFailure: this.connectionFailure, authenticationUnverified: this.authenticationUnverified }; }
   private broadcast() { for (const client of this.clients.keys()) client.send({ method: 'state/changed', params: this.state() }); }
   async switchAccount(id: string) {
     if (typeof id !== 'string' || !id) throw new Error('Select a saved account');
@@ -282,7 +313,7 @@ export class CodexBridge {
       await this.backendRpc.request('account/login/start', login);
       const status = await this.backendRpc.request('getAuthStatus', { includeToken: true, refreshToken: false });
       if (!matchesIdentity(status, auth)) throw new Error('Codex did not confirm the selected account.');
-      this.selectedId = id; this.selectedAuth = auth;
+      this.orbit.reset(); this.selectedId = id; this.selectedAuth = auth;
       if (previousId && previousId !== id) await this.accounts.request('accounts/release', { id: previousId });
       return this.state();
     } catch (error) {
@@ -390,6 +421,7 @@ export class CodexBridge {
   dispose() { return this.disposal ??= (async () => {
     this.disposed = true;
     if (this.catalogTimer) clearInterval(this.catalogTimer);
+    if (this.orbitTimer) clearInterval(this.orbitTimer);
     if (this.shared && !this.connectionFailed) await this.shared.captureForStop().catch(() => {});
     this.fail('bridge-disposed');
     for (const [client, socket] of this.clients) { client.send({ method: 'disconnected' }); socket.end(); socket.destroy(); }
