@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['tauri/**', 'extension/**', '.github/workflows/windows.yml']
+    paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['tauri/**', 'extension/**', '.github/workflows/windows.yml']
+    paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
 concurrency:
   group: windows-native-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -14,6 +14,23 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  installer-scripts:
+    runs-on: windows-2025
+    timeout-minutes: 5
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify checksum manifests in Windows PowerShell 5.1
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./tauri/scripts/windows-installer-regressions.ps1
+      - name: Verify checksum manifests in PowerShell 7
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
+        run: ./tauri/scripts/windows-installer-regressions.ps1
+
   windows:
     runs-on: windows-2025
     timeout-minutes: 50
@@ -129,6 +146,7 @@ jobs:
           name: windows-installer-evidence
           path: ${{ runner.temp }}/multi-codex-windows-evidence/
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: windows-installer
           path: tauri/src-tauri/target/release/bundle/nsis/*.exe

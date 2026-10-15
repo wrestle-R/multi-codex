@@ -139,26 +139,41 @@ pub trait SecretStore: Send + Sync + 'static {
 
 pub struct KeyringSecretStore;
 
+#[cfg(any(windows, test))]
+#[path = "windows_credentials.rs"]
+mod windows_credentials;
+
 impl SecretStore for KeyringSecretStore {
     fn set(&self, id: &str, secret: &str) -> Result<()> {
+        #[cfg(windows)]
+        return windows_credentials::save(id, secret);
+        #[cfg(not(windows))]
         keyring::Entry::new(KEYRING_SERVICE, id)
             .and_then(|entry| entry.set_password(secret))
             .map_err(|_| "The system credential store could not save this credential".to_string())
     }
 
     fn get(&self, id: &str) -> Result<String> {
+        #[cfg(windows)]
+        return windows_credentials::load(id);
+        #[cfg(not(windows))]
         keyring::Entry::new(KEYRING_SERVICE, id)
             .and_then(|entry| entry.get_password())
             .map_err(|_| "The system credential store could not read this credential".to_string())
     }
 
     fn delete(&self, id: &str) -> Result<()> {
-        let entry = keyring::Entry::new(KEYRING_SERVICE, id)
-            .map_err(|_| "The system credential store is unavailable".to_string())?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => {
-                Err("The system credential store could not delete this credential".to_string())
+        #[cfg(windows)]
+        return windows_credentials::remove(id);
+        #[cfg(not(windows))]
+        {
+            let entry = keyring::Entry::new(KEYRING_SERVICE, id)
+                .map_err(|_| "The system credential store is unavailable".to_string())?;
+            match entry.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(_) => {
+                    Err("The system credential store could not delete this credential".to_string())
+                }
             }
         }
     }
@@ -3562,6 +3577,12 @@ mod tests {
         }
         let captured = fs::read_to_string(capture).expect("Terminal did not run the isolated CLI");
         let pid = captured.lines().next().unwrap().parse::<u32>().unwrap();
+        // The fixture writes its marker before exec. macOS can briefly fail
+        // process inspection while that PID changes from the shell to sleep.
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !process_uses_profile(pid, &paths.codex_home) && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(100));
+        }
         let detected = process_uses_profile(pid, &paths.codex_home);
         let running = service
             .list_profiles()
