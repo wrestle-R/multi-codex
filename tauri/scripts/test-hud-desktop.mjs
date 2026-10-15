@@ -192,7 +192,13 @@ try {
   assert.deepEqual(collapsed?.threads, [id], 'collapsing sidebar must not hide an open chat from Orbit');
   await a.eval("document.querySelector('button[aria-label=\"Show sidebar\"]')?.click()");
   stage = 'Home removes retained chats from visible sessions';
-  await a.eval("document.querySelector('button[data-sidebar-destination=\"builtin:home\"]')?.click()");
+  // Reopening the sidebar mounts Home asynchronously on macOS. A missing
+  // optional-chained click previously tested no navigation at all.
+  await until(() => a.eval(`(() => {
+    const home = document.querySelector('button[data-sidebar-destination="builtin:home"]');
+    if (!home || home.disabled || !home.getBoundingClientRect().width) return false;
+    home.click(); return true;
+  })()`), Boolean);
   await until(visibility, states => states.some(s => s?.profileId === a.id && s.threads.length === 0));
   if (process.env.MULTI_CODEX_TEST_ORBIT_DIAGNOSTIC) assert.equal(combinedDesktopCount(), 0);
   await navigateWarm();

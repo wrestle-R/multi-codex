@@ -48,7 +48,8 @@ try {
     const initial = await until(layer, l => l && l.h === 88 && l.w === 340, `${edge} layer creation`).catch(async e => { throw new Error(`${e.message}; exit=${app.exitCode}; stderr=${errors}; layers=${JSON.stringify(await json('layers'))}`); });
     assert.equal((await json('clients')).some(w => w.pid === app.pid && w.title === 'Multi Codex Orbit'), false, 'Orbit must not be a managed application window');
     const main = await until(async () => (await json('clients')).find(w => w.pid === app.pid && w.title === 'Multi Codex'), Boolean, 'fixture main');
-    await new Promise(r => setTimeout(r, 1800));
+    // GTK maps the layer before the first WebKit/React layout is ready.
+    await new Promise(r => setTimeout(r, 4000));
     if (process.env.MULTI_CODEX_TEST_HUD_SCREENSHOT) await exec('grim', ['-g', `${initial.x},${initial.y} ${initial.w}x${initial.h}`, `${process.env.MULTI_CODEX_TEST_HUD_SCREENSHOT}-${edge}-compact.png`]);
     await pointer(monitor.x + 100, monitor.y + 300);
     await pointer(initial.x + initial.w - 76, edge === 'top' ? initial.y + 44 : initial.y + initial.h - 44);
