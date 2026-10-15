@@ -339,3 +339,6 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .orbit-screenshot { min-width: 0; }
 .orbit-screenshot img { width: 100%; height: auto; display: block; border-radius: 1rem; }
 @media(max-width:900px) { .orbit-section { grid-template-columns: 1fr; gap: 2rem; padding-top: 3rem; padding-bottom: 3rem; } }
+.release-channel-options { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0 2rem; }
+.release-channel-options a { border: 1px solid var(--border); border-radius: 999px; padding: .6rem 1rem; font-size: .85rem; }
+.release-channel-options a[aria-current="page"] { background: var(--foreground); color: var(--background); }
