@@ -716,6 +716,7 @@ export default function App() {
       {showHudSettings ? <HudSettingsDialog onClose={() => setShowHudSettings(false)} /> : null}
       {showLaunchSettings ? <LaunchSettingsDialog onClose={() => {
         setShowLaunchSettings(false)
+        void appUpdate.check(true)
         void Promise.all([getExecutableSettings(), getLaunchTargets()]).then(([settings, apps]) => {
           setLaunchMode(settings.launchMode ?? 'vscode'); setLaunchTargets(apps)
         }).catch(error => setLaunchPreparationError(String(error)))
