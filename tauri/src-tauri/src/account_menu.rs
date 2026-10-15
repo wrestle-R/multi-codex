@@ -101,8 +101,12 @@ pub fn show(app: &tauri::AppHandle) {
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 pub fn setup(app: &tauri::AppHandle) -> tauri::Result<()> {
     let initial_menu = menu(app)?;
-    // A monochrome template adapts to both light and dark macOS menu bars.
+    // macOS recolors template images. Linux tray hosts display the pixels as
+    // supplied, so a black template disappears against a dark panel.
+    #[cfg(target_os = "macos")]
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/menu-bar.png"))?;
+    #[cfg(target_os = "linux")]
+    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/32x32.png"))?;
     tauri::tray::TrayIconBuilder::with_id("accounts")
         .icon(icon)
         .icon_as_template(cfg!(target_os = "macos"))
