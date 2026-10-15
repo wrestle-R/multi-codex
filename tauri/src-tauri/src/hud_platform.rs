@@ -40,7 +40,7 @@ pub fn shortcut(hidden: Arc<AtomicBool>) {
                     })
                 });
                 if !occupied {
-                    let _ = run(Command::new("hyprctl").args(["eval", "if not _G.multi_codex_hud_bind then _G.multi_codex_hud_bind = hl.bind('SUPER + SHIFT + H', hl.dsp.exec_cmd('busctl --user call com.multicodex.Hud /com/multicodex/Hud com.multicodex.Hud1 Toggle')) end"]));
+                    let _ = run(Command::new("hyprctl").args(["eval", &format!("if not _G.multi_codex_hud_bind then _G.multi_codex_hud_bind = hl.bind('SUPER + SHIFT + H', hl.dsp.exec_cmd('busctl --user call com.multicodex.Hud /com/multicodex/Hud com.multicodex.Hud1 Toggle')); _G.multi_codex_hud_owner={} end", std::process::id())]));
                 }
             }
         }
@@ -102,7 +102,12 @@ fn run(command: &mut Command) -> Result<String, String> {
     if !output.status.success() {
         return Err("HUD compositor request unavailable".into());
     }
-    String::from_utf8(output.stdout).map_err(|_| "Invalid compositor reply".into())
+    let reply = String::from_utf8(output.stdout).map_err(|_| "Invalid compositor reply")?;
+    // Lua evaluation failures can arrive with a successful hyprctl exit code.
+    if reply.trim_start().starts_with("error:") {
+        return Err("Orbit compositor operation failed".into());
+    }
+    Ok(reply)
 }
 #[cfg(target_os = "linux")]
 fn json_command(command: &str) -> Result<Value, String> {
@@ -167,10 +172,10 @@ fn hyprland_visible(x: f64, y: f64) -> Result<bool, String> {
                 .filter(|a| a.starts_with("0x") && a[2..].chars().all(|c| c.is_ascii_hexdigit()))
             {
                 if window["floating"] != true {
-                    let _ = run(Command::new("hyprctl").args(["eval", &format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.float({{action='set',window=w}})) end")]));
+                    let _ = run(Command::new("hyprctl").args(["eval", &format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.float({{action='on',window=w}})) end")]));
                 }
                 if window["pinned"] != true {
-                    let _ = run(Command::new("hyprctl").args(["eval", &format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.pin({{action='set',window=w}})) end")]));
+                    let _ = run(Command::new("hyprctl").args(["eval", &format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.pin({{action='on',window=w}})) end")]));
                 }
             }
         }
@@ -255,7 +260,12 @@ pub fn geometry(x: f64, y: f64, width: f64, height: f64) {
                 if let Some(address) = window["address"].as_str().filter(|a| {
                     a.starts_with("0x") && a[2..].chars().all(|c| c.is_ascii_hexdigit())
                 }) {
-                    let script = format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.float({{action='set',window=w}})); hl.dispatch(hl.dsp.window.move({{x={x},y={y},relative=false,window=w}})); hl.dispatch(hl.dsp.window.resize({{x={width},y={height},relative=false,window=w}})) end");
+                    // Only the verified PID/address is touched. Disable native
+                    // resize/fade animations: animating the input surface itself
+                    // repeatedly drops hover and feeds an expand/collapse loop.
+                    // App opacity is controlled by CSS, without another active /
+                    // inactive multiplier from the user's compositor theme.
+                    let script = format!("local w=hl.get_window('address:{address}'); if w then hl.dispatch(hl.dsp.window.float({{action='on',window=w}})); for _,p in ipairs({{'no_anim','no_blur','no_shadow','no_dim','opaque'}}) do hl.dispatch(hl.dsp.window.set_prop({{window=w,prop=p,value='1'}})) end; hl.dispatch(hl.dsp.window.set_prop({{window=w,prop='border_size',value='0'}})); hl.dispatch(hl.dsp.window.set_prop({{window=w,prop='rounding',value='0'}})); hl.dispatch(hl.dsp.window.set_prop({{window=w,prop='min_size',value='1 1'}})); hl.dispatch(hl.dsp.window.set_prop({{window=w,prop='max_size',value='{width} {height}'}})); hl.dispatch(hl.dsp.window.set_prop({{window=w,prop='min_size',value='{width} {height}'}})); hl.dispatch(hl.dsp.window.move({{x={x},y={y},relative=false,window=w}})); hl.dispatch(hl.dsp.window.resize({{x={width},y={height},relative=false,window=w}})) end");
                     let _ = run(Command::new("hyprctl").args(["eval", &script]));
                 }
             }
@@ -281,6 +291,9 @@ pub fn geometry(x: f64, y: f64, width: f64, height: f64) {
     let _ = (x, y, width, height);
 }
 pub fn position(window: &tauri::WebviewWindow, scale: f64) -> Option<(f64, f64)> {
+    if crate::hud_layer::active() {
+        return crate::hud_layer::rectangle().map(|(x, y, _, _)| (x, y));
+    }
     #[cfg(target_os = "linux")]
     if crate::desktop_environment::backend() == "hyprland" {
         let clients = json_command("clients").ok()?;
@@ -310,12 +323,53 @@ pub fn position(window: &tauri::WebviewWindow, scale: f64) -> Option<(f64, f64)>
     })
 }
 
+pub fn size(window: &tauri::WebviewWindow, scale: f64) -> Option<(f64, f64)> {
+    if crate::hud_layer::active() {
+        return crate::hud_layer::rectangle().map(|(_, _, w, h)| (w, h));
+    }
+    #[cfg(target_os = "linux")]
+    if crate::desktop_environment::backend() == "hyprland" {
+        let clients = json_command("clients").ok()?;
+        let client = clients
+            .as_array()?
+            .iter()
+            .find(|w| w["pid"] == std::process::id() && w["title"] == "Multi Codex Orbit")?;
+        return Some((client["size"][0].as_f64()?, client["size"][1].as_f64()?));
+    }
+    window.inner_size().ok().map(|size| {
+        let size = size.to_logical::<f64>(scale);
+        (size.width, size.height)
+    })
+}
+
+pub fn pointer_outside(x: f64, y: f64, width: f64, height: f64) -> bool {
+    #[cfg(target_os = "linux")]
+    if crate::desktop_environment::backend() == "hyprland" {
+        if let Ok(cursor) = json_command("cursorpos") {
+            if let (Some(cx), Some(cy)) = (cursor["x"].as_f64(), cursor["y"].as_f64()) {
+                return cx < x || cy < y || cx >= x + width || cy >= y + height;
+            }
+        }
+    }
+    let _ = (x, y, width, height);
+    false
+}
+
+pub fn cursor_position() -> Option<(f64, f64)> {
+    #[cfg(target_os = "linux")]
+    if crate::desktop_environment::backend() == "hyprland" {
+        let cursor = json_command("cursorpos").ok()?;
+        return Some((cursor["x"].as_f64()?, cursor["y"].as_f64()?));
+    }
+    None
+}
+
 /// Remove only shortcuts created by this process; never edit user config.
 pub fn cleanup() {
     #[cfg(target_os = "linux")]
     match crate::desktop_environment::backend() {
         "hyprland" => {
-            let _ = run(Command::new("hyprctl").args(["eval", "if _G.multi_codex_hud_bind then _G.multi_codex_hud_bind:remove(); _G.multi_codex_hud_bind=nil end"]));
+            let _ = run(Command::new("hyprctl").args(["eval", &format!("if _G.multi_codex_hud_owner=={} and _G.multi_codex_hud_bind then _G.multi_codex_hud_bind:remove(); _G.multi_codex_hud_bind=nil; _G.multi_codex_hud_owner=nil end", std::process::id())]));
         }
         "kde" => {
             if let Ok(connection) = zbus::blocking::Connection::session() {
