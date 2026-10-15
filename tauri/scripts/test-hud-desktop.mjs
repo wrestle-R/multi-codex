@@ -191,11 +191,13 @@ try {
 
   assert.deepEqual(collapsed?.threads, [id], 'collapsing sidebar must not hide an open chat from Orbit');
   await a.eval("document.querySelector('button[aria-label=\"Show sidebar\"]')?.click()");
-  stage = 'Home removes retained chats from visible sessions';
-  // Reopening the sidebar mounts Home asynchronously on macOS. A missing
-  // optional-chained click previously tested no navigation at all.
+  stage = 'Leaving the chat removes retained chats from visible sessions';
+  // Desktop layouts expose either Home or New chat. Require a real visible
+  // control rather than silently doing nothing when one layout lacks Home.
   await until(() => a.eval(`(() => {
-    const home = document.querySelector('button[data-sidebar-destination="builtin:home"]');
+    const buttons = [...document.querySelectorAll('button')];
+    const home = buttons.find(b => b.getAttribute('data-sidebar-destination') === 'builtin:home')
+      ?? buttons.find(b => b.getAttribute('aria-label') === 'New chat' || b.textContent.trim() === 'New chat');
     if (!home || home.disabled || !home.getBoundingClientRect().width) return false;
     home.click(); return true;
   })()`), Boolean);

@@ -146,7 +146,6 @@ const uiPolling = setInterval(async () => {
       orbitSubmissions.add(phase.label);
       return; // Capture the resulting composer on the next UI observation.
     }
-    if (phase.orbitNewChat && frames.some(frame => frame.targetId && frame.text?.includes('Orbit UI visibility fixture.'))) return;
     const expectedLabel = phase.label.includes('Account A') ? 'Account A' : 'Account B';
     if (!frames.some(frame => !frame.targetId && frame.text?.includes(expectedLabel))) return;
     if (phase.accountsPanel) {
