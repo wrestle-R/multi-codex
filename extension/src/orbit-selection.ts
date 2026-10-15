@@ -28,6 +28,10 @@ export class OrbitSelection {
     if (message.id === undefined || !message.method || !['turn/start', 'thread/resume', 'thread/unsubscribe', 'thread/archive', 'thread/delete'].includes(message.method)) return;
     this.trace(`send ${message.method}`);
     this.pending.set(message.id, { method: message.method, threadId: message.params?.threadId, generation: this.generation });
+    // The editor has already left this conversation when it asks the backend
+    // to unsubscribe. Clear the HUD selection at that point: some backends do
+    // not answer unsubscribe promptly, and retained history is not an open chat.
+    if (message.method === 'thread/unsubscribe' && message.params?.threadId === this.selected) this.selected = null;
     if (this.pending.size > 4096) this.pending.delete(this.pending.keys().next().value!);
   }
   incoming(message: Message) {
