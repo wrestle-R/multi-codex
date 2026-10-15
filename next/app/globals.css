@@ -95,6 +95,10 @@ h1, h2, h3, p { margin-top: 0; }
 pre { overflow-x: auto; margin: 0; padding: 16px; border: 1px solid var(--code-border); border-radius: 5px; color: var(--code-ink); background: var(--code-paper); font-size: 11px; line-height: 1.9; }
 code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 .install-caption { margin: 14px 0 0; color: var(--muted); font-size: 11px; }
+.windows-install-note { margin: 14px 0 0; color: var(--body-copy); font-size: 14px; }
+.windows-command { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.windows-command summary { color: var(--sage); font-size: 12px; cursor: pointer; }
+.windows-command-toolbar { display: flex; justify-content: flex-end; margin: 10px 0; }
 .mac-note { margin: 12px 0 0; color: var(--body-copy); font-size: 12px; }
 .notes-section { display: grid; grid-template-columns: .9fr 1.35fr; gap: 60px; padding-bottom: 80px; }
 .notes-section .eyebrow { margin-top: 5px; }
