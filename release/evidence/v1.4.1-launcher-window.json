@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "version": "1.4.1",
+  "sourceCommit": "d940eef12f0d750c9f856c2ed5d8dd5a38be7c81",
+  "artifact": "Multi.Codex_1.4.1_amd64.AppImage",
+  "sha256": "af954e950f3f8c4f07f51b490cc300b1777067759f3126938e0f38db2eb682a7",
+  "status": "passed",
+  "environment": "Arch Linux x64, live Hyprland 0.56.2",
+  "testedBy": "Codex in local desktop session",
+  "testedAt": "2026-10-09T13:16:01.562792+00:00",
+  "runs": [
+    {
+      "passed": true,
+      "target": "vscode",
+      "before": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterLaunch": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterClose": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "desktopSwitchCycles": 3,
+      "repairedFloatingRestore": true,
+      "temporaryData": true
+    },
+    {
+      "passed": true,
+      "target": "standalone",
+      "before": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterLaunch": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "afterClose": {
+        "floating": false,
+        "fullscreen": 1,
+        "size": [
+          1908,
+          1148
+        ]
+      },
+      "desktopSwitchCycles": 3,
+      "repairedFloatingRestore": true,
+      "temporaryData": true
+    }
+  ],
+  "scope": "Exact AppImage with disposable launcher/Code/standalone homes; maximize persistence, three desktop switches per target, floating restore repair. No authentication tested."
+}
