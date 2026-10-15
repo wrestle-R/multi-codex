@@ -1,8 +1,8 @@
 # VS Code Marketplace publishing requirements
 
-## Version 0.2.0 manual upload
+## Version 0.2.1 manual upload
 
-The v1.4.0 desktop release includes four matching extension v0.2.0 pre-release VSIX files: Linux x64, macOS arm64, macOS x64 and Windows x64. Download them from [GitHub Releases](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.0). Upload each tested file as an update to the existing **russeldanielpaul.multi-codex** extension. Marketplace availability for v0.2.0 remains pending the owner’s manual upload and Marketplace validation. Use **Extensions: Install from VSIX…** when the matching version or platform is not available in Marketplace yet.
+The v1.4.1 desktop release includes four matching extension v0.2.1 pre-release VSIX files: Linux x64, macOS arm64, macOS x64 and Windows x64. Download them from [GitHub Releases](https://github.com/wrestle-R/multi-codex/releases/tag/v1.4.1). Upload each tested file as an update to the existing **russeldanielpaul.multi-codex** extension. Marketplace availability for v0.2.1 remains pending the owner’s manual upload and Marketplace validation. Use **Extensions: Install from VSIX…** when the matching version or platform is not available in Marketplace yet.
 
 ## Previous Marketplace release
 
