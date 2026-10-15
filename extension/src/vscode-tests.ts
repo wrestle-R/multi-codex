@@ -54,7 +54,7 @@ export async function run() {
     if (process.env.MULTI_CODEX_UI_TEST !== '1') return;
     await vscode.commands.executeCommand('chatgpt.openSidebar');
     await writeFile(join(root, 'ui-phase.json'), JSON.stringify({ label }));
-    await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === label);
+    await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === label, 60000);
   }
   async function verifyStable() {
     const value = await api.getState();
