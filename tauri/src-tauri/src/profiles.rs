@@ -139,26 +139,41 @@ pub trait SecretStore: Send + Sync + 'static {
 
 pub struct KeyringSecretStore;
 
+#[cfg(any(windows, test))]
+#[path = "windows_credentials.rs"]
+mod windows_credentials;
+
 impl SecretStore for KeyringSecretStore {
     fn set(&self, id: &str, secret: &str) -> Result<()> {
+        #[cfg(windows)]
+        return windows_credentials::save(id, secret);
+        #[cfg(not(windows))]
         keyring::Entry::new(KEYRING_SERVICE, id)
             .and_then(|entry| entry.set_password(secret))
             .map_err(|_| "The system credential store could not save this credential".to_string())
     }
 
     fn get(&self, id: &str) -> Result<String> {
+        #[cfg(windows)]
+        return windows_credentials::load(id);
+        #[cfg(not(windows))]
         keyring::Entry::new(KEYRING_SERVICE, id)
             .and_then(|entry| entry.get_password())
             .map_err(|_| "The system credential store could not read this credential".to_string())
     }
 
     fn delete(&self, id: &str) -> Result<()> {
-        let entry = keyring::Entry::new(KEYRING_SERVICE, id)
-            .map_err(|_| "The system credential store is unavailable".to_string())?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(_) => {
-                Err("The system credential store could not delete this credential".to_string())
+        #[cfg(windows)]
+        return windows_credentials::remove(id);
+        #[cfg(not(windows))]
+        {
+            let entry = keyring::Entry::new(KEYRING_SERVICE, id)
+                .map_err(|_| "The system credential store is unavailable".to_string())?;
+            match entry.delete_credential() {
+                Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
+                Err(_) => {
+                    Err("The system credential store could not delete this credential".to_string())
+                }
             }
         }
     }
