@@ -27,8 +27,15 @@ impl AuthRecognizer for BundledRecognizer {
     }
 }
 
+fn multi_hud_desktop(args: &[std::ffi::OsString]) -> profiles::Result<()> {
+    crate::hud_desktop::launch(args)
+}
+
 pub fn run_account_helper() -> profiles::Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "--hud-desktop") {
+        return multi_hud_desktop(&args[1..]);
+    }
     if args.first().is_some_and(|arg| arg == "--hud-proxy") {
         return crate::hud_model::proxy(&args[1..]);
     }
@@ -76,7 +83,9 @@ pub fn run_account_helper() -> profiles::Result<()> {
             Err(_) => continue,
         };
         let id = request.get("id").cloned().unwrap_or(Value::Null);
-        let result = if request["method"]
+        let result = if request["method"] == "orbit/publish" {
+            crate::hud_sessions::publish(&data_root, &engine, &request["params"])
+        } else if request["method"]
             .as_str()
             .is_some_and(|method| method.starts_with("chats/"))
         {
