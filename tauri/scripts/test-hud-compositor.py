@@ -216,7 +216,8 @@ try:
                 w["title"] == "Multi Codex Orbit"
                 and w["above"]
                 and w["sticky"]
-                and (w["geometry"]["height"] < 150)
+                and w["geometry"]["height"] == 88
+                and w["geometry"]["width"] == 340
                 for w in v
             )
         )
