@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { listen } from "@tauri-apps/api/event"
 import { AccountAvatar } from "./components/account-avatar"
 import { attentionIcon, attentionLabel, defaultHudSettings, hudCall, nativeHud, orderedSessions, sessionSlots, type HudAccount, type HudSession, type HudView, type RateWindow } from "./lib/hud"
@@ -28,6 +28,29 @@ export default function Hud() {
   const [refreshVersion, setRefreshVersion] = useState(0)
   const seen = useRef(new Set<string>())
   const popupTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const shell = useRef<HTMLElement>(null)
+  const dragging = useRef(false)
+  const pointerDown = useRef(false)
+  const moving = useRef(false)
+  const endDrag = () => { pointerDown.current = false; if (dragging.current) { dragging.current = false; void hudCall("hud_drag", { phase: "end" }).catch(error => setError(String(error))) } }
+  useLayoutEffect(() => {
+    if (!nativeHud || !shell.current) return
+    let previous = ""
+    const update = () => {
+      const rectangles = [...(shell.current?.querySelectorAll(".hud-strip,.hud-panel,.hud-popup,.hud-error") ?? [])].map(element => {
+        const { x, y, width, height } = element.getBoundingClientRect()
+        return { x, y, width, height }
+      })
+      const encoded = JSON.stringify(rectangles)
+      if (previous !== encoded) { previous = encoded; void hudCall("hud_set_input_regions", { rectangles }) }
+    }
+    const observer = new ResizeObserver(update)
+    observer.observe(shell.current)
+    shell.current.querySelectorAll(".hud-strip,.hud-panel,.hud-popup,.hud-error").forEach(element => observer.observe(element))
+    const frame = requestAnimationFrame(update)
+    return () => { cancelAnimationFrame(frame); observer.disconnect() }
+  }, [hovered, popup, error, view.panelAbove, view.settings.size, view.settings.enabled, view.accounts])
   useEffect(() => {
     document.documentElement.classList.add("hud-document")
     const theme = () => {
@@ -35,7 +58,7 @@ export default function Hud() {
       document.documentElement.classList.toggle("dark", mode === "dark"); document.documentElement.dataset.theme = mode; document.documentElement.dataset.palette = initialColorTheme()
     }
     theme(); window.addEventListener("storage", theme)
-    let active = true; let pending = false; let unlisten: (() => void) | undefined
+    let active = true; let pending = false; const unlisteners: (() => void)[] = []
     const refresh = async () => {
       if (pending) return; pending = true
       try {
@@ -57,37 +80,57 @@ export default function Hud() {
       finally { pending = false }
     }
     void refresh()
-    if (nativeHud) void listen("hud-refresh", refresh).then(off => { if (active) unlisten = off; else off() })
+    if (nativeHud) {
+      void listen("hud-refresh", refresh).then(off => { if (active) unlisteners.push(off); else off() })
+      void listen("hud-pointer-left", () => setHovered(null)).then(off => { if (active) unlisteners.push(off); else off() })
+    }
     const timer = setInterval(refresh, 1500)
-    return () => { active = false; clearInterval(timer); clearTimeout(popupTimer.current); unlisten?.(); window.removeEventListener("storage", theme) }
+    return () => { active = false; clearInterval(timer); clearTimeout(popupTimer.current); clearTimeout(hoverTimer.current); unlisteners.forEach(off => off()); window.removeEventListener("storage", theme) }
   }, [refreshVersion])
   useEffect(() => { void hudCall("hud_set_expanded", { expanded: Boolean(hovered || popup || error) }) }, [hovered, popup, error])
   const open = (account: HudAccount, session?: HudSession) => {
-    void hudCall("hud_open_session", { accountId: account.id, threadId: session?.id ?? null, eventKey: session?.needsAttention ? session.eventKey : null }).then(() => { setPopup(null); setError(""); setRefreshVersion(version => version + 1) }).catch(error => setError(String(error)))
+    void hudCall("hud_open_session", { accountId: account.id, threadId: session?.id ?? null, eventKey: session?.needsAttention ? session.eventKey : null, ...(session?.client && session.client !== "desktop" ? { client: session.client, processId: session.processId } : {}) }).then(() => { setPopup(null); setError(""); setRefreshVersion(version => version + 1) }).catch(error => setError(String(error)))
   }
   const accounts = view.accounts.filter(account => !view.settings.onlyOpen || account.sessions.length > 0)
   const account = view.accounts.find(a => a.id === hovered)
   const reduced = view.settings.reducedMotion || matchMedia("(prefers-reduced-motion: reduce)").matches
   if (!view.settings.enabled) return null
-  return <main className="hud-shell" style={{ opacity: view.settings.opacity, "--hud-slot": `${view.settings.size}px` } as React.CSSProperties} onMouseLeave={() => setHovered(null)} onKeyDown={event => { if (event.key === "Escape") { setHovered(null); setError("") } }}>
-    <div className="hud-strip" aria-label="Codex Desktop accounts">
-      <button className="hud-drag" aria-label="Drag Orbit" onPointerDown={event => { if (event.button === 0) void hudCall("hud_drag") }}>⠿</button>
+  return <main ref={shell} className={`hud-shell${view.panelAbove ? " hud-above" : ""}`} style={{ "--hud-opacity": view.settings.opacity, "--hud-slot": `${view.settings.size}px` } as React.CSSProperties} onMouseEnter={() => clearTimeout(hoverTimer.current)} onMouseLeave={() => { hoverTimer.current = setTimeout(() => setHovered(null), 160) }} onKeyDown={event => { if (event.key === "Escape") { setHovered(null); setError("") } }}>
+    <div className="hud-strip" aria-label="Codex accounts">
+      <button className="hud-drag" aria-label="Drag Orbit" onPointerDown={event => {
+        if (event.button !== 0) return
+        pointerDown.current = true; setHovered(null)
+        const element = event.currentTarget; const pointerId = event.pointerId
+        void hudCall<boolean>("hud_drag", { phase: "start" }).then(layer => {
+          dragging.current = layer
+          if (layer && pointerDown.current) element.setPointerCapture(pointerId)
+          else if (layer) endDrag()
+        }).catch(error => setError(String(error)))
+      }} onPointerMove={() => {
+        if (!dragging.current || moving.current) return
+        moving.current = true
+        void hudCall("hud_drag", { phase: "update" }).catch(error => setError(String(error))).finally(() => { moving.current = false })
+      }} onPointerUp={endDrag} onPointerCancel={endDrag}>⠿</button>
+      <div className="hud-accounts">
       {accounts.map(account => {
         const sessions = orderedSessions(account.sessions)
-        return <div className="hud-account" key={account.id} onMouseEnter={() => setHovered(account.id)} onFocus={() => setHovered(account.id)}>
-          {sessions.length < 2 ? <button className="hud-avatar-button" aria-label={`${account.name}: ${sessions[0] ? attentionLabel(sessions[0]) : "No open chats"}`} title={sessions[0]?.title ?? account.name} onClick={() => open(account, sessions[0])}>
+        return <div className={`hud-account${sessions.length ? " has-sessions" : " is-inactive"}${view.settings.animation && !reduced && sessions.length ? " is-animated" : ""}`} key={account.id} onMouseEnter={() => setHovered(account.id)} onFocus={() => setHovered(account.id)}>
+          {sessions.length < 2 ? <button className="hud-avatar-button" aria-label={`${account.name}: ${sessions[0] ? attentionLabel(sessions[0]) : "No open chats"}`} onClick={() => open(account, sessions[0])}>
             <AccountAvatar id={account.id} identity={account.avatar} size={view.settings.size} working={sessions[0]?.status === "active"} animate={view.settings.animation && !reduced} />
             {sessions.length > 0 && <span className={`hud-presence ${sessions[0].needsAttention ? "needs-attention" : sessions[0].status}`} aria-hidden="true">{attentionIcon(sessions[0])}</span>}
-          </button> : <div className={`hud-dots ${sessions.length === 2 ? "two" : "grid"}`}>{sessionSlots(sessions).map((slot, index) => "overflow" in slot ? <button key="overflow" className="hud-dot hud-overflow" aria-label={`${slot.overflow} more ${account.name} chats`} onClick={() => setHovered(account.id)}>+{slot.overflow}</button> : <button className={`hud-dot ${slot.needsAttention ? "needs-attention" : slot.status}`} key={slot.id} style={{ "--account-color": account.avatar.color } as React.CSSProperties} title={slot.title} aria-label={`${account.name}: ${slot.title}, ${attentionLabel(slot)}`} onClick={() => open(account, slot)}><span aria-hidden="true">{slot.needsAttention ? attentionIcon(slot) : index + 1}</span></button>)}</div>}
+          </button> : <div className={`hud-session-avatars ${sessions.length === 2 ? "two" : "corners"}`}>{sessionSlots(sessions).map(slot => "overflow" in slot ? <button key="overflow" className="hud-session-avatar hud-overflow" aria-label={`${slot.overflow} more ${account.name} chats`} onClick={() => setHovered(account.id)}>+{slot.overflow}</button> : <button className="hud-session-avatar" key={`${slot.client}/${slot.processId}/${slot.id}`} aria-label={`${account.name}: ${slot.title}, ${attentionLabel(slot)}`} onClick={() => open(account, slot)}><AccountAvatar id={account.id} identity={account.avatar} size={Math.floor(view.settings.size / 2)} working={slot.status === "active"} animate={view.settings.animation && !reduced} />{slot.needsAttention && <span className="hud-mini-attention" aria-hidden="true">{attentionIcon(slot)}</span>}</button>)}</div>}
+
         </div>
       })}
       {!accounts.length && <span className="hud-empty">Codex</span>}
-      <button className="hud-hide" aria-label="Hide Orbit" onClick={() => { void hudCall("hud_toggle") }}>−</button>
+      </div>
+      <button className="hud-hide" aria-label="Hide Orbit" title="Restore with Super / ⌘ + Shift + H, the tray, or Orbit settings" onClick={() => { setHovered(null); setPopup(null); void hudCall("hud_toggle") }}>−</button>
     </div>
     {account && <section className="hud-panel" aria-label={`${account.name} usage and sessions`}>
-      <header><AccountAvatar id={account.id} identity={account.avatar} size={36} /><div><strong>{account.name}</strong><small>{account.sessions.length} open {account.sessions.length === 1 ? "chat" : "chats"}</small></div></header>
+      <header><AccountAvatar id={account.id} identity={account.avatar} size={36} /><div><strong>{account.name}</strong><small>{account.monitoringMessage ? "Session visibility unavailable" : `${account.sessions.length} open ${account.sessions.length === 1 ? "chat" : "chats"}`}</small></div></header>
+      {account.monitoringMessage && <p className="hud-monitoring-note">{account.monitoringMessage}</p>}
       <Usage account={account} />
-      <div className="hud-session-list">{orderedSessions(account.sessions).map(session => <button key={session.id} className="hud-session" onClick={() => open(account, session)}><span className={`hud-session-status ${session.needsAttention ? "needs-attention" : session.status}`}>{attentionIcon(session)}</span><span><strong>{session.title || "Codex chat"}</strong><small>{attentionLabel(session)}</small>{session.tokens && <small>{session.tokens.total?.toLocaleString() ?? "—"} tokens{session.tokens.contextWindow ? ` · ${session.tokens.input?.toLocaleString() ?? "—"}/${session.tokens.contextWindow.toLocaleString()} context` : ""}</small>}</span><span aria-hidden="true">↗</span></button>)}</div>
+      <div className="hud-session-list">{orderedSessions(account.sessions).map(session => <button key={`${session.client}/${session.processId}/${session.id}`} className="hud-session" onClick={() => open(account, session)}><span className={`hud-session-status ${session.needsAttention ? "needs-attention" : session.status}`}>{attentionIcon(session)}</span><span><strong>{session.title || "Codex chat"}</strong><small>{attentionLabel(session)}</small>{session.tokens && <small>{session.tokens.total?.toLocaleString() ?? "—"} tokens{session.tokens.contextWindow ? ` · ${session.tokens.input?.toLocaleString() ?? "—"}/${session.tokens.contextWindow.toLocaleString()} context` : ""}</small>}</span><span aria-hidden="true">↗</span></button>)}</div>
     </section>}
     {popup && !account && <button className="hud-popup" aria-label="Open chat needing attention" onClick={() => open(popup.account, popup.session)}><AccountAvatar id={popup.account.id} identity={popup.account.avatar} size={42} /><span aria-hidden="true">{attentionIcon(popup.session)}</span></button>}
     {error && <p className="hud-error" role="alert">{error}<button aria-label="Dismiss navigation error" onClick={() => setError("")}>×</button></p>}

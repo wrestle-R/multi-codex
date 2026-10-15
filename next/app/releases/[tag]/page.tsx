@@ -7,6 +7,7 @@ import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { releaseHistory } from "../../../lib/releases"
 import { repository } from "../../../lib/site"
+import { stabilityOf } from "../../../lib/update-channels"
 
 export const dynamicParams = false
 export function generateStaticParams() { return releaseHistory.map(release => ({ tag: release.tag })) }
@@ -29,6 +30,8 @@ export default async function ReleaseDetails({ params }: { params: Promise<{ tag
     <aside className="docs-sidebar"><Link href={`/releases#${tag}`}>← All releases</Link><nav aria-label="Release history">{releaseHistory.map(item => <Link key={item.tag} href={`/releases/${item.tag}`} aria-current={item.tag === tag ? "page" : undefined}>{item.tag}</Link>)}</nav></aside>
     <article className="docs-content markdown-guide release-detail">
       <p className="eyebrow">PUBLISHED RELEASE · <time dateTime={release.publishedAt}>{date.format(new Date(release.publishedAt))}</time></p>
+      <p className="release-pill">{stabilityOf(release) === "preview" ? "Preview release" : "Stable release"}</p>
+      {stabilityOf(release) === "preview" && <div className="doc-note"><strong>Preview</strong><p>This release has known Orbit issues and is awaiting further local testing. Choose Stable updates in the app to receive stable releases only.</p></div>}
       <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
       <div className="release-actions"><Link className="text-link" href={`/releases#${tag}`}>Back to changelog →</Link><a className="button primary" href={`${repository}/releases/tag/${tag}`}>Download {tag} ↓</a></div>
     </article>

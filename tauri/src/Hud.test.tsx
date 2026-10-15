@@ -54,3 +54,29 @@ it("disabling Orbit suppresses Orbiters, popups and sound while leaving chats un
   expect(api.call).not.toHaveBeenCalledWith("hud_open_session", expect.anything())
   vi.unstubAllGlobals()
 })
+
+it("shows real diagonal mini avatars instead of numbered session substitutes", async () => {
+  view.accounts[0].sessions = [session("one"), session("two")]
+  const { container } = render(<Hud />)
+  await screen.findByRole("button", { name: "Fixture: Session one, Open" })
+  const group = container.querySelector(".hud-session-avatars.two")!
+  expect(group.querySelectorAll('[data-testid="plush-avatar"]')).toHaveLength(2)
+  expect(group).not.toHaveTextContent(/[12]/)
+  fireEvent.click(screen.getByRole("button", { name: "Fixture: Session two, Open" }))
+  await waitFor(() => expect(api.call).toHaveBeenCalledWith("hud_open_session", expect.objectContaining({ threadId: "two" })))
+})
+it("keeps every inactive account static and dims it while an open idle chat animates", async () => {
+  view.accounts.push({ ...view.accounts[0], id: "inactive", name: "Closed", sessions: [] })
+  const { container } = render(<Hud />)
+  await screen.findByRole("button", { name: "Closed: No open chats" })
+  expect(container.querySelectorAll(".hud-account.is-inactive:not(.is-animated)")).toHaveLength(1)
+  expect(container.querySelectorAll(".hud-account.has-sessions.is-animated")).toHaveLength(1)
+})
+it("reduced motion suppresses Orbit motion and only-open hides inactive accounts", async () => {
+  view.settings = { ...view.settings, reducedMotion: true, onlyOpen: true }
+  view.accounts.push({ ...view.accounts[0], id: "inactive", name: "Closed", sessions: [] })
+  const { container } = render(<Hud />)
+  await screen.findByRole("button", { name: "Fixture: Open" })
+  expect(screen.queryByRole("button", { name: /Closed:/ })).not.toBeInTheDocument()
+  expect(container.querySelector(".is-animated")).toBeNull()
+})

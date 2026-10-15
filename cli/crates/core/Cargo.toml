@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-core"
-version = "1.7.0"
+version = "1.7.1"
 edition = "2021"
 license = "MIT"
 publish = false
@@ -25,6 +25,7 @@ tempfile = "3"
 toml_edit = "0.25"
 uuid = { version = "1", features = ["v4", "serde"] }
 url = "2"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gio = { version = "0.18", optional = true }

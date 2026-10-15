@@ -2,7 +2,12 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
-  { tag: "v1.7.0", publishedAt: "2026-10-15T04:18:38Z", title: "Orbit, Orbiters and reliable shared chats", highlights: [
+  { tag: "v1.7.1", stability: "stable" as const, publishedAt: "2026-10-15T13:13:37Z", title: "Accurate open chats and a smoother Orbit", highlights: [
+    "Orbit counts selected Desktop and VS Code chats and live CLI sessions while excluding retained backend history.",
+    "Hyprland uses a fixed layer-shell overlay, with mini avatars for multiple chats and dimmed inactive accounts.",
+    "Choose Stable or All updates in Settings; the website and signed update feed share the same release classification.",
+  ] },
+  { tag: "v1.7.0", stability: "preview" as const, publishedAt: "2026-10-15T04:18:38Z", title: "Orbit, Orbiters and reliable shared chats", highlights: [
     "Orbiters bring live Codex Desktop sessions, usage and quiet reminders into an optional desktop strip.",
     "Turn Orbit off in Settings; adjust its companions and reopen minimal update notes from the version label.",
     "Shared chats retain complete history and attachment paths with reliable settings, archive actions and account handoff.",

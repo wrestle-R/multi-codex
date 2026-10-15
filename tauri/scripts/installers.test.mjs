@@ -93,3 +93,24 @@ fi
     } finally { rmSync(task, { recursive: true, force: true }) }
   })
 }
+
+for (const script of ['install-app.sh', 'update-app.sh']) {
+  test(`${script} pins the selected stable release and rejects invalid overrides before downloading`, unixInstallerOnly, () => {
+    const task = mkdtempSync(join(tmpdir(), 'multi-codex-pinned-'))
+    try {
+      const bin = join(task, 'bin'); mkdirSync(bin)
+      writeFileSync(join(bin, 'uname'), '#!/bin/sh\nif [ "$1" = "-s" ]; then echo Linux; else echo x86_64; fi\n', { mode: 0o755 })
+      const request = join(task, 'request')
+      writeFileSync(join(bin, 'curl'), '#!/bin/sh\nprintf "%s\\n" "$*" > "$MOCK_REQUEST"\nexit 56\n', { mode: 0o755 })
+      for (const tag of ['v1.6.1', 'v1.7.2-preview.1']) {
+        const result = spawnSync('/bin/bash', [join(root, 'scripts', script)], { env: { ...process.env, HOME: task, PATH: `${bin}:${process.env.PATH}`, MULTI_CODEX_TAG: tag, MOCK_REQUEST: request }, encoding: 'utf8' })
+        assert.equal(result.status, 56, result.stderr)
+        assert.ok(readFileSync(request, 'utf8').includes(`/download/${tag}/`))
+        assert.ok(!readFileSync(request, 'utf8').includes('/releases/latest'))
+      }
+      rmSync(request)
+      const invalid = spawnSync('/bin/bash', [join(root, 'scripts', script)], { env: { ...process.env, HOME: task, PATH: `${bin}:${process.env.PATH}`, MULTI_CODEX_TAG: '../wrong', MOCK_REQUEST: request }, encoding: 'utf8' })
+      assert.equal(invalid.status, 1); assert.equal(existsSync(request), false)
+    } finally { rmSync(task, { recursive: true, force: true }) }
+  })
+}

@@ -101,7 +101,7 @@ const polling = setInterval(async () => {
   if (await access(join(testRoot, 'hold-response')).then(() => true, () => false)) { fixture.hold(); await writeFile(join(testRoot, 'hold-ready'), 'ready'); }
   if (await access(join(testRoot, 'release-response')).then(() => true, () => false)) fixture.release();
 }, 20);
-let browser; let uiBusy = false; const uiPhases = [];
+let browser; let uiBusy = false; const uiPhases = []; const orbitSubmissions = new Set();
 await mkdir('.test-results', { recursive: true });
 const uiPolling = setInterval(async () => {
   if (uiBusy) return; uiBusy = true;
@@ -122,6 +122,19 @@ const uiPolling = setInterval(async () => {
     }
     if (frames.some(frame => frame.buttons?.some(button => button.text === 'Continue with current model'))) {
       await inspectWebview(browser, `(() => { [...document.querySelectorAll('button')].find(button => button.innerText === 'Continue with current model')?.click(); return JSON.stringify({dismissed: true}); })()`); return;
+    }
+    if (phase.orbitSubmit && !orbitSubmissions.has(phase.label)) {
+      const action = await inspectWebview(browser, { prepare: `(() => {
+        const input = document.querySelector('[contenteditable="true"]');
+        const send = document.querySelector('button[aria-label="Send"]');
+        if (!input || !send) return JSON.stringify({ submitted: false });
+        input.focus();
+        return JSON.stringify({ prepared: true });
+      })()`, text: 'Orbit UI visibility fixture. Reply with local-fixture-ok.' });
+      if (!action.some(frame => frame.prepared)) return;
+      const sent = await inspectWebview(browser, `(() => { const send = document.querySelector('button[aria-label="Send"]'); if (!send || send.disabled) return JSON.stringify({submitted:false}); send.click(); return JSON.stringify({submitted:true}); })()`);
+      if (!sent.some(frame => frame.submitted)) return;
+      orbitSubmissions.add(phase.label);
     }
     const expectedLabel = phase.label.includes('Account A') ? 'Account A' : 'Account B';
     if (!frames.some(frame => !frame.targetId && frame.text?.includes(expectedLabel))) return;
@@ -156,7 +169,13 @@ try {
   const report = JSON.parse(await readFile(join(testRoot, 'result.json'), 'utf8'));
   report.codexVersion = packageInfo.version; report.fixtureRequests = fixture.requests.map(r => ({ path: r.path.split('?')[0], account: r.account })); report.panelPhases = uiPhases.map(phase => phase.label);
   report.generationAccounts = fixture.requests.filter(request => /responses(?:\?|$)/.test(request.path)).map(request => request.account);
-  if (JSON.stringify(report.generationAccounts) !== JSON.stringify(['synthetic-account-a', 'synthetic-account-b'])) throw new Error('Continuing the chat used the wrong account');
+  await writeFile('.test-results/vscode-candidate-result.json', JSON.stringify(report, null, 2));
+  const firstTurnsCorrect = JSON.stringify(report.generationAccounts.slice(0, 2)) === JSON.stringify(['synthetic-account-a', 'synthetic-account-b']);
+  const following = report.generationAccounts.slice(2);
+  // The official UI may also generate a title. Every additional provider call
+  // must use B; the native transcript check separately rejects duplicate turns.
+  const followingCorrect = process.env.MULTI_CODEX_TEST_ORBIT_UI === '1' ? following.length > 0 && following.every(account => account === 'synthetic-account-b') : following.length === 0;
+  if (!firstTurnsCorrect || !followingCorrect) throw new Error('Continuing the chat used the wrong account');
   const targets = uiPhases.map(phase => phase.frames.find(frame => frame.targetId && frame.buttons?.length)?.targetId);
   if (new Set(targets).size !== 1) throw new Error('The Codex panel was recreated');
   report.panelStayedMounted = true;
@@ -171,11 +190,11 @@ try {
   await writeFile('.test-results/vscode-result.json', JSON.stringify(report, null, 2));
   console.log(JSON.stringify({ ...report, fixtureRequests: report.fixtureRequests.length }, null, 2));
   if (!report.passed) process.exitCode = 1;
-} catch {
-  console.error('VS Code integration failed.', result); console.error(diagnostics.slice(-6000)); console.error('Fixture paths:', fixture.requests.map(r => r.path));
+} catch (error) {
+  console.error('VS Code integration failed.', result, error.message); console.error(diagnostics.slice(-6000)); console.error('Fixture paths:', fixture.requests.map(r => r.path.split('?')[0]));
   process.exitCode = 1;
 } finally {
   await fixture.close();
-  if (process.exitCode !== 1) await cleanupFixture(testRoot, bundledEngine, join(developmentPath, 'bin', helperName));
-  else console.error(`Failure artifacts retained in ${testRoot}`);
+  if (process.exitCode === 1 && process.env.MULTI_CODEX_TEST_KEEP_FAILED_FIXTURES === '1') console.error(`Failure artifacts retained in ${testRoot}`);
+  else await cleanupFixture(testRoot, bundledEngine, join(developmentPath, 'bin', helperName));
 }

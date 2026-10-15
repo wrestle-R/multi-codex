@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { releaseGroups } from "../../lib/releases"
 import { latestRelease, repository, version } from "../../lib/site"
+import { stabilityOf } from "../../lib/update-channels"
 
 export const metadata: Metadata = {
   title: "Changelog",
@@ -10,17 +11,20 @@ export const metadata: Metadata = {
 
 const releaseDate = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })
 
-export default function Releases() {
+export default async function Releases({ searchParams }: { searchParams: Promise<{ channel?: string }> }) {
+  const channel = (await searchParams).channel === "all" ? "all" : "stable"
+  const groups = releaseGroups.map(group => ({ ...group, releases: group.releases.filter(release => channel === "all" || stabilityOf(release) === "stable") })).filter(group => group.releases.length)
   return <main id="main" className="release-page page-width">
     <p className="eyebrow">MULTI CODEX CHANGELOG</p>
     <h1>What’s new.</h1>
     <p className="page-description">Features and fixes, grouped by release series. Full release details, upgrade instructions and validation live here. GitHub hosts the downloads.</p>
     <div className="release-history-summary">
-      <span>Latest: v{version}</span>
+      <span>Latest stable: v{version}</span>
       <span>Newest first · Selected updates</span>
       <a className="text-link" href={`${repository}/releases`}>Download archive ↗</a>
     </div>
-    {releaseGroups.map(group => <section className="release-group" key={group.series} aria-labelledby={`series-${group.series}`}>
+    <nav className="release-channel-options" aria-label="Release channel"><Link href="/releases" aria-current={channel === "stable" ? "page" : undefined}>Stable updates</Link><Link href="/releases?channel=all" aria-current={channel === "all" ? "page" : undefined}>All updates, including previews</Link></nav>
+    {groups.map(group => <section className="release-group" key={group.series} aria-labelledby={`series-${group.series}`}>
       <div className="release-group-heading">
         <p className="eyebrow">{group.series}.x</p>
         <h2 id={`series-${group.series}`}>{group.title}</h2>
@@ -31,7 +35,8 @@ export default function Releases() {
         <div className="release-meta">
           <a className="release-version" href={`#${release.tag}`}>{release.tag}<span className="sr-only"> permalink</span></a>
           <time dateTime={release.publishedAt}>{releaseDate.format(new Date(release.publishedAt))}</time>
-          {release.tag === `v${version}` && <span className="release-pill"><span className="status-dot" />Latest release</span>}
+          <span className="release-pill">{stabilityOf(release) === "preview" ? "Preview" : "Stable"}</span>
+          {release.tag === `v${version}` && <span className="release-pill"><span className="status-dot" />Latest stable</span>}
         </div>
         <article aria-labelledby={`${release.tag}-title`}>
           <h3 id={`${release.tag}-title`}>{release.title}</h3>

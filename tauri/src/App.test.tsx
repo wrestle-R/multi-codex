@@ -1189,7 +1189,7 @@ it("explains missing terminals without silently replacing an unavailable saved p
   expect(terminal).toHaveTextContent("Unavailable")
   expect(api.saveExecutableSettings).not.toHaveBeenCalled()
   await user.click(terminal)
-  expect(screen.getAllByRole("option")).toHaveLength(1)
+  expect(within(screen.getByRole("listbox")).getAllByRole("option")).toHaveLength(1)
   await user.click(screen.getByRole("option", { name: /Automatic/ }))
   expect(screen.getByText("No supported terminal found. Install one, then reopen settings.")).toBeInTheDocument()
   await user.click(screen.getByRole("button", { name: "Save settings" }))
@@ -1290,4 +1290,19 @@ it("keeps release notes available when saving their receipt fails", async () => 
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not save your preference")
   await user.click(screen.getByRole("button", { name: "Got it" }))
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "What’s new" })).not.toBeInTheDocument())
+})
+
+it("persists the selected release channel and refreshes availability after saving", async () => {
+  const user = userEvent.setup()
+  render(<App />)
+  await screen.findByText("Personal")
+  await user.click(screen.getByRole("button", { name: "Settings" }))
+  const channel = await screen.findByRole("combobox", { name: "Release channel" })
+  await waitFor(() => expect(channel).toBeEnabled())
+  expect(channel).toHaveValue("stable")
+  const checks = api.checkAppUpdate.mock.calls.length
+  await user.selectOptions(channel, "all")
+  await user.click(screen.getByRole("button", { name: "Save settings" }))
+  await waitFor(() => expect(orbitApi.call).toHaveBeenCalledWith("set_update_channel", { channel: "all" }))
+  await waitFor(() => expect(api.checkAppUpdate.mock.calls.length).toBeGreaterThan(checks))
 })
