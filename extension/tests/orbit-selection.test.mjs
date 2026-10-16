@@ -42,6 +42,16 @@ test('leaving the selected chat clears Orbit even when unsubscribe has no reply'
  assert.equal(ui.selected,null);
 });
 
+test('a late turn after leaving a chat cannot restore its stale Orbit selection',()=>{
+ const ui=new OrbitSelection();
+ ui.outgoing({id:1,method:'turn/start',params:{threadId:a}});ui.incoming({id:1,result:{turn:{id:'visible'}}});
+ ui.outgoing({id:2,method:'thread/unsubscribe',params:{threadId:a}});assert.equal(ui.selected,null);
+ ui.outgoing({id:3,method:'turn/start',params:{threadId:a}});ui.incoming({id:3,result:{turn:{id:'late'}}});
+ assert.equal(ui.selected,null);
+ ui.outgoing({id:4,method:'thread/resume',params:{threadId:a}});ui.incoming({id:4,result:{thread:{id:a}}});
+ assert.equal(ui.selected,a,'explicitly reopening a retained chat selects it again');
+});
+
 test('late title-worker creation remains hidden after the user opens a new composer',()=>{
  const ui=new OrbitSelection();
  ui.outgoing({id:1,method:'thread/start',params:{ephemeral:true}});

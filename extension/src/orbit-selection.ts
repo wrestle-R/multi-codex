@@ -11,13 +11,21 @@ export class OrbitSelection {
   }
   private generation = 0;
   private ephemeral = new Set<string>();
+  // Background work can arrive after the editor leaves a chat. Only explicit
+  // frontend navigation may make that retained conversation visible again.
+  private retired = new Set<string>();
   private pending = new Map<string | number, { method: string; threadId?: string; generation: number; ephemeral?: boolean }>();
+  private retire(id: unknown) {
+    if (typeof id !== 'string' || !id) return;
+    this.retired.add(id);
+    if (this.retired.size > 4096) this.retired.delete(this.retired.values().next().value!);
+  }
   outgoing(message: Message) {
     if (['thread/start', 'thread/startAeon', 'thread/fork'].includes(message.method ?? '')) {
       // The frontend prepares a fresh composer, often with extra cached starts.
       // Invalidate the old view without treating any prewarmed result as open.
       const ephemeral = message.params?.ephemeral === true;
-      if (!ephemeral) { this.selected = null; this.generation++; }
+      if (!ephemeral) { this.retire(this.selected); this.selected = null; this.generation++; }
       if (process.env.MULTI_CODEX_TEST_MODE === '1') this.trace(`send ${message.method} ephemeral=${ephemeral} threadId=${message.params?.threadId ?? ''} selected=${this.selected ?? ''}`);
       if (message.id !== undefined) this.pending.set(message.id, { method: message.method!, generation: this.generation, ephemeral });
       if (this.pending.size > 4096) this.pending.delete(this.pending.keys().next().value!);
@@ -32,7 +40,7 @@ export class OrbitSelection {
     // to unsubscribe. Clear the HUD selection at that point: some backends do
     // not answer unsubscribe promptly, and retained history is not an open chat.
     if (message.method === 'thread/unsubscribe' && message.params?.threadId === this.selected) {
-      this.selected = null;
+      this.retire(this.selected); this.selected = null; this.generation++;
       if (process.env.MULTI_CODEX_TEST_MODE === '1') this.trace('cleared selected chat on unsubscribe');
     }
     if (this.pending.size > 4096) this.pending.delete(this.pending.keys().next().value!);
@@ -42,7 +50,7 @@ export class OrbitSelection {
     // Engine eviction does not close the selected editor conversation. Only
     // explicit UI lifecycle requests/events clear its visible selection.
     if (['thread/closed', 'thread/deleted', 'thread/archived'].includes(message.method ?? '')) {
-      if (message.params?.threadId === this.selected) this.selected = null;
+      if (message.params?.threadId === this.selected) { this.retire(this.selected); this.selected = null; this.generation++; }
     }
     if (message.method || message.id === undefined) return;
     const request = this.pending.get(message.id); this.pending.delete(message.id);
@@ -58,11 +66,15 @@ export class OrbitSelection {
     }
     if (request.generation !== this.generation) return;
     if (['thread/unsubscribe', 'thread/archive', 'thread/delete'].includes(request.method)) {
-      if (request.threadId === this.selected) this.selected = null;
+      if (request.threadId === this.selected) { this.retire(this.selected); this.selected = null; this.generation++; }
     } else {
       const id = request.method === 'turn/start' ? request.threadId : message.result?.thread?.id;
-      if (typeof id === 'string' && !this.ephemeral.has(id) && /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id)) this.selected = id;
+      if (request.method === 'thread/resume' && typeof id === 'string') {
+        if (this.selected && this.selected !== id) this.retire(this.selected);
+        this.retired.delete(id);
+      }
+      if (typeof id === 'string' && !this.ephemeral.has(id) && !this.retired.has(id) && /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(id)) this.selected = id;
     }
   }
-  reset() { this.selected = null; this.pending.clear(); this.ephemeral.clear(); this.generation++; }
+  reset() { this.selected = null; this.pending.clear(); this.ephemeral.clear(); this.retired.clear(); this.generation++; }
 }
