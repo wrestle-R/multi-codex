@@ -3,12 +3,6 @@ name: VS Code extension packages
 on:
   workflow_call:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - extension/**
-      - tauri/src-tauri/**
-      - .github/workflows/extension.yml
   pull_request:
     paths:
       - extension/**
