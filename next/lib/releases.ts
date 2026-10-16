@@ -2,6 +2,12 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.7.1", stability: "stable" as const, publishedAt: "2026-10-16T03:51:46Z", title: "Orbit sessions and reliable updates", highlights: [
+    "The desktop launcher owns Orbit for Desktop, CLI and VS Code. Open editor windows stay visible on New Chat and navigate to their owning window.",
+    "Hyprland gets a fixed layer overlay; native GNOME, Plasma and Mac checks cover visibility, fullscreen and close-to-tray behavior.",
+    "Mini avatars show multiple chats, inactive accounts stay dim, and Stable or All updates follow the same website classification.",
+    "Wider Settings uses two columns on larger windows; What’s New groups every skipped update and remembers the upgrade range.",
+  ] },
   { tag: "v1.7.0", stability: "preview" as const, publishedAt: "2026-10-15T04:18:38Z", title: "Orbit, Orbiters and reliable shared chats", highlights: [
     "Orbiters bring live Codex Desktop sessions, usage and quiet reminders into an optional desktop strip.",
     "Turn Orbit off in Settings; adjust its companions and reopen minimal update notes from the version label.",

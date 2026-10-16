@@ -14,24 +14,24 @@ Enable or disable Orbit in **Settings**, and adjust size, display, animation and
 
 ## Install
 
-These instructions select stable v1.6.1. The earlier v1.7.0 release remains a preview with known issues. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
+These instructions select stable v1.7.1. The earlier v1.7.0 release remains a preview. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
 
 ### Windows x64
 
-[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.6.1/Multi.Codex_1.6.1_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
+[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.7.1/Multi.Codex_1.7.1_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
 
 Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/install-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.6.1
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.7.1
 ```
 
 ### Linux x64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.6.1 bash /tmp/install-multi-codex.sh
+MULTI_CODEX_TAG=v1.7.1 bash /tmp/install-multi-codex.sh
 ```
 
 ### macOS (Apple Silicon, macOS 26+)
@@ -40,7 +40,7 @@ The scripts install and update `/Applications/Multi Codex.app`. The current macO
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.6.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
+MULTI_CODEX_TAG=v1.7.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
 ```
 
 ## Update
@@ -49,27 +49,27 @@ Use the launcher’s **Update** button for an in-app update. **Settings → Rele
 
 ### Windows x64
 
-Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.6.1/Multi.Codex_1.6.1_x64-setup.exe) again to update.
+Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.7.1/Multi.Codex_1.7.1_x64-setup.exe) again to update.
 
 Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/update-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.6.1
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.7.1
 ```
 
 ### Linux x64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.6.1 bash /tmp/update-multi-codex.sh
+MULTI_CODEX_TAG=v1.7.1 bash /tmp/update-multi-codex.sh
 ```
 
 ### macOS (Apple Silicon, macOS 26+)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.6.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
+MULTI_CODEX_TAG=v1.7.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
 ```
 
 <img src="tauri/public/accounts_screenshot.png" alt="Multi Codex accounts" width="100%" />
