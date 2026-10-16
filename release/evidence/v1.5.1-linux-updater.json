@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "testedAt": "2026-10-12T06:33:03.324028+00:00",
+  "environment": "Arch Linux x64; Tauri 2.11.5 and updater 2.12.0 with committed dependency lock, mock app handle and real native Linux updater installation",
+  "artifactSha256": "b6d06dc2b5705931fff69d6ccba229e1b3e698f720c5f1a5e50dde4f4ffd3edc",
+  "scope": "Disposable loopback endpoint and installation target; no real accounts, automatic restart or Mac/Windows updater installation tested.",
+  "checks": [
+    "Valid signed AppImage downloaded, verified and installed through native updater",
+    "Downloaded altered payload rejected before replacement",
+    "Original installed bytes preserved after rejection",
+    "Executable permissions and synthetic account/chat fixtures preserved"
+  ]
+}
