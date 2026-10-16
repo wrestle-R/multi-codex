@@ -99,6 +99,17 @@ pub struct ProfileStorageUsage {
     pub bytes: u64,
     pub reclaimable_bytes: u64,
     pub running: bool,
+    pub breakdown: ProfileStorageBreakdown,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileStorageBreakdown {
+    pub codex_bytes: u64,
+    pub vscode_bytes: u64,
+    pub extensions_bytes: u64,
+    pub desktop_bytes: u64,
+    pub chat_bytes: u64,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -215,6 +226,7 @@ pub struct ProfileService<S: SecretStore, R: AuthRecognizer> {
     secrets: Arc<S>,
     recognizer: Arc<R>,
     runtime: Arc<Mutex<RuntimeState>>,
+    chat_plans: Mutex<HashMap<String, crate::chat_cleanup::ChatPlan>>,
 }
 
 impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
@@ -243,6 +255,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             secrets: Arc::new(secrets),
             recognizer: Arc::new(recognizer),
             runtime: Arc::new(Mutex::new(RuntimeState::default())),
+            chat_plans: Mutex::new(HashMap::new()),
         };
         Ok(service)
     }
@@ -577,6 +590,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         workspace: &Path,
         codex: &Path,
     ) -> Result<()> {
+        let _write_lock = self.metadata_write_lock()?;
         validate_id(id)?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".into());
@@ -649,6 +663,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     fn launch_profile_with_command(&self, id: &str, workspace: &Path, code: &Path) -> Result<()> {
+        let _write_lock = self.metadata_write_lock()?;
         validate_id(id)?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".to_string());
@@ -731,6 +746,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         workspace: &Path,
         binary: &Path,
     ) -> Result<()> {
+        let _write_lock = self.metadata_write_lock()?;
         validate_id(id)?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".into());
@@ -845,6 +861,33 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 0
             };
             let reclaimable = reclaimable_size(&root)?;
+            let size_if_present = |path: PathBuf| -> Result<u64> {
+                // Do not follow a linked ancestor when computing nested categories.
+                for ancestor in path
+                    .ancestors()
+                    .take_while(|ancestor| *ancestor != self.data_root)
+                {
+                    match fs::symlink_metadata(ancestor) {
+                        Ok(metadata) if metadata.file_type().is_symlink() => return Ok(0),
+                        Ok(_) => {}
+                        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(0),
+                        Err(_) => return Err("Could not inspect profile storage".into()),
+                    }
+                }
+                match fs::symlink_metadata(&path) {
+                    Ok(_) => directory_size(&path),
+                    Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(0),
+                    Err(_) => Err("Could not inspect profile storage".into()),
+                }
+            };
+            let breakdown = ProfileStorageBreakdown {
+                codex_bytes: size_if_present(root.join("codex-home"))?,
+                vscode_bytes: size_if_present(root.join("vscode-user-data"))?,
+                extensions_bytes: size_if_present(root.join("vscode-extensions"))?,
+                desktop_bytes: size_if_present(root.join("desktop-data"))?,
+                chat_bytes: size_if_present(root.join("codex-home/sessions"))?
+                    + size_if_present(root.join("codex-home/archived_sessions"))?,
+            };
             let running = self.is_running(&profile.id)?;
             profile_bytes = profile_bytes.saturating_add(size);
             reclaimable_bytes = reclaimable_bytes.saturating_add(reclaimable);
@@ -854,6 +897,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 bytes: size,
                 reclaimable_bytes: reclaimable,
                 running,
+                breakdown,
             });
         }
         profiles.sort_by_key(|profile| std::cmp::Reverse(profile.bytes));
@@ -866,6 +910,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     pub fn clear_profile_cache(&self, id: &str) -> Result<u64> {
+        let _write_lock = self.metadata_write_lock()?;
         validate_id(id)?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".to_string());
@@ -882,6 +927,73 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             remove_managed_tree(&self.data_root, &path)?;
         }
         Ok(reclaimed)
+    }
+
+    // Serialize with profile launches, credential refresh, and extension leases.
+    // Keep all guards alive until the local app-server has exited.
+    fn chat_cleanup_guard(&self, id: &str) -> Result<(File, File, File)> {
+        validate_id(id)?;
+        let metadata = self.metadata_write_lock()?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        if self.is_running(id)? {
+            return Err("Close this profile's VS Code, Codex Desktop, and CLI sessions before clearing chats.".into());
+        }
+        let paths = self.profile_paths(id)?;
+        ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
+        let credential = self.extension_credential_lock(id)?;
+        let lease =
+            crate::file_security::lock_file(&paths.codex_home.join(".extension-session.lock"))?;
+        fs2::FileExt::try_lock_exclusive(&lease)
+            .map_err(|_| "This account is in use. Close its sessions before clearing chats.")?;
+        Ok((metadata, credential, lease))
+    }
+
+    pub fn preview_profile_chats(
+        &self,
+        id: &str,
+        scope: crate::chat_cleanup::ChatScope,
+    ) -> Result<crate::chat_cleanup::ChatPreview> {
+        let _guards = self.chat_cleanup_guard(id)?;
+        let home = self.profile_paths(id)?.codex_home;
+        let plan = crate::chat_cleanup::preview(&resolve_codex_command()?, &home, id, scope)?;
+        let preview = plan.preview.clone();
+        let mut plans = self
+            .chat_plans
+            .lock()
+            .map_err(|_| "Chat cleanup state is unavailable")?;
+        plans.retain(|_, existing| !existing.expired() && existing.profile_id != id);
+        if plans.len() >= 32 {
+            plans.clear();
+        }
+        plans.insert(preview.token.clone(), plan);
+        Ok(preview)
+    }
+
+    pub fn clear_profile_chats(
+        &self,
+        id: &str,
+        token: &str,
+    ) -> Result<crate::chat_cleanup::ChatCleanupResult> {
+        let _guards = self.chat_cleanup_guard(id)?;
+        let plan = self
+            .chat_plans
+            .lock()
+            .map_err(|_| "Chat cleanup state is unavailable")?
+            .remove(token)
+            .ok_or("Check the chat deletion preview again before clearing chats.")?;
+        if plan.profile_id != id || plan.expired() {
+            return Err(
+                "The deletion preview expired or belongs to another profile. Check it again."
+                    .into(),
+            );
+        }
+        crate::chat_cleanup::clear(
+            &resolve_codex_command()?,
+            &self.profile_paths(id)?.codex_home,
+            plan,
+        )
     }
 
     fn load_metadata(&self) -> Result<Vec<ProfileMetadata>> {
@@ -2739,6 +2851,32 @@ mod tests {
         assert!(extension.exists());
         assert!(session.exists());
         assert!(root.join("codex-home/auth.json").exists());
+    }
+
+    #[test]
+    fn chat_cleanup_refuses_an_active_account_before_starting_codex() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("Work")).unwrap();
+        service
+            .runtime
+            .lock()
+            .unwrap()
+            .statuses
+            .insert(profile.metadata.id.clone(), RuntimeStatus::Running);
+        let error = service
+            .preview_profile_chats(&profile.metadata.id, crate::chat_cleanup::ChatScope::All)
+            .unwrap_err();
+        assert!(error.contains("Close this profile"));
+        assert!(service
+            .clear_profile_chats(&profile.metadata.id, "untrusted-token")
+            .unwrap_err()
+            .contains("Close this profile"));
+        assert!(service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home
+            .join("auth.json")
+            .exists());
     }
 
     #[test]

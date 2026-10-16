@@ -5,7 +5,7 @@ import Link from "next/link"
 import Markdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
-const guides = ["platform-support", "extension", "extension-publishing", "release-guidelines"]
+const guides = ["platform-support", "extension", "extension-publishing", "release-guidelines", "storage-and-updates"]
 export function generateStaticParams() { return guides.map(guide => ({ guide })) }
 export const dynamicParams = false
 export default async function Guide({ params }: { params: Promise<{ guide: string }> }) {

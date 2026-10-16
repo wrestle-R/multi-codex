@@ -243,6 +243,42 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .cache-button { min-width: 98px; min-height: 38px; padding: 0.5rem 0.75rem; font-size: 0.74rem; }
 .storage-row-actions .icon-button { width: 38px; height: 38px; }
 .storage-other { grid-template-columns: 1fr; }
+.storage-row-details { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: .7rem; }
+.storage-row-details summary { cursor: pointer; font-size: .78rem; font-weight: 600; }
+.storage-row-details summary span { margin-left: .6rem; font-size: .7rem; font-weight: 400; color: var(--muted-foreground); }
+.storage-breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem 1.2rem; margin: .85rem 0; }
+.storage-breakdown div { display: flex; justify-content: space-between; gap: .6rem; font-size: .73rem; }
+.storage-breakdown dt { color: var(--muted-foreground); }
+.storage-breakdown dd { margin: 0; white-space: nowrap; }
+.storage-chat-help { color: var(--muted-foreground); font-size: .73rem; line-height: 1.5; }
+.storage-chat-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.storage-chat-actions .button { font-size: .72rem; min-height: 36px; }
+.storage-notice { font-size: .8rem; color: var(--signal); }
+.chat-cleanup-preview { display: grid; gap: .35rem; margin: 1rem 0; padding: .9rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.chat-cleanup-preview span { color: var(--muted-foreground); font-size: .8rem; }
+.chat-cleanup-preview p { margin: 0; }
+.update-control { position: relative; }
+.update-button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; }
+.update-button.is-updating .update-icon { animation: update-spin 1.4s linear infinite; }
+.update-popover { position: absolute; z-index: 30; top: calc(100% + .65rem); right: 0; width: min(320px, calc(100vw - 2rem)); padding: 1rem; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: 0 12px 36px #0003; animation: update-appear .18s ease-out; }
+.update-popover-heading { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: .85rem; }
+.update-popover p { margin: .55rem 0; font-size: .76rem; color: var(--muted-foreground); line-height: 1.5; }
+.update-dismiss { color: var(--muted-foreground); background: transparent; width: 24px; height: 24px; font-size: 1.2rem; cursor: pointer; }
+.update-progress-track { height: 4px; overflow: hidden; margin-top: .85rem; border-radius: 4px; background: var(--muted); }
+.update-progress-track span { display: block; height: 100%; background: var(--primary); transition: width .25s ease; }
+.update-progress-track.is-indeterminate span { width: 35%; animation: update-progress 1.5s ease-in-out infinite; }
+@keyframes update-spin { to { transform: rotate(360deg); } }
+@keyframes update-progress { from { transform: translateX(-110%); } to { transform: translateX(390%); } }
+@keyframes update-appear { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .update-button.is-updating .update-icon, .update-progress-track.is-indeterminate span { animation: none; }
+  .update-popover { animation: none; }
+}
+@media (max-width: 600px) {
+  .storage-breakdown { grid-template-columns: 1fr; }
+  .storage-row-details summary span { display: block; margin: .3rem 0 0; }
+  .storage-chat-actions .button { flex: 1 1 100%; }
+}
 .elevated-dialog-layer { z-index: 120; }
 
 .credits-dialog { width: min(500px, 100%); }
@@ -566,3 +602,8 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 @keyframes reminder-enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 780px) { .reset-reminder { top: 16px; right: 16px; } }
 @media (prefers-reduced-motion: reduce) { .reset-reminder { animation: none; } }
+
+.confirm-dialog .dialog-actions { flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .update-popover { position: fixed; top: 90px; right: 1rem; left: 1rem; width: auto; }
+}

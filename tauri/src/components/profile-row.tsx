@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import type { LaunchTarget, LimitCheckState, LimitWindow, Profile, ProfileLimits } from "../lib/types"
 
 interface ProfileRowProps {
+  disabled?: boolean
   profile: Profile
   limits?: LimitCheckState
   onCheckLimits: (profile: Profile) => void
@@ -54,7 +55,7 @@ function LimitMetric({ label, window }: { label: string; window: LimitWindow | n
   )
 }
 
-export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTargets = ['vscode'], onEdit, onDelete, onShowResetCredits }: ProfileRowProps) {
+export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTargets = ['vscode'], onEdit, onDelete, onShowResetCredits, disabled = false }: ProfileRowProps) {
   const supportsLimits = profile.authMode.toLowerCase() === "chatgpt"
   const hasReportedWindow = Boolean(limits?.data?.fiveHour || limits?.data?.weekly || limits?.data?.monthly)
   const freeLimitsNotReported = profile.accountTier?.toLowerCase() === "free" && limits?.data && !hasReportedWindow
@@ -100,7 +101,7 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
             className={`button secondary limits-button${limits?.loading ? " is-refreshing" : ""}`}
             type="button"
             title={supportsLimits ? `Check live limits for ${profile.name}` : "Live limits require a ChatGPT account"}
-            disabled={!supportsLimits || limits?.loading}
+            disabled={disabled || !supportsLimits || limits?.loading}
             onClick={() => onCheckLimits(profile)}
           >
             <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
@@ -111,6 +112,7 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
             type="button"
             title={`Edit ${profile.name}`}
             aria-label={`Edit ${profile.name}`}
+            disabled={disabled}
             onClick={() => onEdit(profile)}
           >
             <HugeiconsIcon icon={Edit02Icon} size={19} strokeWidth={1.8} />
@@ -120,6 +122,7 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
             type="button"
             title={`Delete ${profile.name}`}
             aria-label={`Delete ${profile.name}`}
+            disabled={disabled}
             onClick={() => onDelete(profile)}
           >
             <HugeiconsIcon icon={Delete02Icon} size={19} strokeWidth={1.8} />
@@ -131,6 +134,7 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
             className={`button ${launchTargets.length > 1 && target !== 'standalone' ? 'secondary' : 'primary'} launch-button`}
             type="button"
             onClick={() => onLaunch(profile, target)}
+            disabled={disabled}
           >
             {target === 'cli' ? <span className="terminal-glyph" aria-hidden="true">›_</span> : target === 'vscode' ? <img className="launch-logo" src="/logos/vscode.svg" alt="" aria-hidden="true" /> : <span className="launch-logo codex-logo" aria-hidden="true" />}
             {target === 'cli' ? 'CLI' : target === 'vscode' ? 'VS Code' : 'Codex'}
