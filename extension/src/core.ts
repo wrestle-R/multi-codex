@@ -16,3 +16,5 @@ export * from './shared-chats';
 export * from './thread-operations';
 
 export { OrbitSelection } from "./orbit-selection";
+
+export { OrbitWindow } from './orbit-window';

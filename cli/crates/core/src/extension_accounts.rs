@@ -85,6 +85,18 @@ pub fn run_account_helper() -> profiles::Result<()> {
         let id = request.get("id").cloned().unwrap_or(Value::Null);
         let result = if request["method"] == "orbit/publish" {
             crate::hud_sessions::publish(&data_root, &engine, &request["params"])
+        } else if request["method"] == "orbit/focus" {
+            let params = &request["params"];
+            crate::hud_sessions::focus(
+                &data_root,
+                params["profileId"].as_str().unwrap_or(""),
+                params["sessionId"].as_str().unwrap_or(""),
+                params["pid"]
+                    .as_u64()
+                    .and_then(|p| u32::try_from(p).ok())
+                    .unwrap_or(0),
+            )
+            .map(|()| json!({"focused":true}))
         } else if request["method"]
             .as_str()
             .is_some_and(|method| method.starts_with("chats/"))

@@ -79,6 +79,10 @@ pub fn focus(root: &Path, profile: &str, thread: &str, pid: u32) -> Result<(), S
     if crate::hud::process_start(pid) != Some(snapshot.start_time) {
         return Err("This chat has closed.".into());
     }
+    #[cfg(unix)]
+    if snapshot.client == "vscode" {
+        return focus_editor_window(thread);
+    }
     let mut system = System::new();
     system.refresh_processes_specifics(
         ProcessesToUpdate::All,
@@ -133,6 +137,46 @@ pub fn focus(root: &Path, profile: &str, thread: &str, pid: u32) -> Result<(), S
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     Err("Session focus is unavailable on this platform".into())
+}
+
+/// The verified bridge's random session UUID addresses only its owning host.
+/// A focus-only socket avoids app-wide activation selecting another Code window.
+#[cfg(unix)]
+fn focus_editor_window(id: &str) -> Result<(), String> {
+    use std::{
+        io::Write,
+        os::unix::{
+            fs::{FileTypeExt, MetadataExt},
+            net::UnixStream,
+        },
+    };
+    uuid::Uuid::parse_str(id).map_err(|_| "Invalid Orbit window")?;
+    let path = PathBuf::from(format!("/tmp/mcx-orbit-{id}.sock"));
+    let meta = fs::symlink_metadata(&path).map_err(|_| "The editor window has closed")?;
+    if !meta.file_type().is_socket()
+        || meta.uid() != unsafe { libc::geteuid() }
+        || meta.mode() & 0o077 != 0
+    {
+        return Err("The editor window could not be verified".into());
+    }
+    let mut stream = UnixStream::connect(path).map_err(|_| "The editor window is unavailable")?;
+    stream
+        .set_read_timeout(Some(Duration::from_secs(3)))
+        .map_err(|_| "Editor focus unavailable")?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(3)))
+        .map_err(|_| "Editor focus unavailable")?;
+    writeln!(stream, "{id}").map_err(|_| "The editor window has closed")?;
+    let mut reply = String::new();
+    stream
+        .take(64)
+        .read_to_string(&mut reply)
+        .map_err(|_| "The editor did not confirm focus")?;
+    if reply == "focused\n" {
+        Ok(())
+    } else {
+        Err("The editor did not confirm focus".into())
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -421,6 +465,35 @@ fn read_session(path: &Path, client: &str) -> Option<Session> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
+    #[test]
+    fn editor_focus_uses_exact_private_window_endpoint() {
+        use std::{
+            io::Write,
+            os::unix::{fs::PermissionsExt, net::UnixListener},
+        };
+        let id = uuid::Uuid::new_v4().to_string();
+        let path = PathBuf::from(format!("/tmp/mcx-orbit-{id}.sock"));
+        let listener = UnixListener::bind(&path).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o666)).unwrap();
+        assert!(focus_editor_window(&id).is_err());
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+        let expected = id.clone();
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = String::new();
+            BufReader::new(stream.try_clone().unwrap())
+                .read_line(&mut request)
+                .unwrap();
+            assert_eq!(request, format!("{expected}\n"));
+            stream.write_all(b"focused\n").unwrap();
+        });
+        assert!(focus_editor_window(&id).is_ok());
+        server.join().unwrap();
+        fs::remove_file(path).unwrap();
+        assert!(focus_editor_window(&id).is_err());
+        assert!(focus_editor_window("../other-window").is_err());
+    }
     #[test]
     fn only_exact_managed_homes_and_aliases_match() {
         let root = tempfile::tempdir().unwrap();
