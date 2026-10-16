@@ -109,8 +109,10 @@ export async function run() {
     const visibleId = Object.keys(snapshot.sessions)[0];
     assert.equal(visibleId, windowId, 'Submitting a UI chat changed the owning window session');
     await waitFor<any>(() => api.getState(), value => value.bridge.canSwitch, 25000);
-    const submittedId = (await api.getState()).bridge.testOrbitSelected;
-    assert.ok(submittedId, 'The actual UI submission was not observed');
+    // Clicking Send is acknowledged before the asynchronous backend turn.
+    // Window presence already exists, so it cannot serve as that turn's barrier.
+    const submittedState = await waitFor<any>(() => api.getState(), value => value.bridge.canSwitch && !!value.bridge.testOrbitSelected && value.bridge.testOrbitSelected !== thread.thread.id, 60000);
+    const submittedId = submittedState.bridge.testOrbitSelected;
     const submitted = await api.testRequest('thread/read', { threadId: submittedId, includeTurns: true });
     assert.equal(submitted.thread.turns.length, 1, 'A single UI submission created duplicate turns');
     await api.testRequest('thread/read', { threadId: thread.thread.id, includeTurns: false });
