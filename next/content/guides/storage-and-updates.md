@@ -46,13 +46,15 @@ Native deletion can complete some selected chats before a later operation fails.
 
 ## Update from the app
 
-Click **Update** in the header. Multi Codex checks the stable release, downloads the matching package, verifies its signature, installs it and restarts. Progress and the restart state are shown in the app. A failed check or installation offers a retry.
+Starting with v1.5.1, Multi Codex checks quietly on startup, account and all-account refresh, returning to the app, and reconnecting. It also checks every 15 minutes while visible. The **Update** button appears in the header only when a newer compatible stable release is available. Background connection failures stay quiet and retry on the next check.
+
+Click **Update** to download the matching package, verify its signature, install it and restart. Progress and the restart state are shown in the app. An explicit installation failure offers a retry.
 
 Saved accounts and profile data are preserved. Updating the launcher does not intentionally close separately launched Codex sessions.
 
 Supported in-app update packages are Linux x64 AppImage, Apple Silicon macOS application bundles, and Windows x64 installers. Linux `.deb` and `.rpm` installations continue to use their package manager. A development binary is not an installed AppImage.
 
-Starting with v1.5.0, stable release assets include signed updater packages and a matching `latest.json`. The button reports that you are up to date when no newer stable version is available. Existing v1.4.1 packages do not contain the button or signed updater assets. Update-signature verification is separate from Apple Developer ID signing and notarization; signing an updater payload does not remove macOS first-open requirements.
+Starting with v1.5.0, stable release assets include signed updater packages and a matching `latest.json`. The v1.5.0 button reports that you are up to date when no newer stable version is available; v1.5.1 hides the button instead. Existing v1.4.1 packages do not contain the button or signed updater assets. Update-signature verification is separate from Apple Developer ID signing and notarization; signing an updater payload does not remove macOS first-open requirements.
 
 ## Release publishing requirements
 

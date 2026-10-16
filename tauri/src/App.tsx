@@ -19,6 +19,7 @@ import { BrandMark } from "./components/brand-mark"
 import { CacheConfirmDialog } from "./components/cache-confirm-dialog"
 import { ChatCleanupDialog } from "./components/chat-cleanup-dialog"
 import { UpdateButton } from "./components/update-button"
+import { useAppUpdate } from "./components/use-app-update"
 import type { ChatScope } from "./lib/types"
 import { ConfirmDialog } from "./components/confirm-dialog"
 import { LaunchSettingsDialog } from "./components/launch-settings-dialog"
@@ -99,6 +100,7 @@ export default function App() {
   const [chatTarget, setChatTarget] = useState<{ profile: ProfileStorageUsage; scope: ChatScope } | null>(null)
   const [storageNotice, setStorageNotice] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
+  const appUpdate = useAppUpdate(updating)
   const [cacheTarget, setCacheTarget] = useState<ProfileStorageUsage | null>(null)
   const [cacheBusy, setCacheBusy] = useState(false)
   const [cacheError, setCacheError] = useState<string | null>(null)
@@ -121,6 +123,11 @@ export default function App() {
   const launchLock = useRef(false)
   const [creditsTarget, setCreditsTarget] = useState<{ profile: Profile; limits: ProfileLimits } | null>(null)
   const { limitChecks, refreshingAllLimits, handleCheckLimits, handleRefreshAllLimits } = useProfileLimits(profiles, !loading && !pageError)
+  const refreshAccount = (profile: Profile) => {
+    void appUpdate.check()
+    return handleCheckLimits(profile)
+  }
+  const refreshAll = () => Promise.all([appUpdate.check(), handleRefreshAllLimits()])
   const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
   const deviceLoginRef = useRef<typeof deviceLogin>(null)
   const refreshPromiseRef = useRef<Promise<void> | null>(null)
@@ -412,8 +419,8 @@ export default function App() {
     await refresh()
   }
 
-  const menuActions = useRef({ launch: handleLaunch, refresh: handleRefreshAllLimits, add: () => setDialogProfile(null) })
-  menuActions.current = { launch: handleLaunch, refresh: handleRefreshAllLimits, add: () => setDialogProfile(null) }
+  const menuActions = useRef({ launch: handleLaunch, refresh: refreshAll, add: () => setDialogProfile(null) })
+  menuActions.current = { launch: handleLaunch, refresh: refreshAll, add: () => setDialogProfile(null) }
   useEffect(() => {
     if (!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__) return
     let disposed = false
@@ -553,7 +560,7 @@ export default function App() {
           </div>
           <div className="topbar-actions">
             <ThemePicker value={colorTheme} onChange={setColorTheme} />
-            <UpdateButton disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
+            <UpdateButton version={appUpdate.version} onCurrent={appUpdate.clear} disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
             <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Launch settings</button>
             <button className="storage-status" type="button" disabled={updating} title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
               <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
@@ -582,8 +589,8 @@ export default function App() {
             <button
               className="button secondary refresh-all-button"
               type="button"
-              disabled={updating || refreshingAllLimits || chatGptProfiles.length === 0}
-              onClick={() => void handleRefreshAllLimits()}
+              disabled={updating || refreshingAllLimits}
+              onClick={() => void refreshAll()}
             >
               <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
               {refreshingAllLimits ? "Refreshing all" : "Refresh all"}
@@ -626,7 +633,7 @@ export default function App() {
                   profile={profile}
                   disabled={updating}
                   limits={limitChecks[profile.id]}
-                  onCheckLimits={handleCheckLimits}
+                  onCheckLimits={refreshAccount}
                   onLaunch={handleLaunch}
                   launchTargets={rowLaunchTargets}
                   onEdit={(selected) => { setDialogError(null); setDialogProfile(selected) }}
