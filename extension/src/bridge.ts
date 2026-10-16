@@ -17,6 +17,7 @@ export type BridgeConfig = { engine: string; helper: string; dataRoot: string; g
 export type ExistingBackend = { child: ChildProcessWithoutNullStreams; lines: JsonLines; restore: () => void };
 export class CodexBridge {
   readonly activity = new ActivityGuard();
+  // Protocol selection is diagnostic only; Orbit visibility follows the window.
   readonly orbit = new OrbitSelection();
   readonly instanceId = randomUUID();
   backend: ChildProcessWithoutNullStreams;
@@ -133,7 +134,7 @@ export class CodexBridge {
     await new Promise<void>((resolve, reject) => { this.server!.once('error', reject); this.server!.listen(this.config.socket, resolve); });
     if (process.platform !== 'win32') await chmod(this.config.socket, 0o600);
     await this.recordBackend();
-    // The already-bundled bridge supplies the selected frontend session. No
+    // The already-bundled bridge supplies one session per open editor window. No
     // additional editor extension or reload is needed for future launches.
     this.orbitTimer = setInterval(() => { void this.publishOrbit(); }, 1500);
   }
@@ -144,15 +145,13 @@ export class CodexBridge {
     const backend = this.backend;
     this.orbitPolling = true;
     try {
-      const id = this.orbit.selected;
-      const threads = [];
-      if (profile && id) {
-        const { thread } = this.shared
-          ? await this.shared.request('thread/read', { threadId: id, includeTurns: false })
-          : await this.backendRpc.request('thread/read', { threadId: id, includeTurns: false });
-        if (thread) threads.push({ id, name: thread.name, cwd: thread.cwd, status: thread.status?.type === 'notLoaded' ? { type: 'idle' } : thread.status });
-      }
-      if (backend !== this.backend || profile !== this.selectedId || id !== this.orbit.selected || this.activity.switching || this.disposed) return;
+      // A window remains a session on New Chat. Backend history, prewarmed
+      // threads and title-generation workers cannot create additional entries.
+      const activity = this.activity.snapshot();
+      const busy = activity.activeTurns || activity.activeThreads || activity.pendingWork || this.activity.processes.size;
+      const threads = profile ? [{ id: this.instanceId, name: 'VS Code', cwd: this.config.workspace,
+        status: { type: busy ? 'active' : 'idle' } }] : [];
+      if (backend !== this.backend || profile !== this.selectedId || this.activity.switching || this.disposed) return;
       await this.accounts.request('orbit/publish', { pid: backend.pid, profileId: profile ?? this.orbitProfile, threads });
       this.orbitProfile = profile;
     } catch { /* Telemetry failure never interrupts the actual chat or account switch. */ }
