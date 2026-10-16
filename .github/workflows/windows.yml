@@ -11,6 +11,11 @@ on:
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
         required: false
   workflow_dispatch:
+    inputs:
+      signed_updates:
+        description: Sign updater payloads for a release candidate
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ['scripts/**', 'tauri/**', 'extension/**', '.github/workflows/windows.yml']
@@ -94,7 +99,7 @@ jobs:
           $location = (Get-AppxPackage -Name OpenAI.Codex).InstallLocation
           if (!$location) { throw 'The signed OpenAI.Codex package is missing' }
           "MULTI_CODEX_TEST_STANDALONE=$location/app/ChatGPT.exe" >> $env:GITHUB_ENV
-      - name: Verify separate standalone accounts, native windows, guards and cold restart
+      - name: Verify supported standalone isolation or safe refusal of unverified versions
         run: cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_live_standalone -- --ignored --test-threads=1
       - run: npm test
         working-directory: extension
