@@ -5,6 +5,9 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const appVersion = JSON.parse(await readFile(join(app, 'package.json'), 'utf8')).version;
+const notes = JSON.parse(await readFile(join(app, 'src/lib/release-history.json'), 'utf8'));
+if (!notes.some(release => release.version === appVersion)) throw new Error(`Add release notes for ${appVersion} before packaging`);
 const extension = resolve(app, '..', 'extension');
 const destination = join(app, 'resources', 'managed-extension');
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';

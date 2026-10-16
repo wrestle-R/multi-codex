@@ -2,6 +2,12 @@ name: CI
 
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Validate everything or website publication changes only
+        type: choice
+        default: all
+        options: [all, site]
   pull_request:
 
 concurrency:
@@ -13,6 +19,7 @@ permissions:
 
 jobs:
   linux:
+    if: inputs.scope != 'site'
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -57,6 +64,7 @@ jobs:
       - run: npm run check:secrets
 
   macos:
+    if: inputs.scope != 'site'
     runs-on: macos-26
     env:
       MACOSX_DEPLOYMENT_TARGET: "26.0"
