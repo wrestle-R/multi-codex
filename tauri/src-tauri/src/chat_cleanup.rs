@@ -252,8 +252,18 @@ fn transcript_stamp(home: &Path, path: &Path) -> Result<(u64, Option<SystemTime>
     // Mac launches use a private /tmp alias for long account paths. Accept that
     // outer alias only when it resolves into this same account; interior links
     // in its actual session directory are still refused.
+    let supplied_home = home;
+    let canonical_home =
+        fs::canonicalize(home).map_err(|_| "Could not resolve the account's chat directory.")?;
+    let home = canonical_home.as_path();
     let resolved;
-    let path = if path.starts_with(home) {
+    let path = if path.starts_with(supplied_home) {
+        resolved = home.join(
+            path.strip_prefix(supplied_home)
+                .map_err(|_| "Invalid chat transcript path.")?,
+        );
+        resolved.as_path()
+    } else if path.starts_with(home) {
         path
     } else {
         let parent = path.parent().ok_or("Invalid chat transcript path.")?;
@@ -570,6 +580,8 @@ mod tests {
                     .0,
                 7
             );
+            assert_eq!(transcript_stamp(&alias, &transcript).unwrap().0, 7);
+            assert!(transcript_stamp(&alias, &link).is_err());
         }
     }
 
