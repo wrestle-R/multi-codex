@@ -7,6 +7,7 @@ export interface HudSettings {
   onlyOpen: boolean; animation: boolean; reducedMotion: boolean; sound: boolean
 }
 export interface HudSession {
+  recent?: boolean; recency?: number
   id: string; title: string; cwd: string; status: string; attention: string | null; epoch: number
   eventKey: string; needsAttention: boolean
   client?: "desktop" | "cli" | "vscode"; processId?: number
@@ -26,7 +27,7 @@ export function hudCall<T>(method: string, params?: Record<string, unknown>): Pr
   return Promise.resolve(undefined as T)
 }
 export function orderedSessions(sessions: HudSession[]) {
-  return [...sessions].sort((a, b) => Number(b.needsAttention) - Number(a.needsAttention) || Number(b.status === "active") - Number(a.status === "active") || a.id.localeCompare(b.id))
+  return [...sessions].sort((a, b) => Number(Boolean(b.recent)) - Number(Boolean(a.recent)) || (a.recent && b.recent ? (b.recency ?? 0) - (a.recency ?? 0) || a.id.localeCompare(b.id) : 0) || Number(b.needsAttention) - Number(a.needsAttention) || Number(b.status === "active") - Number(a.status === "active") || a.id.localeCompare(b.id))
 }
 export function sessionSlots(sessions: HudSession[]): Array<HudSession | { overflow: number }> {
   const ordered = orderedSessions(sessions)
@@ -34,7 +35,7 @@ export function sessionSlots(sessions: HudSession[]): Array<HudSession | { overf
 }
 export function attentionLabel(session: HudSession) {
   if (session.needsAttention) return ({ question: "Question waiting", approval: "Approval waiting", mayNeedYou: "May need you", error: "Chat error" } as Record<string, string>)[session.attention ?? ""] ?? "Needs attention"
-  return session.status === "active" ? "Working" : "Open"
+  return session.status === "active" ? "Working" : session.recent ? "Recent chat" : "Open"
 }
 export function attentionIcon(session: HudSession) {
   return session.needsAttention ? session.attention === "question" ? "?" : session.attention === "approval" ? "✓" : "!" : session.status === "active" ? "•" : "◦"
