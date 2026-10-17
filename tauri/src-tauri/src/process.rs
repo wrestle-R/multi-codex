@@ -13,6 +13,28 @@ pub fn background(command: &mut Command) -> &mut Command {
     command
 }
 
+#[cfg(all(test, windows))]
+mod windows_tests {
+    use super::*;
+
+    #[test]
+    fn windows_background_helpers_have_no_console() {
+        let script = "Add-Type -Name ConsoleProbe -Namespace MultiCodex -MemberDefinition '[DllImport(\"kernel32.dll\")] public static extern IntPtr GetConsoleWindow();'; [MultiCodex.ConsoleProbe]::GetConsoleWindow().ToInt64()";
+        let result = output(
+            Command::new("powershell.exe").args([
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
+                script,
+            ]),
+            Duration::from_secs(15),
+        )
+        .unwrap();
+        assert!(result.status.success());
+        assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), "0");
+    }
+}
+
 pub fn spawn(command: &mut Command) -> std::io::Result<std::process::Child> {
     background(command);
     #[cfg(target_os = "linux")]

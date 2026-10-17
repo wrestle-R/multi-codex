@@ -238,16 +238,19 @@ fn begin_device_login(
             return Err(error);
         }
     };
-    let mut child = Command::new(codex)
-        .args(["login", "--device-auth"])
-        .env("CODEX_HOME", &pending.codex_home)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|_| {
-            let _ = state.service.abandon_device_login(pending.clone());
-            "Could not start the Codex browser sign-in".to_string()
-        })?;
+    let mut child = process::spawn(
+        Command::new(codex)
+            .args(["login", "--device-auth"])
+            .env("CODEX_HOME", &pending.codex_home)
+            .env("CODEX_SQLITE_HOME", &pending.codex_home)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped()),
+    )
+    .map_err(|_| {
+        let _ = state.service.abandon_device_login(pending.clone());
+        "Could not start the Codex browser sign-in".to_string()
+    })?;
     let (cancel_sender, cancel_receiver) = mpsc::channel();
     {
         let mut logins = state
