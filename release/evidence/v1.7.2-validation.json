@@ -1,0 +1,917 @@
+{
+  "schemaVersion": 1,
+  "version": "1.7.2",
+  "extensionVersion": "0.3.1",
+  "stability": "stable",
+  "ownerClassificationDate": "2026-10-17",
+  "candidateSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790312",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Native package build and exact signed SDK payload installation/restart; invalid/wrong-target/corrupt/truncated payload refusal.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790312",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Exact package installer/update and disposable account data preservation.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652412",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged native account/backend and packaged editor isolation from the completed baseline; strict UI-only source guard; no real OAuth claim.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790528",
+      "environment": "macOS26 AppleSilicon",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Native package build and exact signed SDK payload installation/restart; invalid/wrong-target/corrupt/truncated payload refusal.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790528",
+      "environment": "macOS26 AppleSilicon",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Exact package installer/update and disposable account data preservation.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652046",
+      "environment": "macOS26 AppleSilicon",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged native account/backend and packaged editor isolation from the completed baseline; strict UI-only source guard; no real OAuth claim.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790435",
+      "environment": "Windows Server2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Native package build and exact signed SDK payload installation/restart; invalid/wrong-target/corrupt/truncated payload refusal.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790435",
+      "environment": "Windows Server2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Exact package installer/update and disposable account data preservation.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652297",
+      "environment": "Windows Server2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged native account/backend and packaged editor isolation from the completed baseline; strict UI-only source guard; no real OAuth claim.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652412",
+      "environment": "linux-x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged packaged VSIX startup/live attachment/restoration from completed baseline; VSCode window retention through NewChat.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652495",
+      "environment": "darwin-arm64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged packaged VSIX startup/live attachment/restoration from completed baseline; VSCode window retention through NewChat.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652329",
+      "environment": "darwin-x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged packaged VSIX startup/live attachment/restoration from completed baseline; VSCode window retention through NewChat.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748/job/117322652297",
+      "environment": "win32-x64",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Unchanged packaged VSIX startup/live attachment/restoration from completed baseline; VSCode window retention through NewChat.",
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a"
+    },
+    "launcher-window": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790312",
+      "environment": "Ubuntu22.04 x64 Xvfb",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Packaged AppImage catalog startup with system WebKit removed.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191/job/117327790528",
+      "environment": "macOS26 AppleSilicon",
+      "testedBy": "Native GitHub Actions disposable fixtures; reviewed by Codex",
+      "testedAt": "2026-10-17T06:29:45.224815+00:00",
+      "scope": "Packaged close-to-menu-bar/red-button/CommandW/Dock reopen cycles and explicit Quit.",
+      "testedSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    }
+  },
+  "artifacts": {
+    "Multi.Codex-1.7.2-1.x86_64.rpm": "e27c2690bdee5f1a2dbb5c7e583a26768cd91d75c2a8e0e73ee8f23190876e97",
+    "Multi.Codex_1.7.2_aarch64.app.tar.gz": "bb27625fd78a0ac19991f92501d9d16b2967327885812e85c21be81e3474b5fe",
+    "Multi.Codex_1.7.2_aarch64.app.tar.gz.sig": "d78bb779947f7fa1d69f5268f0c645b35b18f3fed62f7e0df3de05c349aa63d9",
+    "Multi.Codex_1.7.2_aarch64.dmg": "d5e9138ad44a3f297844c14fb508984a17712ac79c698a645973376764ad879d",
+    "Multi.Codex_1.7.2_amd64.AppImage": "dad709dfb4492797794ba7dd86f6d4e49021d98dabc972e2fb3b0e12cb6e05dc",
+    "Multi.Codex_1.7.2_amd64.AppImage.sig": "fa7ef95189684aa992618f1cd00a1ff24d9640c6877971779964ab9221de4ee4",
+    "Multi.Codex_1.7.2_amd64.deb": "4c8926f0dcd20ef462148a441869a816fb3726c6f9820f09f45b73e24b7721a1",
+    "Multi.Codex_1.7.2_x64-setup.exe": "fdecb89abf16147bbdfe5724c3f9c1e5e10ab49e01f2e1f1d3126d7291481d7b",
+    "Multi.Codex_1.7.2_x64-setup.exe.sig": "5a55fcdd2bae0eacd4258b309c291dce6aa2062790cb89acbf864058cd5f1458",
+    "SHA256SUMS": "c89d6335259728bf9af5371af6dcd4821770986d5c13c0b79989d25c8803d9ef",
+    "install-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "install-app.sh": "214116c56387d3a357ce580ce7a6a9f6c996b6662f3c3aa253a62695ba36e36e",
+    "latest.json": "1775ee8cb5392f0cec4f4d757a6a55d88d90ed384a97659f9460662b14efd253",
+    "multi-codex-darwin-arm64-0.3.1.vsix": "7344f9e190804205424101a10686e97ac480cc370eadcd591959b7753eabdd67",
+    "multi-codex-darwin-x64-0.3.1.vsix": "aedad6ab9007e7850af784ee0664571be88219603f9604b077d5a37dbfc2c4e1",
+    "multi-codex-linux-x64-0.3.1.vsix": "4d94515b42bd98dc60766fd12963058037d5b09873af4dac70a9fd4b2439df90",
+    "multi-codex-win32-x64-0.3.1.vsix": "ddb8059585a02d0988e679bd380a77b7dac76666c618effb99d942e170a97965",
+    "update-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "update-app.sh": "214116c56387d3a357ce580ce7a6a9f6c996b6662f3c3aa253a62695ba36e36e"
+  },
+  "workflowRuns": [
+    "https://github.com/wrestle-R/multi-codex/actions/runs/39009177191",
+    "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748",
+    "https://github.com/wrestle-R/multi-codex/actions/runs/39007432535",
+    "https://github.com/wrestle-R/multi-codex/actions/runs/39009179001"
+  ],
+  "unchangedNativeBaseline": {
+    "source": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+    "run": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748",
+    "scope": "Core/editor source unchanged; only launch UI, its tests, and guarded package workflow changed. Final app payloads are rebuilt and SDK-tested at candidateSource."
+  },
+  "artifactVerification": {
+    "allDownloadedSdkPayloadsMatch": true,
+    "nativeSignedUpdaters": {
+      "linux": {
+        "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+        "platform": "Linux",
+        "candidateSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+        "architecture": "x86_64",
+        "candidateVersion": "1.7.2",
+        "payloadSha256": "dad709dfb4492797794ba7dd86f6d4e49021d98dabc972e2fb3b0e12cb6e05dc",
+        "passed": true,
+        "checks": {
+          "current": true,
+          "older": true,
+          "malformed": true,
+          "wrong-target": true,
+          "corrupt": true,
+          "truncated": true,
+          "valid": true,
+          "exactSignedCandidateInstalled": true,
+          "nativePackagedRestartAlive": true,
+          "privateDataAndRetainedBackupPreserved": true,
+          "disposableFixtureRemoved": true
+        },
+        "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+        "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+        "productionUpdateButton": "not exercised by this SDK harness"
+      },
+      "macos": {
+        "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+        "platform": "Darwin",
+        "candidateSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+        "architecture": "arm64",
+        "candidateVersion": "1.7.2",
+        "payloadSha256": "bb27625fd78a0ac19991f92501d9d16b2967327885812e85c21be81e3474b5fe",
+        "passed": true,
+        "checks": {
+          "initialBundleSignatureIntegrity": true,
+          "sealedBundleHelperFingerprint": true,
+          "current": true,
+          "older": true,
+          "malformed": true,
+          "wrong-target": true,
+          "corrupt": true,
+          "truncated": true,
+          "valid": true,
+          "updatedBundleSignatureIntegrity": true,
+          "exactSignedCandidateInstalled": true,
+          "nativePackagedRestartAlive": true,
+          "privateDataAndRetainedBackupPreserved": true,
+          "disposableFixtureRemoved": true
+        },
+        "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+        "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+        "productionUpdateButton": "not exercised by this SDK harness",
+        "bundleInventory": {
+          "missingFiles": 0,
+          "addedFiles": 0,
+          "changedFiles": 0,
+          "codeResourcesPresent": true
+        }
+      },
+      "windows": {
+        "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+        "platform": "Windows",
+        "candidateSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+        "architecture": "AMD64",
+        "candidateVersion": "1.7.2",
+        "payloadSha256": "fdecb89abf16147bbdfe5724c3f9c1e5e10ab49e01f2e1f1d3126d7291481d7b",
+        "passed": true,
+        "checks": {
+          "current": true,
+          "older": true,
+          "malformed": true,
+          "wrong-target": true,
+          "corrupt": true,
+          "truncated": true,
+          "valid": true,
+          "exactSignedCandidateInstalled": true,
+          "nativePackagedRestartAlive": true,
+          "privateDataAndRetainedBackupPreserved": true,
+          "disposableFixtureRemoved": true
+        },
+        "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+        "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+        "productionUpdateButton": "not exercised by this SDK harness"
+      }
+    },
+    "productionUiBuild": {
+      "passed": true,
+      "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+      "scope": "Fresh native package jobs ran TypeScript/Vite production builds at candidateSource."
+    }
+  },
+  "nativeEditors": {
+    "linux-x64": {
+      "passed": true,
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+      "baselineRun": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748",
+      "startupChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Orbit keeps one stable session per open VS Code window and ignores retained backend history",
+        "VS Code New Chat preserves the same open-window Orbit session",
+        "Native Orbit navigation focuses the owning VS Code window without restarting its host or backend",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "liveAttachmentChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+        "First account selection connected automatically without an Enable switching button",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "sameMountedPanel": true,
+      "originalLoginUnchanged": true
+    },
+    "darwin-arm64": {
+      "passed": true,
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+      "baselineRun": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748",
+      "startupChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Orbit keeps one stable session per open VS Code window and ignores retained backend history",
+        "VS Code New Chat preserves the same open-window Orbit session",
+        "Native Orbit navigation focuses the owning VS Code window without restarting its host or backend",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "liveAttachmentChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+        "First account selection connected automatically without an Enable switching button",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "sameMountedPanel": true,
+      "originalLoginUnchanged": true
+    },
+    "darwin-x64": {
+      "passed": true,
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+      "baselineRun": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748",
+      "startupChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Orbit keeps one stable session per open VS Code window and ignores retained backend history",
+        "VS Code New Chat preserves the same open-window Orbit session",
+        "Native Orbit navigation focuses the owning VS Code window without restarting its host or backend",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "liveAttachmentChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+        "First account selection connected automatically without an Enable switching button",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "sameMountedPanel": true,
+      "originalLoginUnchanged": true
+    },
+    "win32-x64": {
+      "passed": true,
+      "testedSource": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+      "baselineRun": "https://github.com/wrestle-R/multi-codex/actions/runs/39007430748",
+      "startupChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Orbit keeps one stable session per open VS Code window and ignores retained backend history",
+        "VS Code New Chat preserves the same open-window Orbit session",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "liveAttachmentChecks": [
+        "Visible storage error recovered with Refresh without restarting the extension or VS Code",
+        "Desktop accounts discovered despite inherited managed CODEX_HOME",
+        "Attached to an already-running official Codex backend without restarting either extension or VS Code",
+        "First account selection connected automatically without an Enable switching button",
+        "Codex opens with the inherited home\u2019s current login before any account selection",
+        "Selected Account A",
+        "Selected Account B",
+        "Selected Account A",
+        "A \u2192 B \u2192 A verified in official Codex backend; VS Code, Multi Codex and backend stayed running",
+        "Usage read through the official bundled backend",
+        "Switch rejected during an actual in-progress Codex turn",
+        "Switch allowed after the actual turn completed",
+        "Existing chat continued after switching accounts without creating a new thread",
+        "Missing account leaves the previous verified account active",
+        "Account discovery recovered after helper termination while Codex stayed running",
+        "Top-bar Check Usage refreshes every saved account without changing the account, chat or backend",
+        "Native account list shows saved accounts and inline usage without welcome buttons"
+      ],
+      "sameMountedPanel": true,
+      "originalLoginUnchanged": true
+    }
+  },
+  "orbit": {
+    "macosDesktopTwoRecentChats": {
+      "passed": true,
+      "source": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+      "stage": "observer disconnect preserves the open Desktop and transcript",
+      "runtimeSha256": "a159b8f5b78ed1ba89fc70d5c8448d822a46c4fc2a4a9f18ec348f3cc2f6b8c9",
+      "helperSha256": "905ad82ed8cd64ae03f523a644e1454ab714184a8cebc138c77d0651bf6e63ad",
+      "pinnedRuntimeUnchanged": true,
+      "fixtureLoginsUnchanged": true,
+      "visibleChatsExcludeBackendCache": true,
+      "observerDisconnectPreservesDesktop": true,
+      "persistentTwoRecentChats": true,
+      "bothRecentChatsNavigateWhileIdle": true,
+      "productionWarmRoute": true,
+      "warmCredentialAccess": "forbidden by fixture store"
+    },
+    "macosLifecycle": {
+      "passed": true,
+      "variant": "candidate",
+      "appPath": "/Applications/Multi Codex.app",
+      "version": "1.7.2",
+      "build": "1.7.2",
+      "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+      "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\n",
+      "binarySha256": "fff697a1a18c661b0a841225ecac30f681c0aa45157ac0ed4605260bd38983cb",
+      "checks": [
+        {
+          "upgradeNotesAcknowledged": true,
+          "dismissal": "native Escape key"
+        },
+        {
+          "nativeHudDimensions": [
+            340,
+            88
+          ],
+          "shortcutHideRestore": true,
+          "fullscreenHideRestore": true
+        },
+        {
+          "cycle": 1,
+          "close": "red-button",
+          "reopen": "menu-bar",
+          "samePid": true,
+          "oneLauncher": true,
+          "menuVisible": true,
+          "accountSubmenuUsable": true
+        },
+        {
+          "cycle": 1,
+          "close": "command-w",
+          "reopen": "dock",
+          "samePid": true,
+          "oneLauncher": true,
+          "menuVisible": true,
+          "accountSubmenuUsable": true
+        },
+        {
+          "cycle": 2,
+          "close": "red-button",
+          "reopen": "menu-bar",
+          "samePid": true,
+          "oneLauncher": true,
+          "menuVisible": true,
+          "accountSubmenuUsable": true
+        },
+        {
+          "cycle": 2,
+          "close": "command-w",
+          "reopen": "dock",
+          "samePid": true,
+          "oneLauncher": true,
+          "menuVisible": true,
+          "accountSubmenuUsable": true
+        },
+        {
+          "cycle": 3,
+          "close": "red-button",
+          "reopen": "menu-bar",
+          "samePid": true,
+          "oneLauncher": true,
+          "menuVisible": true,
+          "accountSubmenuUsable": true
+        },
+        {
+          "cycle": 3,
+          "close": "command-w",
+          "reopen": "dock",
+          "samePid": true,
+          "oneLauncher": true,
+          "menuVisible": true,
+          "accountSubmenuUsable": true
+        },
+        {
+          "accountLaunchAfterCloseCycles": true
+        },
+        {
+          "quit": "menu-bar",
+          "cleanExit": true,
+          "noDuplicateProcess": true
+        },
+        {
+          "quit": "command-q",
+          "cleanExit": true,
+          "noDuplicateProcess": true
+        },
+        {
+          "quit": "dock-quit",
+          "cleanExit": true,
+          "noDuplicateProcess": true
+        }
+      ],
+      "disposableNativeKeychain": true,
+      "fixtureBytesUnchanged": true,
+      "disposableKeychainRemoved": true,
+      "crashReports": []
+    }
+  },
+  "website": {
+    "ci": {
+      "conclusion": "success",
+      "headSha": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+      "status": "completed",
+      "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39009179001"
+    },
+    "browserAndWebsiteUiPathsIdenticalToCandidate": true,
+    "settingsBrowserChecks": {
+      "ubuntu-22.04": {
+        "status": "passed",
+        "scenarios": 8,
+        "runs": [
+          {
+            "engine": "chromium",
+            "mode": "light",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "chromium",
+            "mode": "dark",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "chromium",
+            "mode": "light",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "chromium",
+            "mode": "dark",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "light",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "dark",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "light",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "dark",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          }
+        ]
+      },
+      "macos-26": {
+        "status": "passed",
+        "scenarios": 8,
+        "runs": [
+          {
+            "engine": "chromium",
+            "mode": "light",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "chromium",
+            "mode": "dark",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "chromium",
+            "mode": "light",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "chromium",
+            "mode": "dark",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "light",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "dark",
+            "viewport": {
+              "width": 1180,
+              "height": 820
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "light",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          },
+          {
+            "engine": "webkit",
+            "mode": "dark",
+            "viewport": {
+              "width": 480,
+              "height": 520
+            },
+            "responsiveColumns": true,
+            "skippedReleaseHistory": true,
+            "installedOptionsOnly": true,
+            "menuUnclipped": true,
+            "keyboardAndEscape": true,
+            "advancedFooterReachable": true,
+            "unrelatedPreferencesPreserved": true,
+            "noPageErrors": true
+          }
+        ]
+      }
+    },
+    "publicationContentStatus": "Detailed release notes present; public pins and actual date follow publication."
+  },
+  "localValidation": {
+    "ui": {
+      "passed": 123,
+      "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab"
+    },
+    "core": {
+      "passed": 179,
+      "ignored": 4,
+      "source": "db1ece70ddb218a4685e6ecbbe24ff954a68e099"
+    },
+    "recentChatRegressions": {
+      "passed": 6,
+      "source": "fdfe120d8e5b481f2e96387ce956c73c29604e3a",
+      "relevantSourceUnchanged": true
+    },
+    "releaseGates": {
+      "passed": 10,
+      "source": "db1ece70ddb218a4685e6ecbbe24ff954a68e099",
+      "relevantSourceUnchanged": true
+    },
+    "recentChatChecks": [
+      "Two saved recent chats without an observer; DB bytes unchanged; legacy zero user-event flags do not hide real chats",
+      "Archived/deleted/subagent filtering and recency ranking",
+      "Committed WAL data readable while writer stays open",
+      "Durable shortcuts retained when index disappears",
+      "Linked indexes refused"
+    ],
+    "avatarRefresh": "Equal IPC avatar identities do not trigger another canvas draw; idle avatars are paused; only the working dot can pulse.",
+    "idleVisualCheck": {
+      "passed": true,
+      "source": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+      "scope": "Synthetic Chromium fixture: after initial fabric-texture warmup, idle strip PNG bytes identical across 2.5 seconds and snapshot refreshes; not a native compositor/FPS benchmark."
+    }
+  },
+  "limitations": [
+    "Recent shortcuts show up to two non-archived saved chats per account, not a claim that both are open. Fewer saved chats produce fewer shortcuts.",
+    "Temporary/unsupported index errors preserve saved shortcuts with an availability notice; a first use without any readable index cannot invent chats.",
+    "Live activity/attention depends on connected managed clients; recent shortcut presence is independent.",
+    "VSCode tracks editor windows; ambiguous CLI terminal navigation refuses rather than targeting the wrong window.",
+    "Windows Orbit unsupported; Windows launcher/editor/updater regression coverage passed.",
+    "macOS27 unavailable; macOS26 results do not establish27 behavior. Mac bundles ad-hoc signed, no DeveloperID/notarization.",
+    "No final native Hyprland/GNOME/KDE geometry retest for this patch. Prior release tests do not establish final-package geometry coverage. Mixed monitors/scaling/X11/accessibility/long soak remain outside this completed matrix.",
+    "Installed launcher Update-button test not performed; native SDK fixture results do not substitute for it. Current real clients and credentials untouched."
+  ],
+  "validationHistory": [
+    {
+      "run": "https://github.com/wrestle-R/multi-codex/actions/runs/39006795898",
+      "conclusion": "failure",
+      "reason": "Initial native recent-index check returned no chats. Additional inert metadata diagnostics required."
+    },
+    {
+      "run": "https://github.com/wrestle-R/multi-codex/actions/runs/39007153115",
+      "conclusion": "failure",
+      "reason": "Confirmed real saved app-server conversations have has_user_event=0. Removed this unreliable filter; a regression covers the native case."
+    },
+    {
+      "run": "https://github.com/wrestle-R/multi-codex/actions/runs/39006787492",
+      "conclusion": "cancelled",
+      "reason": "Superseded before publication by the corrected recent-index filter. No old package reused."
+    }
+  ],
+  "publication": {
+    "status": "validated-pending-publication"
+  }
+}
