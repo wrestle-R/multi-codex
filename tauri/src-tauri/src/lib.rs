@@ -608,6 +608,9 @@ pub fn run() {
         eprintln!("Multi Codex could not initialize desktop integration: {error}");
         std::process::exit(1);
     });
+    if desktop_integration.refresh_after_update().is_err() {
+        eprintln!("Multi Codex could not refresh its existing shortcuts after an update");
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
