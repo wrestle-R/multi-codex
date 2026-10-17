@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 const { SharedChats } = createRequire(import.meta.url)('../dist/core.cjs');
@@ -73,7 +73,7 @@ test('checkpoint includes full rollout assets and is committed before release', 
   await writeFile(path, raw + JSON.stringify({ type: 'response_item', payload: { type: 'localImage', path: asset } }) + '\n');
   await shared.drain();
   const checkpoint = calls.find(call => call.method === 'chats/checkpoint');
-  assert.deepEqual(checkpoint.params.assets, [[asset, asset]]);
+  assert.deepEqual(checkpoint.params.assets, [[asset, await realpath(asset)]]);
   assert.equal(await readFile(checkpoint.params.path, 'utf8'), await readFile(path, 'utf8'));
   await shared.captureForStop(); await shared.publishAfterStop(); await shared.releaseAfterStop();
   assert.ok(calls.findIndex(call => call.method === 'chats/checkpointStopped') < calls.findIndex(call => call.method === 'chats/release'));
