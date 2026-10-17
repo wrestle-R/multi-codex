@@ -1,6 +1,12 @@
 import { chmod, copyFile, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
+export function privateBackendEnvironment(home: string, inherited = process.env): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(Object.entries(inherited).filter(([key]) => !/^(?:OPENAI_|CODEX_)/i.test(key)));
+  delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
+  return { ...env, CODEX_HOME: home, CODEX_SQLITE_HOME: home };
+}
+
 /** The launch home can be a desktop account; it is separate from shared account storage. */
 export function startupHomes(base: { startupHome?: string; globalHome: string }, env = process.env) {
   const sourceHome = env.CODEX_HOME || base.startupHome || base.globalHome;
@@ -10,10 +16,17 @@ export function startupHomes(base: { startupHome?: string; globalHome: string },
 }
 
 /** Keep switches private, but start with the current home's login and resources. */
-export async function prepareSessionHome(sourceHome: string, sessionHome: string) {
+export async function prepareSessionHome(sourceHome: string, sessionHome: string, options: { sharedChats?: boolean } = {}) {
   await mkdir(sessionHome, { recursive: true, mode: 0o700 });
   await mkdir(sourceHome, { recursive: true, mode: 0o700 });
-  for (const name of ['sessions', 'archived_sessions', 'skills', 'rules', 'plugins', 'memories', 'prompts']) {
+  // Broker-managed histories are hydrated as private working copies. Linking a
+  // writable source session directory would bypass cross-process ownership.
+  if (options.sharedChats) {
+    for (const name of ['sessions', 'archived_sessions']) await mkdir(join(sessionHome, name), { recursive: true, mode: 0o700 });
+  }
+  const resourceNames = options.sharedChats ? ['skills', 'rules', 'plugins', 'memories', 'prompts']
+    : ['sessions', 'archived_sessions', 'skills', 'rules', 'plugins', 'memories', 'prompts'];
+  for (const name of resourceNames) {
     await mkdir(join(sourceHome, name), { recursive: true, mode: 0o700 });
     await symlink(join(sourceHome, name), join(sessionHome, name), process.platform === 'win32' ? 'junction' : 'dir');
   }

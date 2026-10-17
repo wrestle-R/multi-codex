@@ -6,8 +6,9 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "beforeBuildCommand": "npm run build:desktop",
+    "frontendDist": "../dist",
+    "beforeBundleCommand": "node scripts/bundle-desktop-helper.mjs"
   },
   "app": {
     "windows": [
@@ -49,7 +50,8 @@
     ],
     "resources": {
       "../platform/gnome/": "desktop-integrations/gnome/",
-      "../platform/kde/": "desktop-integrations/kde/"
+      "../platform/kde/": "desktop-integrations/kde/",
+      "../resources/managed-extension/": "managed-vscode/bridge/"
     },
     "macOS": {
       "minimumSystemVersion": "26.0"

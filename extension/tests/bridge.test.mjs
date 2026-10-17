@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
-import { mkdtemp, chmod, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, chmod, mkdir, rm, writeFile, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
@@ -19,6 +19,34 @@ async function setup(t) {
   return { bridge, client, peer };
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+test('shared account handoff stops the old backend and keeps account files and histories private', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'mc-shared-handoff-'));
+  const { syntheticAuth } = await import('./fixtures/local-service.mjs');
+  for (const id of ['a', 'b']) {
+    await mkdir(join(root, 'profiles', id, 'codex-home'), { recursive: true });
+    await writeFile(join(root, 'profiles', id, 'codex-home', 'auth.json'), JSON.stringify(syntheticAuth(`synthetic-account-${id}`)));
+  }
+  const sourceAuth = await readFile(join(root, 'profiles/a/codex-home/auth.json'), 'utf8');
+  const home = join(root, 'windows', 'first'); await mkdir(home, { recursive: true });
+  await writeFile(join(home, 'auth.json'), sourceAuth);
+  const input = new PassThrough(); const output = new PassThrough();
+  const bridge = new CodexBridge({ engine: resolve('tests/fixtures/fake-engine.mjs'), helper: resolve('tests/fixtures/fake-accounts.mjs'), dataRoot: root, globalHome: root, sessionHome: home, profileId: 'a', sharedChats: true, socket: controlEndpoint(root), token: 'handoff-token', workspace: root }, new JsonLines(input, output), ['app-server']);
+  const peer = new RpcPeer(new JsonLines(output, input), 'frontend:');
+  t.after(async () => { peer.close(); await bridge.dispose(); await rm(root, { recursive: true, force: true }); });
+  await bridge.listen(); await peer.request('initialize', { clientInfo: { name: 'fixture', version: '1' } });
+  const first = bridge.backend; const firstPid = first.pid;
+  await peer.request('fixture/control', { loadedThreads: [] });
+  await bridge.switchAccount('b');
+  assert.notEqual(bridge.backend.pid, firstPid);
+  assert.ok(first.exitCode !== null || first.signalCode !== null);
+  assert.equal(bridge.state().selectedId, 'b');
+  assert.notEqual(bridge.config.sessionHome, home);
+  const paths = await peer.request('fixture/homes');
+  assert.equal(paths.home, bridge.config.sessionHome); assert.equal(paths.history, paths.home);
+  assert.equal(await readFile(join(root, 'profiles/a/codex-home/auth.json'), 'utf8'), sourceAuth);
+  await peer.request('fixture/control', { loadedThreads: [] });
+  await bridge.switchAccount('a'); assert.equal(bridge.state().selectedId, 'a');
+});
 async function until(read, check) { for (let i = 0; i < 100; i++) { if (check(await read())) return; await delay(10); } throw new Error('Condition timed out'); }
 
 test('authentication failure restores the previous verified account without restarting', async t => {

@@ -1,6 +1,7 @@
 // Fresh runner credentials remain private. Only encrypted instructions and boolean
 // results leave the runner; never upload this script's private working directory.
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { publicEncrypt, constants, createHash, randomUUID } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
@@ -8,7 +9,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PassThrough } from 'node:stream';
 const { spawnExecutable, terminateExecutable, JsonLines, RpcPeer, AccountClient,
-  CodexBridge, BridgeClient, controlEndpoint, helperName } = createRequire(import.meta.url)('../dist/core.cjs');
+  CodexBridge, BridgeClient, controlEndpoint, helperName, prepareSessionHome } = createRequire(import.meta.url)('../dist/core.cjs');
 const output = resolve(process.env.AUTH_OUTPUT);
 const engine = resolve(process.env.AUTH_ENGINE);
 const key = Buffer.from(process.env.AUTH_PUBLIC_KEY, 'base64').toString();
@@ -16,7 +17,9 @@ const root = await mkdtemp(join(tmpdir(), 'multi-codex-real-auth-'));
 const dataRoot = join(root, 'data'); const globalHome = join(root, 'global');
 const helper = resolve('bin', helperName);
 const report = { platform: process.platform, architecture: process.arch, passed: false,
-  browserFlow: 'not tested', deviceLogins: [], switching: [] };
+  browserFlow: 'not tested', deviceLogins: [], switching: [], sharedContinuation: 'not tested' };
+report.source = process.env.GITHUB_SHA ?? 'local';
+report.engineVersion = spawnSync(engine, ['--version'], { encoding: 'utf8', windowsHide: true }).stdout?.trim();
 const digest = value => createHash('sha256').update(value).digest('hex');
 await mkdir(output, { recursive: true });
 await mkdir(globalHome, { mode: 0o700 });
@@ -117,6 +120,58 @@ try {
     for (let i = 0; i < saved.length; i++) assert.equal(digest(await readFile(join(dataRoot, 'profiles', saved[i], 'codex-home', 'auth.json'))), credentialHashes[i]);
     report.switching.push({ account: index === 0 ? 'a' : 'b', identityVerified: true, authenticatedUsage: true, sameBackend: true, sourceCredentialsUnchanged: true });
   }
+  phase = 'shared-account-continuation';
+  client.dispose(); frontend.close(); await bridge.dispose();
+  client = undefined; frontend = undefined; bridge = undefined;
+  const sharedInput = new PassThrough(); const sharedOutput = new PassThrough();
+  const sharedHome = join(dataRoot, 'windows', randomUUID());
+  const workspace = join(root, 'empty-workspace'); await mkdir(workspace);
+  await prepareSessionHome(join(dataRoot, 'profiles', saved[0], 'codex-home'), sharedHome, { sharedChats: true });
+  bridge = new CodexBridge({ engine, helper, dataRoot, globalHome, sessionHome: sharedHome,
+    sharedChats: true, profileId: saved[0], socket: controlEndpoint(randomUUID()), token: randomUUID(), workspace }, new JsonLines(sharedInput, sharedOutput), ['app-server']);
+  const sharedLines = new JsonLines(sharedOutput, sharedInput);
+  frontend = new RpcPeer(sharedLines, 'shared-acceptance:');
+  await bridge.listen();
+  await frontend.request('initialize', { clientInfo: { name: 'multi_codex_authenticated_sharing_acceptance', version: '1' }, capabilities: { experimentalApi: true } });
+  client = await BridgeClient.connect(bridge.config.socket, bridge.config.token);
+  async function minimalTurn(threadId, text) {
+    let handler;
+    let timer;
+    const completion = new Promise((resolve, reject) => {
+      timer = setTimeout(() => reject(new Error('Authenticated shared turn timed out')), 120000);
+      handler = message => {
+        if (message.method === 'turn/completed' && message.params.threadId === threadId) {
+          message.params.turn.status === 'completed' ? resolve() : reject(new Error('Authenticated shared turn failed'));
+        }
+      };
+      sharedLines.on('message', handler);
+    });
+    completion.catch(() => {});
+    try {
+      await frontend.request('turn/start', { threadId, input: [{ type: 'text', text }] });
+      await completion;
+    } finally { clearTimeout(timer); sharedLines.off('message', handler); }
+  }
+  const started = await frontend.request('thread/start', { cwd: workspace, sandbox: 'read-only', approvalPolicy: 'never' });
+  const threadId = started.thread.id;
+  await minimalTurn(threadId, 'Reply with just the word ready.');
+  const original = (await frontend.request('thread/read', { threadId, includeTurns: true })).thread;
+  const writerA = bridge.backend;
+  await client.request('switch', { id: saved[1] });
+  assert.ok(writerA.exitCode !== null || writerA.signalCode !== null);
+  assert.equal(digest((await frontend.request('account/read', { refreshToken: false })).account.email.toLowerCase()), identities[1].identity);
+  const observed = await frontend.request('thread/read', { threadId, includeTurns: true });
+  assert.deepEqual(observed.thread.turns, original.turns);
+  const resumed = await frontend.request('thread/resume', { threadId });
+  assert.deepEqual(resumed.thread.turns, original.turns);
+  await minimalTurn(threadId, 'Reply with just the word continued.');
+  const continued = (await frontend.request('thread/read', { threadId, includeTurns: true })).thread;
+  assert.equal(continued.turns.length, original.turns.length + 1);
+  assert.deepEqual(continued.turns.slice(0, -1), original.turns);
+  await client.request('switch', { id: saved[0] });
+  assert.equal(digest((await frontend.request('account/read', { refreshToken: false })).account.email.toLowerCase()), identities[0].identity);
+  for (let i = 0; i < saved.length; i++) assert.equal(digest(await readFile(join(dataRoot, 'profiles', saved[i], 'codex-home', 'auth.json'))), credentialHashes[i]);
+  report.sharedContinuation = { fullNativeContext: true, writerStoppedBeforeHandoff: true, authenticatedAccountBContinuation: true, returnToAccountA: true, sourceCredentialsUnchanged: true, realModelTurns: 2 };
   report.passed = true;
 } catch {
   // Backend failures can include auth URLs or tokens. Publish only the stage.

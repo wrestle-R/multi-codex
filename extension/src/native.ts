@@ -12,7 +12,7 @@ export function controlEndpoint(id: string, platform = process.platform) {
 /** Native production binaries and JavaScript protocol fixtures use identical streams. */
 export function spawnExecutable(binary: string, args: string[], options: SpawnOptionsWithoutStdio = {}) {
   return binary.endsWith('.mjs')
-    ? spawn(process.execPath, [binary, ...args], { ...options, env: { ...(options.env ?? process.env), ELECTRON_RUN_AS_NODE: '1' }, stdio: ['pipe', 'pipe', 'pipe'] })
+    ? spawn(process.execPath, [binary, ...args], { ...options, windowsHide: true, env: { ...(options.env ?? process.env), ELECTRON_RUN_AS_NODE: '1' }, stdio: ['pipe', 'pipe', 'pipe'] })
     : spawn(binary, args, { ...options, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
 }
 

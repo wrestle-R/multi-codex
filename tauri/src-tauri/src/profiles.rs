@@ -100,6 +100,9 @@ pub struct ProfileStorageUsage {
     pub reclaimable_bytes: u64,
     pub running: bool,
     pub breakdown: ProfileStorageBreakdown,
+    pub layout: String,
+    pub private_catalog_bytes: u64,
+    pub private_runtime_bytes: u64,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -119,6 +122,10 @@ pub struct StorageUsage {
     pub reclaimable_bytes: u64,
     pub other_bytes: u64,
     pub profiles: Vec<ProfileStorageUsage>,
+    pub shared_extensions_bytes: u64,
+    pub shared_chats_bytes: u64,
+    pub migration_bytes: u64,
+    pub backup_bytes: u64,
 }
 
 const RECLAIMABLE_PATHS: &[&[&str]] = &[
@@ -227,6 +234,7 @@ pub struct ProfileService<S: SecretStore, R: AuthRecognizer> {
     recognizer: Arc<R>,
     runtime: Arc<Mutex<RuntimeState>>,
     chat_plans: Mutex<HashMap<String, crate::chat_cleanup::ChatPlan>>,
+    managed_bridge: Mutex<Option<PathBuf>>,
 }
 
 impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
@@ -256,6 +264,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             recognizer: Arc::new(recognizer),
             runtime: Arc::new(Mutex::new(RuntimeState::default())),
             chat_plans: Mutex::new(HashMap::new()),
+            managed_bridge: Mutex::new(None),
         };
         Ok(service)
     }
@@ -276,6 +285,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             let detected = profile_process_running(&paths.vscode_home)
                 || profile_process_running(&paths.desktop_home)
                 || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    &metadata.id,
+                )?
                 || self.extension_is_running(&metadata.id)?;
             let status = statuses
                 .get(&metadata.id)
@@ -349,7 +362,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         let auth_path = self.global_codex_home.join("auth.json");
         let metadata = fs::symlink_metadata(&auth_path)
             .map_err(|_| "The current Codex auth file could not be read".to_string())?;
-        if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+        if !metadata.file_type().is_file() || crate::managed_files::is_link(&metadata) {
             return Err("The current Codex auth path is not a regular file".to_string());
         }
         if metadata.len() as usize > MAX_AUTH_BYTES {
@@ -659,6 +672,22 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     pub fn launch_profile(&self, id: &str, workspace: &Path) -> Result<()> {
         let code = resolve_command("code")?;
+        let bridge = self
+            .managed_bridge
+            .lock()
+            .map_err(|_| "Managed resource state unavailable")?
+            .clone();
+        if let Some(bridge) = bridge {
+            if !self.is_running(id)?
+                && crate::profile_layout::LayoutStore::open(&self.data_root)?
+                    .record(id)?
+                    .is_some_and(|record| {
+                        record.phase == crate::profile_layout::LayoutPhase::Committed
+                    })
+            {
+                self.migrate_profile_shared_storage(id, &bridge)?;
+            }
+        }
         self.launch_profile_with_command(id, workspace, &code)
     }
 
@@ -669,10 +698,15 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             return Err("Profile not found".to_string());
         }
         let workspace = canonical_workspace(workspace)?;
+        crate::profile_restore::ensure_ready(&self.data_root, id)?;
         let paths = self.profile_paths(id)?;
         ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
         ensure_private_managed_dir(&self.data_root, &paths.vscode_home)?;
-        ensure_private_managed_dir(&self.data_root, &paths.extensions_dir)?;
+        let shared_catalog =
+            crate::profile_layout::LayoutStore::open(&self.data_root)?.selected_catalog(id)?;
+        if shared_catalog.is_none() {
+            ensure_private_managed_dir(&self.data_root, &paths.extensions_dir)?;
+        }
         write_codex_config(&paths.codex_home)?;
         let auth_path = paths.codex_home.join("auth.json");
         self.current_profile_credential(id)?;
@@ -698,9 +732,30 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                     paths.vscode_home.clone()
                 }
             },
-            &paths.extensions_dir,
+            shared_catalog.as_deref().unwrap_or(&paths.extensions_dir),
             &launch_workspace,
         );
+        if shared_catalog.is_some() {
+            command
+                .env("MULTI_CODEX_MANAGED_DATA_ROOT", &self.data_root)
+                .env("MULTI_CODEX_GLOBAL_HOME", &self.global_codex_home)
+                .env(
+                    "MULTI_CODEX_BRIDGE_RUNTIME",
+                    crate::managed_launch::runtime_home(&self.data_root, id),
+                )
+                .env("MULTI_CODEX_SHARED_CHATS", "1")
+                .env("MULTI_CODEX_PROFILE_ID", id);
+        } else {
+            for key in [
+                "MULTI_CODEX_MANAGED_DATA_ROOT",
+                "MULTI_CODEX_GLOBAL_HOME",
+                "MULTI_CODEX_BRIDGE_RUNTIME",
+                "MULTI_CODEX_SHARED_CHATS",
+                "MULTI_CODEX_PROFILE_ID",
+            ] {
+                command.env_remove(key);
+            }
+        }
         let child = match command.spawn() {
             Ok(child) => child,
             Err(error) => {
@@ -752,6 +807,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             return Err("Profile not found".into());
         }
         let workspace = canonical_workspace(workspace)?;
+        crate::profile_restore::ensure_ready(&self.data_root, id)?;
         let paths = self.profile_paths(id)?;
         ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
         ensure_private_managed_dir(&self.data_root, &paths.desktop_home)?;
@@ -868,7 +924,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                     .take_while(|ancestor| *ancestor != self.data_root)
                 {
                     match fs::symlink_metadata(ancestor) {
-                        Ok(metadata) if metadata.file_type().is_symlink() => return Ok(0),
+                        Ok(metadata) if crate::managed_files::is_link(&metadata) => return Ok(0),
                         Ok(_) => {}
                         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(0),
                         Err(_) => return Err("Could not inspect profile storage".into()),
@@ -892,20 +948,61 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             profile_bytes = profile_bytes.saturating_add(size);
             reclaimable_bytes = reclaimable_bytes.saturating_add(reclaimable);
             profiles.push(ProfileStorageUsage {
-                id: profile.id,
+                id: profile.id.clone(),
                 name: profile.name,
                 bytes: size,
                 reclaimable_bytes: reclaimable,
                 running,
                 breakdown,
+                layout: if crate::profile_restore::record(&self.data_root, &profile.id)?
+                    .is_some_and(|record| record.phase != "complete")
+                {
+                    "needsRestore".into()
+                } else {
+                    crate::profile_layout::LayoutStore::open(&self.data_root)?
+                        .record(&profile.id)?
+                        .map(|record| match record.phase {
+                            crate::profile_layout::LayoutPhase::Committed => "shared",
+                            crate::profile_layout::LayoutPhase::RolledBack => "legacy",
+                            _ => "needsRecovery",
+                        })
+                        .unwrap_or("legacy")
+                        .into()
+                },
+                private_catalog_bytes: size_if_present(root.join("extension-catalogs"))?,
+                private_runtime_bytes: size_if_present(root.join("bridge-runtime"))?,
             });
         }
         profiles.sort_by_key(|profile| std::cmp::Reverse(profile.bytes));
+        let size_if_present = |path: PathBuf| {
+            if path.exists() {
+                directory_size(&path)
+            } else {
+                Ok(0)
+            }
+        };
+        let shared_extensions_bytes = size_if_present(self.data_root.join("shared-vscode"))?;
+        let shared_chats_bytes = size_if_present(self.data_root.join("shared-chats"))?;
+        let migration_bytes = size_if_present(self.data_root.join("migrations"))?;
+        let backup_bytes = size_if_present(
+            self.data_root
+                .parent()
+                .ok_or("Backup parent is unavailable")?
+                .join("multi-codex-backups"),
+        )?;
         Ok(StorageUsage {
             bytes,
             reclaimable_bytes,
-            other_bytes: bytes.saturating_sub(profile_bytes),
+            other_bytes: bytes
+                .saturating_sub(profile_bytes)
+                .saturating_sub(shared_extensions_bytes)
+                .saturating_sub(shared_chats_bytes)
+                .saturating_sub(migration_bytes),
             profiles,
+            shared_extensions_bytes,
+            shared_chats_bytes,
+            migration_bytes,
+            backup_bytes,
         })
     }
 
@@ -931,23 +1028,465 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
 
     // Serialize with profile launches, credential refresh, and extension leases.
     // Keep all guards alive until the local app-server has exited.
-    fn chat_cleanup_guard(&self, id: &str) -> Result<(File, File, File)> {
+    fn closed_profile_guard(&self, id: &str, action: &str) -> Result<(File, File, File)> {
         validate_id(id)?;
         let metadata = self.metadata_write_lock()?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".into());
         }
         if self.is_running(id)? {
-            return Err("Close this profile's VS Code, Codex Desktop, and CLI sessions before clearing chats.".into());
+            return Err(format!(
+                "Close this profile's VS Code, Codex Desktop, and CLI sessions before {action}."
+            ));
         }
+        crate::profile_restore::ensure_ready(&self.data_root, id)?;
         let paths = self.profile_paths(id)?;
         ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
         let credential = self.extension_credential_lock(id)?;
         let lease =
             crate::file_security::lock_file(&paths.codex_home.join(".extension-session.lock"))?;
         fs2::FileExt::try_lock_exclusive(&lease)
-            .map_err(|_| "This account is in use. Close its sessions before clearing chats.")?;
+            .map_err(|_| "This account is in use. Close its sessions before changing storage.")?;
         Ok((metadata, credential, lease))
+    }
+
+    pub fn preview_profile_migration(
+        &self,
+        id: &str,
+    ) -> Result<crate::migration::MigrationPreview> {
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        let store = crate::migration::MigrationStore::open(&self.data_root)?;
+        if crate::profile_restore::record(&self.data_root, id)?
+            .is_some_and(|record| record.phase != "complete")
+        {
+            return store.preview_restore(id, self.is_running(id)?);
+        }
+        store.preview(id, self.is_running(id)?)
+    }
+
+    pub fn prepare_shared_extensions(
+        &self,
+        bridge_package: &Path,
+    ) -> Result<crate::shared_vscode::Generation> {
+        self.prepare_shared_extensions_with_code(bridge_package, &resolve_command("code")?)
+    }
+    fn prepare_shared_extensions_with_code(
+        &self,
+        bridge_package: &Path,
+        code: &Path,
+    ) -> Result<crate::shared_vscode::Generation> {
+        crate::managed_launch::editor_runtime(code)?;
+        let store = crate::shared_vscode::ExtensionStore::open(&self.data_root)?;
+        store.initialize(code, bridge_package, || {
+            let _guard = self.metadata_write_lock()?;
+            for profile in self.load_metadata()? {
+                let layout = crate::profile_layout::LayoutStore::open(&self.data_root)?.record(&profile.id)?;
+                if layout.is_some_and(|record| record.phase == crate::profile_layout::LayoutPhase::Committed) && self.is_running(&profile.id)? {
+                    return Err("Close managed profile sessions before publishing editor extension maintenance".into());
+                }
+            }
+            Ok(())
+        })
+    }
+
+    pub fn migrate_profile_shared_storage(
+        &self,
+        id: &str,
+        bridge_package: &Path,
+    ) -> Result<crate::profile_layout::LayoutRecord> {
+        self.migrate_profile_shared_storage_with_code(id, bridge_package, &resolve_command("code")?)
+    }
+    fn migrate_profile_shared_storage_with_code(
+        &self,
+        id: &str,
+        bridge_package: &Path,
+        code: &Path,
+    ) -> Result<crate::profile_layout::LayoutRecord> {
+        validate_id(id)?;
+        let layouts = crate::profile_layout::LayoutStore::open(&self.data_root)?;
+        if let Some(record) = layouts.record(id)? {
+            if record.phase != crate::profile_layout::LayoutPhase::Committed
+                && record.phase != crate::profile_layout::LayoutPhase::RolledBack
+            {
+                return Err("Recover the interrupted storage migration before retrying".into());
+            }
+        }
+        let preview = self.preview_profile_migration(id)?;
+        if preview.running {
+            return Err("Close this profile's sessions before migrating its storage".into());
+        }
+        if !preview.external_links.is_empty() {
+            return Err("Linked profile entries need complete recovery coverage before migration; the original layout is retained".into());
+        }
+        if preview.available_app_bytes < preview.required_app_bytes
+            || preview.available_backup_bytes < preview.required_backup_bytes
+        {
+            return Err("There is not enough free space for the verified backup and migration staging. Current profile data is retained".into());
+        }
+        let generation = self.prepare_shared_extensions_with_code(bridge_package, code)?;
+        if let Some(record) = layouts.record(id)? {
+            if record.phase == crate::profile_layout::LayoutPhase::Committed
+                && record.generation.id == generation.id
+                && layouts.selected_catalog(id).is_ok()
+            {
+                return Ok(record);
+            }
+        }
+        let _guards = self.closed_profile_guard(id, "migrating shared storage")?;
+        let profile = self
+            .load_metadata()?
+            .into_iter()
+            .find(|profile| profile.id == id)
+            .ok_or("Profile not found")?;
+        let paths = self.profile_paths(id)?;
+        ensure_private_managed_dir(&self.data_root, &paths.vscode_home.join("User"))?;
+        if layouts
+            .record(id)?
+            .is_none_or(|record| record.phase != crate::profile_layout::LayoutPhase::Committed)
+        {
+            ensure_private_managed_dir(&self.data_root, &paths.extensions_dir)?;
+        }
+        let closed = || {
+            if profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    id,
+                )?
+            {
+                return Err("A profile client started during migration. Its original data and backup have been retained".into());
+            }
+            Ok(())
+        };
+        closed()?;
+        let store = crate::shared_vscode::ExtensionStore::open(&self.data_root)?;
+        let settings = crate::managed_launch::prepare(
+            &self.data_root,
+            &self.global_codex_home,
+            id,
+            &generation,
+            code,
+        )?;
+        let snapshot = crate::migration::MigrationStore::open(&self.data_root)?.prepare(
+            id,
+            &serde_json::to_vec(&profile).map_err(|_| "Could not encode profile metadata")?,
+            &closed,
+        )?;
+        crate::shared_chat_import::import_snapshot(
+            &self.data_root,
+            &crate::managed_launch::engine(&store, &generation)?,
+            &snapshot,
+            &closed,
+        )?;
+        layouts.commit(&snapshot, &generation, &settings, closed)
+    }
+
+    pub fn rollback_profile_shared_storage(
+        &self,
+        id: &str,
+    ) -> Result<crate::profile_layout::LayoutRecord> {
+        let _guards = self.closed_profile_guard(id, "recovering the legacy layout")?;
+        let paths = self.profile_paths(id)?;
+        crate::profile_layout::LayoutStore::open(&self.data_root)?.rollback(id, || {
+            if profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    id,
+                )?
+            {
+                Err("Close profile clients before completing storage recovery".into())
+            } else {
+                Ok(())
+            }
+        })
+    }
+
+    pub fn restore_profile_backup(
+        &self,
+        id: &str,
+    ) -> Result<crate::profile_restore::RestoreRecord> {
+        let pending = crate::profile_restore::record(&self.data_root, id)?
+            .is_some_and(|record| record.phase != "complete");
+        let _guards = if pending {
+            None
+        } else {
+            Some(self.closed_profile_guard(id, "restoring a profile backup")?)
+        };
+        let _recovery_guard = if pending {
+            Some(self.metadata_write_lock()?)
+        } else {
+            None
+        };
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        if self.is_running(id)? {
+            return Err("Close this account's sessions before restoring its backup".into());
+        }
+        let paths = self.profile_paths(id)?;
+        crate::profile_restore::activate(&self.data_root, id, || {
+            if profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    id,
+                )?
+            {
+                Err("Close all profile clients before restoring. Current data and shared chats are retained".into())
+            } else {
+                Ok(())
+            }
+        })
+    }
+
+    pub fn stage_profile_restore(&self, id: &str) -> Result<PathBuf> {
+        let _guards = self.closed_profile_guard(id, "staging a restore")?;
+        let paths = self.profile_paths(id)?;
+        let target = self
+            .data_root
+            .join("migrations/restores")
+            .join(Uuid::new_v4().to_string());
+        crate::migration::MigrationStore::open(&self.data_root)?.stage_restore(id, &target, || {
+            if profile_process_running(&paths.vscode_home) || profile_process_running(&paths.desktop_home) || profile_process_running(&paths.codex_home) {
+                return Err("A profile client started; restore remains staged and no current data has been replaced".into());
+            }
+            Ok(())
+        })?;
+        Ok(target)
+    }
+
+    pub fn prepare_profile_migration(&self, id: &str) -> Result<crate::migration::SnapshotRecord> {
+        // Same account/credential/session guards as destructive private-history operations.
+        let _guards = self.closed_profile_guard(id, "preparing a migration backup")?;
+        let profile = self
+            .load_metadata()?
+            .into_iter()
+            .find(|profile| profile.id == id)
+            .ok_or("Profile not found")?;
+        let paths = self.profile_paths(id)?;
+        let closed = || {
+            if profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    id,
+                )?
+            {
+                return Err(
+                    "A profile client started during backup. Close its sessions and retry".into(),
+                );
+            }
+            Ok(())
+        };
+        crate::migration::MigrationStore::open(&self.data_root)?.prepare(
+            id,
+            &serde_json::to_vec(&profile).map_err(|_| "Could not record profile metadata")?,
+            closed,
+        )
+    }
+
+    fn generation_consumers_closed(&self) -> Result<()> {
+        for profile in self.load_metadata()? {
+            if self.is_running(&profile.id)? {
+                return Err(
+                    "Close all account sessions before clearing shared package versions".into(),
+                );
+            }
+        }
+        Ok(())
+    }
+    pub fn preview_shared_generations(&self) -> Result<crate::shared_vscode::GenerationCleanup> {
+        let _guard = self.metadata_write_lock()?;
+        crate::shared_vscode::ExtensionStore::open(&self.data_root)?
+            .preview_cleanup(|| self.generation_consumers_closed())
+    }
+    fn generation_native_consumers_closed(&self) -> Result<()> {
+        for profile in self.load_metadata()? {
+            let paths = self.profile_paths(&profile.id)?;
+            if profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    &profile.id,
+                )?
+            {
+                return Err(
+                    "An account client started during package cleanup; retry after it closes"
+                        .into(),
+                );
+            }
+        }
+        Ok(())
+    }
+    pub fn clear_shared_generations(
+        &self,
+        preview: crate::shared_vscode::GenerationCleanup,
+    ) -> Result<u64> {
+        let _guard = self.metadata_write_lock()?;
+        let mut leases = Vec::new();
+        for profile in self.load_metadata()? {
+            let paths = self.profile_paths(&profile.id)?;
+            ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
+            let lease =
+                crate::file_security::lock_file(&paths.codex_home.join(".extension-session.lock"))?;
+            fs2::FileExt::try_lock_exclusive(&lease)
+                .map_err(|_| "An account is active. Check package cleanup again")?;
+            leases.push(lease);
+        }
+        crate::shared_vscode::ExtensionStore::open(&self.data_root)?
+            .clear_unused(&preview, || self.generation_native_consumers_closed())
+    }
+
+    pub fn preview_legacy_extensions(&self, id: &str) -> Result<crate::legacy_cleanup::Preview> {
+        let _guards = self.closed_profile_guard(id, "previewing original extension cleanup")?;
+        crate::legacy_cleanup::preview(&self.data_root, id)
+    }
+    pub fn clear_legacy_extensions(&self, id: &str, token: &str) -> Result<u64> {
+        let _guards = self.closed_profile_guard(id, "clearing original extensions")?;
+        let paths = self.profile_paths(id)?;
+        crate::legacy_cleanup::clear(&self.data_root, id, token, || {
+            if profile_process_running(&paths.vscode_home)
+                || profile_process_running(&paths.desktop_home)
+                || profile_process_running(&paths.codex_home)
+                || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                    &self.data_root,
+                    id,
+                )?
+            {
+                Err("Close this profile's sessions before clearing original extensions".into())
+            } else {
+                Ok(())
+            }
+        })
+    }
+
+    pub fn confirm_shared_launch(&self, id: &str) -> Result<()> {
+        validate_id(id)?;
+        crate::profile_layout::LayoutStore::open(&self.data_root)?.confirm_launch(id)
+    }
+
+    pub fn set_managed_bridge(&self, bridge: PathBuf) -> Result<()> {
+        *self
+            .managed_bridge
+            .lock()
+            .map_err(|_| "Managed resource state unavailable")? = Some(bridge);
+        Ok(())
+    }
+    pub fn shared_storage_queue(&self) -> Result<crate::shared_storage_queue::Queue> {
+        crate::shared_storage_queue::load(&self.data_root)
+    }
+    pub fn set_shared_storage_enabled(
+        &self,
+        enabled: bool,
+    ) -> Result<crate::shared_storage_queue::Queue> {
+        let path = self.data_root.join("migrations/sharing-queue.lock");
+        let mut queue = self.shared_storage_queue()?;
+        let _lock = crate::file_security::exclusive_lock(
+            crate::file_security::lock_file(&path)?,
+            "Storage queue is busy. Retry when its current account finishes",
+        )?;
+        queue.enabled = enabled;
+        if enabled {
+            queue.profiles.retain(|_, status| status.state == "ready");
+        }
+        crate::shared_storage_queue::save(&self.data_root, &queue)?;
+        Ok(queue)
+    }
+    pub fn process_shared_storage_queue(&self) -> Result<crate::shared_storage_queue::Queue> {
+        let mut queue = self.shared_storage_queue()?;
+        if !queue.enabled {
+            return Ok(queue);
+        }
+        let path = self.data_root.join("migrations/sharing-queue.lock");
+        let _lock = crate::file_security::exclusive_lock(
+            crate::file_security::lock_file(&path)?,
+            "A storage migration queue is already running",
+        )?;
+        // Reload the policy under the lock so disabling cannot race a new pass.
+        queue = self.shared_storage_queue()?;
+        if !queue.enabled {
+            return Ok(queue);
+        }
+        let bridge = self
+            .managed_bridge
+            .lock()
+            .map_err(|_| "Managed resource state unavailable")?
+            .clone()
+            .ok_or("Managed bridge resource unavailable")?;
+        let profiles = self.load_metadata()?;
+        queue
+            .profiles
+            .retain(|id, _| profiles.iter().any(|profile| &profile.id == id));
+        for profile in profiles {
+            let id = &profile.id;
+            if queue.profiles.get(id).is_some_and(|status| {
+                status.state == "needsAttention" && status.version == env!("CARGO_PKG_VERSION")
+            }) {
+                continue;
+            }
+            if queue.profiles.get(id).is_some_and(|status| {
+                status.state == "ready" && status.version == env!("CARGO_PKG_VERSION")
+            }) {
+                if crate::profile_layout::LayoutStore::open(&self.data_root)?
+                    .selected_catalog(id)
+                    .is_ok_and(|catalog| catalog.is_some())
+                {
+                    continue;
+                }
+            }
+            let (state, reason) = if self.is_running(id)? {
+                (
+                    "deferred",
+                    Some("Close this account's sessions to finish sharing".into()),
+                )
+            } else {
+                match self.migrate_profile_shared_storage(id, &bridge) {
+                    Ok(_) => ("ready", None),
+                    Err(error)
+                        if error.contains("Close managed profile sessions")
+                            || error.contains("profile client started")
+                            || error.starts_with("Close this profile") =>
+                    {
+                        ("deferred", Some(error))
+                    }
+                    Err(error) => ("needsAttention", Some(error)),
+                }
+            };
+            queue.profiles.insert(
+                id.clone(),
+                crate::shared_storage_queue::Status {
+                    state: state.into(),
+                    reason,
+                    version: env!("CARGO_PKG_VERSION").into(),
+                },
+            );
+            crate::shared_storage_queue::save(&self.data_root, &queue)?;
+        }
+        Ok(queue)
+    }
+
+    pub fn preview_shared_chats(
+        &self,
+        scope: crate::chat_cleanup::ChatScope,
+    ) -> Result<crate::chat_cleanup::ChatPreview> {
+        crate::shared_chat_cleanup::preview(&self.data_root, scope)
+    }
+    pub fn clear_shared_chats(
+        &self,
+        token: &str,
+    ) -> Result<crate::shared_chat_cleanup::CleanupResult> {
+        let _guard = self.metadata_write_lock()?;
+        crate::shared_chat_cleanup::clear(&self.data_root, token)
     }
 
     pub fn preview_profile_chats(
@@ -955,7 +1494,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         id: &str,
         scope: crate::chat_cleanup::ChatScope,
     ) -> Result<crate::chat_cleanup::ChatPreview> {
-        let _guards = self.chat_cleanup_guard(id)?;
+        let _guards = self.closed_profile_guard(id, "clearing chats")?;
         let home = self.profile_paths(id)?.codex_home;
         let plan = crate::chat_cleanup::preview(&resolve_codex_command()?, &home, id, scope)?;
         let preview = plan.preview.clone();
@@ -976,7 +1515,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         id: &str,
         token: &str,
     ) -> Result<crate::chat_cleanup::ChatCleanupResult> {
-        let _guards = self.chat_cleanup_guard(id)?;
+        let _guards = self.closed_profile_guard(id, "clearing chats")?;
         let plan = self
             .chat_plans
             .lock()
@@ -1003,7 +1542,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     fn metadata_write_lock(&self) -> Result<File> {
         let path = self.data_root.join(".profiles.lock");
         if let Ok(metadata) = fs::symlink_metadata(&path) {
-            if !metadata.is_file() || metadata.file_type().is_symlink() {
+            if !metadata.is_file() || crate::managed_files::is_link(&metadata) {
                 return Err("Account lock must be a regular file".into());
             }
         }
@@ -1021,6 +1560,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     pub(crate) fn extension_lease(&self, id: &str) -> Result<File> {
+        crate::profile_restore::ensure_ready(&self.data_root, id)?;
         let _write_lock = self.metadata_write_lock()?;
         validate_id(id)?;
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
@@ -1030,7 +1570,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         ensure_private_managed_dir(&self.data_root, &paths.codex_home)?;
         let path = paths.codex_home.join(".extension-session.lock");
         if let Ok(metadata) = fs::symlink_metadata(&path) {
-            if !metadata.is_file() || metadata.file_type().is_symlink() {
+            if !metadata.is_file() || crate::managed_files::is_link(&metadata) {
                 return Err("Extension lease must be a regular file".into());
             }
         }
@@ -1047,7 +1587,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             .join(".extension-session.lock");
         match fs::symlink_metadata(&path) {
             Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(false),
-            Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {}
+            Ok(metadata) if metadata.is_file() && !crate::managed_files::is_link(&metadata) => {}
             _ => return Err("Extension lease must be a regular file".into()),
         }
         let file = fs::OpenOptions::new()
@@ -1065,7 +1605,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
             .codex_home
             .join(".extension-credential.lock");
         if let Ok(metadata) = fs::symlink_metadata(&path) {
-            if !metadata.is_file() || metadata.file_type().is_symlink() {
+            if !metadata.is_file() || crate::managed_files::is_link(&metadata) {
                 return Err("Credential lock must be a regular file".into());
             }
         }
@@ -1106,6 +1646,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if profile_process_running(&paths.vscode_home)
             || profile_process_running(&paths.desktop_home)
             || profile_process_running(&paths.codex_home)
+            || crate::shared_chat_leases::ThreadLeases::profile_has_live_writer(
+                &self.data_root,
+                id,
+            )?
             || self.extension_is_running(id)?
         {
             return Ok(true);
@@ -1128,7 +1672,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         write_codex_config(&paths.codex_home)?;
         let auth_path = paths.codex_home.join("auth.json");
         match fs::symlink_metadata(&auth_path) {
-            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+            Ok(metadata) if crate::managed_files::is_link(&metadata) || !metadata.is_file() => {
                 return Err("The isolated profile credential is not a regular file".to_string());
             }
             Ok(_) | Err(_) => {}
@@ -1148,6 +1692,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     }
 
     fn current_profile_credential(&self, id: &str) -> Result<String> {
+        crate::profile_restore::ensure_ready(&self.data_root, id)?;
         if let Some(credential) = self.read_persisted_profile_credential(id)? {
             remove_private_file(
                 &self
@@ -1297,7 +1842,7 @@ fn account_tier_from_auth(auth_json: &str) -> Option<String> {
 pub(crate) fn write_codex_config(codex_home: &Path) -> Result<()> {
     let path = codex_home.join("config.toml");
     let existing = match fs::symlink_metadata(&path) {
-        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
+        Ok(metadata) if metadata.is_file() && !crate::managed_files::is_link(&metadata) => {
             fs::read_to_string(&path)
                 .map_err(|error| format!("Could not read the profile Codex config: {error}"))?
         }
@@ -1536,7 +2081,7 @@ fn ensure_private_dir(path: &Path) -> Result<()> {
 fn directory_size(path: &Path) -> Result<u64> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|error| format!("Could not inspect app storage: {error}"))?;
-    if metadata.file_type().is_symlink() {
+    if crate::managed_files::is_link(&metadata) {
         return Ok(0);
     }
     if metadata.is_file() {
@@ -1583,7 +2128,7 @@ fn set_owner_only_file(path: &Path) -> Result<()> {
 fn read_persisted_credential(path: &Path) -> Result<String> {
     let metadata = fs::symlink_metadata(path)
         .map_err(|_| "Could not inspect the isolated profile credential".to_string())?;
-    if !metadata.file_type().is_file() || metadata.file_type().is_symlink() {
+    if !metadata.file_type().is_file() || crate::managed_files::is_link(&metadata) {
         return Err("The isolated profile credential is not a regular file".to_string());
     }
     if metadata.len() as usize > MAX_AUTH_BYTES {
@@ -1610,7 +2155,7 @@ fn ensure_private_managed_dir(root: &Path, path: &Path) -> Result<()> {
     for component in relative.components() {
         current.push(component);
         match fs::symlink_metadata(&current) {
-            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            Ok(metadata) if crate::managed_files::is_link(&metadata) || !metadata.is_dir() => {
                 return Err("Refusing to access a linked or invalid profile directory".to_string());
             }
             Ok(_) => {}
@@ -1636,7 +2181,7 @@ pub(crate) fn write_private_file(path: &Path, bytes: &[u8]) -> Result<()> {
         .ok_or("Protected file has no parent directory")?;
     ensure_private_dir(parent)?;
     match fs::symlink_metadata(path) {
-        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+        Ok(metadata) if crate::managed_files::is_link(&metadata) || !metadata.is_file() => {
             return Err("Refusing to replace a linked or invalid protected file".into());
         }
         Ok(_) => {}
@@ -1678,7 +2223,7 @@ fn validate_managed_tree(root: &Path, path: &Path) -> Result<bool> {
         };
         current.push(name);
         match fs::symlink_metadata(&current) {
-            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            Ok(metadata) if crate::managed_files::is_link(&metadata) || !metadata.is_dir() => {
                 return Err("Refusing to delete a linked or invalid profile directory".to_string());
             }
             Ok(_) => {}
@@ -2124,7 +2669,7 @@ fn macos_vscode_alias_in(root: &Path, vscode_home: &Path, id: &str) -> Result<Pa
         fs::symlink_metadata(root).map_err(|_| "Could not inspect the Mac launch directory")?;
     // SAFETY: geteuid only returns the current effective user ID.
     if !metadata.is_dir()
-        || metadata.file_type().is_symlink()
+        || crate::managed_files::is_link(&metadata)
         || metadata.uid() != unsafe { libc::geteuid() }
     {
         return Err(
@@ -2137,7 +2682,7 @@ fn macos_vscode_alias_in(root: &Path, vscode_home: &Path, id: &str) -> Result<Pa
     let alias = root.join(id);
     match fs::symlink_metadata(&alias) {
         Ok(metadata)
-            if metadata.file_type().is_symlink()
+            if crate::managed_files::is_link(&metadata)
                 && fs::read_link(&alias).is_ok_and(|path| path == target) => {}
         Ok(_) => return Err("The Mac profile launch alias points to unexpected data".into()),
         Err(error) if error.kind() == io::ErrorKind::NotFound => symlink(target, &alias)
@@ -2531,6 +3076,54 @@ mod tests {
         )
         .unwrap();
         (temp, service)
+    }
+
+    #[test]
+    fn automatic_storage_setup_defers_active_accounts_and_respects_a_saved_pause() {
+        let (_temp, service) = fixture();
+        let profile = service.add_profile(sample_input("queued fixture")).unwrap();
+        let id = &profile.metadata.id;
+        assert!(service.shared_storage_queue().unwrap().enabled);
+        service
+            .set_managed_bridge(PathBuf::from("unused-while-active"))
+            .unwrap();
+        let lease = service.extension_lease(id).unwrap();
+        let queued = service.process_shared_storage_queue().unwrap();
+        assert_eq!(queued.profiles[id].state, "deferred");
+        assert!(crate::profile_layout::LayoutStore::open(&service.data_root)
+            .unwrap()
+            .record(id)
+            .unwrap()
+            .is_none());
+        service.set_shared_storage_enabled(false).unwrap();
+        drop(lease);
+        assert!(!service.process_shared_storage_queue().unwrap().enabled);
+        assert!(service
+            .profile_paths(id)
+            .unwrap()
+            .codex_home
+            .join("auth.json")
+            .exists());
+    }
+
+    #[test]
+    fn migration_backups_recheck_account_leases_and_survive_account_deletion() {
+        let (_temp, service) = fixture();
+        let profile = service
+            .add_profile(sample_input("Migration account"))
+            .unwrap();
+        let id = &profile.metadata.id;
+        let lease = service.extension_lease(id).unwrap();
+        assert!(service.preview_profile_migration(id).unwrap().running);
+        assert!(service.prepare_profile_migration(id).is_err());
+        drop(lease);
+        let snapshot = service.prepare_profile_migration(id).unwrap();
+        let store = crate::migration::MigrationStore::open(&service.data_root).unwrap();
+        store.verify(&snapshot).unwrap();
+        let backup = store.snapshot_data(&snapshot).unwrap();
+        service.delete_profile(id).unwrap();
+        assert!(backup.join("codex-home/auth.json").exists());
+        store.verify(&snapshot).unwrap();
     }
 
     #[test]
@@ -4195,3 +4788,7 @@ fn profile_process_running(home: &Path) -> bool {
 #[cfg(all(test, windows))]
 #[path = "profiles_windows_tests.rs"]
 mod windows_tests;
+
+#[cfg(test)]
+#[path = "profiles_shared_native_tests.rs"]
+mod shared_native_tests;
