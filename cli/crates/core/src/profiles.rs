@@ -2553,8 +2553,6 @@ fn build_standalone_command(
         .env("CODEX_SQLITE_HOME", codex_home)
         .env("CODEX_ELECTRON_USER_DATA_PATH", desktop_home)
         .arg(format!("--user-data-dir={}", desktop_home.display()))
-        .arg("--open-project")
-        .arg(workspace)
         .current_dir(workspace)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -4043,10 +4041,10 @@ mod tests {
             fs::canonicalize(lines[3]).unwrap(),
             fs::canonicalize(&workspace).unwrap()
         );
-        assert_eq!(lines[5], "--open-project");
         assert_eq!(
-            fs::canonicalize(lines[6]).unwrap(),
-            fs::canonicalize(&workspace).unwrap()
+            lines.len(),
+            5,
+            "Desktop must not receive an open-project argument"
         );
         assert!(!paths.vscode_home.exists());
         assert_eq!(

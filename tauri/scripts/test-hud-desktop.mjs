@@ -30,6 +30,7 @@ const macAliases = process.platform === 'darwin';
 let stage = 'initialization';
 let activeThreadId = null;
 let seededThreadId = null;
+let recentSecondId = null;
 async function until(read, check) {
   const deadline = Date.now() + 90000;
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
@@ -41,7 +42,7 @@ async function dismissFixtureAnnouncement(record) {
   return record.eval("(()=>{const button=[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Continue with current model');if(button&&button.getBoundingClientRect().width){button.click();return true}return false})()");
 }
 const quote = value => `'${value.replaceAll("'", "'\"'\"'")}'`;
-async function seedConversation(env) {
+async function seedConversation(env, marker = 'HUD_EXACT_SESSION_A_FIXTURE') {
   const seedLog = openSync(join(root, 'seed-engine.log'), 'w', 0o600);
   const child = spawn(engine, ['app-server'], { cwd: root, env, stdio: ['pipe', 'pipe', seedLog] }); closeSync(seedLog);
   const lines = new JsonLines(child.stdout, child.stdin); const rpc = new RpcPeer(lines, 'hud-seed:');
@@ -51,11 +52,11 @@ async function seedConversation(env) {
     await rpc.request('initialize', { clientInfo: { name: 'hud_persisted_fixture', version: '1' }, capabilities: { experimentalApi: true } });
     const started = await rpc.request('thread/start', { cwd: root, model: 'gpt-5.4' });
     const id = started.thread.id;
-    await rpc.request('turn/start', { threadId: id, input: [{ type: 'text', text: 'HUD_EXACT_SESSION_A_FIXTURE' }] });
+    await rpc.request('turn/start', { threadId: id, input: [{ type: 'text', text: marker }] });
     await until(async () => completed, completed => completed.includes(id));
-    await rpc.request('thread/name/set', { threadId: id, name: 'Fixture A navigation' });
+    await rpc.request('thread/name/set', { threadId: id, name: marker === 'HUD_EXACT_SESSION_A_FIXTURE' ? 'Fixture A navigation' : 'Fixture second recent chat' });
     const read = await rpc.request('thread/read', { threadId: id, includeTurns: true });
-    assert.ok(JSON.stringify(read.thread.turns).includes('HUD_EXACT_SESSION_A_FIXTURE'));
+    assert.ok(JSON.stringify(read.thread.turns).includes(marker));
     assert.ok(JSON.stringify(read.thread.turns).includes(responseMarker));
     return id;
   } finally {
@@ -88,7 +89,7 @@ async function open(suffix, reopen) {
   }
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(CODEX_|OPENAI_|VSCODE_)/.test(key) && !['NODE_OPTIONS', 'ELECTRON_RUN_AS_NODE', 'APPIMAGE'].includes(key)));
   Object.assign(env, { HOME: home, CODEX_HOME: codexLaunch, CODEX_SQLITE_HOME: codexLaunch, CODEX_ELECTRON_USER_DATA_PATH: desktopLaunch, CODEX_CLI_PATH: wrapper, CODEX_SPARKLE_ENABLED: 'false', CODEX_ELECTRON_SKIP_COMPUTER_USE_CANONICAL_REFRESH: '1', MULTI_CODEX_TEST_ENGINE_TRACE: '1', XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data'), XDG_CACHE_HOME: join(home, 'cache') });
-  if (!reopen && suffix === 'a') seededThreadId = await seedConversation(env);
+  if (!reopen && suffix === 'a') { seededThreadId = await seedConversation(env); recentSecondId = await seedConversation(env, 'HUD_RECENT_SECOND_CHAT_FIXTURE'); }
   const args = [`--user-data-dir=${desktopLaunch}`, '--remote-debugging-port=0', '--remote-debugging-address=127.0.0.1', '--disable-gpu', '--no-sandbox', '--password-store=basic'];
   if (reopen?.uri) args.push(reopen.uri);
   await rm(join(desktop, 'DevToolsActivePort'), { force: true });
@@ -207,6 +208,21 @@ try {
   await until(visibility, states => states.some(s => s?.profileId === a.id && s.threads.length === 1 && s.threads[0] === id));
   }
 
+  if (navigation) {
+    stage = 'two persistent recent chats and exact warm navigation while idle';
+    const recentIds = () => JSON.parse(execFileSync(navigation, [root, a.id, '--recent'], { env: { ...process.env, MULTI_CODEX_TEST_HUD_ROUTING: '1' }, encoding: 'utf8' }));
+    await until(async () => recentIds(), r => !r.unavailable && r.ids.length === 2 && r.ids.includes(id) && r.ids.includes(recentSecondId));
+    // Neither entry depends on selection or current generation. Navigate both
+    // real saved conversations through the production, credential-free route.
+    for (const [thread, marker] of [[recentSecondId, 'HUD_RECENT_SECOND_CHAT_FIXTURE'], [id, 'HUD_EXACT_SESSION_A_FIXTURE']]) {
+      execFileSync(navigation, [root, a.id, thread], { env: { ...process.env, MULTI_CODEX_TEST_HUD_ROUTING: '1' } });
+      await until(() => a.eval("document.querySelector('main')?.innerText ?? ''"), text => text.includes(marker));
+      assert.equal((await b.eval("document.querySelector('main')?.innerText ?? ''")).includes(marker), false);
+    }
+    await new Promise(resolve => setTimeout(resolve, 6000));
+    assert.equal(recentIds().ids.length, 2, 'Idle recent shortcuts must outlive visibility heartbeat expiry');
+  }
+
   const warmHistory = await a.rpc('thread/read', { threadId: id, includeTurns: true });
   assert.ok(JSON.stringify(warmHistory.result.thread.turns).includes('HUD_EXACT_SESSION_A_FIXTURE'));
   await until(snapshots, snapshots => snapshots.some(s => s?.profileId === a.id && s.sessions[id]));
@@ -239,7 +255,7 @@ try {
     assert.equal(await readFile(join(reopened.codexHome, 'auth.json'), 'utf8'), reopened.auth);
   }
   console.log('Verified actual Desktop GUI uses the passive proxy, exact thread URI reaches only the scoped account, cold reopening restores its transcript, and both inert logins stay unchanged.');
-  if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, runtimeSha256, helperSha256, pinnedRuntimeUnchanged: true, fixtureLoginsUnchanged: true, visibleChatsExcludeBackendCache: !process.env.MULTI_CODEX_TEST_NO_VISIBILITY, observerDisconnectPreservesDesktop: !process.env.MULTI_CODEX_TEST_NO_VISIBILITY, productionWarmRoute: Boolean(navigation), warmCredentialAccess: navigation ? 'forbidden by fixture store' : 'not instrumented' })); }
+  if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, runtimeSha256, helperSha256, pinnedRuntimeUnchanged: true, fixtureLoginsUnchanged: true, visibleChatsExcludeBackendCache: !process.env.MULTI_CODEX_TEST_NO_VISIBILITY, observerDisconnectPreservesDesktop: !process.env.MULTI_CODEX_TEST_NO_VISIBILITY, persistentTwoRecentChats: Boolean(navigation), bothRecentChatsNavigateWhileIdle: Boolean(navigation), productionWarmRoute: Boolean(navigation), warmCredentialAccess: navigation ? 'forbidden by fixture store' : 'not instrumented' })); }
 } catch (error) {
   if (evidence) {
     await mkdir(evidence, { recursive: true }); const states = [];
