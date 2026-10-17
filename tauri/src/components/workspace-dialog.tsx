@@ -62,8 +62,8 @@ export function WorkspaceDialog({ showDesktopPicker = true, appName = "VS Code",
   if (!showDesktopPicker) return (
     <div className="dialog-layer" role="presentation">
       <section ref={dialogRef} className="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy}>
-        <span className="eyebrow">Launch workspace</span>
-        <h2 id={titleId}>Open {folder}</h2>
+        <span className="eyebrow">{appName === "Codex" ? "Launch Codex" : "Launch workspace"}</span>
+        <h2 id={titleId}>Open {appName === "Codex" ? "Codex" : folder}</h2>
         <p>{busy ? `Opening ${appName}…` : `Launch with ${profile.name}.`}</p>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="dialog-actions">
@@ -79,7 +79,7 @@ export function WorkspaceDialog({ showDesktopPicker = true, appName = "VS Code",
       <section ref={dialogRef} className="dialog workspace-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={busy}>
         <span className="eyebrow">Launch destination</span>
         <h2 id={titleId}>Choose a desktop</h2>
-        <p>Open <strong>{folder}</strong> with {profile.name}. App icons show what is open on each desktop.</p>
+        <p>{appName === "Codex" ? <>Open Codex with {profile.name}.</> : <>Open <strong>{folder}</strong> with {profile.name}.</>} App icons show what is open on each desktop.</p>
         <button className="desktop-current" type="button" disabled={busy} onClick={() => { setSelected(null); onChoose(null) }}>
           <span>{alreadyOpened ? "Keep the opened window" : "Current desktop"}</span>
           <small>{alreadyOpened ? "Finish without moving" : "Open here"}</small>
