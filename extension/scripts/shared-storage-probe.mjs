@@ -13,7 +13,13 @@ const root = await realpath(await mkdtemp(join(tmpdir(), 'mc-sharing-gate-')));
 const source = resolve(process.env.MULTI_CODEX_TEST_EXTENSIONS);
 const code = process.env.MULTI_CODEX_TEST_VSCODE;
 const cli = process.env.MULTI_CODEX_TEST_CODE_CLI;
-const cliScript = process.env.MULTI_CODEX_TEST_CODE_NODE_CLI;
+let cliScript = process.env.MULTI_CODEX_TEST_CODE_NODE_CLI;
+if (process.platform === 'win32') {
+  const launcher = await readFile(join(dirname(code), 'bin/code.cmd'), 'utf8');
+  const active = launcher.match(/"%~dp0\.\.\\([^"\r\n]+\\cli\.js)"/i);
+  if (!active || active[1].split('\\').some(part => part === '..')) throw new Error('Unsupported installed editor CLI layout');
+  cliScript = join(dirname(code), ...active[1].split('\\'));
+}
 const report = { platform: process.platform, architecture: process.arch, passed: false, checks: {} };
 const output = resolve(process.env.SHARED_GATE_OUTPUT);
 await mkdir(output, { recursive: true });
@@ -49,7 +55,7 @@ async function command(args) {
     });
   });
 }
-let gui; let a; let b; let fixture; let phase = 'extension-catalogs';
+let gui; let guiDiagnostic = ''; let a; let b; let fixture; let phase = 'extension-catalogs';
 try {
   const payload = join(root, 'payload'); await cp(source, payload, { recursive: true, dereference: true });
   const original = await hashTree(payload);
@@ -85,7 +91,8 @@ try {
   delete guiEnv.ELECTRON_RUN_AS_NODE; delete guiEnv.VSCODE_IPC_HOOK_CLI; delete guiEnv.VSCODE_PID;
   gui = spawn(code, [...ca.args, '--new-window', '--skip-welcome', '--skip-release-notes', '--disable-gpu',
     ...(process.platform === 'linux' ? ['--no-sandbox', '--ozone-platform=x11'] : []), root],
-    { windowsHide: true, stdio: ['ignore', 'ignore', 'ignore'], env: guiEnv });
+    { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], env: guiEnv, cwd: root });
+  gui.stderr.on('data', bytes => { if (guiDiagnostic.length < 3000) guiDiagnostic += bytes.toString(); });
   await delay(6000); assert.equal(gui.exitCode, null, 'Native editor must remain running during maintenance');
   const replacementSucceeded = await command([...cb.args, '--install-extension', 'openai.chatgpt@26.1002.51308', '--force']);
   assert.equal(await hashTree(payload), original, 'Native replacement followed a private package link into shared payload');
@@ -151,6 +158,7 @@ try {
 } catch (error) {
   // This probe only uses inert credentials. Emit diagnostic text for reproducibility.
   report.failedStage = phase; report.failure = error.message; process.exitCode = 1;
+  if (guiDiagnostic) report.editorDiagnostic = guiDiagnostic.replace(/(?:sk-[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_.-]{30,})/g, '[redacted]');
 } finally {
   for (const backend of [a,b]) if (backend) { backend.rpc.close(); await terminateExecutable(backend.child); }
   if (gui) await terminateExecutable(gui);

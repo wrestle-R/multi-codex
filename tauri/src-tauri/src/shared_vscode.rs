@@ -444,10 +444,7 @@ impl ExtensionStore {
                     "Choose VS Code's native executable for shared extension maintenance".into(),
                 );
             }
-            let editor_root = code
-                .parent()
-                .ok_or("VS Code installation path is unavailable")?;
-            let cli = files::regular(editor_root, &editor_root.join("resources/app/out/cli.js"))?;
+            let cli = crate::managed_launch::editor_cli_script(code)?;
             command.arg(cli).env("ELECTRON_RUN_AS_NODE", "1");
         }
         for (key, _) in std::env::vars_os() {

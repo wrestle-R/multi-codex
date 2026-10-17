@@ -9,7 +9,7 @@ import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PassThrough } from 'node:stream';
 const { spawnExecutable, terminateExecutable, JsonLines, RpcPeer, AccountClient,
-  CodexBridge, BridgeClient, controlEndpoint, helperName, prepareSessionHome } = createRequire(import.meta.url)('../dist/core.cjs');
+  CodexBridge, BridgeClient, controlEndpoint, helperName, prepareSessionHome, loginParams } = createRequire(import.meta.url)('../dist/core.cjs');
 const output = resolve(process.env.AUTH_OUTPUT);
 const engine = resolve(process.env.AUTH_ENGINE);
 const key = Buffer.from(process.env.AUTH_PUBLIC_KEY, 'base64').toString();
@@ -38,6 +38,7 @@ async function server(home) {
   return { child, lines, rpc, close: async () => { rpc.close(); await terminateExecutable(child); } };
 }
 async function login(home, name) {
+  phase = `device-${name}-initialize`;
   const backend = await server(home);
   try {
     const completion = new Promise((resolve, reject) => {
@@ -51,20 +52,27 @@ async function login(home, name) {
     });
     // Keep a rejection handler attached while the instructions are prepared.
     completion.catch(() => {});
+    phase = `device-${name}-request-code`;
     const instructions = await backend.rpc.request('account/login/start', { type: 'chatgptDeviceCode' });
     assert.equal(instructions.type, 'chatgptDeviceCode');
     assert.equal(new URL(instructions.verificationUrl).origin, 'https://auth.openai.com');
     const encrypted = publicEncrypt({ key, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' },
       Buffer.from(JSON.stringify({ platform: process.platform, account: name, url: instructions.verificationUrl, code: instructions.userCode })));
     await writeFile(join(output, `signin-${name}.encrypted`), encrypted);
+    phase = `device-${name}-await-completion`;
     await completion;
+    phase = `device-${name}-verify-account`;
     const result = await backend.rpc.request('account/read', { refreshToken: false });
     assert.equal(result.account?.type, 'chatgpt');
     assert.ok(result.account.email);
+    const evidence = { account: name, authenticated: true, savedInLauncher: false };
+    report.deviceLogins.push(evidence);
+    phase = `device-${name}-read-private-credential`;
     const auth = await readFile(join(home, 'auth.json'), 'utf8');
     const parsed = JSON.parse(auth);
-    assert.ok(parsed.tokens?.access_token && parsed.tokens?.account_id);
-    return { auth, identity: digest(result.account.email.toLowerCase()), accountId: parsed.tokens.account_id };
+    evidence.credentialFormat = { explicitAuthMode: typeof parsed.auth_mode === 'string', accessToken: Boolean(parsed.tokens?.access_token), explicitAccountId: Boolean(parsed.tokens?.account_id) };
+    assert.equal(loginParams(parsed).type, 'chatgptAuthTokens');
+    return { auth, identity: digest(result.account.email.toLowerCase()) };
   } finally { await backend.close(); }
 }
 try {
@@ -88,10 +96,12 @@ try {
   for (const name of ['a', 'b']) {
     phase = `device-${name}`;
     const result = await login(join(root, name), name);
+    phase = `device-${name}-verify-distinct-account`;
     if (identities.length) assert.notEqual(result.identity, identities[0].identity, 'Two different accounts are required');
+    phase = `device-${name}-save-account`;
     const added = await accounts.request('accounts/add', { name: `Runner ${name.toUpperCase()}`, authJson: result.auth });
     saved.push(added.metadata.id); identities.push(result);
-    report.deviceLogins.push({ account: name, authenticated: true, differentAccount: name === 'b' ? true : null });
+    Object.assign(report.deviceLogins.at(-1), { savedInLauncher: true, differentAccount: name === 'b' ? true : null });
     await writeFile(join(output, 'progress.json'), JSON.stringify(report));
   }
   phase = 'production-bridge-switching';
@@ -173,9 +183,15 @@ try {
   for (let i = 0; i < saved.length; i++) assert.equal(digest(await readFile(join(dataRoot, 'profiles', saved[i], 'codex-home', 'auth.json'))), credentialHashes[i]);
   report.sharedContinuation = { fullNativeContext: true, writerStoppedBeforeHandoff: true, authenticatedAccountBContinuation: true, returnToAccountA: true, sourceCredentialsUnchanged: true, realModelTurns: 2 };
   report.passed = true;
-} catch {
+} catch (error) {
   // Backend failures can include auth URLs or tokens. Publish only the stage.
   report.failedStage = phase;
+  if (['ENOENT', 'ETIMEDOUT', 'ERR_ASSERTION'].includes(error.code)) report.failureCode = error.code;
+  if (error.message === 'Device sign-in failed') report.failureCode = 'device-login-rejected';
+  if (error.message === 'Device sign-in timed out') report.failureCode = 'device-login-timeout';
+  if (/keyring|keychain|credential store/i.test(error.message) && !/eyJ|sk-/.test(error.message)) report.failureCode = 'credential-store-error';
+  if (error.message === 'Auth JSON is missing a recognized auth_mode') report.failureCode = 'auth-mode-missing';
+  if (error.message === 'Codex did not recognize this credential. Sign in again.') report.failureCode = 'native-credential-validation-failed';
   process.exitCode = 1;
 } finally {
   client?.dispose(); frontend?.close(); await bridge?.dispose();
