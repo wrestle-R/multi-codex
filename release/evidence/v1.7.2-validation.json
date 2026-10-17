@@ -848,7 +848,66 @@
         ]
       }
     },
-    "publicationContentStatus": "Stable v1.7.2 pins, actual GitHub date and current Orbit documentation committed after publication; production deployment/browser checks follow."
+    "publicationContentStatus": "Published Stable v1.7.2 links, actual release date and current Orbit guides; Linux/macOS website browser checks and Vercel production deployment passed.",
+    "postPublication": {
+      "ci": {
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39015848405",
+        "testedSource": "0bbe47eb2b7e3fec982c282f43132f1d81f89180",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      "deployment": {
+        "provider": "Vercel",
+        "state": "success",
+        "url": "https://vercel.com/russeldanielpaul-gmailcoms-projects/multi-codex/8bqrQQJNuYuZAjL7VS8KWPAtbpZs",
+        "source": "ea4c442ac4904f8096c9daa66ee1778c3614ebf1"
+      },
+      "productionChecks": {
+        "stable": {
+          "url": "https://multi-codex.vercel.app/api/updates/stable",
+          "status": 200,
+          "version": "1.7.2",
+          "platforms": [
+            "linux-x86_64",
+            "darwin-aarch64",
+            "windows-x86_64"
+          ]
+        },
+        "all": {
+          "url": "https://multi-codex.vercel.app/api/updates/all",
+          "status": 200,
+          "version": "1.7.2",
+          "platforms": [
+            "linux-x86_64",
+            "darwin-aarch64",
+            "windows-x86_64"
+          ]
+        },
+        "/": {
+          "status": 200,
+          "containsVersion172": true
+        },
+        "/releases/v1.7.2": {
+          "status": 200,
+          "containsVersion172": true
+        },
+        "/docs": {
+          "status": 200,
+          "containsVersion172": true
+        },
+        "checkedAt": "2026-10-17T08:00:12.545616+00:00",
+        "/docs/orbit": {
+          "status": 200,
+          "containsVersion172": true,
+          "persistentRecentChatsDocumented": true
+        }
+      },
+      "supersededCi": {
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39015662968",
+        "reason": "Failed on an obsolete guide assertion; cancellation was requested, but the run completed as failure. Assertion corrected to validate persistent recent shortcuts, replacement CI above passed.",
+        "conclusion": "failure"
+      }
+    }
   },
   "localValidation": {
     "ui": {
@@ -939,6 +998,11 @@
     },
     "publishedAt": "2026-10-17T06:31:06Z",
     "releaseId": 415627686,
-    "stable": true
+    "stable": true,
+    "automaticTagRun": {
+      "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39010205553",
+      "conclusion": "failure",
+      "reason": "Duplicate automatic run refused to upload over an already published release at the prepare-draft guard. Original19 published asset digests rechecked unchanged."
+    }
   }
 }
