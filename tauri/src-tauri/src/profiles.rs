@@ -1227,10 +1227,21 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
             return Err("Profile not found".into());
         }
-        if self.is_running(id)? {
+        // A new restore already holds the closed-profile session lock. Checking
+        // that same lock here would mistake our own guard for a running client.
+        if pending && self.is_running(id)? {
             return Err("Close this account's sessions before restoring its backup".into());
         }
         let paths = self.profile_paths(id)?;
+        if !pending
+            && self.read_persisted_profile_credential(id)?.is_none()
+            && !paths.codex_home.join(".multi-codex-signed-out").exists()
+        {
+            // Materialize the latest keychain credential before staging a restore.
+            // Otherwise an older backup auth file could replace a newer login when
+            // the current file is missing. Missing keychain access must stop restore.
+            self.current_profile_credential(id)?;
+        }
         crate::profile_restore::activate(&self.data_root, id, || {
             if profile_process_running(&paths.vscode_home)
                 || profile_process_running(&paths.desktop_home)
@@ -3124,6 +3135,54 @@ mod tests {
         service.delete_profile(id).unwrap();
         assert!(backup.join("codex-home/auth.json").exists());
         store.verify(&snapshot).unwrap();
+    }
+
+    #[test]
+    fn backup_restore_preserves_latest_keychain_login_and_current_sign_out() {
+        let (_temp, service) = fixture();
+        let profile = service
+            .add_profile(sample_input("Restore account"))
+            .unwrap();
+        let id = &profile.metadata.id;
+        let home = service.profile_paths(id).unwrap().codex_home;
+        service.prepare_profile_migration(id).unwrap();
+        let mut latest: serde_json::Value = serde_json::from_str(&sample_auth()).unwrap();
+        latest["tokens"]["access_token"] = "latest inert credential".into();
+        let latest = latest.to_string();
+        service
+            .update_profile(id, profile.metadata.name, Some(latest.clone()), None)
+            .unwrap();
+        fs::remove_file(home.join("auth.json")).unwrap();
+        service.restore_profile_backup(id).unwrap();
+        assert_eq!(service.current_profile_credential(id).unwrap(), latest);
+        assert_eq!(service.secrets.get(id).unwrap(), latest);
+
+        fs::remove_file(home.join("auth.json")).unwrap();
+        write_private_file(&home.join(".multi-codex-signed-out"), b"signed-out\n").unwrap();
+        service.restore_profile_backup(id).unwrap();
+        assert!(!home.join("auth.json").exists());
+        assert!(service.current_profile_credential(id).is_err());
+        assert_eq!(service.secrets.get(id).unwrap(), latest);
+    }
+
+    #[test]
+    fn backup_restore_refuses_missing_current_login_without_displacing_work() {
+        let (_temp, service) = fixture();
+        let profile = service
+            .add_profile(sample_input("Restore account"))
+            .unwrap();
+        let id = &profile.metadata.id;
+        let home = service.profile_paths(id).unwrap().codex_home;
+        service.prepare_profile_migration(id).unwrap();
+        fs::write(home.join("later-work"), "retain latest work").unwrap();
+        fs::remove_file(home.join("auth.json")).unwrap();
+        service.secrets.delete(id).unwrap();
+        assert!(service.restore_profile_backup(id).is_err());
+        assert!(home.join("later-work").exists());
+        assert!(!home.join("auth.json").exists());
+        assert!(crate::profile_restore::record(&service.data_root, id)
+            .unwrap()
+            .is_none());
     }
 
     #[test]

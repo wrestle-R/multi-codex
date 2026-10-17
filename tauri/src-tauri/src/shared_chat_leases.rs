@@ -420,12 +420,26 @@ mod tests {
         fs::create_dir_all(&home).unwrap();
         let engine = app.join("fixture-engine");
         fs::copy("/bin/bash", &engine).unwrap();
-        let child = Command::new(&engine)
+        let mut command = Command::new(&engine);
+        command
             .args(["-c", "read pending"])
             .env("CODEX_HOME", &home)
-            .stdin(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .stdin(Stdio::piped());
+        // A parallel test can fork while fs::copy has the executable open for
+        // writing. Its inherited descriptor closes at exec; retry only ETXTBSY.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        let child = loop {
+            match command.spawn() {
+                Ok(child) => break child,
+                Err(error)
+                    if error.raw_os_error() == Some(libc::ETXTBSY)
+                        && std::time::Instant::now() < deadline =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(error) => panic!("Could not start fixture engine: {error}"),
+            }
+        };
         let backend = Backend(child);
         let store = ThreadLeases::open(&app, &engine).unwrap();
         // Wait for exec before inspecting the engine and private environment.
