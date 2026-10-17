@@ -2,6 +2,7 @@
 const { chromium, webkit } = require('../../next/node_modules/playwright');
 const assert = require('node:assert/strict');const fs = require('node:fs');
 const path = require('node:path');const os = require('node:os');
+const version = require('../package.json').version;
 const output = process.env.SETTINGS_EVIDENCE_DIR || fs.mkdtempSync(path.join(os.tmpdir(), 'multi-codex-settings-'));
 fs.mkdirSync(output, { recursive: true });
 (async()=>{
@@ -31,13 +32,14 @@ for(const [engine,type] of engines){
   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('multi-codex-executables')));assert.equal(saved.cliTerminal,'kitty');assert.equal(saved.codexPath,'/opt/example/codex');assert.equal(saved.preferredWorkspace,'/home/example/Projects');assert.equal(saved.launchMode,'both');assert.equal(errors.length,0,errors.join('\n'));
   await page.goto(`${process.env.SETTINGS_BASE_URL || 'http://127.0.0.1:1420'}/?demo=1&releaseNotes=1&previousVersion=1.6.1`);
   const notes=page.getByRole('dialog',{name:'What’s new'});await notes.waitFor();
-  assert.equal(await notes.getByRole('region',{name:'Release 1.7.1'}).count(),1);
+  assert.equal(await notes.getByRole('region',{name:`Release ${version}`,exact:true}).count(),1);
+  assert.equal(await notes.getByRole('region',{name:'Release 1.7.1',exact:true}).count(),1);
   assert.equal(await notes.getByRole('region',{name:'Release 1.7.0'}).count(),1);
   assert.equal(await notes.getByRole('region',{name:'Release 1.6.1'}).count(),0);
   const dismiss=notes.getByRole('button',{name:'Got it'});const dismissBounds=await dismiss.boundingBox();assert(dismissBounds.y>=0&&dismissBounds.y+dismissBounds.height<=viewport.height,'Release history dismissal is clipped');
   if(engine==='chromium'&&viewport.width===1180)await notes.screenshot({path:path.join(output, `release-history-${mode}.png`)});
   await dismiss.click();await notes.waitFor({state:'hidden'});
-  await page.getByRole('button',{name:/Version 1.7.1/}).click();await notes.waitFor();assert.equal(await notes.getByRole('region',{name:'Release 1.7.0'}).count(),1);
+  await page.getByRole('button',{name:`Version ${version}. View what’s new`,exact:true}).click();await notes.waitFor();assert.equal(await notes.getByRole('region',{name:'Release 1.7.0'}).count(),1);
   runs.push({engine,mode,viewport,responsiveColumns:true,skippedReleaseHistory:true,installedOptionsOnly:true,menuUnclipped:true,keyboardAndEscape:true,advancedFooterReachable:true,unrelatedPreferencesPreserved:true,noPageErrors:true});await page.close();
  }
  await browser.close();
