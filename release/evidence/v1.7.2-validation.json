@@ -848,7 +848,7 @@
         ]
       }
     },
-    "publicationContentStatus": "Detailed release notes present; public pins and actual date follow publication."
+    "publicationContentStatus": "Stable v1.7.2 pins, actual GitHub date and current Orbit documentation committed after publication; production deployment/browser checks follow."
   },
   "localValidation": {
     "ui": {
@@ -912,6 +912,33 @@
     }
   ],
   "publication": {
-    "status": "validated-pending-publication"
+    "status": "published",
+    "candidateSource": "8746a90847c2927f31ae3b1e4d6c23c170b54fab",
+    "url": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.7.2",
+    "githubAssetDigestsVerified": 19,
+    "assetDigests": {
+      "install-app.ps1": "sha256:f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+      "install-app.sh": "sha256:214116c56387d3a357ce580ce7a6a9f6c996b6662f3c3aa253a62695ba36e36e",
+      "latest.json": "sha256:1775ee8cb5392f0cec4f4d757a6a55d88d90ed384a97659f9460662b14efd253",
+      "multi-codex-darwin-arm64-0.3.1.vsix": "sha256:7344f9e190804205424101a10686e97ac480cc370eadcd591959b7753eabdd67",
+      "multi-codex-darwin-x64-0.3.1.vsix": "sha256:aedad6ab9007e7850af784ee0664571be88219603f9604b077d5a37dbfc2c4e1",
+      "multi-codex-linux-x64-0.3.1.vsix": "sha256:4d94515b42bd98dc60766fd12963058037d5b09873af4dac70a9fd4b2439df90",
+      "multi-codex-win32-x64-0.3.1.vsix": "sha256:ddb8059585a02d0988e679bd380a77b7dac76666c618effb99d942e170a97965",
+      "Multi.Codex-1.7.2-1.x86_64.rpm": "sha256:e27c2690bdee5f1a2dbb5c7e583a26768cd91d75c2a8e0e73ee8f23190876e97",
+      "Multi.Codex_1.7.2_aarch64.app.tar.gz": "sha256:bb27625fd78a0ac19991f92501d9d16b2967327885812e85c21be81e3474b5fe",
+      "Multi.Codex_1.7.2_aarch64.app.tar.gz.sig": "sha256:d78bb779947f7fa1d69f5268f0c645b35b18f3fed62f7e0df3de05c349aa63d9",
+      "Multi.Codex_1.7.2_aarch64.dmg": "sha256:d5e9138ad44a3f297844c14fb508984a17712ac79c698a645973376764ad879d",
+      "Multi.Codex_1.7.2_amd64.AppImage": "sha256:dad709dfb4492797794ba7dd86f6d4e49021d98dabc972e2fb3b0e12cb6e05dc",
+      "Multi.Codex_1.7.2_amd64.AppImage.sig": "sha256:fa7ef95189684aa992618f1cd00a1ff24d9640c6877971779964ab9221de4ee4",
+      "Multi.Codex_1.7.2_amd64.deb": "sha256:4c8926f0dcd20ef462148a441869a816fb3726c6f9820f09f45b73e24b7721a1",
+      "Multi.Codex_1.7.2_x64-setup.exe": "sha256:fdecb89abf16147bbdfe5724c3f9c1e5e10ab49e01f2e1f1d3126d7291481d7b",
+      "Multi.Codex_1.7.2_x64-setup.exe.sig": "sha256:5a55fcdd2bae0eacd4258b309c291dce6aa2062790cb89acbf864058cd5f1458",
+      "SHA256SUMS": "sha256:c89d6335259728bf9af5371af6dcd4821770986d5c13c0b79989d25c8803d9ef",
+      "update-app.ps1": "sha256:f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+      "update-app.sh": "sha256:214116c56387d3a357ce580ce7a6a9f6c996b6662f3c3aa253a62695ba36e36e"
+    },
+    "publishedAt": "2026-10-17T06:31:06Z",
+    "releaseId": 415627686,
+    "stable": true
   }
 }

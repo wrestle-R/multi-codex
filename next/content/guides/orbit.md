@@ -1,6 +1,6 @@
 # Orbit and Orbiters
 
-Orbit is the optional desktop companion strip in Multi Codex. Each account has a permanent **Orbiter** with its own appearance. The published v1.7.0 build is a preview with known issues; stable v1.6.1 does not include Orbit. See [all releases](/releases?channel=all) before choosing a preview.
+Orbit is the optional desktop companion strip in Multi Codex. Each account has a permanent **Orbiter** with its own appearance. Stable v1.7.2 keeps recent Desktop conversations available independently of live activity. See [release details](/releases/v1.7.2).
 
 ## Turn Orbit on or off
 
@@ -8,11 +8,15 @@ Open **Settings**, change **Enable Orbit**, and save. Turning Orbit off hides th
 
 ## Sessions and usage
 
-Launch Codex Desktop through Multi Codex. Orbit counts the local chat selected in each Desktop window, excluding retained backend chats and saved history. The current repair also observes running CLI sessions and selected conversations through the existing VS Code bridge. Older Desktop windows need their next managed launch to connect UI visibility; unavailable visibility is shown explicitly.
+Orbit keeps the two most recent non-archived conversations from each account’s saved Codex history. They stay visible while idle, on New Chat, or when live activity reporting disconnects. These are recent shortcuts, not a count of currently open conversations. An account with only one saved chat shows one shortcut. Archived chats and background subagent conversations are excluded; if the index is temporarily unavailable, saved shortcuts remain with an availability notice.
 
-An Orbiter represents an account. Two chats use diagonal mini avatars; three or four use the corners. More than four sessions use an overflow control. Hover for sessions and reported usage. Click to open the exact Desktop chat, or focus the owning CLI or VS Code window. Open accounts animate gently; inactive accounts stay gray and still when the only-open filter is off.
+Click a recent shortcut to navigate to that exact chat in the account’s existing Desktop app. If the account app is closed, clicking opens it normally. Opening Desktop from the launcher no longer asks for a project folder or opens a project.
 
-Questions, approvals and possible requests for your help receive a badge and a quiet visual popup. Return to Codex to respond. Existing Desktop instances are not force-restarted to connect visibility.
+VS Code keeps one shortcut per managed editor window, including an empty New Chat composer. Clicking focuses that window. CLI sessions remain available where the terminal window can be identified; ambiguous navigation reports an error instead of selecting another window.
+
+Two shortcuts use diagonal mini avatars; three or four use the corners, with overflow for more. Hover for session details and reported usage. Idle avatars are still. Only a small working-status dot can pulse when enabled; Reduce motion disables that pulse too.
+
+Questions, approvals and possible requests for help receive a badge and a simple static reminder with the account name. Click to return to the actual client to respond. Live activity and attention require a connected managed client; the recent Desktop shortcuts do not. Existing clients are never force-restarted.
 
 ## Desktop behavior
 
