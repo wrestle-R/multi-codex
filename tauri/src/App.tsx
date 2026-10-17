@@ -443,11 +443,12 @@ export default function App() {
       if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
-      setHideDesktopPicker(environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker))
+      const skipDesktopPicker = environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker)
+      setHideDesktopPicker(skipDesktopPicker)
       if (target === "standalone") {
         const request = { profile, target, workspace: environment.defaultWorkspace }
-        setLaunchError(null); setPlacementToken(null); setLaunchRequest(request)
-        await completeLaunch(null, request)
+        setFolderRequest(null); setLaunchError(null); setPlacementToken(null); setLaunchRequest(request)
+        if (skipDesktopPicker) await completeLaunch(null, request)
       } else {
         setFolderRequest({ profile, target, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
       }
