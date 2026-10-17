@@ -36,12 +36,13 @@ fn sample_input(name: &str) -> SaveProfileInput {
 }
 fn fixture() -> (tempfile::TempDir, ProfileService<MemorySecrets, AcceptAuth>) {
     let temp = tempfile::tempdir().unwrap();
-    let global = temp.path().join("global");
+    let root = fs::canonicalize(temp.path()).unwrap();
+    let global = root.join("global");
     fs::create_dir(&global).unwrap();
     let service = ProfileService::new(
-        temp.path().join("data"),
+        root.join("data"),
         global,
-        temp.path().join("unused"),
+        root.join("unused"),
         MemorySecrets::default(),
         AcceptAuth,
     )

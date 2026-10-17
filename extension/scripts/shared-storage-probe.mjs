@@ -2,13 +2,14 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, cp, symlink, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, cp, symlink, rm, realpath } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { join, resolve, relative, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { localService, syntheticAuth } from '../tests/fixtures/local-service.mjs';
 const { spawnExecutable, terminateExecutable, JsonLines, RpcPeer, bundledEnginePath } = createRequire(import.meta.url)('../dist/core.cjs');
-const root = await mkdtemp(join(tmpdir(), 'mc-sharing-gate-'));
+const root = await realpath(await mkdtemp(join(tmpdir(), 'mc-sharing-gate-')));
 const source = resolve(process.env.MULTI_CODEX_TEST_EXTENSIONS);
 const code = process.env.MULTI_CODEX_TEST_VSCODE;
 const cli = process.env.MULTI_CODEX_TEST_CODE_CLI;
@@ -33,13 +34,19 @@ async function hashTree(path) {
 async function command(args) {
   return new Promise(resolve => {
     const env = { ...process.env };
-    delete env.VSCODE_IPC_HOOK_CLI; delete env.VSCODE_PID;
+    delete env.VSCODE_IPC_HOOK_CLI; delete env.VSCODE_PID; delete env.VSCODE_DEV;
     if (cliScript) env.ELECTRON_RUN_AS_NODE = '1';
     const child = spawn(cliScript ? code : cli, cliScript ? [cliScript, ...args] : args,
-      { env, windowsHide: true, stdio: ['ignore', 'ignore', 'ignore'] });
+      { env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+    let diagnostic = '';
+    child.stderr.on('data', bytes => { if (diagnostic.length < 2000) diagnostic += bytes.toString(); });
     const timeout = setTimeout(() => child.kill(), 180_000);
     child.once('error', () => { clearTimeout(timeout); resolve(false); });
-    child.once('exit', status => { clearTimeout(timeout); resolve(status === 0); });
+    child.once('exit', (status, signal) => {
+      clearTimeout(timeout);
+      if (status !== 0) report.lastEditorCommandFailure = { status, signal, diagnostic: diagnostic.replace(/(?:sk-[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_.-]{30,})/g, '[redacted]') };
+      resolve(status === 0);
+    });
   });
 }
 let gui; let a; let b; let fixture; let phase = 'extension-catalogs';
@@ -60,7 +67,8 @@ try {
       const name = row.relativeLocation;
       assert.equal(name, name.split(/[\\/]/).at(-1));
       await symlink(join(payload, name), join(extensions, name), process.platform === 'win32' ? 'junction' : 'dir');
-      entries.push({ ...row, location: { ...row.location, path: join(extensions, name).replaceAll('\\', '/') } });
+      const location = pathToFileURL(join(extensions, name));
+      entries.push({ ...row, location: { ...row.location, authority: location.host, path: decodeURIComponent(location.pathname) } });
     }
     await writeFile(join(extensions, 'extensions.json'), JSON.stringify(entries));
     return { extensions, user, args: ['--user-data-dir', user, '--extensions-dir', extensions] };

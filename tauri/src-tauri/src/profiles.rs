@@ -1438,7 +1438,7 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
                 status.state == "ready" && status.version == env!("CARGO_PKG_VERSION")
             }) {
                 if crate::profile_layout::LayoutStore::open(&self.data_root)?
-                    .selected_catalog(id)
+                    .catalog_structure(id)
                     .is_ok_and(|catalog| catalog.is_some())
                 {
                     continue;
