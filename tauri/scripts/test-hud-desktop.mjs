@@ -31,6 +31,7 @@ let stage = 'initialization';
 let activeThreadId = null;
 let seededThreadId = null;
 let recentSecondId = null;
+let lastRecentRead = null;
 async function until(read, check) {
   const deadline = Date.now() + 90000;
   while (Date.now() < deadline) { const value = await read(); if (check(value)) return value; await new Promise(r => setTimeout(r, 100)); }
@@ -210,7 +211,7 @@ try {
 
   if (navigation) {
     stage = 'two persistent recent chats and exact warm navigation while idle';
-    const recentIds = () => JSON.parse(execFileSync(navigation, [root, a.id, '--recent'], { env: { ...process.env, MULTI_CODEX_TEST_HUD_ROUTING: '1' }, encoding: 'utf8' }));
+    const recentIds = () => (lastRecentRead = JSON.parse(execFileSync(navigation, [root, a.id, '--recent'], { env: { ...process.env, MULTI_CODEX_TEST_HUD_ROUTING: '1' }, encoding: 'utf8' })));
     await until(async () => recentIds(), r => !r.unavailable && r.ids.length === 2 && r.ids.includes(id) && r.ids.includes(recentSecondId));
     // Neither entry depends on selection or current generation. Navigate both
     // real saved conversations through the production, credential-free route.
@@ -258,7 +259,25 @@ try {
   if (evidence) { await mkdir(evidence, { recursive: true }); await writeFile(join(evidence, 'result.json'), JSON.stringify({ passed: true, source: process.env.GITHUB_SHA, stage, runtimeSha256, helperSha256, pinnedRuntimeUnchanged: true, fixtureLoginsUnchanged: true, visibleChatsExcludeBackendCache: !process.env.MULTI_CODEX_TEST_NO_VISIBILITY, observerDisconnectPreservesDesktop: !process.env.MULTI_CODEX_TEST_NO_VISIBILITY, persistentTwoRecentChats: Boolean(navigation), bothRecentChatsNavigateWhileIdle: Boolean(navigation), productionWarmRoute: Boolean(navigation), warmCredentialAccess: navigation ? 'forbidden by fixture store' : 'not instrumented' })); }
 } catch (error) {
   if (evidence) {
-    await mkdir(evidence, { recursive: true }); const states = [];
+    await mkdir(evidence, { recursive: true });
+    // Only inert fixture metadata; never export auth, names or transcript DBs.
+    const indexDiagnostics = [];
+    for (const record of windows) {
+      try {
+        const diagnostic = execFileSync('/usr/bin/python3', ['-c', `import pathlib,sqlite3,json,sys
+h=pathlib.Path(sys.argv[1]); result=[]
+for p in h.glob('state_*.sqlite'):
+ c=sqlite3.connect(p.as_uri()+'?mode=ro',uri=True)
+ cols=[r[1] for r in c.execute('pragma table_info(threads)')]
+ selected=[n for n in ['id','source','archived','has_user_event','recency_at_ms','updated_at'] if n in cols]
+ rows=list(c.execute('select '+','.join(selected)+' from threads limit 20')) if selected else []
+ result.append({'file':p.name,'columns':cols,'selected':selected,'rows':rows});c.close()
+print(json.dumps(result))`, record.codexHome], { encoding: 'utf8' });
+        indexDiagnostics.push(JSON.parse(diagnostic));
+      } catch (e) { indexDiagnostics.push({ error: String(e).slice(0, 300) }); }
+    }
+    await writeFile(join(evidence, 'recent-index-diagnostics.json'), JSON.stringify({ lastRecentRead, expected: [seededThreadId, recentSecondId], indexes: indexDiagnostics }, null, 2));
+    const states = [];
     const seedDiagnostic = await readFile(join(root, 'seed-engine.log'), 'utf8').catch(() => '');
     await writeFile(join(evidence, 'seed-engine.log'), seedDiagnostic, { mode: 0o600 });
     for (const [index, record] of windows.entries()) {
