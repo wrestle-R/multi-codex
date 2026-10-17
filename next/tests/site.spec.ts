@@ -180,7 +180,8 @@ test("Orbit is documented with its screenshot and an off switch on narrow screen
   await orbit.getByRole("link", { name: /Set up Orbit/ }).click()
   await expect(page).toHaveURL(/\/docs\/orbit$/)
   await expect(page.locator("article")).toContainText("Enable Orbit")
-  await expect(page.locator("article")).toContainText("next managed launch")
+  await expect(page.locator("article")).toContainText("two most recent non-archived conversations")
+  await expect(page.locator("article")).toContainText("recent Desktop shortcuts do not")
   for (const width of [360, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto("/")
