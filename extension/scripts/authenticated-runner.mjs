@@ -165,7 +165,10 @@ try {
     } finally { clearTimeout(timer); sharedLines.off('message', handler); }
   }
   phase = 'shared-account-a-start-thread';
-  const started = await frontend.request('thread/start', { cwd: workspace, sandbox: 'read-only', approvalPolicy: 'never' });
+  // Cross-account continuation must not inherit an account-specific preferred
+  // model. Use the same explicit baseline as the native sharing acceptance.
+  const sharedModel = 'gpt-5.4';
+  const started = await frontend.request('thread/start', { cwd: workspace, model: sharedModel, sandbox: 'read-only', approvalPolicy: 'never' });
   const threadId = started.thread.id;
   phase = 'shared-account-a-first-turn';
   await minimalTurn(threadId, 'Reply with just the word ready.');
@@ -189,7 +192,7 @@ try {
   await client.request('switch', { id: saved[0] });
   assert.equal(digest((await frontend.request('account/read', { refreshToken: false })).account.email.toLowerCase()), identities[0].identity);
   for (let i = 0; i < saved.length; i++) assert.equal(digest(await readFile(join(dataRoot, 'profiles', saved[i], 'codex-home', 'auth.json'))), credentialHashes[i]);
-  report.sharedContinuation = { fullNativeContext: true, writerStoppedBeforeHandoff: true, authenticatedAccountBContinuation: true, returnToAccountA: true, sourceCredentialsUnchanged: true, realModelTurns: 2 };
+  report.sharedContinuation = { fullNativeContext: true, writerStoppedBeforeHandoff: true, authenticatedAccountBContinuation: true, returnToAccountA: true, sourceCredentialsUnchanged: true, realModelTurns: 2, model: sharedModel };
   report.passed = true;
 } catch (error) {
   // Backend failures can include auth URLs or tokens. Publish only the stage.

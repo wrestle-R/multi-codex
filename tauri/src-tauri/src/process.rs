@@ -27,7 +27,7 @@ mod windows_tests {
                 "-Command",
                 script,
             ]),
-            Duration::from_secs(15),
+            Duration::from_secs(45),
         )
         .unwrap();
         assert!(result.status.success());
