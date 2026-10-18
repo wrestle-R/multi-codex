@@ -291,10 +291,22 @@ mod tests {
     fn new_powershell_console_has_interactive_standard_handles() {
         let root = tempfile::tempdir().unwrap();
         let result = root.path().join("console.json");
-        // Resolve through PATH like production terminal discovery does. Some
-        // hosted Windows images expose a virtualized SystemRoot that cannot be
-        // passed directly to CreateProcessW even though powershell.exe is usable.
-        let binary = PathBuf::from("powershell.exe");
+        // Resolve through PATH like production terminal discovery does, then
+        // pass CreateProcessW an absolute executable path. Hosted Windows
+        // images can expose a virtualized SystemRoot, while lpApplicationName
+        // does not reliably perform the shell's PATH lookup for a bare name.
+        let located = Command::new("where.exe")
+            .arg("powershell.exe")
+            .output()
+            .unwrap();
+        assert!(located.status.success());
+        let binary = PathBuf::from(
+            String::from_utf8(located.stdout)
+                .unwrap()
+                .lines()
+                .next()
+                .unwrap(),
+        );
         let script = format!(
             "$ErrorActionPreference='Stop'; [IO.File]::WriteAllText({}, (@{{input=[Console]::IsInputRedirected; output=[Console]::IsOutputRedirected; error=[Console]::IsErrorRedirected}} | ConvertTo-Json -Compress)); Start-Sleep -Seconds 30",
             quote(&result)
