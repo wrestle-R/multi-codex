@@ -43,12 +43,40 @@ fn relative_parts<'a>(root_path: &'a Path, path: &'a Path) -> Result<Vec<Compone
     }
     #[cfg(windows)]
     {
-        fn key(component: Component<'_>) -> String {
-            component
-                .as_os_str()
-                .to_string_lossy()
-                .trim_start_matches(r"\\?\")
-                .to_lowercase()
+        use std::path::Prefix;
+        fn same_component(expected: Component<'_>, actual: Component<'_>) -> bool {
+            match (expected, actual) {
+                (Component::Prefix(a), Component::Prefix(b)) => match (a.kind(), b.kind()) {
+                    (Prefix::Disk(a), Prefix::Disk(b))
+                    | (Prefix::Disk(a), Prefix::VerbatimDisk(b))
+                    | (Prefix::VerbatimDisk(a), Prefix::Disk(b))
+                    | (Prefix::VerbatimDisk(a), Prefix::VerbatimDisk(b)) => {
+                        a.eq_ignore_ascii_case(&b)
+                    }
+                    (Prefix::UNC(a_server, a_share), Prefix::UNC(b_server, b_share))
+                    | (Prefix::UNC(a_server, a_share), Prefix::VerbatimUNC(b_server, b_share))
+                    | (Prefix::VerbatimUNC(a_server, a_share), Prefix::UNC(b_server, b_share))
+                    | (
+                        Prefix::VerbatimUNC(a_server, a_share),
+                        Prefix::VerbatimUNC(b_server, b_share),
+                    ) => {
+                        a_server
+                            .to_string_lossy()
+                            .eq_ignore_ascii_case(&b_server.to_string_lossy())
+                            && a_share
+                                .to_string_lossy()
+                                .eq_ignore_ascii_case(&b_share.to_string_lossy())
+                    }
+                    _ => a
+                        .as_os_str()
+                        .to_string_lossy()
+                        .eq_ignore_ascii_case(&b.as_os_str().to_string_lossy()),
+                },
+                (Component::Normal(a), Component::Normal(b)) => a
+                    .to_string_lossy()
+                    .eq_ignore_ascii_case(&b.to_string_lossy()),
+                _ => expected == actual,
+            }
         }
         let root: Vec<_> = root_path.components().collect();
         let candidate: Vec<_> = path.components().collect();
@@ -56,7 +84,7 @@ fn relative_parts<'a>(root_path: &'a Path, path: &'a Path) -> Result<Vec<Compone
             || !root
                 .iter()
                 .zip(&candidate)
-                .all(|(expected, actual)| key(*expected) == key(*actual))
+                .all(|(expected, actual)| same_component(*expected, *actual))
         {
             return Err("Storage path must remain inside its owned root".into());
         }
