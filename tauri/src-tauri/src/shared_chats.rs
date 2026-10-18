@@ -1279,7 +1279,10 @@ mod tests {
                 .join("rollout.jsonl"),
         )
         .unwrap();
-        assert!(canonical.contains(&reference));
+        assert!(canonical.lines().any(|line| {
+            let row: Value = serde_json::from_str(line).unwrap();
+            row["payload"]["path"].as_str() == Some(reference.as_str())
+        }));
     }
 
     #[test]

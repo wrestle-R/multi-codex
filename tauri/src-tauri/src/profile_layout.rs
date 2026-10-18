@@ -592,7 +592,11 @@ mod tests {
         #[cfg(unix)]
         fs::remove_file(&link).unwrap();
         #[cfg(windows)]
-        junction::delete(&link).unwrap();
+        {
+            junction::delete(&link).unwrap();
+            // Removing the reparse point leaves an empty ordinary directory.
+            fs::remove_dir(&link).unwrap();
+        }
         assert!(layout.selected_catalog(&snapshot.profile_id).is_err());
         let backups = crate::migration::MigrationStore::open(&layout.data_root).unwrap();
         let fresh = backups
