@@ -29,19 +29,47 @@ pub fn root(path: &Path) -> Result<()> {
     Ok(())
 }
 
+fn relative_parts<'a>(root_path: &'a Path, path: &'a Path) -> Result<Vec<Component<'a>>> {
+    #[cfg(not(windows))]
+    {
+        if path == root_path || !path.starts_with(root_path) {
+            return Err("Storage path must remain inside its owned root".into());
+        }
+        return Ok(path
+            .strip_prefix(root_path)
+            .map_err(|_| "Invalid storage path")?
+            .components()
+            .collect());
+    }
+    #[cfg(windows)]
+    {
+        fn key(component: Component<'_>) -> String {
+            component
+                .as_os_str()
+                .to_string_lossy()
+                .trim_start_matches(r"\\?\")
+                .to_lowercase()
+        }
+        let root: Vec<_> = root_path.components().collect();
+        let candidate: Vec<_> = path.components().collect();
+        if candidate.len() <= root.len()
+            || !root
+                .iter()
+                .zip(&candidate)
+                .all(|(expected, actual)| key(*expected) == key(*actual))
+        {
+            return Err("Storage path must remain inside its owned root".into());
+        }
+        Ok(candidate.into_iter().skip(root.len()).collect())
+    }
+}
+
 /// Check every entry below an established root without following links.
 /// Missing leaves are allowed only for creation; an existing invalid entry is never replaced.
 pub fn checked(root_path: &Path, path: &Path, missing: bool) -> Result<PathBuf> {
     root(root_path)?;
-    if path == root_path || !path.starts_with(root_path) {
-        return Err("Storage path must remain inside its owned root".into());
-    }
     let mut current = root_path.to_path_buf();
-    let parts: Vec<_> = path
-        .strip_prefix(root_path)
-        .map_err(|_| "Invalid storage path")?
-        .components()
-        .collect();
+    let parts = relative_parts(root_path, path)?;
     for (index, part) in parts.iter().enumerate() {
         let Component::Normal(name) = part else {
             return Err("Invalid storage path".into());
@@ -63,11 +91,7 @@ pub fn checked(root_path: &Path, path: &Path, missing: bool) -> Result<PathBuf> 
 pub fn directory(root_path: &Path, path: &Path) -> Result<()> {
     checked(root_path, path, true)?;
     let mut current = root_path.to_path_buf();
-    for part in path
-        .strip_prefix(root_path)
-        .map_err(|_| "Invalid storage path")?
-        .components()
-    {
+    for part in relative_parts(root_path, path)? {
         let Component::Normal(name) = part else {
             return Err("Invalid storage path".into());
         };
@@ -363,6 +387,19 @@ mod tests {
             assert!(directory(base, &base.join("alias/child")).is_err());
             assert!(regular(&base.join("alias"), &base.join("alias/child")).is_err());
         }
+    }
+    #[cfg(windows)]
+    #[test]
+    fn windows_verbatim_and_drive_paths_share_one_owned_boundary() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("owned");
+        let child = root.join("private/child");
+        fs::create_dir_all(&child).unwrap();
+        let canonical_child = fs::canonicalize(&child).unwrap();
+        assert_eq!(checked(&root, &canonical_child, false).unwrap(), child);
+        let neighbor = temp.path().join("owned-neighbor");
+        fs::create_dir(&neighbor).unwrap();
+        assert!(checked(&root, &fs::canonicalize(neighbor).unwrap(), false).is_err());
     }
     #[test]
     fn snapshots_cannot_be_written_inside_the_source() {
