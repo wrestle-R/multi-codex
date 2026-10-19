@@ -26,6 +26,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
+      - name: Check Windows owned-path normalization early
+        if: runner.os == 'Windows'
+        run: cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_verbatim_and_drive_paths_share_one_owned_boundary
       - name: Build protocol client
         working-directory: extension
         run: |
