@@ -50,6 +50,8 @@ jobs:
           find "$RUNNER_TEMP/prior-probe" -type f -name '*.AppImage' -exec cp {} src-tauri/target/release/bundle/appimage/ \;
       - name: Compare catalog startup environments
         run: |
+          sudo apt-get remove -y libwebkit2gtk-4.1-0 libjavascriptcoregtk-4.1-0
+          if ldconfig -p | grep -Eq 'lib(webkit2gtk|javascriptcoregtk)-4\.1\.so'; then exit 1; fi
           dpkg-query -W xdg-desktop-portal xdg-desktop-portal-gtk >"$RUNNER_TEMP/appimage-probe-portal-state.log" 2>&1 || true
           APPIMAGE_SMOKE_EVIDENCE_DIR="$RUNNER_TEMP/appimage-probe/cold-raw-xvfb" bash scripts/appimage-catalog-display-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage >"$RUNNER_TEMP/appimage-probe-cold-raw-xvfb.log" 2>&1 && result=passed || result=failed
           echo "cold-raw-xvfb: $result"
