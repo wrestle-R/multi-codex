@@ -23,6 +23,14 @@ set -e
 this_dir="$(readlink -f "$(dirname "$0")")"
 export APPDIR="${APPDIR:-$this_dir}"
 export LD_LIBRARY_PATH="/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Firejail already confines this process and its children. The bundled WebKit
+# inner sandbox stalls in its AppImage mount, so bypass only that nested layer.
+# Ordinary mounted/extracted launches retain WebKit's default sandbox policy.
+case "$this_dir" in
+  /run/firejail/appimage|/run/firejail/appimage/*)
+    export WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1
+    ;;
+esac
 # AppImageHub exports both WebKit software-rendering switches. WebKitGTK 4.1
 # can remain alive without mapping a window when both are enabled together;
 # keep its current DMABUF renderer override and drop the legacy compositing one.
