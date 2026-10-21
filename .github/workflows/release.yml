@@ -52,7 +52,9 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y firejail imagemagick libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
+          # Recommended desktop portals wait for a graphical login on headless
+          # runners, blocking GTK startup. Required libraries remain installed.
+          sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
