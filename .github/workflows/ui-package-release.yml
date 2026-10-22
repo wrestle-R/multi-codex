@@ -1,4 +1,4 @@
-# Rebuild v1.7.2 after a UI-only correction. Native/editor proofs are reused
+# Rebuild v1.7.3 after a UI-only palette compatibility correction. Native/editor proofs are reused
 # only after the baseline succeeds and a strict source allowlist passes.
 name: UI release package refresh
 'on':
@@ -32,13 +32,13 @@ jobs:
         node --input-type=module <<'NODE'
         import assert from 'node:assert/strict';
         import { execFileSync } from 'node:child_process';
-        const baseline = JSON.parse(execFileSync('gh', ['run','view','39007430748','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
+        const baseline = JSON.parse(execFileSync('gh', ['run','view','39829636285','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
         assert.equal(baseline.conclusion, 'success');
-        assert.equal(baseline.headSha, 'fdfe120d8e5b481f2e96387ce956c73c29604e3a');
+        assert.equal(baseline.headSha, 'da008adbc98e2890553faa00e53a96fd09ec1648');
         for (const name of ['linux','macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
           assert.equal(baseline.jobs.find(job => job.name === name)?.conclusion, 'success', name);
         }
-        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/components/workspace-dialog.tsx','.github/workflows/ui-package-release.yml']);
+        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','.github/workflows/ui-package-release.yml']);
         const changed = execFileSync('git', ['diff','--name-only',baseline.headSha,'HEAD'], {encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
         console.log('Completed native/editor acceptance reused only for unchanged source. Current UI tests, packages, installers and signed SDK checks still run.');
@@ -154,13 +154,13 @@ jobs:
         node --input-type=module <<'NODE'
         import assert from 'node:assert/strict';
         import { execFileSync } from 'node:child_process';
-        const baseline = JSON.parse(execFileSync('gh', ['run','view','39007430748','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
+        const baseline = JSON.parse(execFileSync('gh', ['run','view','39829636285','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
         assert.equal(baseline.conclusion, 'success');
-        assert.equal(baseline.headSha, 'fdfe120d8e5b481f2e96387ce956c73c29604e3a');
+        assert.equal(baseline.headSha, 'da008adbc98e2890553faa00e53a96fd09ec1648');
         for (const name of ['linux','macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
           assert.equal(baseline.jobs.find(job => job.name === name)?.conclusion, 'success', name);
         }
-        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/components/workspace-dialog.tsx','.github/workflows/ui-package-release.yml']);
+        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','.github/workflows/ui-package-release.yml']);
         const changed = execFileSync('git', ['diff','--name-only',baseline.headSha,'HEAD'], {encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
         console.log('Completed native/editor acceptance reused only for unchanged source. Current UI tests, packages, installers and signed SDK checks still run.');
@@ -349,13 +349,13 @@ jobs:
         node --input-type=module <<'NODE'
         import assert from 'node:assert/strict';
         import { execFileSync } from 'node:child_process';
-        const baseline = JSON.parse(execFileSync('gh', ['run','view','39007430748','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
+        const baseline = JSON.parse(execFileSync('gh', ['run','view','39829636285','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
         assert.equal(baseline.conclusion, 'success');
-        assert.equal(baseline.headSha, 'fdfe120d8e5b481f2e96387ce956c73c29604e3a');
+        assert.equal(baseline.headSha, 'da008adbc98e2890553faa00e53a96fd09ec1648');
         for (const name of ['linux','macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
           assert.equal(baseline.jobs.find(job => job.name === name)?.conclusion, 'success', name);
         }
-        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/components/workspace-dialog.tsx','.github/workflows/ui-package-release.yml']);
+        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','.github/workflows/ui-package-release.yml']);
         const changed = execFileSync('git', ['diff','--name-only',baseline.headSha,'HEAD'], {encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
         console.log('Completed native/editor acceptance reused only for unchanged source. Current UI tests, packages, installers and signed SDK checks still run.');
