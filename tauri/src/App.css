@@ -626,3 +626,10 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
   .storage-summary { grid-template-columns: 1fr 1fr; }
   .storage-summary > div { padding: .8rem; }
 }
+
+.version-label { border: 0; background: transparent; color: var(--muted-foreground); font: inherit; padding: .4rem .6rem; cursor: pointer; }
+.version-label:hover { color: var(--foreground); }
+.release-notes-dialog { max-width: 440px; }
+.release-notes-dialog ul { padding-left: 1.1rem; color: var(--muted-foreground); line-height: 1.7; margin: 1.2rem 0; }
+.release-notes-dialog li + li { margin-top: .55rem; }
+.release-notes-dialog .settings-header { padding-bottom: 0; }

@@ -7,10 +7,11 @@ import "@fontsource/outfit/latin-400.css"
 import "@fontsource/outfit/latin-500.css"
 import "@fontsource/outfit/latin-600.css"
 import App from "./App"
+import Hud from "./Hud"
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <App />
+    {new URLSearchParams(window.location.search).get("view") === "hud" ? <Hud /> : <App />}
   </React.StrictMode>,
 )
 

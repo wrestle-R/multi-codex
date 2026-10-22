@@ -53,3 +53,5 @@ output/
 /cli/artifacts/
 
 /cli/**/__pycache__/
+/release/scripts/__pycache__/
+/tauri/scripts/__pycache__/

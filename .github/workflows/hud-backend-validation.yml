@@ -1,0 +1,145 @@
+name: HUD and backend native validation
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/hud-backend-*']
+    paths-ignore:
+      - '.github/workflows/hud-linux-validation.yml'
+      - 'tauri/scripts/test-hud-compositor.py'
+      - 'tauri/scripts/test-hud-gnome-session.sh'
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+          cache-on-failure: true
+      - name: Install pinned native launch targets
+        run: |
+          curl --fail --location --retry 3 https://update.code.visualstudio.com/1.140.0/darwin-arm64/stable -o "$RUNNER_TEMP/editor.zip"
+          ditto -xk "$RUNNER_TEMP/editor.zip" /Applications
+          curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.930.51102.zip -o "$RUNNER_TEMP/codex.zip"
+          ditto -xk "$RUNNER_TEMP/codex.zip" /Applications
+          CODE_CLI='/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code'
+          "$CODE_CLI" --user-data-dir "$RUNNER_TEMP/install-user" --extensions-dir "$RUNNER_TEMP/official-extension" --install-extension openai.chatgpt@26.1002.51308 --force
+          ENGINE=$(find "$RUNNER_TEMP/official-extension" -path '*/bin/*/codex' -print -quit)
+          test -x "$ENGINE"
+          echo "MULTI_CODEX_TEST_ENGINE=$ENGINE" >> "$GITHUB_ENV"
+      - name: Download and identify latest published package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(gh release view --json tagName --jq .tagName)
+          gh release download "$TAG" --pattern '*aarch64.app.tar.gz' --pattern SHA256SUMS --dir "$RUNNER_TEMP/published"
+          cd "$RUNNER_TEMP/published"
+          NAME=$(find . -maxdepth 1 -name '*aarch64.app.tar.gz' -exec basename {} \;)
+          awk -v name="$NAME" '$2 == name {print}' SHA256SUMS | shasum -a 256 -c -
+          tar -xzf "$NAME" -C /Applications
+          echo "LATEST_PACKAGE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "CODEX_SPARKLE_ENABLED=false" >> "$GITHUB_ENV"
+      - name: Reproduce published close/menu behavior
+        id: published
+        continue-on-error: true
+        env:
+          MAC_LIFECYCLE_VARIANT: published
+        run: python3 release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
+      - name: Build and test current implementation
+        id: build
+        run: |
+          npm ci --prefix extension
+          npm ci --prefix tauri
+          npm run build:helper --prefix extension
+          npm test --prefix extension
+          npm test --prefix tauri
+          npm run build:desktop --prefix tauri
+          cargo test --locked --manifest-path cli/Cargo.toml -p multi-codex-core
+          cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml
+          cargo build --locked --manifest-path cli/Cargo.toml --example hud-navigation --example native-keychain
+      - name: Native shared storage and passive Desktop protocol checks
+        working-directory: extension
+        env:
+          MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
+        run: |
+          node --test tests/shared-native.test.mjs
+          MULTI_CODEX_TEST_ENGINE='/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex' node --test tests/hud-native.test.mjs
+      - name: Real Desktop exact-account navigation and cold reopen
+        env:
+          MULTI_CODEX_TEST_HUD_NAVIGATION: ${{ github.workspace }}/cli/target/debug/examples/hud-navigation
+          HUD_GUI_OUTPUT: ${{ runner.temp }}/hud-backend-evidence/desktop-gui
+          MULTI_CODEX_TEST_SHARED_HELPER: ${{ github.workspace }}/tauri/src-tauri/target/release/multi-codex-account-helper
+          MULTI_CODEX_TEST_STANDALONE: /Applications/ChatGPT.app/Contents/MacOS/ChatGPT
+          MULTI_CODEX_TEST_ENGINE: /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
+        run: node tauri/scripts/test-hud-desktop.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: macos-desktop-navigation-evidence
+          path: ${{ runner.temp }}/hud-backend-evidence/desktop-gui/
+          if-no-files-found: warn
+      - name: Build packaged candidate without publishing
+        id: package
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        working-directory: tauri
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run tauri -- build --bundles app --config src-tauri/tauri.updater.conf.json
+      - name: Verify candidate path/version and native lifecycle
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        env:
+          MAC_LIFECYCLE_VARIANT: candidate
+          MAC_KEYCHAIN_PROBE: ${{ github.workspace }}/cli/target/debug/examples/native-keychain
+        run: |
+          APP=$(find tauri/src-tauri/target/release/bundle/macos -maxdepth 1 -name '*.app' -print -quit)
+          codesign --verify --deep --strict "$APP"
+          rm -rf '/Applications/Multi Codex.app'
+          ditto "$APP" '/Applications/Multi Codex.app'
+          python3 release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
+      - name: Native updater installation/restart regression
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: |
+          cargo build --locked --manifest-path tauri/src-tauri/Cargo.toml --example native-updater
+          PAYLOAD=$(find tauri/src-tauri/target/release/bundle/macos -name '*.app.tar.gz' -print -quit)
+          python3 tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater --payload "$PAYLOAD" --app '/Applications/Multi Codex.app' --output "$RUNNER_TEMP/hud-backend-evidence/updater/result.json"
+      - name: GNOME and KDE adapter contracts
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: node --test tauri/scripts/hud-platform.test.mjs
+      - name: Require successful native evidence for this exact candidate
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'hud-backend-evidence'
+          for name in ('candidate', 'desktop-gui', 'updater'):
+              path = root / name / 'result.json'
+              assert path.is_file(), f'Missing required native evidence: {name}'
+              result = json.loads(path.read_text())
+              assert result.get('passed') is True, f'Native acceptance failed: {name}: {result.get("failure", result.get("stage"))}'
+              assert result.get('source') == os.environ['GITHUB_SHA'], f'Wrong source tested: {name}'
+          print('Candidate lifecycle, exact-account Desktop navigation and signed updater evidence all pass for this source.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-hud-backend-evidence
+          path: ${{ runner.temp }}/hud-backend-evidence/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        with:
+          name: macos-hud-backend-candidate
+          path: |
+            tauri/src-tauri/target/release/bundle/macos/*.app.tar.gz
+            tauri/src-tauri/target/release/bundle/macos/*.sig

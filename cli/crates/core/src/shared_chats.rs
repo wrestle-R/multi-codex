@@ -465,7 +465,7 @@ impl ChatLibrary {
         identifier(id)?;
         let row: (String, String, String, String, i64, String, bool) = self.connection()?.query_row(
             "SELECT id,native_id,source_profile,checkpoint,revision,metadata,archived FROM threads WHERE id=?1 AND deleted=0", [id],
-            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?))).map_err(sql_error)?;
+            |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?,row.get(5)?,row.get(6)?))).optional().map_err(sql_error)?.ok_or("This shared chat was deleted or is missing from the library")?;
         Ok(SharedThread {
             id: row.0,
             native_id: row.1,
@@ -588,7 +588,30 @@ impl ChatLibrary {
         lease: &WriterLease,
         archived: bool,
     ) -> Result<()> {
-        leases.verify_writer(lease)?;
+        self.set_archived_verified(leases, lease, archived, false)
+    }
+
+    pub fn set_archived_stopped(
+        &self,
+        leases: &ThreadLeases,
+        lease: &WriterLease,
+        archived: bool,
+    ) -> Result<()> {
+        self.set_archived_verified(leases, lease, archived, true)
+    }
+
+    fn set_archived_verified(
+        &self,
+        leases: &ThreadLeases,
+        lease: &WriterLease,
+        archived: bool,
+        stopped: bool,
+    ) -> Result<()> {
+        if stopped {
+            leases.verify_stopped(lease)?;
+        } else {
+            leases.verify_writer(lease)?;
+        }
         let _lock = self.lock()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction().map_err(sql_error)?;
@@ -608,7 +631,24 @@ impl ChatLibrary {
     }
 
     pub fn tombstone(&self, leases: &ThreadLeases, lease: &WriterLease) -> Result<()> {
-        leases.verify_writer(lease)?;
+        self.tombstone_verified(leases, lease, false)
+    }
+
+    pub fn tombstone_stopped(&self, leases: &ThreadLeases, lease: &WriterLease) -> Result<()> {
+        self.tombstone_verified(leases, lease, true)
+    }
+
+    fn tombstone_verified(
+        &self,
+        leases: &ThreadLeases,
+        lease: &WriterLease,
+        stopped: bool,
+    ) -> Result<()> {
+        if stopped {
+            leases.verify_stopped(lease)?;
+        } else {
+            leases.verify_writer(lease)?;
+        }
         let _lock = self.lock()?;
         // Keep original checkpoint and source mapping for recovery and no-resurrection.
         let mut connection = self.connection()?;

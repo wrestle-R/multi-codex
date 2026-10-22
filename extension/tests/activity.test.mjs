@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ActivityGuard, loginParams, matchesIdentity } from '../dist/core.cjs';
+import { ActivityGuard, accountIdentity, loginParams, matchesIdentity } from '../dist/core.cjs';
 import { syntheticAuth } from './fixtures/local-service.mjs';
 
 test('switching requires a connected backend, then acquires one exclusive lock', () => {
@@ -42,4 +42,22 @@ test('selected identity must match the adopted token, not only the account label
   assert.equal(matchesIdentity({ authMethod: 'chatgptAuthTokens', authToken: a.tokens.access_token }, a), true);
   assert.equal(matchesIdentity({ authMethod: 'chatgptAuthTokens', authToken: b.tokens.access_token }, a), false);
   assert.throws(() => loginParams({ auth_mode: 'chatgpt', tokens: {} }), /access token/);
+});
+
+test('a verified empty queue clears its own unknown state without clearing other activity failures', () => {
+  const guard = new ActivityGuard(); guard.ready = true;
+  guard.incoming({ method: 'thread/queue/changed', params: { threadId: 'a' } });
+  assert.equal(guard.snapshot().canSwitch, false);
+  guard.verifyQueue('a', [{}]); assert.match(guard.snapshot().reason, /queued/);
+  guard.verifyQueue('a', []); assert.equal(guard.snapshot().canSwitch, true);
+  guard.unknown = true; guard.verifyQueue('a', []); assert.equal(guard.snapshot().canSwitch, false);
+});
+
+test('a remembered identity survives token renewal while expired credentials still cannot log in', () => {
+  const auth = syntheticAuth('synthetic-account-a');
+  const jwt = JSON.parse(Buffer.from(auth.tokens.access_token.split('.')[1], 'base64url').toString());
+  jwt.exp = 1;
+  const expired = { ...auth, tokens: { ...auth.tokens, access_token: [auth.tokens.access_token.split('.')[0], Buffer.from(JSON.stringify(jwt)).toString('base64url'), 'fixture'].join('.') } };
+  assert.equal(accountIdentity(expired).chatgptAccountId, loginParams(auth).chatgptAccountId);
+  assert.throws(() => loginParams(expired), /expired/);
 });

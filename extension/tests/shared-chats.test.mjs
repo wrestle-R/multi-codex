@@ -13,12 +13,13 @@ async function fixture(t) {
   const raw = JSON.stringify({ type: 'session_meta', payload: { id: 'native-one' } }) + '\n'
     + JSON.stringify({ type: 'response_item', payload: { type: 'message', content: [{ type: 'input_text', text: 'Full original context' }] } }) + '\n';
   await writeFile(path, raw);
-  const calls = []; let busy = false; let verifies = 0;
+  const calls = []; let busy = false; let verifies = 0; let status = 'idle'; let failure; let stateRead;
   const saved = { id: 'logical-one', nativeId: 'native-one', sourceProfileId: 'account-a', revision: 1, checkpoint: 'fixture', metadata: { id: 'native-one', snippet: 'Foreign account chat', cwd: home, source: 'vscode', modelProvider: 'openai' } };
   const shared = new SharedChats({
     home: () => home, owner: () => ({ instanceId: 'instance', backendPid: 123, sessionHome: home }), profile: () => 'account-b', verifyAccount: async () => { verifies++; },
     helper: async (method, params) => {
       calls.push({ side: 'helper', method, params });
+      if (failure === method) { failure = undefined; throw new Error('Fixture catalog commit failure'); }
       if (method === 'chats/list') return params.offset === 0 ? [saved] : [];
       if (method === 'chats/get') return saved;
       if (method === 'chats/read') return { thread: { ...saved.metadata, id: saved.id, turns: [{ items: [{ text: 'Full original context' }] }] } };
@@ -29,14 +30,15 @@ async function fixture(t) {
     },
     backend: async (method, params) => {
       calls.push({ side: 'backend', method, params });
+      if (method === 'thread/read' && stateRead) status = stateRead();
       if (method === 'thread/loaded/list') return { data: ['native-one'] };
-      if (method === 'thread/resume' || method === 'thread/read') return { thread: { ...saved.metadata, path, status: { type: 'idle' }, turns: [{ original: true }] } };
+      if (method === 'thread/resume' || method === 'thread/read' || method === 'thread/metadata/update' || method === 'thread/unarchive') return { thread: { ...saved.metadata, path, status: { type: status }, turns: [{ original: true }] } };
       if (method === 'turn/start') return { turn: { id: 'next-turn', status: 'inProgress' } };
       return {};
     },
   });
   t.after(() => rm(home, { recursive: true, force: true }));
-  return { shared, home, path, raw, calls, busy: value => { busy = value; }, verified: () => verifies };
+  return { shared, home, path, raw, calls, busy: value => { busy = value; }, status: value => { status = value; }, verified: () => verifies, failHelper: method => { failure = method; }, onRead: callback => { stateRead = callback; } };
 }
 test('foreign chats are listed and fully readable before any resume or writer acquisition', async t => {
   const { shared, calls } = await fixture(t);
@@ -83,4 +85,66 @@ test('unverified mutations and direct panel login fail closed', async t => {
   await assert.rejects(shared.request('thread/futureMutation', { threadId: 'logical-one' }), /not been verified/);
   await assert.rejects(shared.request('account/login/start', {}), /Use Multi Codex/);
   assert.equal(calls.length, 0);
+});
+
+test('model, metadata and queue edits use the owned native identity and preserve native responses', async t => {
+  const { shared, calls } = await fixture(t);
+  for (const method of ['thread/settings/update', 'turn/settings/update', 'thread/metadata/update', 'thread/queue/delete', 'thread/queue/update', 'thread/queue/reorder']) {
+    const result = await shared.request(method, { threadId: 'logical-one', model: 'fixture-model' });
+    assert.equal(calls.findLast(call => call.side === 'backend' && call.method === method).params.threadId, 'native-one');
+    if (result.thread) assert.equal(result.thread.id, 'logical-one');
+  }
+});
+
+test('model/name edits during a running turn succeed without publishing partial history', async t => {
+  const { shared, calls, status } = await fixture(t);
+  await shared.request('thread/resume', { threadId: 'logical-one' });
+  status('active');
+  for (const method of ['thread/settings/update', 'thread/name/set']) await shared.request(method, { threadId: 'logical-one' });
+  assert.equal(calls.some(call => call.method === 'chats/checkpoint'), false);
+  status('idle');
+  await shared.checkpoint('logical-one');
+  assert.ok(calls.some(call => call.method === 'chats/checkpoint'));
+});
+
+test('archive/unarchive mutate native files and return the restored thread, not a fabricated empty response', async t => {
+  const { shared, calls } = await fixture(t);
+  await shared.request('thread/archive', { threadId: 'logical-one' });
+  assert.ok(calls.findIndex(call => call.method === 'thread/archive') < calls.findIndex(call => call.method === 'chats/archive'));
+  const restored = await shared.request('thread/unarchive', { threadId: 'logical-one' });
+  assert.equal(restored.thread.id, 'logical-one');
+  await shared.request('thread/delete', { threadId: 'logical-one' });
+  assert.ok(calls.some(call => call.side === 'backend' && call.method === 'thread/delete'));
+  const count = calls.length;
+  await shared.drain();
+  assert.equal(calls.slice(count).some(call => call.method === 'chats/checkpoint'), false);
+});
+
+test('observer queues are non-executable and queue edits remain blocked by a competing writer', async t => {
+  const { shared, calls, busy } = await fixture(t);
+  assert.deepEqual(await shared.request('thread/queue/list', { threadId: 'logical-one' }), { data: [], nextCursor: null });
+  busy(true);
+  await assert.rejects(shared.request('thread/queue/delete', { threadId: 'logical-one' }), /Another writer/);
+  assert.equal(calls.some(call => call.side === 'backend'), false);
+});
+
+test('a native-applied archive retries its catalog commit without executing the native mutation twice', async t => {
+  const { shared, calls, failHelper, home } = await fixture(t);
+  failHelper('chats/archive');
+  await assert.rejects(shared.request('thread/archive', { threadId: 'logical-one' }), /catalog commit failure/);
+  const intent = JSON.parse(await readFile(join(home, 'chat-operations/logical-one.json'), 'utf8'));
+  assert.equal(intent.phase, 'nativeApplied');
+  await assert.rejects(shared.request('thread/delete', { threadId: 'logical-one' }), /unfinished library operation/);
+  await shared.request('thread/archive', { threadId: 'logical-one' });
+  assert.equal(calls.filter(call => call.side === 'backend' && call.method === 'thread/archive').length, 1);
+  await assert.rejects(readFile(join(home, 'chat-operations/logical-one.json')), { code: 'ENOENT' });
+});
+
+test('work resuming between metadata reads defers a completed edit and keeps strict handoff fenced', async t => {
+  const { shared, calls, onRead } = await fixture(t);
+  await shared.request('thread/resume', { threadId: 'logical-one' });
+  let reads = 0; onRead(() => ++reads === 1 ? 'idle' : 'active');
+  await shared.request('thread/name/set', { threadId: 'logical-one', name: 'Native edit succeeds' });
+  assert.equal(calls.some(call => call.method === 'chats/checkpoint'), false);
+  await assert.rejects(shared.drain(), /finish before publishing/);
 });
