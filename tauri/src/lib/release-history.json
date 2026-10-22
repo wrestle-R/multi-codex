@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.7.3",
+    "title": "One launcher, a calmer header and better window manners",
+    "highlights": [
+      "Opening Multi Codex again returns to the existing launcher, so it doesn’t create another tray icon.",
+      "Orbit settings open in a centered dialog with clearer toggles. Themes, Orbit, launch preferences and storage now live in a roomy Settings panel.",
+      "The app opens maximized, then leaves resizing and focus alone. Launching another app does not minimize the launcher.",
+      "Theme changes are immediate, with three more app palettes and accessories for your existing Orbiters."
+    ]
+  },
+  {
     "version": "1.7.2",
     "title": "Persistent recent chats and a quieter Orbit",
     "highlights": [

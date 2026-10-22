@@ -197,6 +197,7 @@ pub async fn update_app(app: AppHandle) -> Result<String, String> {
         let _ =
             tauri::async_runtime::spawn_blocking(|| std::thread::sleep(Duration::from_millis(700)))
                 .await;
+        tauri_plugin_single_instance::destroy(&app);
         app.restart();
     });
     Ok("restarting".into())

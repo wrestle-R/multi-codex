@@ -913,33 +913,41 @@ pub fn run() {
     {
         std::env::set_var("GDK_BACKEND", "wayland");
     }
-    let service = default_service().unwrap_or_else(|error| {
-        eprintln!("Multi Codex could not initialize: {error}");
-        std::process::exit(1);
-    });
-    let desktop_integration = DesktopIntegration::discover().unwrap_or_else(|error| {
-        eprintln!("Multi Codex could not initialize desktop integration: {error}");
-        std::process::exit(1);
-    });
-    if desktop_integration.refresh_after_update().is_err() {
-        eprintln!("Multi Codex could not refresh its existing shortcuts after an update");
-    }
     let app = tauri::Builder::default()
+        // Claim the process slot before profile services, tray or Orbit are started.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .manage(AppState {
-            service: Arc::new(service),
-            launches: Arc::new(Mutex::new(launch::LaunchCoordinator::default())),
-            desktop_integration,
-            limit_checks: Arc::new(Mutex::new(HashSet::new())),
-            device_logins: Arc::new(Mutex::new(HashMap::new())),
-        })
         .setup(|app| {
             use tauri::Manager;
+            let service = default_service().unwrap_or_else(|error| {
+                eprintln!("Multi Codex could not initialize: {error}");
+                std::process::exit(1);
+            });
+            let desktop_integration = DesktopIntegration::discover().unwrap_or_else(|error| {
+                eprintln!("Multi Codex could not initialize desktop integration: {error}");
+                std::process::exit(1);
+            });
+            if desktop_integration.refresh_after_update().is_err() {
+                eprintln!("Multi Codex could not refresh its existing shortcuts after an update");
+            }
+            app.manage(AppState {
+                service: Arc::new(service),
+                launches: Arc::new(Mutex::new(launch::LaunchCoordinator::default())),
+                desktop_integration,
+                limit_checks: Arc::new(Mutex::new(HashSet::new())),
+                device_logins: Arc::new(Mutex::new(HashMap::new())),
+            });
             if let Some(window) = app.get_webview_window("main") {
                 let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
                 window.set_icon(icon)?;
             }
-            desktop_environment::configure_main_window();
             #[cfg(any(target_os = "macos", target_os = "linux"))]
             account_menu::setup(app.handle())?;
             hud::setup(app.handle())?;
@@ -959,13 +967,6 @@ pub fn run() {
                     api.prevent_close();
                     let _ = window.hide();
                 }
-            }
-            if window.label() == "main"
-                && desktop_environment::backend() != "hyprland"
-                && matches!(event, tauri::WindowEvent::Focused(true))
-                && !window.is_maximized().unwrap_or(false)
-            {
-                let _ = window.maximize();
             }
         })
         .invoke_handler(tauri::generate_handler![

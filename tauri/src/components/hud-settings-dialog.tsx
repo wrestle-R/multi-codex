@@ -19,8 +19,8 @@ export function HudSettingsDialog({ onClose }: { onClose: () => void }) {
     return () => { active = false }
   }, [])
   const update = <K extends keyof HudSettings>(key: K, value: HudSettings[K]) => setSettings(current => ({ ...current, [key]: value }))
-  return <div className="dialog-backdrop"><section className="dialog" role="dialog" aria-modal="true" aria-labelledby={title} ref={ref}>
-    <div className="dialog-header"><div><p className="eyebrow">Orbiters</p><h2 id={title}>Orbit settings</h2></div><button className="icon-button" aria-label="Close Orbit settings" onClick={onClose}>×</button></div>
+  return <div className="dialog-layer"><section className="dialog orbit-settings-dialog" role="dialog" aria-modal="true" aria-labelledby={title} ref={ref}>
+    <div className="dialog-header"><div><p className="eyebrow">Orbiters</p><h2 id={title}>Orbit settings</h2></div><button className="icon-button" aria-label="Close Orbit settings" disabled={busy} onClick={onClose}>×</button></div>
     <form onSubmit={event => {
       event.preventDefault(); setBusy(true); setError("")
       void hudCall("hud_save_settings", { settings }).then(onClose).catch(error => setError(String(error))).finally(() => setBusy(false))

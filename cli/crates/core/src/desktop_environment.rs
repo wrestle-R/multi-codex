@@ -108,10 +108,6 @@ struct HyprClient {
     workspace: HyprWorkspace,
     #[serde(default)]
     pinned: bool,
-    #[serde(default)]
-    floating: bool,
-    #[serde(default)]
-    fullscreen: u8,
     #[serde(default = "mapped_default")]
     mapped: bool,
 }
@@ -399,39 +395,6 @@ pub fn find_profile_window(
     Err("The app opened, but its window could not be identified. Retry placement without opening another window.".into())
 }
 
-pub fn configure_main_window() {
-    if backend() != "hyprland" {
-        return;
-    }
-    static MONITORING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if MONITORING.swap(true, std::sync::atomic::Ordering::Relaxed) {
-        return;
-    }
-    let pid = std::process::id();
-    thread::spawn(move || loop {
-        if let Ok(clients) = hypr_json::<Vec<HyprClient>>("clients") {
-            if let Some(client) = clients
-                .into_iter()
-                .find(|client| client.pid == pid && client.mapped && client.title == "Multi Codex")
-            {
-                // GTK/compositor focus transitions can restore a floating window
-                // long after startup. Keep its tiled, maximized state throughout
-                // launches and desktop changes without focusing or moving it.
-                if client.fullscreen & 2 == 0
-                    && (client.floating || client.fullscreen != 1)
-                    && valid_address(&client.address)
-                {
-                    let _ = crate::process::output(
-                        Command::new("hyprctl").args(["eval", &main_window_lua(&client.address)]),
-                        Duration::from_secs(3),
-                    );
-                }
-            }
-        }
-        thread::sleep(Duration::from_millis(250));
-    });
-}
-
 pub fn default_workspace_root() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
     let preferred = home.join("Desktop").join("code");
@@ -446,16 +409,6 @@ fn valid_address(address: &str) -> bool {
     address
         .strip_prefix("0x")
         .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_hexdigit()))
-}
-fn main_window_lua(address: &str) -> String {
-    // A floating maximize leaves a popup-sized restore state when another app
-    // takes the workspace. Keep the launcher tiled underneath its maximize.
-    format!(
-        "local w=hl.get_window('address:{address}'); assert(w); \
-         hl.dispatch(hl.dsp.window.fullscreen_state({{internal=0,client=0,window=w}})); \
-         hl.dispatch(hl.dsp.window.float({{action='unset',window=w}})); \
-         hl.dispatch(hl.dsp.window.fullscreen_state({{internal=1,client=1,window=w}}))"
-    )
 }
 fn move_window_lua(address: &str, workspace: i32) -> String {
     format!("local w=hl.get_window('address:{address}'); assert(w); hl.dispatch(hl.dsp.window.move({{workspace={workspace},follow=true,window=w}}))")
