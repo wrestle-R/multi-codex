@@ -4,7 +4,7 @@ Orbit is the optional desktop companion strip in Multi Codex. Each account has a
 
 ## Turn Orbit on or off
 
-Open **Settings**, change **Enable Orbit**, and save. Turning Orbit off hides the strip and silences its reminders; Codex chats stay open. Open **Orbit** in the launcher or tray for size, display, position, motion and sound preferences. Sound starts off.
+Open **Settings → Orbit**, change **Enable Orbit**, and save. Turning Orbit off hides the strip and silences its reminders; Codex chats stay open. Open **Settings → Orbit** in the launcher, or **Orbit** in the tray for size, display, position, motion and sound preferences. Sound starts off.
 
 ## Sessions and usage
 

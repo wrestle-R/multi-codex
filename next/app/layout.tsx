@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import localFont from "next/font/local"
 import Link from "next/link"
 import { BrandMark } from "@/components/brand-mark"
+import { PalettePicker } from "@/components/palette-picker"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { latestRelease, repository, vscodeMarketplace } from "@/lib/site"
 import "./globals.css"
@@ -16,13 +17,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return <html lang="en" suppressHydrationWarning><head>
     {/* Apply the local preference before the first paint, including before hydration. */}
-    <script id="color-theme" dangerouslySetInnerHTML={{ __html: `try { var theme = localStorage.getItem("multi-codex-site-theme"); document.documentElement.dataset.theme = theme === "light" || theme === "dark" ? theme : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch { document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }` }} />
+    <script id="color-theme" dangerouslySetInnerHTML={{ __html: `try { var palette = localStorage.getItem("multi-codex-site-palette"); if (["sage","ocean","sand","rose","midnight","coffee","graphite"].includes(palette)) document.documentElement.dataset.palette = palette; var theme = localStorage.getItem("multi-codex-site-theme"); document.documentElement.dataset.theme = theme === "light" || theme === "dark" ? theme : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch { document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }` }} />
   </head><body className={`${body.variable} ${display.variable}`}>
     <a href="#main" className="skip-link">Skip to content</a>
     <header className="site-header"><nav className="nav-shell" aria-label="Main navigation">
       <Link className="brand" href="/" aria-label="Multi Codex home"><BrandMark /><span>Multi Codex</span></Link>
       <div className="nav-links"><Link href="/docs">Docs</Link><Link href="/releases">Changelog</Link><Link href="/issues">Report an issue</Link><a href={repository}>GitHub <span aria-hidden="true">↗</span></a></div>
-      <div className="nav-actions"><ThemeToggle /><a className="nav-download" href={latestRelease}>Download <span aria-hidden="true">↓</span></a></div>
+      <div className="nav-actions"><PalettePicker /><ThemeToggle /><a className="nav-download" href={latestRelease}>Download <span aria-hidden="true">↓</span></a></div>
     </nav></header>
     {children}
     <footer className="site-footer"><Link className="brand" href="/"><BrandMark small />Multi Codex</Link><span>Built for the way you work.</span><div><a href={vscodeMarketplace}>VS Code extension ↗</a><a href={`${repository}/blob/main/LICENSE`}>MIT license</a><a href={repository}>Source ↗</a></div><p>An independent open-source project. Not affiliated with OpenAI.</p></footer>
