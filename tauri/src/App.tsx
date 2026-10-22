@@ -2,7 +2,7 @@ import { listen } from "@tauri-apps/api/event"
 import { orderProfilesByPlan } from "./lib/profile-order"
 import { useProfileLimits } from "./components/use-profile-limits"
 import { SettingsMenu } from "./components/settings-menu"
-import { initialColorTheme, type ColorTheme } from "./lib/themes"
+import { initialColorTheme, isLocalColorTheme, type ColorTheme } from "./lib/themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Add01Icon,
@@ -212,7 +212,7 @@ export default function App() {
       if (!active) return
       setLaunchTargets(targets)
       setLaunchMode(settings.launchMode ?? 'vscode')
-      if (settings.colorTheme) setColorTheme(settings.colorTheme)
+      if (settings.colorTheme && !isLocalColorTheme(initialColorTheme())) setColorTheme(settings.colorTheme)
       setWelcomeNeeded(!settings.onboardingCompleted)
     }).catch(error => { if (active) setWelcomeError(String(error)) }).finally(() => { if (active) setWelcomeReady(true) })
     return () => { active = false }
@@ -287,6 +287,7 @@ export default function App() {
 
   function changeColorTheme(value: ColorTheme) {
     setColorTheme(value)
+    if (isLocalColorTheme(value)) return
     void getExecutableSettings().then(settings => saveExecutableSettings({ ...settings, colorTheme: value })).catch(error => setPageError(String(error)))
   }
 
