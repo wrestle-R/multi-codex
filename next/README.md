@@ -17,13 +17,13 @@ Deploy from this directory to the dedicated `multi-codex` Vercel project after l
 
 The header and footer use the overlapping terminal mark from the desktop app (`tauri/src/components/brand-mark.tsx`), with a matching SVG favicon. The documentation sidebar keeps a 48px gap on wide screens and stacks above the content on mobile.
 
-The theme button matches the portfolio's circular curtain: alternate expanding/contracting reveals, 960ms duration and `cubic-bezier(0.55, 0, 0.8, 1)`. Reduced motion and browsers without View Transitions switch immediately. Saved theme choices and matching documentation screenshots still persist between pages and visits.
+Light/dark changes apply immediately, without taking a full-page animation snapshot. The palette selector adds Ocean, Sand, Rose, Midnight, Coffee and Graphite alongside Sage. Mode and palette choices persist between pages and visits; documentation screenshots follow the current light/dark mode.
 
 ## Release timeline
 
 `/releases` groups selected user-facing updates by release series, newest first, with publication dates, concrete change summaries, version permalinks and full release-note links. Curated entries live in `lib/releases.ts`; update that file when publishing a release, then build and redeploy. Draft validation candidates are excluded. Older highlights are checked against the commits between published tags where GitHub notes contain only a platform description. Displayed dates use UTC consistently.
 
-Keep the website version, README, release titles, notes and package metadata consistent. App releases require matching package builds and validation. See [release and contribution guidelines](../docs/release-guidelines.md) for version numbers, changelog entries and commit titles.
+Keep the website version, README, release titles, notes and package metadata consistent. App releases require matching package builds and validation. See [release and contribution guidelines](../CONTRIBUTING.md) for version numbers, changelog entries and commit titles.
 
 ## Issue submissions
 

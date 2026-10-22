@@ -1,0 +1,2699 @@
+{
+  "schemaVersion": 1,
+  "version": "1.7.3",
+  "extensionVersion": "0.3.1",
+  "stability": "stable",
+  "classification": "Stable maintenance release selected for authorized publication",
+  "candidateSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459287",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:06:14Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend packages, AppImage visible window and duplicate launches, exact installer and signed SDK payload acceptance/refusal checks. No local Hyprland geometry or real OAuth claim."
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459287",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:06:14Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend packages, AppImage visible window and duplicate launches, exact installer and signed SDK payload acceptance/refusal checks. No local Hyprland geometry or real OAuth claim."
+    },
+    "launcher-window": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459287",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:06:14Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend packages, AppImage visible window and duplicate launches, exact installer and signed SDK payload acceptance/refusal checks. No local Hyprland geometry or real OAuth claim."
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459039",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:17:31Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend app, packaged startup/duplicate launches, Orbit/tray close-reopen lifecycle, installer and exact signed SDK payload. No macOS 27 or installed local Update-button claim."
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459039",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:17:31Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend app, packaged startup/duplicate launches, Orbit/tray close-reopen lifecycle, installer and exact signed SDK payload. No macOS 27 or installed local Update-button claim."
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459039",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:17:31Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend app, packaged startup/duplicate launches, Orbit/tray close-reopen lifecycle, installer and exact signed SDK payload. No macOS 27 or installed local Update-button claim."
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459400",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:20:31Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend NSIS package, installer/update preservation and exact signed SDK payload. Singleton compiled; duplicate-launch runtime behavior not asserted."
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459400",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T19:20:31Z",
+      "testedSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "scope": "Final frontend NSIS package, installer/update preservation and exact signed SDK payload. Singleton compiled; duplicate-launch runtime behavior not asserted."
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002037881",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:51:54Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native/core/editor sources; full baseline disposable isolation fixtures reused after strict frontend-only diff guard. Not real authenticated account testing.",
+      "passedBaselineSteps": [
+        "Run npm run test:release",
+        "Run cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core",
+        "Run npm run release:linux"
+      ]
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002037149",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:31:50Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native/core/editor sources; full baseline disposable isolation fixtures reused after strict frontend-only diff guard. Not real authenticated account testing."
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040278",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:44:39Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native/core/editor sources; full baseline disposable isolation fixtures reused after strict frontend-only diff guard. Not real authenticated account testing."
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002039962",
+      "environment": "linux-x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:38:41Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native helper and VSIX source; baseline package retained byte-for-byte, hash recorded in artifacts."
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040104",
+      "environment": "darwin-arm64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:27:31Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native helper and VSIX source; baseline package retained byte-for-byte, hash recorded in artifacts."
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040127",
+      "environment": "darwin-x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:38:49Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native helper and VSIX source; baseline package retained byte-for-byte, hash recorded in artifacts."
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040278",
+      "environment": "win32-x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-10-22T18:44:39Z",
+      "testedSource": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "scope": "Unchanged native helper and VSIX source; baseline package retained byte-for-byte, hash recorded in artifacts."
+    }
+  },
+  "artifacts": {
+    "Multi.Codex-1.7.3-1.x86_64.rpm": "447ba5bbb6907b5c8cc5d98fda17f0c2e1b51920a5f0bdfa6736db17f82afc76",
+    "Multi.Codex_1.7.3_aarch64.app.tar.gz": "755e5adc97ccd0d1a4fb6b1db5718e8bd7b6987d5b0d44f3da6c83231cb24118",
+    "Multi.Codex_1.7.3_aarch64.app.tar.gz.sig": "7f73b84dde291df5e5181826cb9aef90c960c226933e4aa250374a0cff83a09c",
+    "Multi.Codex_1.7.3_aarch64.dmg": "6ca8bad85c5f029fe4526cd65906a45ac310effc7d89f4914e7642288e183f2f",
+    "Multi.Codex_1.7.3_amd64.AppImage": "cb91b5916555b54941d39a8df890b3f57964c888bdb5568f3d212fca4ea85018",
+    "Multi.Codex_1.7.3_amd64.AppImage.sig": "74cc59e310912568be7a53f3fd337ba6938cf1444026370b7d5544009fcd4bcc",
+    "Multi.Codex_1.7.3_amd64.deb": "d0f1092bb2813b4a7595f34e0bf59257815cc725172d65c14d830a93b54f024c",
+    "Multi.Codex_1.7.3_x64-setup.exe": "10a8cabc87336a46dddbd8a85169f9494f9b782f3ca2b54197aaa575c9acce86",
+    "Multi.Codex_1.7.3_x64-setup.exe.sig": "398fe3f4a5d057de4743b873d711772d0ee61ad6cbadaaa9a2068e9aba4b89e7",
+    "install-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "install-app.sh": "214116c56387d3a357ce580ce7a6a9f6c996b6662f3c3aa253a62695ba36e36e",
+    "latest.json": "9880b4c595e00fb6f895890fcae972b2de99a6682ee76fe16482e098be26c0d8",
+    "multi-codex-darwin-arm64-0.3.1.vsix": "a7e3a2844fc71145181cd34b1a532ddba2550dd260d26de072b943870e30307c",
+    "multi-codex-darwin-x64-0.3.1.vsix": "91ad68830f077ba0219a96c0de818055e63ed76170cd44ad8559b9b834fd56ef",
+    "multi-codex-linux-x64-0.3.1.vsix": "e647847c2944dd70f459c2eda80cfad5b92f80df64711906e73b0606d21e7cb6",
+    "multi-codex-win32-x64-0.3.1.vsix": "14c8b612dfcc2a1572f893659e03c1ff6bf5bf2e238bc0dd7a6204fba1a08ae8",
+    "update-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "update-app.sh": "214116c56387d3a357ce580ce7a6a9f6c996b6662f3c3aa253a62695ba36e36e",
+    "SHA256SUMS": "27d9b21e09adb89e77b0e05cfd4732e2b2dd2d7e4afb6135ca070e8cd7b90561"
+  },
+  "workflow": {
+    "conclusion": "success",
+    "headSha": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+    "jobs": [
+      {
+        "completedAt": "2026-10-22T19:17:31Z",
+        "conclusion": "success",
+        "databaseId": 120023459039,
+        "name": "macos",
+        "startedAt": "2026-10-22T18:56:29Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-22T18:56:32Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-22T18:56:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:35Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-22T18:56:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:37Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-10-22T18:56:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:38Z",
+            "conclusion": "success",
+            "name": "Verify completed native baseline and UI-only source changes",
+            "number": 4,
+            "startedAt": "2026-10-22T18:56:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:38Z",
+            "conclusion": "success",
+            "name": "Validate tag version",
+            "number": 5,
+            "startedAt": "2026-10-22T18:56:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:48Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@stable",
+            "number": 6,
+            "startedAt": "2026-10-22T18:56:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:49Z",
+            "conclusion": "success",
+            "name": "Run Swatinem/rust-cache@v2",
+            "number": 7,
+            "startedAt": "2026-10-22T18:56:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:02Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 8,
+            "startedAt": "2026-10-22T18:56:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:20Z",
+            "conclusion": "success",
+            "name": "Run npm test",
+            "number": 9,
+            "startedAt": "2026-10-22T18:57:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:02:31Z",
+            "conclusion": "success",
+            "name": "Run npm run build:desktop",
+            "number": 10,
+            "startedAt": "2026-10-22T18:57:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:23Z",
+            "conclusion": "success",
+            "name": "Run cargo test --manifest-path src-tauri/Cargo.toml",
+            "number": 11,
+            "startedAt": "2026-10-22T19:02:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:35Z",
+            "conclusion": "success",
+            "name": "Install disposable native VS Code test dependency",
+            "number": 12,
+            "startedAt": "2026-10-22T19:05:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:14Z",
+            "conclusion": "success",
+            "name": "Exercise native Keychain and isolated VS Code startup",
+            "number": 13,
+            "startedAt": "2026-10-22T19:05:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:22Z",
+            "conclusion": "success",
+            "name": "Exercise isolated CLI launch in native Terminal",
+            "number": 14,
+            "startedAt": "2026-10-22T19:06:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:49Z",
+            "conclusion": "success",
+            "name": "Install official standalone desktop for native launch smoke",
+            "number": 15,
+            "startedAt": "2026-10-22T19:06:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:07:18Z",
+            "conclusion": "success",
+            "name": "Verify production standalone launch and restart with long private paths",
+            "number": 16,
+            "startedAt": "2026-10-22T19:06:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:14:10Z",
+            "conclusion": "success",
+            "name": "Build Apple Silicon candidate",
+            "number": 17,
+            "startedAt": "2026-10-22T19:07:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:14:24Z",
+            "conclusion": "success",
+            "name": "Inspect and smoke-test Apple Silicon app bundle",
+            "number": 18,
+            "startedAt": "2026-10-22T19:14:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:34Z",
+            "conclusion": "success",
+            "name": "Verify Orbit, minimal upgrade notes and packaged close/reopen lifecycle",
+            "number": 19,
+            "startedAt": "2026-10-22T19:14:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:37Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "startedAt": "2026-10-22T19:15:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:37Z",
+            "conclusion": "success",
+            "name": "Check signing and notarization",
+            "number": 21,
+            "startedAt": "2026-10-22T19:15:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:37Z",
+            "conclusion": "success",
+            "name": "Normalize DMG name",
+            "number": 22,
+            "startedAt": "2026-10-22T19:15:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:07Z",
+            "conclusion": "success",
+            "name": "Verify install and update of the exact Mac candidate",
+            "number": 23,
+            "startedAt": "2026-10-22T19:15:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:35Z",
+            "conclusion": "success",
+            "name": "Exercise native SDK update and signed-payload refusal on macOS",
+            "number": 24,
+            "startedAt": "2026-10-22T19:16:07Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:37Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 25,
+            "startedAt": "2026-10-22T19:16:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:38Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 26,
+            "startedAt": "2026-10-22T19:16:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:41Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 27,
+            "startedAt": "2026-10-22T19:16:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:43Z",
+            "conclusion": "success",
+            "name": "Upload macOS startup evidence",
+            "number": 28,
+            "startedAt": "2026-10-22T19:16:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:17:20Z",
+            "conclusion": "success",
+            "name": "Post Run Swatinem/rust-cache@v2",
+            "number": 54,
+            "startedAt": "2026-10-22T19:16:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:17:24Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 55,
+            "startedAt": "2026-10-22T19:17:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:17:24Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 56,
+            "startedAt": "2026-10-22T19:17:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:17:28Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 57,
+            "startedAt": "2026-10-22T19:17:25Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459039"
+      },
+      {
+        "completedAt": "2026-10-22T19:06:14Z",
+        "conclusion": "success",
+        "databaseId": 120023459287,
+        "name": "linux",
+        "startedAt": "2026-10-22T18:56:28Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-22T18:56:32Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-22T18:56:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:33Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-22T18:56:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:33Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-10-22T18:56:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:35Z",
+            "conclusion": "success",
+            "name": "Verify completed native baseline and UI-only source changes",
+            "number": 4,
+            "startedAt": "2026-10-22T18:56:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:35Z",
+            "conclusion": "success",
+            "name": "Validate tag version",
+            "number": 5,
+            "startedAt": "2026-10-22T18:56:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:59Z",
+            "conclusion": "success",
+            "name": "Install Linux dependencies",
+            "number": 6,
+            "startedAt": "2026-10-22T18:56:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:08Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@stable",
+            "number": 7,
+            "startedAt": "2026-10-22T18:56:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:43Z",
+            "conclusion": "success",
+            "name": "Run Swatinem/rust-cache@v2",
+            "number": 8,
+            "startedAt": "2026-10-22T18:57:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:48Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 9,
+            "startedAt": "2026-10-22T18:57:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:49Z",
+            "conclusion": "success",
+            "name": "Run npm run check:secrets",
+            "number": 10,
+            "startedAt": "2026-10-22T18:57:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:49Z",
+            "conclusion": "success",
+            "name": "Run npm run test:release",
+            "number": 11,
+            "startedAt": "2026-10-22T18:57:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:58:23Z",
+            "conclusion": "success",
+            "name": "Run cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core",
+            "number": 12,
+            "startedAt": "2026-10-22T18:57:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:58:23Z",
+            "conclusion": "success",
+            "name": "Run npm run test:release-gates",
+            "number": 13,
+            "startedAt": "2026-10-22T18:58:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:58:23Z",
+            "conclusion": "success",
+            "name": "Require signed updater packages",
+            "number": 14,
+            "startedAt": "2026-10-22T18:58:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:04:50Z",
+            "conclusion": "success",
+            "name": "Run npm run release:linux",
+            "number": 15,
+            "startedAt": "2026-10-22T18:58:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:16Z",
+            "conclusion": "success",
+            "name": "Exercise native SDK update and signed-payload refusal on Linux",
+            "number": 16,
+            "startedAt": "2026-10-22T19:04:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:18Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 17,
+            "startedAt": "2026-10-22T19:05:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:20Z",
+            "conclusion": "success",
+            "name": "Remove build-time WebKit to verify self-contained helpers",
+            "number": 18,
+            "startedAt": "2026-10-22T19:05:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:36Z",
+            "conclusion": "success",
+            "name": "Verify AppImageHub-compatible launch and visible window",
+            "number": 19,
+            "startedAt": "2026-10-22T19:05:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:45Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "startedAt": "2026-10-22T19:05:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:47Z",
+            "conclusion": "success",
+            "name": "Verify install and update of the exact Linux candidate",
+            "number": 21,
+            "startedAt": "2026-10-22T19:05:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:48Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 22,
+            "startedAt": "2026-10-22T19:05:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:05:55Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 23,
+            "startedAt": "2026-10-22T19:05:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:10Z",
+            "conclusion": "success",
+            "name": "Post Run Swatinem/rust-cache@v2",
+            "number": 44,
+            "startedAt": "2026-10-22T19:05:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:13Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 45,
+            "startedAt": "2026-10-22T19:06:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:13Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 46,
+            "startedAt": "2026-10-22T19:06:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:13Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 47,
+            "startedAt": "2026-10-22T19:06:13Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459287"
+      },
+      {
+        "completedAt": "2026-10-22T19:20:31Z",
+        "conclusion": "success",
+        "databaseId": 120023459400,
+        "name": "windows",
+        "startedAt": "2026-10-22T18:56:28Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-22T18:56:30Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-22T18:56:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:36Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-10-22T18:56:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:41Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-10-22T18:56:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:47Z",
+            "conclusion": "success",
+            "name": "Verify completed native baseline and UI-only source changes",
+            "number": 4,
+            "startedAt": "2026-10-22T18:56:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:56:54Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@stable",
+            "number": 5,
+            "startedAt": "2026-10-22T18:56:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:57:34Z",
+            "conclusion": "success",
+            "name": "Run Swatinem/rust-cache@v2",
+            "number": 6,
+            "startedAt": "2026-10-22T18:56:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T18:58:08Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 7,
+            "startedAt": "2026-10-22T18:57:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:02:51Z",
+            "conclusion": "success",
+            "name": "Run npm run build:desktop",
+            "number": 8,
+            "startedAt": "2026-10-22T18:58:08Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:02:55Z",
+            "conclusion": "success",
+            "name": "Run cargo fmt --manifest-path tauri/src-tauri/Cargo.toml -- --check",
+            "number": 9,
+            "startedAt": "2026-10-22T19:02:51Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:21Z",
+            "conclusion": "success",
+            "name": "Run cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml",
+            "number": 10,
+            "startedAt": "2026-10-22T19:02:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:44Z",
+            "conclusion": "success",
+            "name": "Run npm test",
+            "number": 11,
+            "startedAt": "2026-10-22T19:06:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:06:52Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 12,
+            "startedAt": "2026-10-22T19:06:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:08:13Z",
+            "conclusion": "success",
+            "name": "Run npm run build:helper",
+            "number": 13,
+            "startedAt": "2026-10-22T19:06:52Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:08:19Z",
+            "conclusion": "success",
+            "name": "Run npm test",
+            "number": 14,
+            "startedAt": "2026-10-22T19:08:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:18Z",
+            "conclusion": "success",
+            "name": "Build Windows package and optional signed updater",
+            "number": 15,
+            "startedAt": "2026-10-22T19:08:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:19Z",
+            "conclusion": "success",
+            "name": "Normalize the manifest-derived Windows installer filename",
+            "number": 16,
+            "startedAt": "2026-10-22T19:15:18Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:15:47Z",
+            "conclusion": "success",
+            "name": "Install, update and restart the exact packaged Windows app",
+            "number": 17,
+            "startedAt": "2026-10-22T19:15:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:21Z",
+            "conclusion": "success",
+            "name": "Exercise native SDK update and signed-payload refusal on Windows",
+            "number": 18,
+            "startedAt": "2026-10-22T19:15:47Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:22Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 19,
+            "startedAt": "2026-10-22T19:16:21Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:23Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 20,
+            "startedAt": "2026-10-22T19:16:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:16:25Z",
+            "conclusion": "success",
+            "name": "Run actions/upload-artifact@v4",
+            "number": 21,
+            "startedAt": "2026-10-22T19:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:20:27Z",
+            "conclusion": "success",
+            "name": "Post Run Swatinem/rust-cache@v2",
+            "number": 40,
+            "startedAt": "2026-10-22T19:16:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:20:27Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 41,
+            "startedAt": "2026-10-22T19:20:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:20:30Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 42,
+            "startedAt": "2026-10-22T19:20:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-22T19:20:30Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 43,
+            "startedAt": "2026-10-22T19:20:30Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035/job/120023459400"
+      }
+    ],
+    "status": "completed",
+    "updatedAt": "2026-10-22T19:20:32Z",
+    "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39835739035"
+  },
+  "cancelledAutomaticDuplicate": {
+    "run": "https://github.com/wrestle-R/multi-codex/actions/runs/39835771817",
+    "conclusion": "cancelled",
+    "reason": "Moving the unpublished tag triggered a duplicate full Release; cancelled in favor of the guarded final package refresh."
+  },
+  "unchangedNativeBaseline": {
+    "source": "da008adbc98e2890553faa00e53a96fd09ec1648",
+    "workflow": {
+      "conclusion": "failure",
+      "headSha": "da008adbc98e2890553faa00e53a96fd09ec1648",
+      "jobs": [
+        {
+          "completedAt": "2026-10-22T18:31:50Z",
+          "conclusion": "success",
+          "databaseId": 120002037149,
+          "name": "macos",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:51Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:53Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:55Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v4",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:55Z",
+              "conclusion": "success",
+              "name": "Validate tag version",
+              "number": 4,
+              "startedAt": "2026-10-22T18:14:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:04Z",
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 5,
+              "startedAt": "2026-10-22T18:14:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:34Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 6,
+              "startedAt": "2026-10-22T18:15:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:45Z",
+              "conclusion": "success",
+              "name": "Run npm ci",
+              "number": 7,
+              "startedAt": "2026-10-22T18:15:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:58Z",
+              "conclusion": "success",
+              "name": "Run npm test",
+              "number": 8,
+              "startedAt": "2026-10-22T18:15:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:18:28Z",
+              "conclusion": "success",
+              "name": "Run npm run build:desktop",
+              "number": 9,
+              "startedAt": "2026-10-22T18:15:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:19:48Z",
+              "conclusion": "success",
+              "name": "Run cargo test --manifest-path src-tauri/Cargo.toml",
+              "number": 10,
+              "startedAt": "2026-10-22T18:18:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:19:55Z",
+              "conclusion": "success",
+              "name": "Install disposable native VS Code test dependency",
+              "number": 11,
+              "startedAt": "2026-10-22T18:19:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:20:28Z",
+              "conclusion": "success",
+              "name": "Exercise native Keychain and isolated VS Code startup",
+              "number": 12,
+              "startedAt": "2026-10-22T18:19:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:20:35Z",
+              "conclusion": "success",
+              "name": "Exercise isolated CLI launch in native Terminal",
+              "number": 13,
+              "startedAt": "2026-10-22T18:20:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:21:15Z",
+              "conclusion": "success",
+              "name": "Install official standalone desktop for native launch smoke",
+              "number": 14,
+              "startedAt": "2026-10-22T18:20:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:21:46Z",
+              "conclusion": "success",
+              "name": "Verify production standalone launch and restart with long private paths",
+              "number": 15,
+              "startedAt": "2026-10-22T18:21:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:05Z",
+              "conclusion": "success",
+              "name": "Build Apple Silicon candidate",
+              "number": 16,
+              "startedAt": "2026-10-22T18:21:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:20Z",
+              "conclusion": "success",
+              "name": "Inspect and smoke-test Apple Silicon app bundle",
+              "number": 17,
+              "startedAt": "2026-10-22T18:27:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:28:55Z",
+              "conclusion": "success",
+              "name": "Verify Orbit, minimal upgrade notes and packaged close/reopen lifecycle",
+              "number": 18,
+              "startedAt": "2026-10-22T18:27:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:28:58Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 19,
+              "startedAt": "2026-10-22T18:28:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:28:58Z",
+              "conclusion": "success",
+              "name": "Check signing and notarization",
+              "number": 20,
+              "startedAt": "2026-10-22T18:28:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:28:59Z",
+              "conclusion": "success",
+              "name": "Normalize DMG name",
+              "number": 21,
+              "startedAt": "2026-10-22T18:28:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:29:46Z",
+              "conclusion": "success",
+              "name": "Verify install and update of the exact Mac candidate",
+              "number": 22,
+              "startedAt": "2026-10-22T18:28:59Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:24Z",
+              "conclusion": "success",
+              "name": "Exercise native SDK update and signed-payload refusal on macOS",
+              "number": 23,
+              "startedAt": "2026-10-22T18:29:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:26Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 24,
+              "startedAt": "2026-10-22T18:30:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:28Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 25,
+              "startedAt": "2026-10-22T18:30:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:32Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 26,
+              "startedAt": "2026-10-22T18:30:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:33Z",
+              "conclusion": "success",
+              "name": "Upload macOS startup evidence",
+              "number": 27,
+              "startedAt": "2026-10-22T18:30:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:36Z",
+              "conclusion": "success",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 52,
+              "startedAt": "2026-10-22T18:30:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:41Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@v4",
+              "number": 53,
+              "startedAt": "2026-10-22T18:31:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:42Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 54,
+              "startedAt": "2026-10-22T18:31:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:46Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 55,
+              "startedAt": "2026-10-22T18:31:42Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002037149"
+        },
+        {
+          "completedAt": "2026-10-22T18:51:54Z",
+          "conclusion": "failure",
+          "databaseId": 120002037881,
+          "name": "linux",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:51Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:52Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:00Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v4",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:00Z",
+              "conclusion": "success",
+              "name": "Validate tag version",
+              "number": 4,
+              "startedAt": "2026-10-22T18:15:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:39:51Z",
+              "conclusion": "success",
+              "name": "Install Linux dependencies",
+              "number": 5,
+              "startedAt": "2026-10-22T18:15:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:40:04Z",
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 6,
+              "startedAt": "2026-10-22T18:39:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:40:31Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 7,
+              "startedAt": "2026-10-22T18:40:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:40:47Z",
+              "conclusion": "success",
+              "name": "Run npm ci",
+              "number": 8,
+              "startedAt": "2026-10-22T18:40:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:40:47Z",
+              "conclusion": "success",
+              "name": "Run npm run check:secrets",
+              "number": 9,
+              "startedAt": "2026-10-22T18:40:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:40:49Z",
+              "conclusion": "success",
+              "name": "Run npm run test:release",
+              "number": 10,
+              "startedAt": "2026-10-22T18:40:47Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:41:49Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core",
+              "number": 11,
+              "startedAt": "2026-10-22T18:40:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:41:49Z",
+              "conclusion": "success",
+              "name": "Run npm run test:release-gates",
+              "number": 12,
+              "startedAt": "2026-10-22T18:41:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:41:49Z",
+              "conclusion": "success",
+              "name": "Require signed updater packages",
+              "number": 13,
+              "startedAt": "2026-10-22T18:41:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:50:29Z",
+              "conclusion": "success",
+              "name": "Run npm run release:linux",
+              "number": 14,
+              "startedAt": "2026-10-22T18:41:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:03Z",
+              "conclusion": "success",
+              "name": "Exercise native SDK update and signed-payload refusal on Linux",
+              "number": 15,
+              "startedAt": "2026-10-22T18:50:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:05Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 16,
+              "startedAt": "2026-10-22T18:51:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:08Z",
+              "conclusion": "success",
+              "name": "Remove build-time WebKit to verify self-contained helpers",
+              "number": 17,
+              "startedAt": "2026-10-22T18:51:05Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:45Z",
+              "conclusion": "failure",
+              "name": "Verify AppImageHub-compatible launch and visible window",
+              "number": 18,
+              "startedAt": "2026-10-22T18:51:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:46Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 19,
+              "startedAt": "2026-10-22T18:51:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:46Z",
+              "conclusion": "skipped",
+              "name": "Verify install and update of the exact Linux candidate",
+              "number": 20,
+              "startedAt": "2026-10-22T18:51:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:46Z",
+              "conclusion": "skipped",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 21,
+              "startedAt": "2026-10-22T18:51:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:52Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 22,
+              "startedAt": "2026-10-22T18:51:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:52Z",
+              "conclusion": "skipped",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 42,
+              "startedAt": "2026-10-22T18:51:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:52Z",
+              "conclusion": "skipped",
+              "name": "Post Run actions/setup-node@v4",
+              "number": 43,
+              "startedAt": "2026-10-22T18:51:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:52Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 44,
+              "startedAt": "2026-10-22T18:51:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:51:52Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 45,
+              "startedAt": "2026-10-22T18:51:52Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002037881"
+        },
+        {
+          "completedAt": "2026-10-22T18:14:45Z",
+          "conclusion": "skipped",
+          "databaseId": 120002039539,
+          "name": "mac-sdk-probe",
+          "startedAt": "2026-10-22T18:14:45Z",
+          "status": "completed",
+          "steps": [],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002039539"
+        },
+        {
+          "completedAt": "2026-10-22T18:14:57Z",
+          "conclusion": "success",
+          "databaseId": 120002039920,
+          "name": "windows / installer-scripts (pwsh)",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:49Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:48Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:53Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:53Z",
+              "conclusion": "skipped",
+              "name": "Verify checksum manifests in Windows PowerShell 5.1",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:54Z",
+              "conclusion": "success",
+              "name": "Verify checksum manifests in PowerShell 7",
+              "number": 4,
+              "startedAt": "2026-10-22T18:14:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:56Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "2026-10-22T18:14:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:56Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-22T18:14:56Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002039920"
+        },
+        {
+          "completedAt": "2026-10-22T18:15:07Z",
+          "conclusion": "success",
+          "databaseId": 120002039930,
+          "name": "windows / installer-scripts (powershell)",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:52Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:58Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:03Z",
+              "conclusion": "success",
+              "name": "Verify checksum manifests in Windows PowerShell 5.1",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:03Z",
+              "conclusion": "skipped",
+              "name": "Verify checksum manifests in PowerShell 7",
+              "number": 4,
+              "startedAt": "2026-10-22T18:15:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:05Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 8,
+              "startedAt": "2026-10-22T18:15:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:05Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 9,
+              "startedAt": "2026-10-22T18:15:05Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002039930"
+        },
+        {
+          "completedAt": "2026-10-22T18:38:41Z",
+          "conclusion": "success",
+          "databaseId": 120002039962,
+          "name": "extensions / linux-x64",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:51Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:53Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:54Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v4",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:04Z",
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 4,
+              "startedAt": "2026-10-22T18:14:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:16Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 5,
+              "startedAt": "2026-10-22T18:15:04Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:35:33Z",
+              "conclusion": "success",
+              "name": "Install Linux native dependencies",
+              "number": 6,
+              "startedAt": "2026-10-22T18:15:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:35:33Z",
+              "conclusion": "success",
+              "name": "Start an unlocked disposable Linux credential store",
+              "number": 7,
+              "startedAt": "2026-10-22T18:35:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:56Z",
+              "conclusion": "success",
+              "name": "Build the native account helper",
+              "number": 8,
+              "startedAt": "2026-10-22T18:35:33Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:27Z",
+              "conclusion": "success",
+              "name": "Install pinned official VS Code and Codex into disposable directories",
+              "number": 9,
+              "startedAt": "2026-10-22T18:36:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:32Z",
+              "conclusion": "success",
+              "name": "Test protocol, activity guards, rollback and native account storage",
+              "number": 10,
+              "startedAt": "2026-10-22T18:37:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:32Z",
+              "conclusion": "skipped",
+              "name": "Verify native macOS Keychain access",
+              "number": 11,
+              "startedAt": "2026-10-22T18:37:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:35Z",
+              "conclusion": "success",
+              "name": "Package the platform-specific pre-release",
+              "number": 12,
+              "startedAt": "2026-10-22T18:37:32Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:58Z",
+              "conclusion": "success",
+              "name": "Test packaged live attachment without reloading VS Code or Codex",
+              "number": 13,
+              "startedAt": "2026-10-22T18:37:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:20Z",
+              "conclusion": "success",
+              "name": "Test packaged isolated startup and project account restoration",
+              "number": 14,
+              "startedAt": "2026-10-22T18:37:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:21Z",
+              "conclusion": "success",
+              "name": "Check extension dependency advisories",
+              "number": 15,
+              "startedAt": "2026-10-22T18:38:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:23Z",
+              "conclusion": "success",
+              "name": "Upload tested installable package",
+              "number": 16,
+              "startedAt": "2026-10-22T18:38:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:24Z",
+              "conclusion": "success",
+              "name": "Upload synthetic test evidence",
+              "number": 17,
+              "startedAt": "2026-10-22T18:38:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:35Z",
+              "conclusion": "success",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 32,
+              "startedAt": "2026-10-22T18:38:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@v4",
+              "number": 33,
+              "startedAt": "2026-10-22T18:38:35Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:38Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 34,
+              "startedAt": "2026-10-22T18:38:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:38Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 35,
+              "startedAt": "2026-10-22T18:38:38Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002039962"
+        },
+        {
+          "completedAt": "2026-10-22T18:27:31Z",
+          "conclusion": "success",
+          "databaseId": 120002040104,
+          "name": "extensions / darwin-arm64",
+          "startedAt": "2026-10-22T18:14:49Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:52Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:54Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:56Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v4",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:06Z",
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 4,
+              "startedAt": "2026-10-22T18:14:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:44Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 5,
+              "startedAt": "2026-10-22T18:15:06Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:44Z",
+              "conclusion": "skipped",
+              "name": "Install Linux native dependencies",
+              "number": 6,
+              "startedAt": "2026-10-22T18:15:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:44Z",
+              "conclusion": "skipped",
+              "name": "Start an unlocked disposable Linux credential store",
+              "number": 7,
+              "startedAt": "2026-10-22T18:15:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:19:09Z",
+              "conclusion": "success",
+              "name": "Build the native account helper",
+              "number": 8,
+              "startedAt": "2026-10-22T18:15:44Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:19:57Z",
+              "conclusion": "success",
+              "name": "Install pinned official VS Code and Codex into disposable directories",
+              "number": 9,
+              "startedAt": "2026-10-22T18:19:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:20:19Z",
+              "conclusion": "success",
+              "name": "Test protocol, activity guards, rollback and native account storage",
+              "number": 10,
+              "startedAt": "2026-10-22T18:19:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:21:31Z",
+              "conclusion": "success",
+              "name": "Verify native macOS Keychain access",
+              "number": 11,
+              "startedAt": "2026-10-22T18:20:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:21:40Z",
+              "conclusion": "success",
+              "name": "Package the platform-specific pre-release",
+              "number": 12,
+              "startedAt": "2026-10-22T18:21:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:25:08Z",
+              "conclusion": "success",
+              "name": "Test packaged live attachment without reloading VS Code or Codex",
+              "number": 13,
+              "startedAt": "2026-10-22T18:21:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:26:19Z",
+              "conclusion": "success",
+              "name": "Test packaged isolated startup and project account restoration",
+              "number": 14,
+              "startedAt": "2026-10-22T18:25:08Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:26:20Z",
+              "conclusion": "success",
+              "name": "Check extension dependency advisories",
+              "number": 15,
+              "startedAt": "2026-10-22T18:26:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:26:23Z",
+              "conclusion": "success",
+              "name": "Upload tested installable package",
+              "number": 16,
+              "startedAt": "2026-10-22T18:26:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:26:25Z",
+              "conclusion": "success",
+              "name": "Upload synthetic test evidence",
+              "number": 17,
+              "startedAt": "2026-10-22T18:26:23Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:16Z",
+              "conclusion": "success",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 32,
+              "startedAt": "2026-10-22T18:26:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:21Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@v4",
+              "number": 33,
+              "startedAt": "2026-10-22T18:27:16Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:22Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 34,
+              "startedAt": "2026-10-22T18:27:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:25Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 35,
+              "startedAt": "2026-10-22T18:27:22Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040104"
+        },
+        {
+          "completedAt": "2026-10-22T18:38:49Z",
+          "conclusion": "success",
+          "databaseId": 120002040127,
+          "name": "extensions / darwin-x64",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:52Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:56Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:53Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:00Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v4",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:18Z",
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 4,
+              "startedAt": "2026-10-22T18:15:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:16:38Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 5,
+              "startedAt": "2026-10-22T18:15:18Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:16:38Z",
+              "conclusion": "skipped",
+              "name": "Install Linux native dependencies",
+              "number": 6,
+              "startedAt": "2026-10-22T18:16:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:16:38Z",
+              "conclusion": "skipped",
+              "name": "Start an unlocked disposable Linux credential store",
+              "number": 7,
+              "startedAt": "2026-10-22T18:16:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:40Z",
+              "conclusion": "success",
+              "name": "Build the native account helper",
+              "number": 8,
+              "startedAt": "2026-10-22T18:16:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:46Z",
+              "conclusion": "success",
+              "name": "Install pinned official VS Code and Codex into disposable directories",
+              "number": 9,
+              "startedAt": "2026-10-22T18:27:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:15Z",
+              "conclusion": "success",
+              "name": "Test protocol, activity guards, rollback and native account storage",
+              "number": 10,
+              "startedAt": "2026-10-22T18:30:46Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:34:29Z",
+              "conclusion": "success",
+              "name": "Verify native macOS Keychain access",
+              "number": 11,
+              "startedAt": "2026-10-22T18:31:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:34:39Z",
+              "conclusion": "success",
+              "name": "Package the platform-specific pre-release",
+              "number": 12,
+              "startedAt": "2026-10-22T18:34:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:35:40Z",
+              "conclusion": "success",
+              "name": "Test packaged live attachment without reloading VS Code or Codex",
+              "number": 13,
+              "startedAt": "2026-10-22T18:34:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:25Z",
+              "conclusion": "success",
+              "name": "Test packaged isolated startup and project account restoration",
+              "number": 14,
+              "startedAt": "2026-10-22T18:35:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:26Z",
+              "conclusion": "success",
+              "name": "Check extension dependency advisories",
+              "number": 15,
+              "startedAt": "2026-10-22T18:36:25Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:28Z",
+              "conclusion": "success",
+              "name": "Upload tested installable package",
+              "number": 16,
+              "startedAt": "2026-10-22T18:36:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:29Z",
+              "conclusion": "success",
+              "name": "Upload synthetic test evidence",
+              "number": 17,
+              "startedAt": "2026-10-22T18:36:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:36Z",
+              "conclusion": "success",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 32,
+              "startedAt": "2026-10-22T18:36:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:40Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@v4",
+              "number": 33,
+              "startedAt": "2026-10-22T18:38:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:41Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 34,
+              "startedAt": "2026-10-22T18:38:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:41Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 35,
+              "startedAt": "2026-10-22T18:38:41Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040127"
+        },
+        {
+          "completedAt": "2026-10-22T18:44:39Z",
+          "conclusion": "success",
+          "databaseId": 120002040278,
+          "name": "windows / windows",
+          "startedAt": "2026-10-22T18:14:48Z",
+          "status": "completed",
+          "steps": [
+            {
+              "completedAt": "2026-10-22T18:14:51Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-10-22T18:14:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:14:56Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-10-22T18:14:51Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:15Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-node@v4",
+              "number": 3,
+              "startedAt": "2026-10-22T18:14:56Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:15:36Z",
+              "conclusion": "success",
+              "name": "Run dtolnay/rust-toolchain@stable",
+              "number": 4,
+              "startedAt": "2026-10-22T18:15:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:16:31Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 5,
+              "startedAt": "2026-10-22T18:15:36Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:17:11Z",
+              "conclusion": "success",
+              "name": "Run npm ci",
+              "number": 6,
+              "startedAt": "2026-10-22T18:16:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:21:57Z",
+              "conclusion": "success",
+              "name": "Run npm run build:desktop",
+              "number": 7,
+              "startedAt": "2026-10-22T18:17:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:22:03Z",
+              "conclusion": "success",
+              "name": "Run cargo fmt --manifest-path tauri/src-tauri/Cargo.toml -- --check",
+              "number": 8,
+              "startedAt": "2026-10-22T18:21:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:25:01Z",
+              "conclusion": "success",
+              "name": "Run cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml",
+              "number": 9,
+              "startedAt": "2026-10-22T18:22:03Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:25:21Z",
+              "conclusion": "success",
+              "name": "Run npm test",
+              "number": 10,
+              "startedAt": "2026-10-22T18:25:01Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:25:27Z",
+              "conclusion": "success",
+              "name": "Run npm ci",
+              "number": 11,
+              "startedAt": "2026-10-22T18:25:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:26:30Z",
+              "conclusion": "success",
+              "name": "Run npm run build:helper",
+              "number": 12,
+              "startedAt": "2026-10-22T18:25:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:27:22Z",
+              "conclusion": "success",
+              "name": "Install official VS Code and Codex extension in disposable directories",
+              "number": 13,
+              "startedAt": "2026-10-22T18:26:30Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:28:00Z",
+              "conclusion": "success",
+              "name": "Verify two native VS Code accounts and isolated PowerShell CLI",
+              "number": 14,
+              "startedAt": "2026-10-22T18:27:22Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:29:07Z",
+              "conclusion": "success",
+              "name": "Install the official signed Codex Windows MSIX in the disposable runner",
+              "number": 15,
+              "startedAt": "2026-10-22T18:28:00Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:29:14Z",
+              "conclusion": "success",
+              "name": "Verify supported standalone isolation or safe refusal of unverified versions",
+              "number": 16,
+              "startedAt": "2026-10-22T18:29:07Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:29:20Z",
+              "conclusion": "success",
+              "name": "Run npm test",
+              "number": 17,
+              "startedAt": "2026-10-22T18:29:14Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:29:34Z",
+              "conclusion": "success",
+              "name": "Package Windows VSIX and extract the exact package for UI tests",
+              "number": 18,
+              "startedAt": "2026-10-22T18:29:20Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:30:17Z",
+              "conclusion": "success",
+              "name": "Verify packaged live attachment in real Windows VS Code",
+              "number": 19,
+              "startedAt": "2026-10-22T18:29:34Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:09Z",
+              "conclusion": "success",
+              "name": "Verify packaged native wrapper startup and account restoration",
+              "number": 20,
+              "startedAt": "2026-10-22T18:30:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:13Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 21,
+              "startedAt": "2026-10-22T18:31:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:31:15Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 22,
+              "startedAt": "2026-10-22T18:31:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:40Z",
+              "conclusion": "success",
+              "name": "Build Windows package and optional signed updater",
+              "number": 23,
+              "startedAt": "2026-10-22T18:31:15Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:36:41Z",
+              "conclusion": "success",
+              "name": "Normalize the manifest-derived Windows installer filename",
+              "number": 24,
+              "startedAt": "2026-10-22T18:36:40Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:19Z",
+              "conclusion": "success",
+              "name": "Install, update and restart the exact packaged Windows app",
+              "number": 25,
+              "startedAt": "2026-10-22T18:36:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:54Z",
+              "conclusion": "success",
+              "name": "Exercise native SDK update and signed-payload refusal on Windows",
+              "number": 26,
+              "startedAt": "2026-10-22T18:37:19Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:55Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 27,
+              "startedAt": "2026-10-22T18:37:54Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:37:58Z",
+              "conclusion": "success",
+              "name": "Install isolated native GUI test driver",
+              "number": 28,
+              "startedAt": "2026-10-22T18:37:55Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:24Z",
+              "conclusion": "success",
+              "name": "Observe actual Windows sign-in GUI and terminal windows",
+              "number": 29,
+              "startedAt": "2026-10-22T18:37:58Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:24Z",
+              "conclusion": "skipped",
+              "name": "Start real GUI authentication with private instructions",
+              "number": 30,
+              "startedAt": "2026-10-22T18:38:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:24Z",
+              "conclusion": "skipped",
+              "name": "Wait for encrypted real GUI device instructions",
+              "number": 31,
+              "startedAt": "2026-10-22T18:38:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:24Z",
+              "conclusion": "skipped",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 32,
+              "startedAt": "2026-10-22T18:38:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:24Z",
+              "conclusion": "skipped",
+              "name": "Verify real GUI authentication and cleanup completion",
+              "number": 33,
+              "startedAt": "2026-10-22T18:38:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:26Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 34,
+              "startedAt": "2026-10-22T18:38:24Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:27Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 35,
+              "startedAt": "2026-10-22T18:38:26Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:38:29Z",
+              "conclusion": "success",
+              "name": "Run actions/upload-artifact@v4",
+              "number": 36,
+              "startedAt": "2026-10-22T18:38:27Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:44:31Z",
+              "conclusion": "success",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 70,
+              "startedAt": "2026-10-22T18:38:29Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:44:31Z",
+              "conclusion": "success",
+              "name": "Post Run actions/setup-node@v4",
+              "number": 71,
+              "startedAt": "2026-10-22T18:44:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:44:34Z",
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 72,
+              "startedAt": "2026-10-22T18:44:31Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-10-22T18:44:34Z",
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 73,
+              "startedAt": "2026-10-22T18:44:34Z",
+              "status": "completed"
+            }
+          ],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002040278"
+        },
+        {
+          "completedAt": "2026-10-22T18:14:45Z",
+          "conclusion": "skipped",
+          "databaseId": 120002041668,
+          "name": "windows / gui",
+          "startedAt": "2026-10-22T18:14:46Z",
+          "status": "completed",
+          "steps": [],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120002041668"
+        },
+        {
+          "completedAt": "2026-10-22T18:51:54Z",
+          "conclusion": "skipped",
+          "databaseId": 120021195126,
+          "name": "prepare-draft",
+          "startedAt": "2026-10-22T18:51:55Z",
+          "status": "completed",
+          "steps": [],
+          "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285/job/120021195126"
+        }
+      ],
+      "status": "completed",
+      "updatedAt": "2026-10-22T18:51:55Z",
+      "url": "https://github.com/wrestle-R/multi-codex/actions/runs/39829636285"
+    },
+    "changedPaths": [
+      ".github/workflows/ui-package-release.yml",
+      "tauri/scripts/appimage-catalog-display-smoke.sh",
+      "tauri/src/App.test.tsx",
+      "tauri/src/App.tsx",
+      "tauri/src/lib/themes.ts"
+    ],
+    "knownBaselineFailure": "Linux catalog duplicate-launch gate could not reach abstract session D-Bus through Firejail network namespace; final run must pass with filesystem test bus.",
+    "scope": "Only frontend palette compatibility, the isolated Linux test-bus wrapper and guarded package workflow changed. Final app payloads rebuilt and SDK-tested at candidateSource; unchanged VSIX packages and native/core isolation evidence reused."
+  },
+  "nativeSdkReports": [
+    {
+      "candidateSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "candidateVersion": "1.7.3",
+      "platform": "Darwin",
+      "architecture": "arm64",
+      "payloadSha256": "755e5adc97ccd0d1a4fb6b1db5718e8bd7b6987d5b0d44f3da6c83231cb24118",
+      "passed": true,
+      "checks": {
+        "initialBundleSignatureIntegrity": true,
+        "sealedBundleHelperFingerprint": true,
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "updatedBundleSignatureIntegrity": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    },
+    {
+      "candidateSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "candidateVersion": "1.7.3",
+      "platform": "Linux",
+      "architecture": "x86_64",
+      "payloadSha256": "cb91b5916555b54941d39a8df890b3f57964c888bdb5568f3d212fca4ea85018",
+      "passed": true,
+      "checks": {
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    },
+    {
+      "candidateSource": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+      "candidateVersion": "1.7.3",
+      "platform": "Windows",
+      "architecture": "AMD64",
+      "payloadSha256": "10a8cabc87336a46dddbd8a85169f9494f9b782f3ca2b54197aaa575c9acce86",
+      "passed": true,
+      "checks": {
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    }
+  ],
+  "installerReports": {
+    "Linux": {
+      "tag": "v1.7.3",
+      "appImageSha256": "cb91b5916555b54941d39a8df890b3f57964c888bdb5568f3d212fca4ea85018",
+      "checks": [
+        {
+          "script": "install-app.sh",
+          "exactReleasedAppImageInstalled": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "defaultLoginUnchanged": true
+        },
+        {
+          "script": "update-app.sh",
+          "exactReleasedAppImageInstalled": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "defaultLoginUnchanged": true
+        }
+      ],
+      "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
+    },
+    "Darwin": {
+      "tag": "v1.7.3",
+      "dmgSha256": "6ca8bad85c5f029fe4526cd65906a45ac310effc7d89f4914e7642288e183f2f",
+      "checks": [
+        {
+          "script": "install-app.sh",
+          "strictUnsignedRejection": true,
+          "explicitUnsignedInstall": true,
+          "installedVersion": "1.7.3",
+          "signatureIntegrity": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "installedNativeStartupAndRestart": true,
+          "stagingCleaned": true
+        },
+        {
+          "script": "update-app.sh",
+          "strictUnsignedRejection": true,
+          "explicitUnsignedInstall": true,
+          "installedVersion": "1.7.3",
+          "signatureIntegrity": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "installedNativeStartupAndRestart": true,
+          "stagingCleaned": true
+        }
+      ],
+      "notarization": "not available; first-open approval remains controlled by macOS"
+    },
+    "Windows": {
+      "authenticatedAccounts": "synthetic fixtures; no real credentials",
+      "nativeVisibleWindow": true,
+      "environment": "Microsoft Windows NT 10.0.26100.0",
+      "profileAndConversationFixturesPreserved": true,
+      "checksumMismatchRejected": true,
+      "startMenuShortcut": true,
+      "install": true,
+      "maximized": true,
+      "passed": true,
+      "unicodeAndSpacedPaths": true,
+      "installerSHA256": "10a8cabc87336a46dddbd8a85169f9494f9b782f3ca2b54197aaa575c9acce86",
+      "testedAt": "2026-10-22T19:15:47.2541720Z",
+      "restart": true,
+      "disposableFixtureCleanup": true,
+      "closeExits": true,
+      "update": true
+    }
+  },
+  "macosLifecycle": {
+    "passed": true,
+    "version": "1.7.3",
+    "source": "1a06c422f800dab2b92777f22483ae85c71d36b7",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.6.2\nBuildVersion:\t\t25G83\n",
+    "checks": [
+      {
+        "upgradeNotesAcknowledged": true,
+        "dismissal": "native Escape key"
+      },
+      {
+        "nativeHudDimensions": [
+          340,
+          88
+        ],
+        "shortcutHideRestore": true,
+        "fullscreenHideRestore": true
+      },
+      {
+        "cycle": 1,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 1,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 2,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 2,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 3,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 3,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "accountLaunchAfterCloseCycles": true
+      },
+      {
+        "quit": "menu-bar",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      },
+      {
+        "quit": "command-q",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      },
+      {
+        "quit": "dock-quit",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      }
+    ],
+    "fixtureBytesUnchanged": true
+  },
+  "singleInstanceEvidence": {
+    "macosRuns": [
+      {
+        "startup": 1,
+        "visibleWindow": true,
+        "stayedRunning": true,
+        "duplicateLaunchesExited": 2,
+        "originalProcessPreserved": true
+      },
+      {
+        "startup": 2,
+        "visibleWindow": true,
+        "stayedRunning": true,
+        "duplicateLaunchesExited": 2,
+        "originalProcessPreserved": true
+      }
+    ],
+    "linuxAppImage": "Duplicate launches exited; original app and one launcher window preserved"
+  },
+  "localValidation": {
+    "previousSelectedChecksPassed": 8,
+    "websiteThemeChecksPassed": 6,
+    "paletteCompatibilityCheck": "1 passed, 85 skipped; app palettes remain local while older shared Orange settings reload",
+    "typescript": "tsc --noEmit passed at candidateSource",
+    "previousAppBrowser": "Orbit centering/switches/save, Settings at 1280/768/480, palette/mode persistence, no page errors",
+    "websitePublicationChecks": {
+      "status": "passed",
+      "build": "Next.js 16.3.8 production build including v1.7.3 static release route and TypeScript validation",
+      "browser": "Installed Google Chrome, headless, one worker",
+      "checksPassed": 10,
+      "scope": "Release timeline and actual publication date ordering, new full release page, stable/all filtering, platform download/install/update links, guide navigation, screenshots, copy controls and 320/768/1440 layouts",
+      "testedAt": "2026-10-22T19:24:44.252212+00:00"
+    }
+  },
+  "limitations": [
+    "No installed local launcher upgrade or production Update-button exercise; real clients/accounts unchanged.",
+    "Windows Orbit unsupported; Windows singleton runtime not asserted; macOS 27 unavailable; Mac ad-hoc signed without Developer ID/notarization.",
+    "No comprehensive terminal/DPI/monitor/accessibility/soak verification; packaged Linux/macOS duplicate-launch assertions do not establish every desktop configuration.",
+    "Older launcher processes do not participate in the new singleton guard; quit older copies normally."
+  ],
+  "publication": {
+    "verifiedAt": "2026-10-22T19:23:14.619163+00:00",
+    "publishedAt": "2026-10-22T19:22:46Z",
+    "url": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.7.3",
+    "allServerDigestsMatch": true,
+    "assetCount": 19,
+    "previousStableUnchanged": {
+      "version": "1.7.2",
+      "assetCount": 19,
+      "allServerDigestsMatchExistingEvidence": true
+    },
+    "publicDownloadLinks": {
+      "status": "passed",
+      "count": 19,
+      "method": "curl HEAD requests following redirects to published GitHub asset URLs",
+      "verifiedAt": "2026-10-22T19:26:11.287725+00:00"
+    }
+  }
+}
