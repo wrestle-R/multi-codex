@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import assert from 'node:assert/strict';
-import { writeFile, readFile } from 'node:fs/promises';
+import { writeFile, readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 async function waitFor<T>(read: () => Promise<T>, check: (value: T) => boolean, timeout = 20000): Promise<T> {
@@ -92,6 +92,30 @@ export async function run() {
   assert.equal(continued.thread.id, thread.thread.id); assert.equal(continued.thread.turns.length, 2);
   checks.push('Existing chat continued after switching accounts without creating a new thread');
   await inspectPanel('continued-Account B');
+  if (process.env.MULTI_CODEX_TEST_ORBIT_UI === '1') {
+    const selected = async () => {
+      const directory = join(root, 'data', 'hud', 'instances');
+      const files = await readdir(directory).catch(() => []);
+      return Promise.all(files.filter(name => name.startsWith('bridge-') && name.endsWith('.json')).map(async name => JSON.parse(await readFile(join(directory, name), 'utf8'))));
+    };
+    const phase = 'orbit-submit Account B';
+    await writeFile(join(root, 'ui-phase.json'), JSON.stringify({ label: phase, orbitSubmit: true }));
+    await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === phase);
+    const visible = await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 1)).catch(async error => { throw new Error(`${error.message}; selected UI thread=${(await api.getState()).bridge.testOrbitSelected}; events=${JSON.stringify((await api.getState()).bridge.testOrbitEvents)}`); });
+    const snapshot = visible.find(s => s.profileId === b.id && Object.keys(s.sessions).length === 1);
+    const visibleId = Object.keys(snapshot.sessions)[0];
+    assert.notEqual(visibleId, thread.thread.id, 'A backend-only chat was mistaken for the selected UI conversation');
+    await waitFor<any>(() => api.getState(), value => value.bridge.canSwitch, 25000);
+    const submitted = await api.testRequest('thread/read', { threadId: visibleId, includeTurns: true });
+    assert.equal(submitted.thread.turns.length, 1, 'A single UI submission created duplicate turns');
+    await api.testRequest('thread/read', { threadId: thread.thread.id, includeTurns: false });
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    assert.deepEqual(Object.keys((await selected()).find(s => s.profileId === b.id).sessions), [visibleId]);
+    checks.push('Orbit counts the actual submitted VS Code UI chat and ignores retained backend history');
+    await vscode.commands.executeCommand('chatgpt.newChat');
+    await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 0));
+    checks.push('VS Code New Chat removes the previous UI conversation from Orbit');
+  }
   await assert.rejects(() => api.switchAccount('00000000-0000-4000-8000-000000000000'), /not found/);
   assert.equal((await api.getState()).bridge.selectedId, b.id);
   checks.push('Missing account leaves the previous verified account active');
