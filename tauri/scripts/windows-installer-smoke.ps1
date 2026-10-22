@@ -115,7 +115,27 @@ function Check-Window {
         [void][LauncherWindows]::SendMessage($app.MainWindowHandle,0x0010,[IntPtr]::Zero,[IntPtr]::Zero)
         if (!$app.WaitForExit(15000)) { throw 'Windows close did not exit the launcher' }
         Assert-Fixtures
-    } finally { if (!$app.HasExited) { Stop-Process -Id $app.Id -Force; $app.WaitForExit() } }
+    } finally {
+        if (!$app.HasExited) { Stop-Process -Id $app.Id -Force; $app.WaitForExit() }
+        $app.Dispose()
+    }
+}
+function Remove-DisposableFixture {
+    # WebView children and COM shortcut wrappers can outlive the window briefly.
+    # Do not report success until the exact fixture is fully removed.
+    [GC]::Collect()
+    [GC]::WaitForPendingFinalizers()
+    $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    do {
+        try {
+            Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
+            return
+        } catch {
+            if (!(Test-Path -LiteralPath $root)) { return }
+            if ([DateTime]::UtcNow -ge $deadline) { throw }
+            Start-Sleep -Milliseconds 500
+        }
+    } while ($true)
 }
 try {
     $scriptsRoot = (Resolve-Path (Join-Path $PSScriptRoot '../../scripts')).Path
@@ -135,9 +155,10 @@ try {
     Check-Window -LaunchPath $startMenuShortcut
     Check-Window
     $result = @{ passed=$true; install=$true; update=$true; restart=$true; nativeVisibleWindow=$true; startMenuShortcut=$true; maximized=$true; closeExits=$true; checksumMismatchRejected=$true; profileAndConversationFixturesPreserved=$true; unicodeAndSpacedPaths=$true; installerSHA256=(Get-FileHash $candidateInstallerPath -Algorithm SHA256).Hash.ToLower(); authenticatedAccounts='synthetic fixtures; no real credentials'; environment=[Environment]::OSVersion.VersionString; testedAt=[DateTime]::UtcNow.ToString('o') }
-    $result | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-result.json')
-    $result | ConvertTo-Json
 } finally {
     $env:APPDATA=$oldRoaming; $env:CODEX_HOME=$oldHome
-    Remove-Item -LiteralPath $root -Recurse -Force
+    Remove-DisposableFixture
 }
+$result.disposableFixtureCleanup = $true
+$result | ConvertTo-Json | Set-Content (Join-Path $evidence 'installer-result.json')
+$result | ConvertTo-Json

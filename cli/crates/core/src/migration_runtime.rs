@@ -194,7 +194,10 @@ mod tests {
     use std::os::unix::{fs::symlink, net::UnixListener};
     #[test]
     fn stale_entries_are_retained_without_following_links_or_changing_history() {
-        let temporary = tempfile::tempdir().unwrap();
+        let temporary = tempfile::Builder::new()
+            .prefix("mc")
+            .tempdir_in("/tmp")
+            .unwrap();
         let data = temporary.path();
         let id = uuid::Uuid::new_v4().to_string();
         let profile = data.join("profiles").join(&id);
