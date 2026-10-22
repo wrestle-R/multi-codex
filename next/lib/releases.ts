@@ -2,6 +2,12 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.7.3", stability: "stable" as const, publishedAt: "2026-10-22T19:22:46Z", title: "One launcher, a calmer header and better window manners", highlights: [
+    "Opening Multi Codex again returns to the existing launcher, with one launcher and tray owner.",
+    "A roomy Settings panel groups appearance, Orbit, launch preferences and storage; Orbit controls open in a centered dialog.",
+    "Theme changes are immediate, with more app and website palettes and accessories for your existing Orbiters.",
+    "The launcher opens maximized, then respects normal resizing, minimizing and focus changes.",
+  ] },
   { tag: "v1.7.2", stability: "stable" as const, publishedAt: "2026-10-17T06:31:06Z", title: "Persistent recent chats and a quieter Orbit", highlights: [
     "Two recent Desktop chats per account stay available while idle and navigate to their exact conversation.",
     "Codex Desktop opens directly without selecting or opening a project folder.",
