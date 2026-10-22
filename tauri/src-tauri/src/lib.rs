@@ -1020,6 +1020,8 @@ pub fn run() {
             clear_shared_chats,
             updater::update_app,
             updater::check_app_update,
+            updater::get_update_channel,
+            updater::set_update_channel,
             get_launch_environment,
             get_launch_targets,
             list_workspace_directories,
