@@ -21,4 +21,18 @@ for _ in 1 2 3 4 5; do
 done
 display_number="$(cat "$display_root/number")"
 [[ "$display_number" =~ ^[0-9]+$ ]] || { cat "$display_root/xvfb.log" >&2; exit 1; }
-DISPLAY=":$display_number" env -u XAUTHORITY dbus-run-session -- bash "$(dirname "$0")/appimage-catalog-smoke.sh" "$@"
+# Firejail --net=none isolates abstract Unix sockets. Use a filesystem session
+# bus so both disposable AppImage processes can reach the same singleton owner.
+cat >"$display_root/session.conf" <<EOF
+<busconfig>
+  <type>session</type>
+  <listen>unix:path=$display_root/session-bus</listen>
+  <auth>EXTERNAL</auth>
+  <policy context="default">
+    <allow send_destination="*"/>
+    <allow receive_sender="*"/>
+    <allow own="*"/>
+  </policy>
+</busconfig>
+EOF
+DISPLAY=":$display_number" env -u XAUTHORITY dbus-run-session --config-file="$display_root/session.conf" -- bash "$(dirname "$0")/appimage-catalog-smoke.sh" "$@"
