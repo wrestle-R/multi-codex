@@ -186,6 +186,7 @@ export interface LaunchResult {
 }
 
 export interface ExecutableSettings {
+  colorTheme?: "sage" | "ocean" | "sand" | "rose" | "plum" | "orange" | null
   codePath: string | null
   codexPath: string | null
   globalCodexHome: string | null

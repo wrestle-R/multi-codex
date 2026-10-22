@@ -26,12 +26,16 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
+          cache-on-failure: true
       - name: Check Windows owned-path normalization early
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force tauri/resources/managed-extension | Out-Null
           cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_verbatim_and_drive_paths_share_one_owned_boundary
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml windows_zero_length
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build protocol client
         working-directory: extension
         run: |
@@ -98,7 +102,15 @@ jobs:
           npm run build:desktop
           npm test
           npm run test:release-gates
-          cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            # The PowerShell Add-Type compiler competes with the large paging
+            # fixture under runner load. Keep its assertion and 45s budget,
+            # execute it first in isolation, then run every remaining test.
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib windows_background_helpers_have_no_console -- --test-threads=1
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib -- --skip windows_background_helpers_have_no_console
+          else
+            cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
+          fi
           npm --prefix ../extension test
       - name: Test production broker and migration service
         working-directory: extension
@@ -108,7 +120,11 @@ jobs:
         run: |
           export MULTI_CODEX_TEST_EXTENSIONS="$RUNNER_TEMP/official-extensions"
           export SHARED_GATE_OUTPUT="$RUNNER_TEMP/shared-gate-public"
-          node scripts/native-sharing-acceptance.mjs
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a node scripts/native-sharing-acceptance.mjs
+          else
+            node scripts/native-sharing-acceptance.mjs
+          fi
       - name: Verify native Windows PowerShell installer regressions
         if: runner.os == 'Windows'
         shell: pwsh

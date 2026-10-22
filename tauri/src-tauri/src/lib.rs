@@ -1,42 +1,143 @@
-#[cfg(any(target_os = "macos", test))]
-mod account_menu;
-#[cfg(target_os = "linux")]
-mod application_icons;
-mod chat_cleanup;
-mod desktop_environment;
-#[cfg(unix)]
-mod desktop_integration;
-#[cfg(windows)]
-#[path = "windows_integration.rs"]
-mod desktop_integration;
-mod extension_accounts;
-mod file_security;
-mod launch;
-mod launch_targets;
-mod legacy_cleanup;
-#[cfg(target_os = "linux")]
-mod linux_desktops;
-mod managed_files;
-mod managed_launch;
-mod managed_settings;
-mod migration;
-mod migration_dependencies;
-mod process;
-mod profile_layout;
-mod profile_restore;
-mod profiles;
+#[cfg(not(test))]
+use multi_codex_core::settings;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/settings.rs"]
 mod settings;
-mod shared_chat_cleanup;
-mod shared_chat_import;
+#[cfg(not(test))]
+use multi_codex_core::migration;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/migration.rs"]
+mod migration;
+#[cfg(not(test))]
+use multi_codex_core::desktop_environment;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/desktop_environment.rs"]
+mod desktop_environment;
+#[cfg(not(test))]
+use multi_codex_core::profile_layout;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/profile_layout.rs"]
+mod profile_layout;
+#[cfg(not(test))]
+use multi_codex_core::launch_targets;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/launch_targets.rs"]
+mod launch_targets;
+#[cfg(not(test))]
+use multi_codex_core::extension_accounts;
+#[cfg(target_os = "linux")]
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/application_icons.rs"]
+mod application_icons;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/extension_accounts.rs"]
+mod extension_accounts;
+#[cfg(target_os = "linux")]
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/linux_desktops.rs"]
+mod linux_desktops;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/managed_files.rs"]
+mod managed_files;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/shared_chat_leases.rs"]
 mod shared_chat_leases;
-mod shared_chats;
-mod shared_storage_queue;
-mod shared_vscode;
+#[cfg(not(test))]
+use multi_codex_core::profiles;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/profiles.rs"]
+mod profiles;
+#[cfg(not(test))]
+use multi_codex_core::terminals;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/terminals.rs"]
 mod terminals;
-mod updater;
+#[cfg(unix)]
+#[cfg(not(test))]
+use multi_codex_core::desktop_integration;
+#[cfg(unix)]
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/desktop_integration.rs"]
+mod desktop_integration;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/shared_chat_import.rs"]
+mod shared_chat_import;
+#[cfg(windows)]
+#[cfg(not(test))]
+use multi_codex_core::windows_platform;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/file_security.rs"]
+mod file_security;
+#[cfg(windows)]
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/windows_platform.rs"]
+mod windows_platform;
+#[cfg(not(test))]
+use multi_codex_core::launch;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/launch.rs"]
+mod launch;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/shared_chats.rs"]
+mod shared_chats;
+#[cfg(not(test))]
+use multi_codex_core::legacy_cleanup;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/legacy_cleanup.rs"]
+mod legacy_cleanup;
+#[cfg(not(test))]
+use multi_codex_core::process;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/process.rs"]
+mod process;
+#[cfg(not(test))]
+use multi_codex_core::shared_storage_queue;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/shared_storage_queue.rs"]
+mod shared_storage_queue;
+#[cfg(not(test))]
+use multi_codex_core::chat_cleanup;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/chat_cleanup.rs"]
+mod chat_cleanup;
+#[cfg(not(test))]
+use multi_codex_core::profile_restore;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/profile_restore.rs"]
+mod profile_restore;
+#[cfg(not(test))]
+use multi_codex_core::shared_vscode;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/shared_vscode.rs"]
+mod shared_vscode;
+#[cfg(not(test))]
+use multi_codex_core::shared_chat_cleanup;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/managed_launch.rs"]
+mod managed_launch;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/managed_settings.rs"]
+mod managed_settings;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/shared_chat_cleanup.rs"]
+mod shared_chat_cleanup;
+#[cfg(not(test))]
+use multi_codex_core::usage;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/migration_dependencies.rs"]
+mod migration_dependencies;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/usage.rs"]
 mod usage;
 #[cfg(windows)]
-mod windows_platform;
+#[cfg(not(test))]
+use multi_codex_core::desktop_integration;
+#[cfg(any(target_os = "macos", test))]
+mod account_menu;
+#[cfg(all(windows, test))]
+#[path = "../../../cli/crates/core/src/windows_integration.rs"]
+mod desktop_integration;
+mod updater;
 
 pub use extension_accounts::{run_account_helper, run_bridge_launcher};
 
@@ -960,3 +1061,7 @@ mod workspace_picker_tests {
         assert!(listing.directories.is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/migration_runtime.rs"]
+mod migration_runtime;

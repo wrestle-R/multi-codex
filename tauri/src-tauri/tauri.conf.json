@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Multi Codex",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "identifier": "com.multicodex.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -54,7 +54,8 @@
       "../resources/managed-extension/": "managed-vscode/bridge/"
     },
     "macOS": {
-      "minimumSystemVersion": "26.0"
+      "minimumSystemVersion": "26.0",
+      "signingIdentity": "-"
     }
   },
   "plugins": {
