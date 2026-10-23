@@ -1,6 +1,12 @@
+import { useBalancedAvatars } from "./lib/avatar-templates"
 import { listen } from "@tauri-apps/api/event"
 import { orderProfilesByPlan } from "./lib/profile-order"
 import { useProfileLimits } from "./components/use-profile-limits"
+import { useAppPreferences } from "./lib/app-preferences"
+import { RefreshSettingsDialog } from "./components/refresh-settings-dialog"
+import { NotificationSettingsDialog } from "./components/notification-settings-dialog"
+import { NotificationInbox } from "./components/notification-inbox"
+import { useNotifications } from "./components/use-notifications"
 import { SettingsMenu } from "./components/settings-menu"
 import { initialColorTheme, isLocalColorTheme, type ColorTheme } from "./lib/themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -86,7 +92,12 @@ function initialTheme(): Theme {
 }
 
 export default function App() {
+  const preferences = useAppPreferences()
+  const [showRefreshSettings, setShowRefreshSettings] = useState(false)
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   const [profiles, setProfiles] = useState<Profile[]>([])
+  useBalancedAvatars(profiles.map(profile => profile.id))
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState<string | null>(null)
   const [dialogProfile, setDialogProfile] = useState<Profile | null | undefined>(undefined)
@@ -111,7 +122,7 @@ export default function App() {
   const [sharedChatScope, setSharedChatScope] = useState<ChatScope | null>(null)
   const [storageNotice, setStorageNotice] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
-  const appUpdate = useAppUpdate(updating)
+  const appUpdate = useAppUpdate(updating, preferences.refreshMinutes)
   const [cacheTarget, setCacheTarget] = useState<ProfileStorageUsage | null>(null)
   const [cacheBusy, setCacheBusy] = useState(false)
   const [cacheError, setCacheError] = useState<string | null>(null)
@@ -148,7 +159,9 @@ export default function App() {
   const [placementToken, setPlacementToken] = useState<string | null>(null)
   const launchLock = useRef(false)
   const [creditsTarget, setCreditsTarget] = useState<{ profile: Profile; limits: ProfileLimits } | null>(null)
-  const { limitChecks, refreshingAllLimits, handleCheckLimits, handleRefreshAllLimits } = useProfileLimits(profiles, !loading && !pageError)
+  const { limitChecks, refreshingAllLimits, handleCheckLimits, handleRefreshAllLimits } = useProfileLimits(profiles, !loading && !pageError, preferences.refreshMinutes)
+  const notifications = useNotifications(profiles, limitChecks, appUpdate.version, preferences, !loading && !pageError)
+  const unreadNotifications = notifications.items.filter(item => !item.read).length
   const refreshAccount = (profile: Profile) => {
     void appUpdate.check()
     return handleCheckLimits(profile)
@@ -555,7 +568,7 @@ export default function App() {
 
   return (
     <main className="app-shell" aria-busy={updating}>
-      <ResetExpiryReminder profiles={profiles} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits && !showReleaseNotes} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />
+      {preferences.notifications && preferences.expiringResets && <ResetExpiryReminder profiles={profiles.filter(profile => !preferences.mutedAccounts.includes(profile.id))} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits && !showReleaseNotes} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />}
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand-block">
@@ -596,7 +609,8 @@ export default function App() {
               <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
               {refreshingAllLimits ? "Refreshing all" : "Refresh all"}
             </button>
-            <SettingsMenu colorTheme={colorTheme} onTheme={changeColorTheme} disabled={updating}
+            <button type="button" className="icon-button notification-trigger" aria-label={`Notifications${unreadNotifications ? `, ${unreadNotifications} unread` : ""}`} title="Notifications" disabled={updating} onClick={() => setShowNotifications(true)}><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>{unreadNotifications > 0 && <span className="notification-count">{unreadNotifications > 9 ? "9+" : unreadNotifications}</span>}</button>
+            <SettingsMenu onRefresh={() => setShowRefreshSettings(true)} onNotifications={() => setShowNotificationSettings(true)} colorTheme={colorTheme} onTheme={changeColorTheme} disabled={updating}
               onOrbit={launchTargets?.platform !== "windows" ? () => setShowHudSettings(true) : undefined}
               onLaunch={() => setShowLaunchSettings(true)}
               storage={storageUsage == null ? "Calculating…" : formatStorage(storageUsage.bytes)}
@@ -684,7 +698,10 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
-      {showReleaseNotes && !loading && !pageError && !showLaunchSettings && !showHudSettings && !showIntegration && dialogProfile === undefined && !deleteTarget && !deviceLogin ? <ReleaseNotesDialog platform={launchTargets?.platform} version={appVersion} previousVersion={previousAppVersion} onClose={() => setShowReleaseNotes(false)} /> : null}
+      {showReleaseNotes && !loading && !pageError && !showLaunchSettings && !showHudSettings && !showRefreshSettings && !showNotificationSettings && !showNotifications && !showIntegration && dialogProfile === undefined && !deleteTarget && !deviceLogin ? <ReleaseNotesDialog platform={launchTargets?.platform} version={appVersion} previousVersion={previousAppVersion} onClose={() => setShowReleaseNotes(false)} /> : null}
+      {showRefreshSettings && <RefreshSettingsDialog onClose={() => setShowRefreshSettings(false)} />}
+      {showNotificationSettings && <NotificationSettingsDialog profiles={profiles} onClose={() => setShowNotificationSettings(false)} />}
+      {showNotifications && <NotificationInbox items={notifications.items} error={notifications.deliveryError} onRead={notifications.markRead} onClear={notifications.clear} onSettings={() => { setShowNotifications(false); setShowNotificationSettings(true) }} onClose={() => setShowNotifications(false)} />}
       {showHudSettings ? <HudSettingsDialog onClose={() => setShowHudSettings(false)} /> : null}
       {showLaunchSettings ? <LaunchSettingsDialog onClose={() => {
         setShowLaunchSettings(false)

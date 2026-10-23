@@ -564,7 +564,7 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .reset-reminder-accounts small { color: var(--muted-foreground); white-space: nowrap; }
 .reset-reminder button:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
 @keyframes reminder-enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-@media (max-width: 780px) { .reset-reminder { top: 16px; right: 16px; } }
+@media (max-width: 780px) { .reset-reminder { top: auto; bottom: 16px; right: 16px; max-height: 50dvh; overflow-y: auto; } }
 @media (prefers-reduced-motion: reduce) { .reset-reminder { animation: none; } }
 
 .confirm-dialog .dialog-actions { flex-wrap: wrap; }
@@ -684,3 +684,63 @@ footer { padding: 1.3rem 0 0.3rem; color: var(--muted-foreground); font-size: 0.
 .orbit-settings-dialog .dialog-header, .orbit-settings-dialog .dialog-actions { flex: 0 0 auto; }
 .orbit-settings-dialog .dialog-actions { padding-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .orbit-settings-dialog input[type="checkbox"]::before { transition: none; } }
+
+/* Preference pages keep their actions reachable on smaller laptop windows. */
+.preference-dialog { width: min(650px, 100%); display: flex; flex-direction: column; overflow: hidden; }
+.preference-dialog > form { display: flex; flex-direction: column; min-height: 0; }
+.preference-body { min-height: 0; overflow-y: auto; padding: 4px 3px 20px; display: flex; flex-direction: column; gap: 22px; }
+.preference-dialog .dialog-header { flex: 0 0 auto; padding-bottom: 20px; }
+.preference-dialog .dialog-actions { flex: 0 0 auto; margin-top: 12px; padding-top: 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.preference-label { display: flex; flex-direction: column; gap: 12px; font-weight: 500; }
+.preference-dialog select { width: 100%; min-height: 46px; padding: 10px 12px; color: var(--foreground); background: var(--muted); border: 1px solid var(--border); border-radius: 10px; font: inherit; }
+.refresh-summary { display: flex; flex-direction: column; gap: 6px; padding: 20px 0; border-block: 1px solid var(--border); }
+.refresh-summary strong { font-size: 1.65rem; font-family: "Bricolage Grotesque", sans-serif; font-weight: 500; }
+.refresh-summary span { color: var(--muted-foreground); font-size: .84rem; }
+.preference-body .settings-help { line-height: 1.65; margin-bottom: 0; }
+.notification-fields { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+.notification-fields:disabled { opacity: .55; }
+.notification-fields .desktop-picker-setting { margin: 12px 0; }
+.threshold-choices { display: flex; gap: 10px; flex-wrap: wrap; }
+.threshold-choices label { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; font-size: .9rem; }
+.threshold-choices label:has(:checked) { border-color: var(--primary); background: var(--muted); }
+.threshold-choices input, .notification-account input { width: 17px; height: 17px; accent-color: var(--primary); }
+.notification-account { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.notification-account span { min-width: 0; overflow-wrap: anywhere; }
+.notification-trigger { position: relative; }
+.notification-count { position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; display: grid; place-items: center; padding: 0 3px; border-radius: 12px; color: var(--primary-foreground); background: var(--primary); font-size: 10px; }
+.notification-list { gap: 0; }
+.notification-item { padding: 20px 12px; border-bottom: 1px solid var(--border); }
+.notification-item.unread { border-left: 3px solid var(--primary); }
+.notification-item > div { display: flex; flex-direction: column; gap: 7px; }
+.notification-item time, .notification-item p { color: var(--muted-foreground); font-size: .82rem; line-height: 1.6; }
+.notification-item p { margin-bottom: 0; }
+.notification-empty { padding: 32px 12px; text-align: center; }
+.notification-empty p { color: var(--muted-foreground); line-height: 1.6; }
+.costumed-avatar { position: relative; display: inline-flex; flex: 0 0 auto; vertical-align: middle; isolation: isolate; }
+.costumed-avatar > canvas { display: block; }
+.seasonal-costume { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 1px 1px #0003); }
+.costume-preview { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 18px 0 12px; background: var(--muted); border: 1px solid var(--border); border-radius: 12px; }
+.costume-preview > div { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.costume-preview > div > span:last-child { color: var(--muted-foreground); font-size: .73rem; text-align: center; padding: 0 4px; }
+.orbit-settings-dialog .seasonal-settings { display: flex; flex-direction: column; gap: 14px; }
+.orbit-settings-dialog .seasonal-settings .settings-help { margin: 0; line-height: 1.6; }
+@media (max-width: 480px) { .costume-preview .costumed-avatar { transform: scale(.8); margin: -8px; } .costume-preview { gap: 0; } .preference-dialog .dialog-actions { gap: 8px; } }
+.preference-dialog .desktop-picker-setting { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 20px; cursor: pointer; }
+.preference-dialog .desktop-picker-setting input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; margin: 0; opacity: 0; }
+.preference-dialog .desktop-setting-copy { min-width: 0; }
+.preference-dialog .desktop-setting-copy small { margin-left: 0; font-size: .76rem; line-height: 1.6; font-weight: 400; }
+.preference-dialog .threshold-choices label { display: flex; }
+.preference-dialog .threshold-choices input, .preference-dialog .notification-account input { min-height: 0; padding: 0; margin: 0; }
+.preference-dialog .notification-account { display: flex; }
+.orbit-settings-body { min-height: 0; overflow-y: auto; padding-right: 3px; }
+.orbit-settings-dialog .orbit-settings-body .hud-settings-fields { overflow: visible; }
+.orbit-settings-dialog form { overflow: hidden; }
+.orbit-settings-dialog .dialog-actions { border-top: 1px solid var(--border); padding-top: 14px; }
+.refresh-settings-dialog { width: min(480px, 100%); }
+.refresh-settings-dialog .dialog-header { padding-bottom: 0; }
+.refresh-settings-dialog .preference-body { gap: 14px; padding-bottom: 4px; }
+.refresh-settings-dialog .settings-help { font-size: .78rem; line-height: 1.55; margin-top: 0; }
+.avatar-template-preview { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 8px; padding: 14px 0; }
+.avatar-template-preview > div { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.avatar-template-preview > div > span:last-child { font-size: .7rem; color: var(--muted-foreground); }
+@media (max-width: 520px) { .avatar-template-preview { grid-template-columns: repeat(3,minmax(0,1fr)); } }

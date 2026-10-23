@@ -1,3 +1,4 @@
+import { useBalancedAvatars } from "./lib/avatar-templates"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { listen } from "@tauri-apps/api/event"
 import { AccountAvatar } from "./components/account-avatar"
@@ -22,6 +23,7 @@ function chime() {
 }
 export default function Hud() {
   const [view, setView] = useState<HudView>({ settings: defaultHudSettings, accounts: [] })
+  useBalancedAvatars(view.accounts.map(account => account.id))
   const [hovered, setHovered] = useState<string | null>(null)
   const [popup, setPopup] = useState<{ account: HudAccount; session: HudSession } | null>(null)
   const [error, setError] = useState("")

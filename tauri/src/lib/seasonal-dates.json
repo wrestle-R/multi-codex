@@ -1,0 +1,6 @@
+{
+  "2026": { "new-year": "01-01", "pongal": "01-14", "lunar": "02-17", "valentine": "02-14", "holi": "03-04", "eid": "03-21", "easter": "04-05", "eid-adha": "05-28", "onam": "08-26", "navratri": "10-11", "halloween": "10-31", "diwali": "11-08", "christmas": "12-25" },
+  "2027": { "new-year": "01-01", "pongal": "01-15", "lunar": "02-06", "valentine": "02-14", "holi": "03-22", "eid": "03-10", "easter": "03-28", "eid-adha": "05-17", "onam": "09-12", "navratri": "09-30", "halloween": "10-31", "diwali": "10-29", "christmas": "12-25" },
+  "2028": { "new-year": "01-01", "pongal": "01-15", "lunar": "01-26", "valentine": "02-14", "holi": "03-11", "eid": "02-27", "easter": "04-16", "eid-adha": "05-06", "onam": "09-01", "navratri": "09-19", "halloween": "10-31", "diwali": "10-17", "christmas": "12-25" },
+  "2029": { "new-year": "01-01", "pongal": "01-14", "lunar": "02-13", "valentine": "02-14", "holi": "03-01", "eid": "02-15", "easter": "04-01", "eid-adha": "04-25", "onam": "08-22", "navratri": "10-08", "halloween": "10-31", "diwali": "11-05", "christmas": "12-25" }
+}

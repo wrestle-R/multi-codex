@@ -37,6 +37,7 @@ jsonc-parser = { version = "0.34", features = ["serde", "cst"] }
 sysinfo = "0.37"
 tauri = { version = "=2.11.5", default-features = false, features = ["wry", "x11", "dbus", "image-png", "tray-icon", "macos-private-api"] }
 tauri-plugin-updater = "2"
+tauri-plugin-notification = "2"
 tempfile = "3"
 toml_edit = "0.25"
 uuid = { version = "1", features = ["v4", "serde"] }
