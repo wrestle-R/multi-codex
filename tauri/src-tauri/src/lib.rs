@@ -924,6 +924,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             use tauri::Manager;
             let service = default_service().unwrap_or_else(|error| {

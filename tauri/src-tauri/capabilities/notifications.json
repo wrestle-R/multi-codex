@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "notifications",
+  "description": "Main launcher may request permission and deliver account notifications",
+  "windows": ["main"],
+  "permissions": ["notification:allow-is-permission-granted", "notification:allow-request-permission", "notification:allow-notify"]
+}

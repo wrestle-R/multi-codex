@@ -1277,18 +1277,22 @@ it("Mac menu refresh checks every saved account without opening a launch dialog"
 })
 
 
-it("disables Orbit from Settings without overwriting other Orbit preferences", async () => {
+it("keeps Orbit controls inside Orbit and preserves its other preferences", async () => {
   const user = userEvent.setup()
   render(<App />)
   await screen.findByText("Personal")
   await user.click(screen.getByRole("button", { name: "Settings" }))
   await user.click(screen.getByRole("button", { name: /Launch settings/ }))
+  await screen.findByRole("dialog", { name: "Settings" })
+  expect(screen.queryByRole("checkbox", { name: /Enable Orbit/ })).not.toBeInTheDocument()
+  await user.click(screen.getByRole("button", { name: "Cancel" }))
+  await user.click(screen.getByRole("button", { name: "Settings" }))
+  await user.click(screen.getByRole("button", { name: /Orbit.*Companions/ }))
   const toggle = await screen.findByRole("checkbox", { name: /Enable Orbit/ })
   await waitFor(() => expect(toggle).not.toBeDisabled())
   await user.click(toggle)
   await user.click(screen.getByRole("button", { name: "Save settings" }))
-  await waitFor(() => expect(orbitApi.call).toHaveBeenCalledWith("hud_set_enabled", { enabled: false }))
-  expect(orbitApi.call).not.toHaveBeenCalledWith("hud_save_settings", expect.anything())
+  await waitFor(() => expect(orbitApi.call).toHaveBeenCalledWith("hud_save_settings", { settings: { ...defaultHudSettings, enabled: false } }))
 })
 
 it("shows grouped notes after upgrade, saves dismissal and reopens them from the version", async () => {
