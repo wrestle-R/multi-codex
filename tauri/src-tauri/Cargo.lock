@@ -2470,7 +2470,7 @@ dependencies = [
 
 [[package]]
 name = "multi-codex-core"
-version = "1.7.3"
+version = "1.7.4"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -2497,7 +2497,7 @@ dependencies = [
 
 [[package]]
 name = "multi-codex-desktop"
-version = "1.7.3"
+version = "1.7.4"
 dependencies = [
  "base64 0.22.1",
  "cairo-rs",

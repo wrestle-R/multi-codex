@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-core"
-version = "1.7.3"
+version = "1.7.4"
 edition = "2021"
 license = "MIT"
 publish = false
