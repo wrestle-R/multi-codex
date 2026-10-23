@@ -9,15 +9,18 @@ export interface HudSettings {
 export interface HudSession {
   id: string; title: string; cwd: string; status: string; attention: string | null; epoch: number
   eventKey: string; needsAttention: boolean
+  client?: "desktop" | "cli" | "vscode"; processId?: number
   tokens: { total: number | null; input: number | null; output: number | null; contextWindow: number | null } | null
 }
 export interface RateWindow { usedPercent: number | null; resetsAt: number | null; windowDurationMins: number | null }
-export interface HudAccount { id: string; name: string; avatar: AvatarIdentity; sessions: HudSession[]; limits: { primary: RateWindow; secondary: RateWindow } | null }
-export interface HudView { settings: HudSettings; accounts: HudAccount[] }
+export interface HudAccount { id: string; name: string; avatar: AvatarIdentity; sessions: HudSession[]; monitoringMessage?: string | null; limits: { primary: RateWindow; secondary: RateWindow } | null }
+export interface HudView { settings: HudSettings; accounts: HudAccount[]; panelAbove?: boolean; platformError?: string | null }
 export const defaultHudSettings: HudSettings = { enabled: true, size: 56, opacity: 0.95, monitor: null, x: null, y: null, onlyOpen: false, animation: true, reducedMotion: false, sound: false }
 export const nativeHud = Boolean(window.__TAURI_INTERNALS__)
 export function hudCall<T>(method: string, params?: Record<string, unknown>): Promise<T> {
   if (nativeHud) return invoke<T>(method, params)
+  if (method === "get_update_channel") return Promise.resolve((localStorage.getItem("multi-codex-update-channel") === "all" ? "all" : "stable") as T)
+  if (method === "set_update_channel") localStorage.setItem("multi-codex-update-channel", params?.channel === "all" ? "all" : "stable")
   if (method === "hud_monitors") return Promise.resolve(["Preview display"] as T)
   if (method === "hud_snapshot") return Promise.resolve({ settings: defaultHudSettings, accounts: [] } as T)
   return Promise.resolve(undefined as T)

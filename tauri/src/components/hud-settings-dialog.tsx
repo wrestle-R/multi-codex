@@ -9,11 +9,12 @@ export function HudSettingsDialog({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [platformError, setPlatformError] = useState<string | null>(null)
   const ref = useDialogFocus(onClose, busy)
   useEffect(() => {
     let active = true
     void Promise.all([hudCall<HudView>("hud_snapshot"), hudCall<string[]>("hud_monitors")]).then(([view, displays]) => {
-      if (active) { setSettings(view.settings); setMonitors(displays); setLoading(false) }
+      if (active) { setSettings(view.settings); setMonitors(displays); setPlatformError(view.platformError ?? null); setLoading(false) }
     }).catch(error => { if (active) { setError(String(error)); setLoading(false) } })
     return () => { active = false }
   }, [])
@@ -26,6 +27,7 @@ export function HudSettingsDialog({ onClose }: { onClose: () => void }) {
     }}>
       <fieldset className="hud-settings-fields" disabled={loading || busy}>
         <label className="hud-check"><input type="checkbox" checked={settings.enabled} onChange={event => update("enabled", event.target.checked)} />Enable Orbit</label>
+        {platformError && <p className="form-error" role="status">{platformError}</p>}
         <label>Orbiter size <output>{settings.size}px</output><div className="hud-presets">{[["Small", 40], ["Medium", 56], ["Large", 76]].map(([label, size]) => <button className="button secondary" type="button" key={label} aria-pressed={settings.size === size} onClick={() => update("size", Number(size))}>{label}</button>)}</div><input type="range" aria-label="Orbiter size" min={32} max={100} value={settings.size} onChange={event => update("size", Number(event.target.value))} /></label>
         <label>Opacity <output>{Math.round(settings.opacity * 100)}%</output><input type="range" min={35} max={100} value={settings.opacity * 100} onChange={event => update("opacity", Number(event.target.value) / 100)} /></label>
         <label>Display<select value={settings.monitor ?? ""} onChange={event => setSettings(current => ({ ...current, monitor: event.target.value || null, x: null, y: null }))}><option value="">Primary display</option>{monitors.map(m => <option key={m} value={m}>{m}</option>)}</select></label>
