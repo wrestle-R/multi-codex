@@ -428,26 +428,32 @@ pub fn setup(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     ) {
         return Ok(());
     }
-    let window = tauri::WebviewWindowBuilder::new(
+    let constrained_gtk = cfg!(target_os = "linux")
+        && matches!(crate::desktop_environment::backend(), "gnome" | "kde");
+    let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         "hud",
         tauri::WebviewUrl::App("index.html?view=hud".into()),
     )
     .title("Multi Codex Orbit")
     .inner_size(400.0, 88.0)
-    .min_inner_size(400.0, 88.0)
-    .max_inner_size(400.0, 88.0)
+    .min_inner_size(32.0, 32.0)
     .decorations(false)
     // GTK's non-resizable mode requests WebKit's natural 200px height.
     // Equal minimum/maximum bounds constrain resizing without that fallback.
-    .resizable(cfg!(target_os = "linux"))
+    .resizable(constrained_gtk)
     .transparent(true)
     .shadow(false)
     .always_on_top(true)
     .skip_taskbar(true)
     .visible(false)
-    .focused(false)
-    .build()?;
+    .focused(false);
+    if constrained_gtk {
+        builder = builder
+            .min_inner_size(400.0, 88.0)
+            .max_inner_size(400.0, 88.0);
+    }
+    let window = builder.build()?;
     if let Err(error) = crate::hud_layer::setup(&window) {
         if let Ok(mut message) = app.state::<HudState>().platform_error.lock() {
             *message = Some(error);
