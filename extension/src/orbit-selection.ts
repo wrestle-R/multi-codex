@@ -18,7 +18,7 @@ export class OrbitSelection {
       // Invalidate the old view without treating any prewarmed result as open.
       const ephemeral = message.params?.ephemeral === true;
       if (!ephemeral) { this.selected = null; this.generation++; }
-      this.trace(`send ${message.method} ephemeral=${ephemeral}`);
+      if (process.env.MULTI_CODEX_TEST_MODE === '1') this.trace(`send ${message.method} ephemeral=${ephemeral} threadId=${message.params?.threadId ?? ''} selected=${this.selected ?? ''}`);
       if (message.id !== undefined) this.pending.set(message.id, { method: message.method!, generation: this.generation, ephemeral });
       if (this.pending.size > 4096) this.pending.delete(this.pending.keys().next().value!);
       return;
@@ -26,12 +26,15 @@ export class OrbitSelection {
     // The editor prewarms extra thread/start results. A submitted turn or an
     // explicit resume selects the conversation; creating a cache does not.
     if (message.id === undefined || !message.method || !['turn/start', 'thread/resume', 'thread/unsubscribe', 'thread/archive', 'thread/delete'].includes(message.method)) return;
-    this.trace(`send ${message.method}`);
+    if (process.env.MULTI_CODEX_TEST_MODE === '1') this.trace(`send ${message.method} threadId=${message.params?.threadId ?? ''} selected=${this.selected ?? ''}`);
     this.pending.set(message.id, { method: message.method, threadId: message.params?.threadId, generation: this.generation });
     // The editor has already left this conversation when it asks the backend
     // to unsubscribe. Clear the HUD selection at that point: some backends do
     // not answer unsubscribe promptly, and retained history is not an open chat.
-    if (message.method === 'thread/unsubscribe' && message.params?.threadId === this.selected) this.selected = null;
+    if (message.method === 'thread/unsubscribe' && message.params?.threadId === this.selected) {
+      this.selected = null;
+      if (process.env.MULTI_CODEX_TEST_MODE === '1') this.trace('cleared selected chat on unsubscribe');
+    }
     if (this.pending.size > 4096) this.pending.delete(this.pending.keys().next().value!);
   }
   incoming(message: Message) {
@@ -43,7 +46,7 @@ export class OrbitSelection {
     }
     if (message.method || message.id === undefined) return;
     const request = this.pending.get(message.id); this.pending.delete(message.id);
-    if (request) this.trace(`reply ${request.method} ${message.error ? 'error' : 'ok'}`);
+    if (request && process.env.MULTI_CODEX_TEST_MODE === '1') this.trace(`reply ${request.method} ${message.error ? 'error' : 'ok'} threadId=${request.threadId ?? ''} selected=${this.selected ?? ''}`);
     if (!request || message.error) return;
     if (['thread/start', 'thread/startAeon', 'thread/fork'].includes(request.method)) {
       const id = message.result?.thread?.id;
