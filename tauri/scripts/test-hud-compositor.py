@@ -20,12 +20,16 @@ out = args.output.resolve()
 out.mkdir(parents=True, exist_ok=True)
 connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 reply = []
+expected_nonce = None
 loop = GLib.MainLoop()
 
 
 def handle(conn, sender, path, interface, method, params, invocation):
-    reply.append(json.loads(params.unpack()[1]))
+    nonce, payload = params.unpack()
     invocation.return_value(GLib.Variant("()", ()))
+    if nonce != expected_nonce:
+        return
+    reply.append(json.loads(payload))
     loop.quit()
 
 
@@ -37,16 +41,20 @@ next_script = 0
 
 
 def execute_kde(body):
-    global next_script
+    global next_script, expected_nonce
     next_script += 1
     name = f"mc-hud-test-{next_script}"
+    expected_nonce = name
+    body = body.replace("'inspect'", json.dumps(name))
     path = root / f"{name}.js"
     path.write_text(
         "try { "
         + body
         + " } catch(e) { callDBus("
         + json.dumps(connection.get_unique_name())
-        + ", '/com/multicodex/KWinReply', 'com.multicodex.KWinReply1', 'Publish', 'inspect', JSON.stringify({error:String(e)})); }"
+        + ", '/com/multicodex/KWinReply', 'com.multicodex.KWinReply1', 'Publish', "
+        + json.dumps(name)
+        + ", JSON.stringify({error:String(e)})); }"
     )
     result = subprocess.check_output(
         [
@@ -156,8 +164,17 @@ def mutate(kde, gnome):
 
 def until(condition):
     deadline = time.monotonic() + 25
+    v = []
     while time.monotonic() < deadline:
-        v = windows()
+        try:
+            v = windows()
+        except AssertionError as error:
+            if str(error) != "KWin script callback timed out":
+                raise
+            # KWin exports its bus before its scripting event loop is ready.
+            # A fresh nonce prevents a late startup reply satisfying a later check.
+            time.sleep(0.2)
+            continue
         if condition(v):
             return v
         time.sleep(0.2)
