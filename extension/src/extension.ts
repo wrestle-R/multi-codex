@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { OrbitWindow } from './orbit-window';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { access, copyFile, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -46,6 +47,13 @@ class AccountsTree implements vscode.TreeDataProvider<Account> {
 }
 
 export async function activate(context: vscode.ExtensionContext) {
+  const orbitWindow = new OrbitWindow();
+  context.subscriptions.push({ dispose() { void orbitWindow.dispose(); } });
+  async function registerOrbitWindow(client: BridgeClient) {
+    await orbitWindow.listen(client.state.instanceId, async () => { await vscode.commands.executeCommand('workbench.action.focusWindow'); });
+    client.on('close', () => { if (bridge === client || !bridge) void orbitWindow.dispose(); });
+  }
+
   const activationId = randomUUID();
   const tree = new AccountsTree();
   const view = vscode.window.createTreeView('multiCodex.accounts', { treeDataProvider: tree });
@@ -96,6 +104,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (bridge && registration.socket === connectedSocket) return;
       bridge?.dispose(); bridge = undefined;
       bridge = await BridgeClient.connect(registration.socket, registration.token);
+      await registerOrbitWindow(bridge);
       connectedSocket = registration.socket;
       const thisBridge = bridge;
       thisBridge.on('state', () => display());
@@ -173,6 +182,7 @@ export async function activate(context: vscode.ExtensionContext) {
         try {
           await live.attachReady(); await live.listen();
           bridge = await BridgeClient.connect(live.config.socket, live.config.token);
+          await registerOrbitWindow(bridge);
           bridge.on('state', display);
           bridge.on('close', () => { bridge = undefined; display(); });
           context.subscriptions.push({ dispose() { void live.dispose(); } });
@@ -358,6 +368,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (!child || !accounts?.isRunning) return;
         await new Promise<void>(resolve => { child.once('exit', () => resolve()); child.kill(); });
       },
+      async testOrbitFocus() { const state = await bridge!.request('state'); return accounts!.request('orbit/focus', { profileId: state.selectedId, sessionId: state.instanceId, pid: state.backendPid }); },
       async testRequest(method: string, params: any = {}) { await connect(); if (!bridge) throw new Error('Bridge not connected'); return bridge.request('test/request', { method, params }); }
     } : {}),
   };

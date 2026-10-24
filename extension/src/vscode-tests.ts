@@ -98,25 +98,37 @@ export async function run() {
       const files = await readdir(directory).catch(() => []);
       return Promise.all(files.filter(name => name.startsWith('bridge-') && name.endsWith('.json')).map(async name => JSON.parse(await readFile(join(directory, name), 'utf8'))));
     };
+    const initial = await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 1));
+    const windowId = (await api.getState()).bridge.instanceId;
+    assert.deepEqual(Object.keys(initial.find(s => s.profileId === b.id).sessions), [windowId]);
     const phase = 'orbit-submit Account B';
     await writeFile(join(root, 'ui-phase.json'), JSON.stringify({ label: phase, orbitSubmit: true }));
     await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === phase);
     const visible = await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 1)).catch(async error => { throw new Error(`${error.message}; selected UI thread=${(await api.getState()).bridge.testOrbitSelected}; events=${JSON.stringify((await api.getState()).bridge.testOrbitEvents)}`); });
     const snapshot = visible.find(s => s.profileId === b.id && Object.keys(s.sessions).length === 1);
     const visibleId = Object.keys(snapshot.sessions)[0];
-    assert.notEqual(visibleId, thread.thread.id, 'A backend-only chat was mistaken for the selected UI conversation');
+    assert.equal(visibleId, windowId, 'Submitting a UI chat changed the owning window session');
     await waitFor<any>(() => api.getState(), value => value.bridge.canSwitch, 25000);
-    const submitted = await api.testRequest('thread/read', { threadId: visibleId, includeTurns: true });
+    const submittedId = (await api.getState()).bridge.testOrbitSelected;
+    assert.ok(submittedId, 'The actual UI submission was not observed');
+    const submitted = await api.testRequest('thread/read', { threadId: submittedId, includeTurns: true });
     assert.equal(submitted.thread.turns.length, 1, 'A single UI submission created duplicate turns');
     await api.testRequest('thread/read', { threadId: thread.thread.id, includeTurns: false });
     await new Promise(resolve => setTimeout(resolve, 1800));
     assert.deepEqual(Object.keys((await selected()).find(s => s.profileId === b.id).sessions), [visibleId]);
-    checks.push('Orbit counts the actual submitted VS Code UI chat and ignores retained backend history');
+    checks.push('Orbit keeps one stable session per open VS Code window and ignores retained backend history');
     const newChatPhase = 'orbit-newchat Account B';
     await writeFile(join(root, 'ui-phase.json'), JSON.stringify({ label: newChatPhase, orbitNewChat: true }));
     await waitFor(() => readFile(join(root, 'ui-ack.json'), 'utf8').catch(() => '{}'), value => JSON.parse(value).label === newChatPhase);
-    await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 0)).catch(async error => { throw new Error(`${error.message}; New Chat selected=${(await api.getState()).bridge.testOrbitSelected}; events=${JSON.stringify((await api.getState()).bridge.testOrbitEvents)}`); });
-    checks.push('VS Code New Chat removes the previous UI conversation from Orbit');
+    await new Promise(resolve => setTimeout(resolve, 1800));
+    await waitFor<any[]>(selected, snapshots => snapshots.some(s => s.profileId === b.id && Object.keys(s.sessions).length === 1 && Object.keys(s.sessions)[0] === windowId)).catch(async error => { throw new Error(`${error.message}; New Chat selected=${(await api.getState()).bridge.testOrbitSelected}; events=${JSON.stringify((await api.getState()).bridge.testOrbitEvents)}`); });
+    checks.push('VS Code New Chat preserves the same open-window Orbit session');
+    if (process.platform !== 'win32') {
+      assert.equal((await api.testOrbitFocus()).focused, true);
+      await waitFor(() => Promise.resolve(vscode.window.state.focused), Boolean);
+      await verifyStable();
+      checks.push('Native Orbit navigation focuses the owning VS Code window without restarting its host or backend');
+    }
   }
   await assert.rejects(() => api.switchAccount('00000000-0000-4000-8000-000000000000'), /not found/);
   assert.equal((await api.getState()).bridge.selectedId, b.id);
