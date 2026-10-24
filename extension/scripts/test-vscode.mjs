@@ -202,6 +202,21 @@ try {
   if (!report.passed) process.exitCode = 1;
 } catch (error) {
   console.error('VS Code integration failed.', result, error.message); console.error(diagnostics.slice(-6000)); console.error('Fixture paths:', fixture.requests.map(r => r.path.split('?')[0]));
+  // Preserve errors from the disposable editor's extension-host logs before
+  // cleanup; stdout alone can hide the cause of an official webview failure.
+  const errors = [];
+  async function collectErrors(directory) {
+    for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) await collectErrors(path);
+      else if (entry.name.endsWith('.log')) {
+        const lines = (await readFile(path, 'utf8').catch(() => '')).split('\n').filter(line => /error|exception|failed/i.test(line));
+        if (lines.length) errors.push({ file: path.slice(testRoot.length + 1), lines: lines.slice(-100).map(line => line.replace(/Bearer\s+\S+/gi, 'Bearer [redacted]').replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[redacted-jwt]')) });
+      }
+    }
+  }
+  await collectErrors(join(testRoot, 'user-data', 'logs'));
+  await writeFile('.test-results/vscode-extension-errors.json', JSON.stringify(errors, null, 2));
   process.exitCode = 1;
 } finally {
   await fixture.close();

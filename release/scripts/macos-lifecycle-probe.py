@@ -315,13 +315,12 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             'click menu item "Open VS Code" of menu 1 of menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2'
         )
 
-        # The modal traps focus with its close button first and folder choice
-        # last. Use native keyboard input because System Events does not always
-        # enumerate descendants of WKWebView's accessibility web area.
-        time.sleep(1)
         foreground()
-        ui("key code 48 using shift down")
-        ui("keystroke space")
+        # Wait for the actual enabled folder action. A fixed sleep followed by
+        # Shift-Tab/Space can hit a different control while WebKit is rendering.
+        def choose_workspace():
+            return ui('set elements to entire contents of window "Multi Codex"\nrepeat with element in elements\ntry\nif role of element is "AXButton" and name of element is "Choose this folder" and enabled of element then\nperform action "AXPress" of element\nreturn "chosen"\nend if\nend try\nend repeat\nreturn "waiting"') == "chosen"
+        wait_for("enabled workspace folder action", choose_workspace)
         wait_for(
             "account menu launches isolated editor",
             lambda: any(
