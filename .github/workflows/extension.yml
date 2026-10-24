@@ -3,6 +3,12 @@ name: VS Code extension packages
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      native_target:
+        description: All platforms or an isolated Intel Mac recheck
+        type: choice
+        options: [all, darwin-x64]
+        default: all
   pull_request:
     paths:
       - extension/**
@@ -22,16 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-22.04
-            target: linux-x64
-            vscode: linux-x64
-          - os: macos-26
-            target: darwin-arm64
-            vscode: darwin-arm64
-          - os: macos-26-intel
-            target: darwin-x64
-            vscode: darwin
+        include: ${{ fromJSON(inputs.native_target == 'darwin-x64' && '[{"os":"macos-26-intel","target":"darwin-x64","vscode":"darwin"}]' || '[{"os":"ubuntu-22.04","target":"linux-x64","vscode":"linux-x64"},{"os":"macos-26","target":"darwin-arm64","vscode":"darwin-arm64"},{"os":"macos-26-intel","target":"darwin-x64","vscode":"darwin"}]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     env:
@@ -53,6 +50,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
+          cache-on-failure: true
           cache-on-failure: true
       - name: Install Linux native dependencies
         if: runner.os == 'Linux'

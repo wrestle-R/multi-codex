@@ -52,6 +52,10 @@ try {
     await new Promise(r => setTimeout(r, 4000));
     if (process.env.MULTI_CODEX_TEST_HUD_SCREENSHOT) await exec('grim', ['-g', `${initial.x},${initial.y} ${initial.w}x${initial.h}`, `${process.env.MULTI_CODEX_TEST_HUD_SCREENSHOT}-${edge}-compact.png`]);
     await pointer(monitor.x + 100, monitor.y + 300);
+    // A normal Wayland launch may correctly preserve the previous app's focus.
+    // Establish this fixture's focus before checking that hover preserves it.
+    await lua(`local w=hl.get_window('address:${main.address}'); assert(w); hl.dispatch(hl.dsp.focus({window=w}))`);
+    await until(() => json('activewindow'), w => w.pid === main.pid, `${edge} fixture keyboard focus`);
     await pointer(initial.x + initial.w - 76, edge === 'top' ? initial.y + 44 : initial.y + initial.h - 44);
     const expanded = await until(layer, l => l?.h > initial.h + 100, `${edge} hover expansion`);
     for (let i = 0; i < 24; i++) {

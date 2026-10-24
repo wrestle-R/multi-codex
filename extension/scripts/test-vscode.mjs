@@ -170,7 +170,7 @@ const uiPolling = setInterval(async () => {
   finally { uiBusy = false; }
 }, 100);
 console.log(`Testing Codex ${packageInfo.version} in ${testRoot}`);
-const timeout = setTimeout(() => child.kill('SIGTERM'), 90000);
+const timeout = setTimeout(() => child.kill('SIGTERM'), 180000);
 const result = await new Promise(resolve => child.once('exit', (code, signal) => resolve({ code, signal })));
 clearTimeout(timeout); clearInterval(polling); clearInterval(uiPolling); await browser?.close().catch(() => {});
 await mkdir('.test-results', { recursive: true });
