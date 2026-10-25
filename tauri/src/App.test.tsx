@@ -1268,12 +1268,12 @@ it("disables Orbit from Settings without overwriting other Orbit preferences", a
   expect(orbitApi.call).not.toHaveBeenCalledWith("hud_save_settings", expect.anything())
 })
 
-it("shows minimal notes after upgrade, saves dismissal and reopens them from the version", async () => {
+it("shows grouped notes after upgrade, saves dismissal and reopens them from the version", async () => {
   api.getAppRelease.mockResolvedValue({ version: "1.7.0", showNotes: true })
   const user = userEvent.setup()
   render(<App />)
   const notes = await screen.findByRole("dialog", { name: "What’s new" })
-  expect(within(notes).getByText("Orbit.")).toBeVisible()
+  expect(within(notes).getByRole("region", { name: "Release 1.7.0" })).toBeVisible()
   await user.click(within(notes).getByRole("button", { name: "Got it" }))
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "What’s new" })).not.toBeInTheDocument())
   expect(api.acknowledgeAppRelease).toHaveBeenCalledTimes(1)
@@ -1305,4 +1305,18 @@ it("persists the selected release channel and refreshes availability after savin
   await user.click(screen.getByRole("button", { name: "Save settings" }))
   await waitFor(() => expect(orbitApi.call).toHaveBeenCalledWith("set_update_channel", { channel: "all" }))
   await waitFor(() => expect(api.checkAppUpdate.mock.calls.length).toBeGreaterThan(checks))
+})
+
+it("shows every skipped release and preserves the range when reopened", async () => {
+  api.getAppRelease.mockResolvedValue({ version: "1.7.1", previousVersion: "1.6.1", showNotes: true })
+  const user = userEvent.setup()
+  render(<App />)
+  const notes = await screen.findByRole("dialog", { name: "What’s new" })
+  expect(within(notes).getByRole("region", { name: "Release 1.7.1" })).toBeVisible()
+  expect(within(notes).getByRole("region", { name: "Release 1.7.0" })).toBeVisible()
+  expect(within(notes).queryByRole("region", { name: "Release 1.6.1" })).not.toBeInTheDocument()
+  await user.click(within(notes).getByRole("button", { name: "Got it" }))
+  await user.click(screen.getByRole("button", { name: /Version 1.7.1/ }))
+  const reopened = await screen.findByRole("dialog", { name: "What’s new" })
+  expect(within(reopened).getByRole("region", { name: "Release 1.7.0" })).toBeVisible()
 })

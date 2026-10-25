@@ -58,6 +58,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
         </header>
         <form onSubmit={event => void save(event)} className="launch-settings-form">
           <div className="settings-body">
+          <div className="settings-column">
           <section className="settings-section" aria-label="Workspace preferences">
           <div className="settings-section-heading"><h3>Workspace</h3><p>Start in the right place.</p></div>
           <div className="preferred-folder-control">
@@ -78,6 +79,8 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
           <TerminalPicker value={settings.cliTerminal ?? "automatic"} options={terminals} disabled={loading || busy || !targets} onChange={cliTerminal => setSettings(value => ({ ...value, cliTerminal }))} />
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
           </section>
+          </div>
+          <div className="settings-column">
           <section className="settings-section" aria-label="Update preferences">
             <div className="settings-section-heading"><h3>Updates</h3><p>Choose which releases appear in the app.</p></div>
             <label>Release channel<select aria-label="Release channel" value={updateChannel} disabled={loading || busy} onChange={event => setUpdateChannel(event.target.value as "stable" | "all")}>
@@ -100,6 +103,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
               <p className="desktop-notice">Executable changes apply to the next launch. Restart after changing the global home. An inherited CODEX_HOME takes precedence. Existing profiles stay in their current location.</p>
             </div>
           </details>
+          </div>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
           </div>
           <div className="dialog-actions"><button type="button" className="button secondary" disabled={busy} onClick={onClose}>Cancel</button><button type="submit" className="button primary" disabled={loading || busy || !targets}>{busy ? "Saving…" : "Save settings"}</button></div>

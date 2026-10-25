@@ -122,9 +122,10 @@ export default function App() {
   const [folderRequest, setFolderRequest] = useState<{ profile: Profile; initialPath: string; target: LaunchTarget } | null>(null)
   const [appVersion, setAppVersion] = useState(bundledVersion)
   const [showReleaseNotes, setShowReleaseNotes] = useState(false)
+  const [previousAppVersion, setPreviousAppVersion] = useState<string | null>(null)
   useEffect(() => {
     let active = true
-    void getAppRelease().then(release => { if (active) { setAppVersion(release.version); setShowReleaseNotes(release.showNotes) } }).catch(() => {})
+    void getAppRelease().then(release => { if (active) { setAppVersion(release.version); setPreviousAppVersion(release.previousVersion ?? null); setShowReleaseNotes(release.showNotes) } }).catch(() => {})
     return () => { active = false }
   }, [])
   const [showHudSettings, setShowHudSettings] = useState(false)
@@ -712,7 +713,7 @@ export default function App() {
           onInstall={handleInstallIntegration}
         />
       ) : null}
-      {showReleaseNotes && !loading && !pageError && !showLaunchSettings && !showHudSettings && !showIntegration && dialogProfile === undefined && !deleteTarget && !deviceLogin ? <ReleaseNotesDialog platform={launchTargets?.platform} version={appVersion} onClose={() => setShowReleaseNotes(false)} /> : null}
+      {showReleaseNotes && !loading && !pageError && !showLaunchSettings && !showHudSettings && !showIntegration && dialogProfile === undefined && !deleteTarget && !deviceLogin ? <ReleaseNotesDialog platform={launchTargets?.platform} version={appVersion} previousVersion={previousAppVersion} onClose={() => setShowReleaseNotes(false)} /> : null}
       {showHudSettings ? <HudSettingsDialog onClose={() => setShowHudSettings(false)} /> : null}
       {showLaunchSettings ? <LaunchSettingsDialog onClose={() => {
         setShowLaunchSettings(false)
