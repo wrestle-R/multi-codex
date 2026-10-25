@@ -165,10 +165,15 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             receipt = data / "release-notes.json"
             if not receipt.exists():
                 def dismiss_upgrade_notes():
-                    return ui('set elements to entire contents of window "Multi Codex"\nrepeat with element in elements\ntry\nif role of element is "AXButton" and name of element is "Got it" then\nperform action "AXPress" of element\nreturn "dismissed"\nend if\nend try\nend repeat\nreturn "waiting"') == "dismissed"
-                wait_for("minimal upgrade notes", dismiss_upgrade_notes)
-                wait_for("durable upgrade acknowledgement", lambda: receipt.is_file() and json.loads(receipt.read_text())["version"] == report["version"])
-                report["checks"].append({"minimalUpgradeNotesAcknowledged": True})
+                    # Cumulative logs can contain hundreds of AX text elements.
+                    # Exercise normal keyboard dismissal instead of collecting
+                    # the entire accessibility tree before finding the footer.
+                    if receipt.is_file() and json.loads(receipt.read_text())["version"] == report["version"]:
+                        return True
+                    ui('perform action "AXRaise" of window "Multi Codex"\nkey code 53')
+                    return False
+                wait_for("upgrade notes acknowledgement via Escape", dismiss_upgrade_notes)
+                report["checks"].append({"upgradeNotesAcknowledged": True, "dismissal": "native Escape key"})
         return process.pid
 
     def ui(command):
