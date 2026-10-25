@@ -24,7 +24,7 @@ The owner now authorizes execution of this plan using disposable fixtures and ex
 ## Current result (15 October continuation; local evidence, not release acceptance)
 
 - PASS: actual two-account Desktop UI excludes backend caches, survives sidebar hiding, removes presence when leaving the chat, and preserves the full transcript on warm/cold reopen. Production ProfileService warm routing runs with every credential-store operation forbidden. Observer termination leaves Desktop and its chat alive.
-- PASS: actual official VS Code UI submission is counted, a retained backend history read does not replace it, and New Chat removes it. Prewarmed starts are excluded; visible idle selection survives engine eviction; generation guards reject stale selection replies. The selected account and single submitted native turn are asserted.
+- PASS: actual official VS Code UI submission is counted, a retained backend history read does not replace it, and the earlier New Chat clearing check passed under the old scope. The latest owner clarification supersedes that expectation: an open editor window must remain visible, including New Chat; fresh window-session/native-focus acceptance is pending. Prewarmed starts are excluded; visible idle selection survives engine eviction; generation guards reject stale selection replies. The selected account and single submitted native turn are asserted.
 - PASS: native CLI active/idle/exit and authoritative existing-bridge publication/unload; raw app-server descriptors deliberately do not establish UI presence.
 - PASS: actual mini avatars, diagonal/corner/overflow layout, gray/static inactive accounts, reduced-motion/filter UI, persistent release-channel preference, stale-channel result rejection, installation lock, signed-package shape checks, and stable/preview website filtering. Local suites: UI119, core173, native176 (overlap), extension67, website62; skips remain explicitly documented.
 - Hyprland final fixed-artifact evidence: `local-docs/resume-layer-final-result.json` and its log cover top/bottom overlay bounds, sustained hover, real pointer drag/persistence, focus, repeated hide/restore, fullscreen and inert auth/catalog preservation. Read the actual result before marking individual complete case matrices passed.
@@ -365,3 +365,26 @@ Defect report: case ID, severity, exact platform/version, source/artifact identi
 - [ ] Every gap has a concrete next step; report accurate scope instead of declaring universal support.
 
 Planning is complete when this document is reviewed. Product testing is complete only when the case ledger and release rules above are satisfied.
+
+## 11. v1.7.1 execution record — 16 October 2026
+
+The owner classified this release **Stable** and clarified that the desktop launcher owns Orbit for Desktop, CLI and VS Code. An open VS Code window stays visible even on an empty New Chat composer. Backend history and title workers never add window sessions. This supersedes the earlier selected-editor-chat contract and its New Chat clearing assertions.
+
+The table records tested scopes, rather than every case in this comprehensive plan. Exact package hashes, runtime versions, preservation assertions and earlier failures belong in [the release evidence](release/evidence/v1.7.1-validation.json). Private local captures stay ignored.
+
+| Scope | Environment | Result and evidence |
+| --- | --- | --- |
+| UI/core contracts | Disposable local fixtures | 120 UI checks and four release-receipt checks; 174 current core checks passed, four existing environment-specific core tests ignored. Extension fixture suite: 68 passed, five platform skips. |
+| Desktop selected chats and routing | macOS 26, pinned native Desktop | [Passed](https://github.com/wrestle-R/multi-codex/actions/runs/38846212819): real selected UI excludes backend cache; warm/cold transcript routing, credential-free warm navigation and observer-disconnect preservation. |
+| Native Orbit geometry/lifecycle | GNOME 46 / Ubuntu 24.04 and KWin 6.7.5 / Fedora 44, nested Wayland | [Passed](https://github.com/wrestle-R/multi-codex/actions/runs/38846209033): fixed bounds, above/sticky placement, toggle, fullscreen, close-to-tray and fixture preservation. |
+| Exact AppImage Orbit | Native Hyprland 0.56.2 | Final-candidate retest omitted at owner request to publish immediately. Earlier candidate passed top/bottom hover/focus, drag/persistence, six hide/restore cycles per edge, fullscreen and fixture preservation; that result is not claimed for the final package. |
+| Packaged Mac lifecycle | macOS 26 Apple Silicon | [Passed](https://github.com/wrestle-R/multi-codex/actions/runs/38846206011): six native close/reopen cycles, account submenu and explicit Quit. |
+| Signed native updater | Linux x64, macOS ARM64, Windows x64 | [Passed](https://github.com/wrestle-R/multi-codex/actions/runs/38846206011): exact-source signed payload installation/restart and refusal of invalid, wrong-target, corrupt and truncated packages on all three platforms. |
+| Packaged editor | Linux x64, macOS ARM64/Intel, Windows x64 | [All four native editor lanes passed](https://github.com/wrestle-R/multi-codex/actions/runs/38846206011): startup/live attachment and account restoration; supported Orbit lanes verify stable window sessions through UI submit/history/New Chat, owning-window focus and host/backend/panel preservation. Windows Orbit remains unsupported. |
+| Installed launcher Update button | Existing user installation | Retest omitted at owner request to publish immediately. Native SDK results do not substitute for an installed UI-button result. |
+
+The owner requested publication without further retests on 16 October; no final local Hyprland, installed Update-button or publication-metadata CI pass is claimed. Sixteen hosted Settings/browser scenarios already passed on identical product source.
+
+Earlier failed runs remain failures. The owner’s window-session clarification superseded Intel’s zero-session New Chat expectation. A subsequent Linux startup check exposed an asynchronous Send/transcript assertion race: window presence already existed, so it was no longer a turn-completion barrier. The test now waits for the actual frontend turn before asserting a single native turn; the fresh Linux lane passed without weakening that assertion.
+
+macOS 27, GNOME/KDE X11, mixed-monitor/DPI/hotplug combinations, every tray host, multiple terminal/editor-window combinations, rich fault injection, accessibility and long soak remain outside these completed scopes. Existing Desktop and VS Code instances are never force-closed; the current observer/bridge becomes available on their next normal managed launch.
