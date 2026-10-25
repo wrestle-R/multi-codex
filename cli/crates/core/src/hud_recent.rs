@@ -100,12 +100,9 @@ fn indexed(root: &Path, profile: &str) -> Result<Vec<RecentChat>, String> {
     } else {
         "COALESCE(NULLIF(title,''),'Codex chat')"
     };
-    let user = if columns.contains("has_user_event") {
-        "AND has_user_event=1"
-    } else {
-        ""
-    };
-    let query = format!("SELECT id,{name},cwd,COALESCE({times},0) FROM threads WHERE archived=0 AND lower(source) NOT LIKE '%subagent%' {user} ORDER BY COALESCE({times},0) DESC,id LIMIT 2");
+    // has_user_event is not authoritative: real persisted app-server chats
+    // with complete user/assistant turns can retain zero in this column.
+    let query = format!("SELECT id,{name},cwd,COALESCE({times},0) FROM threads WHERE archived=0 AND lower(source) NOT LIKE '%subagent%' ORDER BY COALESCE({times},0) DESC,id LIMIT 2");
     let mut statement = connection
         .prepare(&query)
         .map_err(|_| "Unsupported chat index")?;
@@ -251,6 +248,24 @@ mod tests {
         let saved = load(root.path(), &profile);
         assert!(saved.unavailable);
         assert_eq!(saved.chats[0].id, id);
+    }
+    #[test]
+    fn real_app_server_chats_with_zero_user_event_flag_remain_recent() {
+        let (root, profile, path) = fixture();
+        let first = insert(&path, 1, false, "vscode");
+        let second = insert(&path, 2, false, "vscode");
+        Connection::open(&path)
+            .unwrap()
+            .execute("UPDATE threads SET has_user_event=0", [])
+            .unwrap();
+        assert_eq!(
+            indexed(root.path(), &profile)
+                .unwrap()
+                .iter()
+                .map(|chat| chat.id.as_str())
+                .collect::<Vec<_>>(),
+            [second.as_str(), first.as_str()]
+        );
     }
     #[test]
     fn reads_committed_chats_while_the_app_keeps_its_wal_connection_open() {
