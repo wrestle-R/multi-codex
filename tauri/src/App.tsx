@@ -444,7 +444,13 @@ export default function App() {
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
       setHideDesktopPicker(environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker))
-      setFolderRequest({ profile, target, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
+      if (target === "standalone") {
+        const request = { profile, target, workspace: environment.defaultWorkspace }
+        setLaunchError(null); setPlacementToken(null); setLaunchRequest(request)
+        await completeLaunch(null, request)
+      } else {
+        setFolderRequest({ profile, target, initialPath: settings.preferredWorkspace || environment.defaultWorkspace })
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       setLaunchPreparationError(message)

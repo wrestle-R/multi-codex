@@ -36,6 +36,14 @@ fn main() {
         .to_string_lossy()
         .starts_with("mc-hud-desktop-"));
     assert!(root.join("disposable-hud-fixture").is_file());
+    if args[3] == "--recent" {
+        let recent = multi_codex_core::hud_recent::load(&root.join("data"), &args[2]);
+        println!(
+            "{}",
+            serde_json::json!({"ids":recent.chats.iter().map(|chat| &chat.id).collect::<Vec<_>>(),"unavailable":recent.unavailable})
+        );
+        return;
+    }
     let service = ProfileService::new(
         root.join("data"),
         root.join("global"),

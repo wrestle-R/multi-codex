@@ -65,12 +65,12 @@ it("shows real diagonal mini avatars instead of numbered session substitutes", a
   fireEvent.click(screen.getByRole("button", { name: "Fixture: Session two, Open" }))
   await waitFor(() => expect(api.call).toHaveBeenCalledWith("hud_open_session", expect.objectContaining({ threadId: "two" })))
 })
-it("keeps every inactive account static and dims it while an open idle chat animates", async () => {
+it("keeps every inactive account static and dims it and keeps open idle chats still", async () => {
   view.accounts.push({ ...view.accounts[0], id: "inactive", name: "Closed", sessions: [] })
   const { container } = render(<Hud />)
   await screen.findByRole("button", { name: "Closed: No open chats" })
   expect(container.querySelectorAll(".hud-account.is-inactive:not(.is-animated)")).toHaveLength(1)
-  expect(container.querySelectorAll(".hud-account.has-sessions.is-animated")).toHaveLength(1)
+  expect(container.querySelectorAll(".hud-account.has-sessions:not(.is-animated)")).toHaveLength(1)
 })
 it("reduced motion suppresses Orbit motion and only-open hides inactive accounts", async () => {
   view.settings = { ...view.settings, reducedMotion: true, onlyOpen: true }
@@ -79,4 +79,18 @@ it("reduced motion suppresses Orbit motion and only-open hides inactive accounts
   await screen.findByRole("button", { name: "Fixture: Open" })
   expect(screen.queryByRole("button", { name: /Closed:/ })).not.toBeInTheDocument()
   expect(container.querySelector(".is-animated")).toBeNull()
+})
+
+it("keeps two recent Desktop shortcuts in recency order regardless of idle/activity and navigates their exact IDs", async () => {
+  view.accounts[0].sessions = [
+    { ...session("newest"), client: "desktop", recent: true, recency: 20 },
+    { ...session("previous", true), client: "desktop", recent: true, recency: 10 },
+  ]
+  expect(sessionSlots(view.accounts[0].sessions).map(s => "id" in s && s.id)).toEqual(["newest", "previous"])
+  render(<Hud />)
+  const latest = await screen.findByRole("button", { name: "Fixture: Session newest, Recent chat" })
+  fireEvent.click(latest)
+  await waitFor(() => expect(api.call).toHaveBeenCalledWith("hud_open_session", expect.objectContaining({ accountId: "account", threadId: "newest" })))
+  fireEvent.mouseEnter(latest.closest(".hud-account")!)
+  expect(await screen.findByText("2 recent chats · 0 live sessions")).toBeVisible()
 })

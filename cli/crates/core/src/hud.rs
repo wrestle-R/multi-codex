@@ -171,7 +171,7 @@ fn identity(value: &Value) -> Option<String> {
         .filter(|v| uuid::Uuid::parse_str(v).is_ok())
         .map(str::to_owned)
 }
-fn title(value: &Value) -> String {
+pub(crate) fn title(value: &Value) -> String {
     value
         .as_str()
         .unwrap_or("Codex chat")

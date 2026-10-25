@@ -114,11 +114,11 @@ export default function Hud() {
       <div className="hud-accounts">
       {accounts.map(account => {
         const sessions = orderedSessions(account.sessions)
-        return <div className={`hud-account${sessions.length ? " has-sessions" : " is-inactive"}${view.settings.animation && !reduced && sessions.length ? " is-animated" : ""}`} key={account.id} onMouseEnter={() => setHovered(account.id)} onFocus={() => setHovered(account.id)}>
+        return <div className={`hud-account${sessions.length ? " has-sessions" : " is-inactive"}${view.settings.animation && !reduced ? " animate-status" : ""}`} key={account.id} onMouseEnter={() => setHovered(account.id)} onFocus={() => setHovered(account.id)}>
           {sessions.length < 2 ? <button className="hud-avatar-button" aria-label={`${account.name}: ${sessions[0] ? attentionLabel(sessions[0]) : "No open chats"}`} onClick={() => open(account, sessions[0])}>
-            <AccountAvatar id={account.id} identity={account.avatar} size={view.settings.size} working={sessions[0]?.status === "active"} animate={view.settings.animation && !reduced} />
+            <AccountAvatar id={account.id} identity={account.avatar} size={view.settings.size} working={false} animate={false} />
             {sessions.length > 0 && <span className={`hud-presence ${sessions[0].needsAttention ? "needs-attention" : sessions[0].status}`} aria-hidden="true">{attentionIcon(sessions[0])}</span>}
-          </button> : <div className={`hud-session-avatars ${sessions.length === 2 ? "two" : "corners"}`}>{sessionSlots(sessions).map(slot => "overflow" in slot ? <button key="overflow" className="hud-session-avatar hud-overflow" aria-label={`${slot.overflow} more ${account.name} chats`} onClick={() => setHovered(account.id)}>+{slot.overflow}</button> : <button className="hud-session-avatar" key={`${slot.client}/${slot.processId}/${slot.id}`} aria-label={`${account.name}: ${slot.title}, ${attentionLabel(slot)}`} onClick={() => open(account, slot)}><AccountAvatar id={account.id} identity={account.avatar} size={Math.floor(view.settings.size / 2)} working={slot.status === "active"} animate={view.settings.animation && !reduced} />{slot.needsAttention && <span className="hud-mini-attention" aria-hidden="true">{attentionIcon(slot)}</span>}</button>)}</div>}
+          </button> : <div className={`hud-session-avatars ${sessions.length === 2 ? "two" : "corners"}`}>{sessionSlots(sessions).map(slot => "overflow" in slot ? <button key="overflow" className="hud-session-avatar hud-overflow" aria-label={`${slot.overflow} more ${account.name} chats`} onClick={() => setHovered(account.id)}>+{slot.overflow}</button> : <button className="hud-session-avatar" key={`${slot.client}/${slot.processId}/${slot.id}`} aria-label={`${account.name}: ${slot.title}, ${attentionLabel(slot)}`} onClick={() => open(account, slot)}><AccountAvatar id={account.id} identity={account.avatar} size={Math.floor(view.settings.size / 2)} working={false} animate={false} />{(slot.needsAttention || slot.status === "active") && <span className={`hud-mini-attention ${slot.needsAttention ? "" : "working"}`} aria-hidden="true">{attentionIcon(slot)}</span>}</button>)}</div>}
 
         </div>
       })}
@@ -127,12 +127,12 @@ export default function Hud() {
       <button className="hud-hide" aria-label="Hide Orbit" title="Restore with Super / ⌘ + Shift + H, the tray, or Orbit settings" onClick={() => { setHovered(null); setPopup(null); void hudCall("hud_toggle") }}>−</button>
     </div>
     {account && <section className="hud-panel" aria-label={`${account.name} usage and sessions`}>
-      <header><AccountAvatar id={account.id} identity={account.avatar} size={36} /><div><strong>{account.name}</strong><small>{account.monitoringMessage ? "Session visibility unavailable" : `${account.sessions.length} open ${account.sessions.length === 1 ? "chat" : "chats"}`}</small></div></header>
+      <header><AccountAvatar id={account.id} identity={account.avatar} size={36} /><div><strong>{account.name}</strong><small>{`${account.sessions.filter(s => s.recent).length} recent chats · ${account.sessions.filter(s => !s.recent).length} live sessions`}</small></div></header>
       {account.monitoringMessage && <p className="hud-monitoring-note">{account.monitoringMessage}</p>}
       <Usage account={account} />
       <div className="hud-session-list">{orderedSessions(account.sessions).map(session => <button key={`${session.client}/${session.processId}/${session.id}`} className="hud-session" onClick={() => open(account, session)}><span className={`hud-session-status ${session.needsAttention ? "needs-attention" : session.status}`}>{attentionIcon(session)}</span><span><strong>{session.title || "Codex chat"}</strong><small>{attentionLabel(session)}</small>{session.tokens && <small>{session.tokens.total?.toLocaleString() ?? "—"} tokens{session.tokens.contextWindow ? ` · ${session.tokens.input?.toLocaleString() ?? "—"}/${session.tokens.contextWindow.toLocaleString()} context` : ""}</small>}</span><span aria-hidden="true">↗</span></button>)}</div>
     </section>}
-    {popup && !account && <button className="hud-popup" aria-label="Open chat needing attention" onClick={() => open(popup.account, popup.session)}><AccountAvatar id={popup.account.id} identity={popup.account.avatar} size={42} /><span aria-hidden="true">{attentionIcon(popup.session)}</span></button>}
+    {popup && !account && <button className="hud-popup" aria-label="Open chat needing attention" onClick={() => open(popup.account, popup.session)}><span aria-hidden="true">{attentionIcon(popup.session)}</span><strong>{popup.account.name} needs you</strong></button>}
     {error && <p className="hud-error" role="alert">{error}<button aria-label="Dismiss navigation error" onClick={() => setError("")}>×</button></p>}
   </main>
 }

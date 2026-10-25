@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react"
+import { memo, useEffect, useState } from "react"
 import { BotAvatar } from "bot-avatars"
 import { accountAvatar, type AvatarIdentity } from "../lib/hud"
 
-export function AccountAvatar({ id, identity, size = 48, working = false, animate = false }: { id: string; identity?: AvatarIdentity; size?: number; working?: boolean; animate?: boolean }) {
+export const AccountAvatar = memo(function AccountAvatar({ id, identity, size = 48, working = false, animate = false }: { id: string; identity?: AvatarIdentity; size?: number; working?: boolean; animate?: boolean }) {
   const [assigned, setAssigned] = useState(identity)
   useEffect(() => {
     let active = true
@@ -15,4 +15,5 @@ export function AccountAvatar({ id, identity, size = 48, working = false, animat
     state={working ? "working" : "default"} paused={!animate || !working} interactive={false}
     shading="fabric" saturation={0.95} speed={0.35} turn={0.15} jumpHeight={4} jumpSpin={0} jumpEvery={0}
     furDensity={1.25} furFuzz={0.7} aria-hidden="true" />
-}
+}, (a, b) => a.id === b.id && a.size === b.size && a.working === b.working && a.animate === b.animate
+  && a.identity?.kind === b.identity?.kind && a.identity?.color === b.identity?.color && a.identity?.seed === b.identity?.seed)

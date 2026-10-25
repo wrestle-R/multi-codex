@@ -32,8 +32,8 @@ export function HudSettingsDialog({ onClose }: { onClose: () => void }) {
         <label>Opacity <output>{Math.round(settings.opacity * 100)}%</output><input type="range" min={35} max={100} value={settings.opacity * 100} onChange={event => update("opacity", Number(event.target.value) / 100)} /></label>
         <label>Display<select value={settings.monitor ?? ""} onChange={event => setSettings(current => ({ ...current, monitor: event.target.value || null, x: null, y: null }))}><option value="">Primary display</option>{monitors.map(m => <option key={m} value={m}>{m}</option>)}</select></label>
         <button className="button secondary" type="button" onClick={() => setSettings(current => ({ ...current, x: null, y: null }))}>Reset position to top-right</button>
-        <label className="hud-check"><input type="checkbox" checked={settings.onlyOpen} onChange={event => update("onlyOpen", event.target.checked)} />Only show accounts with open chats</label>
-        <label className="hud-check"><input type="checkbox" checked={settings.animation} onChange={event => update("animation", event.target.checked)} />Subtle working animation</label>
+        <label className="hud-check"><input type="checkbox" checked={settings.onlyOpen} onChange={event => update("onlyOpen", event.target.checked)} />Only show accounts with chat shortcuts</label>
+        <label className="hud-check"><input type="checkbox" checked={settings.animation} onChange={event => update("animation", event.target.checked)} />Pulse working status dot</label>
         <label className="hud-check"><input type="checkbox" checked={settings.reducedMotion} onChange={event => update("reducedMotion", event.target.checked)} />Reduce motion</label>
         <label className="hud-check"><input type="checkbox" checked={settings.sound} onChange={event => update("sound", event.target.checked)} />Play a soft sound for new reminders</label>
         <p className="desktop-notice">Hover for usage and sessions. Click to return to Codex. Orbit hides during fullscreen. Show or hide it with ⌘ / Super + Shift + H or the tray.</p>

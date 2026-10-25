@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.7.2",
+    "title": "Persistent recent chats and a quieter Orbit",
+    "highlights": [
+      "Orbit keeps your two most recent non-archived chats per account available while idle. Clicking opens the exact chat in that account’s Desktop app.",
+      "Desktop launches directly without a project-folder picker or opening a project. VS Code keeps its open-window shortcuts.",
+      "Idle avatars are still. A small status dot replaces continuous plush animation, and attention reminders use a simple static badge."
+    ]
+  },
+  {
     "version": "1.7.1",
     "title": "Orbit sessions and reliable updates",
     "highlights": [

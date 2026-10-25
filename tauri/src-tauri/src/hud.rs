@@ -28,6 +28,8 @@ pub struct HudSession {
     pub needs_attention: bool,
     pub client: String,
     pub process_id: u32,
+    pub recent: bool,
+    pub recency: i64,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +54,12 @@ pub struct View {
 pub fn hud_snapshot(app: tauri::AppHandle, state: State<'_, HudState>) -> Result<View, String> {
     let profiles = app.state::<AppState>().service.list_profiles()?;
     let mut snapshots = model::live_snapshots(&state.root);
+    snapshots.retain(|snapshot| snapshot.client != "desktop");
+    snapshots.extend(
+        model::snapshots(&state.root)
+            .into_iter()
+            .filter(|snapshot| snapshot.client == "desktop"),
+    );
     snapshots.sort_by_key(|snapshot| (snapshot.start_time, snapshot.pid));
     let acknowledgments = state
         .acknowledgments
@@ -63,6 +71,29 @@ pub fn hud_snapshot(app: tauri::AppHandle, state: State<'_, HudState>) -> Result
             let id = profile.metadata.id;
             let mut sessions = BTreeMap::new();
             let mut limits = None;
+            let recent = multi_codex_core::hud_recent::load(&state.root, &id);
+            for chat in &recent.chats {
+                sessions.insert(
+                    (0, chat.id.clone()),
+                    HudSession {
+                        session: model::Session {
+                            id: chat.id.clone(),
+                            title: chat.title.clone(),
+                            cwd: chat.cwd.clone(),
+                            status: "recent".into(),
+                            attention: None,
+                            epoch: 0,
+                            tokens: None,
+                        },
+                        event_key: String::new(),
+                        needs_attention: false,
+                        client: "desktop".into(),
+                        process_id: 0,
+                        recent: true,
+                        recency: chat.recency,
+                    },
+                );
+            }
             for snapshot in snapshots
                 .iter()
                 .filter(|snapshot| snapshot.profile_id == id)
@@ -75,8 +106,24 @@ pub fn hud_snapshot(app: tauri::AppHandle, state: State<'_, HudState>) -> Result
                         "{id}/{}/{}/{}/{}",
                         snapshot.pid, snapshot.start_time, session.id, session.epoch
                     );
+                    if snapshot.client == "desktop"
+                        && !recent.chats.iter().any(|chat| chat.id == session.id)
+                    {
+                        continue;
+                    }
+                    let recent_chat = recent
+                        .chats
+                        .iter()
+                        .find(|chat| snapshot.client == "desktop" && chat.id == session.id);
                     sessions.insert(
-                        (snapshot.pid, session.id.clone()),
+                        (
+                            if snapshot.client == "desktop" {
+                                0
+                            } else {
+                                snapshot.pid
+                            },
+                            session.id.clone(),
+                        ),
                         HudSession {
                             session: session.clone(),
                             needs_attention: session.attention.is_some()
@@ -84,13 +131,15 @@ pub fn hud_snapshot(app: tauri::AppHandle, state: State<'_, HudState>) -> Result
                             event_key,
                             client: snapshot.client.clone(),
                             process_id: snapshot.pid,
+                            recent: recent_chat.is_some(),
+                            recency: recent_chat.map_or(0, |chat| chat.recency),
                         },
                     );
                 }
             }
-            let monitoring_message = snapshots.iter().any(|s| s.profile_id == id && s.client == "desktop")
-                .then(|| multi_codex_core::hud_desktop::visible(&state.root, &id)).filter(Option::is_none)
-                .map(|_| "Open this account normally again when convenient to connect Desktop visibility. Cached chats are excluded.");
+            let monitoring_message = recent
+                .unavailable
+                .then_some("Recent chats temporarily unavailable; saved shortcuts stay visible.");
             Account {
                 monitoring_message,
                 avatar: model::avatar(&id),

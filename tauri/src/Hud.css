@@ -25,9 +25,9 @@
 .hud-mini-attention { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; display: grid; place-items: center; border-radius: 50%; background: #efbd65; color: #261909; font-size: 9px; }
 .hud-account.is-inactive .hud-avatar-button { filter: grayscale(0.9); opacity: 0.46; }
 .hud-account.is-inactive:hover .hud-avatar-button, .hud-account.is-inactive:focus-within .hud-avatar-button { opacity: 0.7; }
-.hud-account.is-animated .hud-avatar-button > :first-child, .hud-account.is-animated .hud-session-avatar > :first-child:not(.hud-mini-attention) { animation: orbiter-breathe 4s ease-in-out infinite; transform-origin: 50% 75%; }
-.hud-account.is-animated .hud-session-avatar:nth-child(even) > :first-child { animation-delay: -2s; }
-@keyframes orbiter-breathe { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-1.5px) rotate(1deg); } }
+.hud-mini-attention.working { background: var(--signal); color: var(--card); }
+.animate-status .hud-presence.active, .animate-status .hud-mini-attention.working { animation: orbit-status 2s ease-in-out infinite; }
+@keyframes orbit-status { 50% { opacity: 0.45; } }
 .hud-monitoring-note { margin: 0 0 10px; color: var(--muted-foreground); font-size: 11px; line-height: 1.4; }
 .hud-empty { color: var(--muted-foreground); font-size: 12px; padding: 0 5px; }
 .hud-panel { flex: 0 1 auto; min-height: 0; margin: 0; background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 14px; width: 300px; max-width: 100%; max-height: 304px; overflow-y: auto; box-shadow: 0 6px 24px #0002; }
