@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.7.4",
+    "title": "Refresh settings, account alerts and automatic festival outfits",
+    "highlights": [
+      "Choose how often usage and updates refresh in Settings, with a 10-minute default.",
+      "Account alerts cover weekly resets, new banked resets, low usage and expired sign-ins, with an optional desktop notification.",
+      "Six consistent avatar colours and characters share automatic festival outfits through 2029. All Orbit controls stay inside Orbit."
+    ]
+  },
+  {
     "version": "1.7.3",
     "title": "One launcher, a calmer header and better window manners",
     "highlights": [
