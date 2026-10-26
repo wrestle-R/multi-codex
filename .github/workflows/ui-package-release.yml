@@ -1,5 +1,5 @@
-# Rebuild v1.7.3 after a UI-only palette compatibility correction. Native/editor proofs are reused
-# only after the baseline succeeds and a strict source allowlist passes.
+# Rebuild v1.7.3 after a frontend palette correction and isolated test-bus fix.
+# Reuse only passed native/editor checks, guarded by an exact source allowlist.
 name: UI release package refresh
 'on':
   workflow_dispatch: null
@@ -33,15 +33,20 @@ jobs:
         import assert from 'node:assert/strict';
         import { execFileSync } from 'node:child_process';
         const baseline = JSON.parse(execFileSync('gh', ['run','view','39829636285','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
-        assert.equal(baseline.conclusion, 'success');
+        assert.equal(baseline.conclusion, 'failure');
+        const linux = baseline.jobs.find(job => job.name === 'linux');
+        assert.deepEqual(linux.steps.filter(step => step.conclusion === 'failure').map(step => step.name), ['Verify AppImageHub-compatible launch and visible window']);
+        for (const name of ['Run npm run test:release', 'Run cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core', 'Run npm run release:linux', 'Exercise native SDK update and signed-payload refusal on Linux']) {
+          assert.equal(linux.steps.find(step => step.name === name)?.conclusion, 'success', name);
+        }
         assert.equal(baseline.headSha, 'da008adbc98e2890553faa00e53a96fd09ec1648');
-        for (const name of ['linux','macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
+        for (const name of ['macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
           assert.equal(baseline.jobs.find(job => job.name === name)?.conclusion, 'success', name);
         }
-        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','.github/workflows/ui-package-release.yml']);
+        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','tauri/scripts/appimage-catalog-display-smoke.sh','.github/workflows/ui-package-release.yml']);
         const changed = execFileSync('git', ['diff','--name-only',baseline.headSha,'HEAD'], {encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
-        console.log('Completed native/editor acceptance reused only for unchanged source. Current UI tests, packages, installers and signed SDK checks still run.');
+        console.log('Only passed baseline native/editor checks are reused. The isolated Linux bus is corrected; all final package, visible-window, singleton, installer and signed SDK gates must pass.');
         NODE
     - name: Validate tag version
       env:
@@ -71,7 +76,7 @@ jobs:
         sudo apt-get update
         # Recommended desktop portals wait for a graphical login on headless
         # runners, blocking GTK startup. Required libraries remain installed.
-        sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf rpm xdotool xvfb
+        sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf rpm x11-utils xdotool xvfb
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
       with:
@@ -155,15 +160,20 @@ jobs:
         import assert from 'node:assert/strict';
         import { execFileSync } from 'node:child_process';
         const baseline = JSON.parse(execFileSync('gh', ['run','view','39829636285','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
-        assert.equal(baseline.conclusion, 'success');
+        assert.equal(baseline.conclusion, 'failure');
+        const linux = baseline.jobs.find(job => job.name === 'linux');
+        assert.deepEqual(linux.steps.filter(step => step.conclusion === 'failure').map(step => step.name), ['Verify AppImageHub-compatible launch and visible window']);
+        for (const name of ['Run npm run test:release', 'Run cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core', 'Run npm run release:linux', 'Exercise native SDK update and signed-payload refusal on Linux']) {
+          assert.equal(linux.steps.find(step => step.name === name)?.conclusion, 'success', name);
+        }
         assert.equal(baseline.headSha, 'da008adbc98e2890553faa00e53a96fd09ec1648');
-        for (const name of ['linux','macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
+        for (const name of ['macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
           assert.equal(baseline.jobs.find(job => job.name === name)?.conclusion, 'success', name);
         }
-        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','.github/workflows/ui-package-release.yml']);
+        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','tauri/scripts/appimage-catalog-display-smoke.sh','.github/workflows/ui-package-release.yml']);
         const changed = execFileSync('git', ['diff','--name-only',baseline.headSha,'HEAD'], {encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
-        console.log('Completed native/editor acceptance reused only for unchanged source. Current UI tests, packages, installers and signed SDK checks still run.');
+        console.log('Only passed baseline native/editor checks are reused. The isolated Linux bus is corrected; all final package, visible-window, singleton, installer and signed SDK gates must pass.');
         NODE
     - name: Validate tag version
       env:
@@ -350,15 +360,20 @@ jobs:
         import assert from 'node:assert/strict';
         import { execFileSync } from 'node:child_process';
         const baseline = JSON.parse(execFileSync('gh', ['run','view','39829636285','--json','conclusion,headSha,jobs'], {encoding:'utf8'}));
-        assert.equal(baseline.conclusion, 'success');
+        assert.equal(baseline.conclusion, 'failure');
+        const linux = baseline.jobs.find(job => job.name === 'linux');
+        assert.deepEqual(linux.steps.filter(step => step.conclusion === 'failure').map(step => step.name), ['Verify AppImageHub-compatible launch and visible window']);
+        for (const name of ['Run npm run test:release', 'Run cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core', 'Run npm run release:linux', 'Exercise native SDK update and signed-payload refusal on Linux']) {
+          assert.equal(linux.steps.find(step => step.name === name)?.conclusion, 'success', name);
+        }
         assert.equal(baseline.headSha, 'da008adbc98e2890553faa00e53a96fd09ec1648');
-        for (const name of ['linux','macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
+        for (const name of ['macos','windows / windows','extensions / linux-x64','extensions / darwin-arm64','extensions / darwin-x64','windows / installer-scripts (powershell)','windows / installer-scripts (pwsh)']) {
           assert.equal(baseline.jobs.find(job => job.name === name)?.conclusion, 'success', name);
         }
-        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','.github/workflows/ui-package-release.yml']);
+        const allowed = new Set(['tauri/src/App.tsx','tauri/src/App.test.tsx','tauri/src/lib/themes.ts','tauri/scripts/appimage-catalog-display-smoke.sh','.github/workflows/ui-package-release.yml']);
         const changed = execFileSync('git', ['diff','--name-only',baseline.headSha,'HEAD'], {encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
-        console.log('Completed native/editor acceptance reused only for unchanged source. Current UI tests, packages, installers and signed SDK checks still run.');
+        console.log('Only passed baseline native/editor checks are reused. The isolated Linux bus is corrected; all final package, visible-window, singleton, installer and signed SDK gates must pass.');
         NODE
     - uses: dtolnay/rust-toolchain@stable
     - uses: Swatinem/rust-cache@v2
