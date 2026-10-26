@@ -3,7 +3,7 @@ import { checkProfileLimits } from "../lib/desktop-api"
 import { readLimitsCache, saveLimitsCache } from "../lib/limits-cache"
 import type { Profile } from "../lib/types"
 
-export function useProfileLimits(profiles: Profile[], ready: boolean) {
+export function useProfileLimits(profiles: Profile[], ready: boolean, refreshMinutes = 10) {
   const [limitChecks, setLimitChecks] = useState(readLimitsCache)
   const latestProfiles = useRef(profiles)
   useEffect(() => { latestProfiles.current = profiles }, [profiles])
@@ -40,17 +40,22 @@ export function useProfileLimits(profiles: Profile[], ready: boolean) {
   }, [limitChecks, profiles, ready])
   useEffect(() => {
     if (!ready) return
-    const refreshVisible = () => {
-      if (document.visibilityState !== "hidden") void Promise.all(latestProfiles.current.map(handleCheckLimits))
+    let lastCheck = Date.now()
+    const refresh = () => {
+      lastCheck = Date.now()
+      void Promise.all(latestProfiles.current.map(handleCheckLimits))
     }
-    // Refresh expiry details while open, and after returning from the background.
-    const timer = window.setInterval(refreshVisible, 15 * 60_000)
+    const refreshVisible = () => {
+      if (document.visibilityState !== "hidden" && Date.now() - lastCheck >= refreshMinutes * 60_000) refresh()
+    }
+    // Keep account alerts working while the launcher is hidden in the tray.
+    const timer = window.setInterval(refresh, refreshMinutes * 60_000)
     document.addEventListener("visibilitychange", refreshVisible)
     return () => {
       window.clearInterval(timer)
       document.removeEventListener("visibilitychange", refreshVisible)
     }
-  }, [ready, handleCheckLimits])
+  }, [ready, handleCheckLimits, refreshMinutes])
   const refreshingAllLimits = profiles.some(profile => limitChecks[profile.id]?.loading)
   const handleRefreshAllLimits = () => Promise.all(profiles.map(handleCheckLimits))
   return { limitChecks, refreshingAllLimits, handleCheckLimits, handleRefreshAllLimits }

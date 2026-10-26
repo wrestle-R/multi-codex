@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from "react"
 import { getExecutableSettings, getLaunchEnvironment, getLaunchTargets, getTerminalOptions, saveExecutableSettings } from "../lib/desktop-api"
 import type { ExecutableSettings, LaunchTargets, TerminalOption } from "../lib/types"
-import { defaultHudSettings, hudCall, type HudView } from "../lib/hud"
+import { hudCall } from "../lib/hud"
 import { TerminalPicker } from "./terminal-picker"
 import { useDialogFocus } from "./use-dialog-focus"
 import { WorkspacePickerDialog } from "./workspace-picker-dialog"
@@ -9,7 +9,6 @@ import { WorkspacePickerDialog } from "./workspace-picker-dialog"
 export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   const titleId = useId()
   const [settings, setSettings] = useState<ExecutableSettings>({ codePath: null, codexPath: null, globalCodexHome: null })
-  const [orbitEnabled, setOrbitEnabled] = useState(defaultHudSettings.enabled)
   const [updateChannel, setUpdateChannel] = useState<"stable" | "all">("stable")
   const [targets, setTargets] = useState<LaunchTargets | null>(null)
   const [terminals, setTerminals] = useState<TerminalOption[]>([])
@@ -21,13 +20,12 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
   const dialogRef = useDialogFocus(onClose, busy, !browsing)
   useEffect(() => {
     let active = true
-    void Promise.all([getExecutableSettings(), getLaunchTargets(), getLaunchEnvironment(), getTerminalOptions(), hudCall<HudView>("hud_snapshot"), hudCall<"stable" | "all">("get_update_channel")])
-      .then(([value, apps, environment, terminalOptions, hud, channel]) => {
+    void Promise.all([getExecutableSettings(), getLaunchTargets(), getLaunchEnvironment(), getTerminalOptions(), hudCall<"stable" | "all">("get_update_channel")])
+      .then(([value, apps, environment, terminalOptions, channel]) => {
         if (!active) return
         setSettings(value)
         setTargets(apps)
         setTerminals(terminalOptions)
-        setOrbitEnabled(hud.settings.enabled)
         setUpdateChannel(channel ?? "stable")
         setDefaultFolder(environment.defaultWorkspace)
       })
@@ -42,7 +40,6 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
     try {
       await saveExecutableSettings(settings)
       await hudCall("set_update_channel", { channel: updateChannel })
-      await hudCall("hud_set_enabled", { enabled: orbitEnabled })
       onClose()
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error))
@@ -88,11 +85,6 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
             </select></label>
             <p className="desktop-notice">Preview releases may have known issues. Version numbers do not indicate stability.</p>
           </section>
-          {targets?.platform !== "windows" ? <section className="settings-section" aria-label="Orbit preferences">
-            <div className="settings-section-heading"><h3>Orbit</h3><p>Your Orbiters, at a glance.</p></div>
-            <label className="desktop-picker-setting"><input type="checkbox" checked={orbitEnabled} disabled={loading || busy} onChange={event => setOrbitEnabled(event.target.checked)} /><span className="desktop-setting-copy">Enable Orbit<small>Show Orbiters for your Codex sessions.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label>
-            <p className="settings-help">Turn it off to hide the Orbiters and their reminders. Your chats keep running.</p>
-          </section> : null}
           <details className="advanced-settings">
             <summary>Advanced <span>Executable paths and Codex home</span></summary>
             <div className="advanced-settings-fields">

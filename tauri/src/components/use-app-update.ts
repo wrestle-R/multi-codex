@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { checkAppUpdate } from "../lib/desktop-api"
 
-export function useAppUpdate(installing: boolean) {
+export function useAppUpdate(installing: boolean, refreshMinutes = 10) {
   const [version, setVersion] = useState<string | null>(null)
   const pending = useRef<Promise<void> | null>(null)
   const active = useRef(false)
@@ -30,7 +30,7 @@ export function useAppUpdate(installing: boolean) {
     active.current = true
     const checkVisible = () => { if (document.visibilityState !== "hidden") void check() }
     void check()
-    const timer = window.setInterval(checkVisible, 15 * 60_000)
+    const timer = window.setInterval(() => void check(), refreshMinutes * 60_000)
     document.addEventListener("visibilitychange", checkVisible)
     window.addEventListener("online", checkVisible)
     return () => {
@@ -39,7 +39,7 @@ export function useAppUpdate(installing: boolean) {
       document.removeEventListener("visibilitychange", checkVisible)
       window.removeEventListener("online", checkVisible)
     }
-  }, [check])
+  }, [check, refreshMinutes])
 
   return { version, check, clear: () => setVersion(null) }
 }
