@@ -1,10 +1,16 @@
 # Orbit and Orbiters
 
-Orbit is the optional desktop companion strip in Multi Codex. Each account has a permanent **Orbiter** with its own appearance. Stable v1.7.3 keeps recent Desktop conversations available independently of live activity. See [release details](/releases/v1.7.3).
+Orbit is the optional desktop companion strip in Multi Codex. Each account has a saved **Orbiter** from six consistent colour and character templates. Stable v1.7.4 adds automatic festival clothing and account alerts, while keeping recent Desktop conversations available independently of live activity. See [release details](/releases/v1.7.4).
 
 ## Turn Orbit on or off
 
 Open **Settings → Orbit**, change **Enable Orbit**, and save. Turning Orbit off hides the strip and silences its reminders; Codex chats stay open. Open **Settings → Orbit** in the launcher, or **Orbit** in the tray for size, display, position, motion and sound preferences. Sound starts off.
+
+## Automatic festival clothing
+
+**Settings → Orbit → Festival clothing** turns automatic outfits on or off. There is no festival picker. Outfits change by the local date using researched festival dates through 2029. Each colour always uses the same character; new accounts take a colour from the least-used group, and saved assignments stay stable. Idle avatars remain still.
+
+Account reset, low-usage and sign-in expiry alerts are under **Settings → Notifications**. Their check interval is under **Settings → Refresh**, with a 10-minute default. Desktop alerts are optional and need system permission; they work while Multi Codex remains running, including in the tray.
 
 ## Sessions and usage
 

@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.7.4", stability: "stable" as const, publishedAt: "2026-10-23T10:31:48Z", title: "Refresh settings, account alerts and automatic festival outfits", highlights: [
+    "Choose how often usage and updates refresh in Settings, with a 10-minute default.",
+    "Account alerts cover weekly resets, new banked resets, low usage and expired sign-ins, with optional desktop notifications.",
+    "Six consistent avatar colours and characters dress automatically for festivals through 2029. All Orbit controls stay inside Orbit.",
+  ] },
   { tag: "v1.7.3", stability: "stable" as const, publishedAt: "2026-10-22T19:22:46Z", title: "One launcher, a calmer header and better window manners", highlights: [
     "Opening Multi Codex again returns to the existing launcher, with one launcher and tray owner.",
     "A roomy Settings panel groups appearance, Orbit, launch preferences and storage; Orbit controls open in a centered dialog.",
@@ -117,7 +122,7 @@ export const releaseHistory = [
 // Group summaries describe the series as a whole; individual entries retain
 // their published versions, dates, anchors and website detail pages.
 const releaseSeries = [
-  { series: "1.7", title: "Orbit and reliable shared chats", description: "Optional desktop Orbiters, minimal update notes and complete native conversation handoff." },
+  { series: "1.7", title: "Orbit and reliable shared chats", description: "Desktop Orbiters, account alerts, configurable refresh, automatic festival outfits and complete native conversation handoff." },
   { series: "1.6", title: "Shared storage and accurate disk usage", description: "Share Codex packages and conversations across saved accounts, measure disk space accurately and keep storage controls compact." },
   { series: "1.5", title: "Storage cleanup and signed updates", description: "Understand account storage, clear selected local conversations with a preview, and update the launcher through signed packages." },
   { series: "1.4", title: "Windows support and account switching", description: "Native Windows packages, Mac account menus, all-account usage refresh and connection recovery, with tested platform downloads." },
