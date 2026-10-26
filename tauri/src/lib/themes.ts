@@ -15,3 +15,8 @@ export function initialColorTheme(): ColorTheme {
   if (saved === "slate") return "orange"
   return colorThemes.find(theme => theme.id === saved)?.id ?? "orange"
 }
+
+// Older CLI helpers read the shared settings file and only know the original six.
+export function isLocalColorTheme(theme: ColorTheme): boolean {
+  return theme === "midnight" || theme === "coffee" || theme === "graphite"
+}
