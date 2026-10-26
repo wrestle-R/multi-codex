@@ -1,6 +1,6 @@
 # Orbit and Orbiters
 
-Orbit is the optional desktop companion strip in Multi Codex. Each account has a permanent **Orbiter** with its own appearance. Stable v1.7.2 keeps recent Desktop conversations available independently of live activity. See [release details](/releases/v1.7.2).
+Orbit is the optional desktop companion strip in Multi Codex. Each account has a permanent **Orbiter** with its own appearance. Stable v1.7.3 keeps recent Desktop conversations available independently of live activity. See [release details](/releases/v1.7.3).
 
 ## Turn Orbit on or off
 
