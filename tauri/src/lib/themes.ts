@@ -5,6 +5,9 @@ export const colorThemes = [
   { id: "rose", name: "Rose" },
   { id: "plum", name: "Plum" },
   { id: "orange", name: "Orange" },
+  { id: "midnight", name: "Midnight" },
+  { id: "coffee", name: "Coffee" },
+  { id: "graphite", name: "Graphite" },
 ] as const
 export type ColorTheme = typeof colorThemes[number]["id"]
 export function initialColorTheme(): ColorTheme {

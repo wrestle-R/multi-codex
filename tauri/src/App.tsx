@@ -1,14 +1,12 @@
 import { listen } from "@tauri-apps/api/event"
 import { orderProfilesByPlan } from "./lib/profile-order"
 import { useProfileLimits } from "./components/use-profile-limits"
-import { ThemePicker } from "./components/theme-picker"
+import { SettingsMenu } from "./components/settings-menu"
 import { initialColorTheme, type ColorTheme } from "./lib/themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { flushSync } from "react-dom"
 import {
   Add01Icon,
   DownloadSquare01Icon,
-  HardDriveIcon,
   Moon02Icon,
   Refresh01Icon,
   Sun03Icon,
@@ -159,7 +157,6 @@ export default function App() {
   const [deviceLogin, setDeviceLogin] = useState<{ id: string; output: string[] } | null>(null)
   const deviceLoginRef = useRef<typeof deviceLogin>(null)
   const refreshPromiseRef = useRef<Promise<void> | null>(null)
-  const nextThemeRevealRef = useRef<"expand" | "contract">("expand")
 
   const refresh = useCallback(() => {
     if (refreshPromiseRef.current) return refreshPromiseRef.current
@@ -293,41 +290,9 @@ export default function App() {
     void getExecutableSettings().then(settings => saveExecutableSettings({ ...settings, colorTheme: value })).catch(error => setPageError(String(error)))
   }
 
-  const toggleTheme = useCallback((source: HTMLElement | null = null) => {
-    const next: Theme = theme === "dark" ? "light" : "dark"
-    const root = document.documentElement
-    if (!source || typeof document.startViewTransition !== "function" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      applyTheme(next)
-      return
-    }
-    if (root.classList.contains("theme-transition")) return
-    const rect = source.getBoundingClientRect()
-    const x = rect.left + rect.width / 2
-    const y = rect.top + rect.height / 2
-    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
-    root.style.setProperty("--theme-transition-x", `${x}px`)
-    root.style.setProperty("--theme-transition-y", `${y}px`)
-    root.style.setProperty("--theme-transition-radius", `${radius}px`)
-    root.dataset.themeReveal = nextThemeRevealRef.current
-    root.classList.add("theme-transition")
-    const cleanup = () => {
-      root.classList.remove("theme-transition")
-      delete root.dataset.themeReveal
-      root.style.removeProperty("--theme-transition-x")
-      root.style.removeProperty("--theme-transition-y")
-      root.style.removeProperty("--theme-transition-radius")
-    }
-    try {
-      const transition = document.startViewTransition(() => flushSync(() => applyTheme(next)))
-      transition.finished.then(cleanup, cleanup)
-      transition.ready.then(() => {
-        nextThemeRevealRef.current = nextThemeRevealRef.current === "expand" ? "contract" : "expand"
-      }, () => undefined)
-    } catch {
-      cleanup()
-      applyTheme(next)
-    }
-  }, [applyTheme, theme])
+  const toggleTheme = useCallback(() => {
+    applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark")
+  }, [applyTheme])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -600,14 +565,7 @@ export default function App() {
             </div>
           </div>
           <div className="topbar-actions">
-            <ThemePicker value={colorTheme} onChange={changeColorTheme} />
             <UpdateButton version={appUpdate.version} onCurrent={appUpdate.clear} disabled={busy || cacheBusy || Boolean(chatTarget) || launchBusy || Boolean(deviceLogin) || dialogProfile !== undefined || showLaunchSettings} onBusyChange={setUpdating} />
-            {launchTargets?.platform !== "windows" ? <button className="button secondary" type="button" disabled={updating} onClick={() => setShowHudSettings(true)}>Orbit</button> : null}
-            <button className="button secondary" type="button" disabled={updating} onClick={() => setShowLaunchSettings(true)}>Settings</button>
-            <button className="storage-status" type="button" disabled={updating} title="View storage used by isolated Multi Codex profiles" aria-label={storageUsage == null ? "Calculating app storage" : `${formatStorage(storageUsage.bytes)} used by Multi Codex. View breakdown`} onClick={() => { setShowStorage(true); void refreshStorage() }}>
-              <HugeiconsIcon icon={HardDriveIcon} size={18} strokeWidth={1.8} />
-              <span>{storageUsage == null ? "Calculating" : formatStorage(storageUsage.bytes)}</span>
-            </button>
             {integrationStatus?.available && !integrationStatus.installed ? (
               <button
                 className="icon-button integration-button"
@@ -624,7 +582,7 @@ export default function App() {
               type="button"
               title={`Use ${theme === "dark" ? "light" : "dark"} theme`}
               aria-label={`Theme: ${theme}. Use ${theme === "dark" ? "light" : "dark"} theme`}
-              onClick={(event) => toggleTheme(event.currentTarget)}
+              onClick={toggleTheme}
             >
               <HugeiconsIcon icon={theme === "dark" ? Sun03Icon : Moon02Icon} size={21} strokeWidth={1.8} />
             </button>
@@ -637,6 +595,11 @@ export default function App() {
               <HugeiconsIcon icon={Refresh01Icon} size={18} strokeWidth={1.8} />
               {refreshingAllLimits ? "Refreshing all" : "Refresh all"}
             </button>
+            <SettingsMenu colorTheme={colorTheme} onTheme={changeColorTheme} disabled={updating}
+              onOrbit={launchTargets?.platform !== "windows" ? () => setShowHudSettings(true) : undefined}
+              onLaunch={() => setShowLaunchSettings(true)}
+              storage={storageUsage == null ? "Calculating…" : formatStorage(storageUsage.bytes)}
+              onStorage={() => { setShowStorage(true); void refreshStorage() }} />
           </div>
           <button className="button primary header-button" type="button" disabled={updating} onClick={openAdd}>
             <HugeiconsIcon icon={Add01Icon} size={19} strokeWidth={1.8} />

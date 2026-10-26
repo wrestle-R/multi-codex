@@ -24,6 +24,9 @@ pub enum ColorTheme {
     Rose,
     Plum,
     Orange,
+    Midnight,
+    Coffee,
+    Graphite,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]

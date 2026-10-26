@@ -1,46 +1,19 @@
 import { test, expect } from "@playwright/test"
 
-test("theme curtain alternates from the toggle and cleans up after both reveals", async ({ page }) => {
+test("switches mode immediately and keeps the chosen palette after reload", async ({ page }) => {
   await page.addInitScript(() => {
-    const start = document.startViewTransition?.bind(document)
-    const observations: object[] = []
-    Object.assign(window, { themeReveals: observations })
-    if (!start) return
-    document.startViewTransition = update => {
-      const transition = start(update)
-      transition.ready.then(() => {
-        const root = document.documentElement
-        const direction = root.dataset.themeReveal
-        const layer = direction === "contract" ? "old" : "new"
-        const style = getComputedStyle(root, `::view-transition-${layer}(root)`)
-        observations.push({ direction, x: root.style.getPropertyValue("--theme-transition-x"), y: root.style.getPropertyValue("--theme-transition-y"), animation: style.animationName, duration: style.animationDuration, easing: style.animationTimingFunction })
-      }, () => undefined)
-      return transition
-    }
+    document.startViewTransition = () => { throw new Error("Theme switching must not take a full-page snapshot") }
   })
   await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" })
   await page.goto("/docs")
-  const root = page.locator("html")
-  const toggle = page.getByRole("button", { name: "Toggle color theme" })
-  await expect(toggle).toHaveAttribute("aria-pressed", "false")
-  const rect = await toggle.boundingBox()
-  for (const pressed of ["true", "false"]) {
-    await toggle.click()
-    await expect(toggle).toHaveAttribute("aria-pressed", pressed)
-    await expect(root).not.toHaveClass(/theme-transition/)
-    await expect(root).not.toHaveAttribute("data-theme-reveal")
-  }
-  const observations = await page.evaluate(() => (window as unknown as { themeReveals: { direction: string; x: string; y: string; animation: string; duration: string; easing: string }[] }).themeReveals)
-  if (await page.evaluate(() => typeof document.startViewTransition === "function")) {
-    expect(observations.map(item => item.direction)).toEqual(["expand", "contract"])
-    for (const item of observations) {
-      expect(parseFloat(item.x)).toBeCloseTo(rect!.x + rect!.width / 2, 0)
-      expect(parseFloat(item.y)).toBeCloseTo(rect!.y + rect!.height / 2, 0)
-      expect(item.animation).toBe("theme-curtain-reveal")
-      expect(item.duration).toBe("0.96s")
-      expect(item.easing).toBe("cubic-bezier(0.55, 0, 0.8, 1)")
-    }
-  }
+  const picker = page.getByRole("combobox", { name: "Website palette" })
+  await picker.selectOption("midnight")
+  await page.getByRole("button", { name: "Toggle color theme" }).click()
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
+  await expect(page.locator("html")).toHaveAttribute("data-palette", "midnight")
+  await page.reload()
+  await expect(picker).toHaveValue("midnight")
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark")
 })
 
 test("theme remains immediate with reduced motion or without view transitions", async ({ page }) => {

@@ -59,11 +59,22 @@ print("Visible native window confirmed")
                     time.sleep(.5)
                 else:
                     raise RuntimeError("Packaged app did not create a visible window")
-                time.sleep(5)
+                # Repeated launches must activate the first app, never create a second tray owner.
+                for _ in range(2):
+                    duplicate = subprocess.Popen([str(binary)], env=env, stdout=log, stderr=subprocess.STDOUT)
+                    try:
+                        assert duplicate.wait(timeout=15) == 0, "Second launch did not exit cleanly"
+                    finally:
+                        if duplicate.poll() is None:
+                            duplicate.kill()
+                            duplicate.wait(timeout=5)
+                    assert process.poll() is None, "Second launch stopped the original app"
+                    subprocess.run([str(inspector_binary), str(process.pid)], check=True, capture_output=True)
+                time.sleep(2)
                 assert process.poll() is None, "Packaged app exited after window startup"
                 # Runner is disposable and contains only the test app's signed-out UI.
                 subprocess.run(["/usr/sbin/screencapture", "-x", str(report_dir / f"startup-{attempt}.png")], check=True)
-                runs.append({"startup": attempt, "visibleWindow": True, "stayedRunning": True})
+                runs.append({"startup": attempt, "visibleWindow": True, "stayedRunning": True, "duplicateLaunchesExited": 2, "originalProcessPreserved": True})
             finally:
                 if process.poll() is None:
                     process.terminate()

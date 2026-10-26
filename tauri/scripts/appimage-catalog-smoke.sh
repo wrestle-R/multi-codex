@@ -113,6 +113,15 @@ if grep -Fq 'Unable to spawn a new child process' "$test_root/appimage.log"; the
   exit 1
 fi
 
+# Exercise the packaged entry point again, on the same isolated session bus.
+# A timeout or nonzero exit fails the check; the first app must still own its window.
+for attempt in 1 2; do
+  timeout 15 env "${launch_env[@]}" "${launch_command[@]}" >"$test_root/duplicate-$attempt.log" 2>&1
+  kill -0 "$app_pid"
+  [[ "$(timeout 5 xdotool search --onlyvisible --name '^Multi Codex$' | wc -l)" -eq 1 ]]
+done
+echo "Duplicate launches exited; original app and one launcher window preserved" >"$test_root/single-instance.txt"
+
 timeout 20 import -window "$window_id" "$test_root/screenshot.png"
 if [[ "$(identify -format '%m' "$test_root/screenshot.png")" != "PNG" ]]; then
   echo "AppImage window smoke did not produce a PNG screenshot" >&2

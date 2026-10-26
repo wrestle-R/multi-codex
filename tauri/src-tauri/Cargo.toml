@@ -1,6 +1,6 @@
 [package]
 name = "multi-codex-desktop"
-version = "1.7.2"
+version = "1.7.3"
 description = "Run isolated Codex accounts in separate VS Code windows"
 default-run = "multi-codex-desktop"
 authors = ["Russell Daniel Paul"]
@@ -35,12 +35,13 @@ sha2 = "0.10"
 rusqlite = { version = "0.40", features = ["bundled"] }
 jsonc-parser = { version = "0.34", features = ["serde", "cst"] }
 sysinfo = "0.37"
-tauri = { version = "2.11.2", default-features = false, features = ["wry", "x11", "dbus", "image-png", "tray-icon", "macos-private-api"] }
+tauri = { version = "=2.11.5", default-features = false, features = ["wry", "x11", "dbus", "image-png", "tray-icon", "macos-private-api"] }
 tauri-plugin-updater = "2"
 tempfile = "3"
 toml_edit = "0.25"
 uuid = { version = "1", features = ["v4", "serde"] }
 url = "2"
+tauri-plugin-single-instance = "=2.4.5"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gio = "0.18"
@@ -56,7 +57,7 @@ tauri-plugin-global-shortcut = "2"
 
 [dev-dependencies]
 tempfile = "3"
-tauri = { version = "2.11.2", default-features = false, features = ["test"] }
+tauri = { version = "=2.11.5", default-features = false, features = ["test"] }
 
 [target.'cfg(windows)'.dependencies]
 junction = "1"

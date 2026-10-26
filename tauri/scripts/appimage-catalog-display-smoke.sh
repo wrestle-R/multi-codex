@@ -21,4 +21,4 @@ for _ in 1 2 3 4 5; do
 done
 display_number="$(cat "$display_root/number")"
 [[ "$display_number" =~ ^[0-9]+$ ]] || { cat "$display_root/xvfb.log" >&2; exit 1; }
-DISPLAY=":$display_number" env -u XAUTHORITY bash "$(dirname "$0")/appimage-catalog-smoke.sh" "$@"
+DISPLAY=":$display_number" env -u XAUTHORITY dbus-run-session -- bash "$(dirname "$0")/appimage-catalog-smoke.sh" "$@"

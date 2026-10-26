@@ -13,8 +13,10 @@ for(const [engine,type] of engines){
  const browser=await type.launch();
  for(const viewport of [{width:1180,height:820},{width:480,height:520}])for(const mode of ['light','dark']){
   const page=await browser.newPage({viewport,reducedMotion:'reduce'});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(mode=>{localStorage.setItem('multi-codex-theme',mode);localStorage.setItem('multi-codex-palette','sand');localStorage.setItem('multi-codex-executables',JSON.stringify({codePath:null,codexPath:'/opt/example/codex',globalCodexHome:null,preferredWorkspace:'/home/example/Projects',launchMode:'both',cliTerminal:'konsole'}));},mode);
+  await page.addInitScript(mode=>{localStorage.setItem('multi-codex-theme',mode);localStorage.setItem('multi-codex-color-theme','sand');localStorage.setItem('multi-codex-executables',JSON.stringify({codePath:null,codexPath:'/opt/example/codex',globalCodexHome:null,preferredWorkspace:'/home/example/Projects',launchMode:'both',cliTerminal:'konsole'}));},mode);
   await page.goto(`${process.env.SETTINGS_BASE_URL || 'http://127.0.0.1:1420'}/?demo=1`);await page.getByRole('button',{name:'Settings',exact:true}).click();
+  const quick=page.getByRole('dialog',{name:'Quick settings'});const quickBounds=await quick.boundingBox();assert(quickBounds.x>=0&&quickBounds.x+quickBounds.width<=viewport.width,'Quick settings extends beyond the window');
+  await page.getByRole('button',{name:/Launch settings/}).click();
   const dialog=page.getByRole('dialog',{name:'Settings'});
   const workspace=await page.getByRole('region',{name:'Workspace preferences'}).boundingBox();
   const updates=await page.getByRole('region',{name:'Update preferences'}).boundingBox();
