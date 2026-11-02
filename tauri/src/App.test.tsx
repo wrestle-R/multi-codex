@@ -909,7 +909,7 @@ it.each([[true, false], [false, true], [false, false]])("hides the whole app-cho
   expect(screen.getByRole("radio", { name: "CLI only" })).toBeDisabled()
 })
 
-it("shows the isolation gate only when both apps are installed", async () => {
+it("allows an installed Codex build without per-version approval", async () => {
   const user = userEvent.setup()
   api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: true, standaloneVerified: false })
   render(<App />)
@@ -917,9 +917,9 @@ it("shows the isolation gate only when both apps are installed", async () => {
   await user.click(screen.getByRole("button", { name: /Launch settings/ }))
   expect(await screen.findByText("Open accounts with")).toBeInTheDocument()
   expect(screen.getByRole("radio", { name: "VS Code" })).toBeChecked()
-  expect(screen.getByRole("radio", { name: "Codex" })).toBeDisabled()
+  expect(screen.getByRole("radio", { name: "Codex" })).toBeEnabled()
   expect(screen.getByRole("radio", { name: "All available" })).toBeEnabled()
-  expect(screen.getByText(/has not passed account-isolation verification/)).toBeInTheDocument()
+  expect(screen.queryByText(/has not passed account-isolation verification/)).not.toBeInTheDocument()
 })
 
 it("hides the Linux toggle during detection and on Mac after detection", async () => {
@@ -1016,7 +1016,7 @@ it('does not switch apps when the clicked standalone installation disappears', a
   await screen.findByRole('button', { name: 'Codex' })
   api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: true, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false })
   await user.click(screen.getByRole('button', { name: 'Codex' }))
-  await screen.findAllByText(/verified Codex desktop app is unavailable/)
+  await screen.findAllByText(/Codex desktop app is unavailable/)
   expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
   expect(api.launchProfile).not.toHaveBeenCalled()
 })

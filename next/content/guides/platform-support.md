@@ -15,7 +15,7 @@ Standalone isolation is enabled only for desktop app version `26.930.51102` on L
 
 ## Settings and account data
 
-The first-run welcome saves platform and installed-app detection; installed apps are checked again later. Settings offers **VS Code**, **Codex**, **All available** and **CLI only**, disabling unavailable targets. The CLI button appears alongside the selected apps whenever a CLI is available. Existing launch preferences remain in place, and an unverified standalone version cannot be selected.
+The first-run welcome saves platform and installed-app detection; installed apps are checked again later. Settings offers **VS Code**, **Codex**, **All available** and **CLI only**, disabling unavailable targets. The CLI button appears alongside the selected apps whenever a CLI is available. Existing launch preferences remain in place. From v1.7.5, any installed Codex desktop version can be selected; version metadata is informational and no longer blocks launching.
 
 **Preferred folder + Browse** uses the built-in folder picker. The saved folder is the starting location for VS Code and CLI project selection; a different project can be chosen then. Codex Desktop launches directly without selecting or opening a project. On Linux, **Show desktop picker** is on by default and can be turned off. The option does not appear on macOS or Windows. Mac and Windows launches continue on the current desktop. Executable paths and global Codex home are under Advanced.
 

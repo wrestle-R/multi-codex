@@ -12,7 +12,7 @@ pub fn launch_actions(targets: &LaunchTargets) -> Vec<(&'static str, &'static st
     if targets.vscode_installed {
         actions.push(("vscode", "Open VS Code"));
     }
-    if targets.standalone_installed && targets.standalone_verified {
+    if targets.standalone_installed {
         actions.push(("standalone", "Open Codex"));
     }
     if targets.codex_cli_available {
@@ -177,7 +177,7 @@ pub fn setup(app: &tauri::AppHandle) -> tauri::Result<()> {
 mod tests {
     use super::*;
     #[test]
-    fn account_actions_only_include_installed_verified_targets() {
+    fn account_actions_only_include_installed_targets() {
         let mut targets = LaunchTargets {
             platform: "macos".into(),
             vscode_installed: false,
@@ -188,9 +188,8 @@ mod tests {
         };
         assert!(launch_actions(&targets).is_empty());
         targets.vscode_installed = true;
-        targets.standalone_installed = true;
         assert_eq!(launch_actions(&targets), [("vscode", "Open VS Code")]);
-        targets.standalone_verified = true;
+        targets.standalone_installed = true;
         targets.codex_cli_available = true;
         assert_eq!(launch_actions(&targets).len(), 3);
         targets.standalone_installed = false;

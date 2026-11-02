@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.7.5",
+    "title": "Keep Codex available after updates",
+    "highlights": [
+      "Open any installed Codex desktop version without waiting for a version-specific approval.",
+      "Existing accounts, credentials and chats stay in their current folders."
+    ]
+  },
+  {
     "version": "1.7.4",
     "title": "Refresh settings, account alerts and automatic festival outfits",
     "highlights": [

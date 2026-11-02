@@ -275,8 +275,8 @@ fn windows_live_launches_keep_two_accounts_isolated_and_block_mutation() {
 }
 
 #[test]
-#[ignore = "validates the installed official MSIX; opens windows only for verified versions"]
-fn windows_live_standalone_preserves_isolation_or_refuses_unverified_builds() {
+#[ignore = "validates the installed official MSIX; opens disposable desktop windows"]
+fn windows_live_standalone_preserves_isolation_for_installed_build() {
     let (_temp, service) = fixture();
     let binary = PathBuf::from(
         env::var_os("MULTI_CODEX_TEST_STANDALONE").expect("official standalone fixture"),
@@ -289,34 +289,6 @@ fn windows_live_standalone_preserves_isolation_or_refuses_unverified_builds() {
         detected.standalone_version.as_deref(),
         Some(installed_version.as_str())
     );
-    if installed_version != "26.930.61225" {
-        assert!(
-            !detected.standalone_verified,
-            "A moving download cannot expand support"
-        );
-        assert!(crate::launch_targets::resolve_standalone().is_err());
-        let profile = add(&service, "unsupported desktop");
-        let paths = service.profile_paths(&profile.metadata.id).unwrap();
-        let original = fs::read(paths.codex_home.join("auth.json")).unwrap();
-        let workspace = service.data_root.join("project 工具 O'Brien");
-        fs::create_dir_all(&workspace).unwrap();
-        let error = service
-            .launch_standalone_profile(&profile.metadata.id, &workspace)
-            .unwrap_err();
-        assert!(error.contains("account-isolation verification"));
-        assert!(!service.is_running(&profile.metadata.id).unwrap());
-        assert!(!paths.desktop_home.exists());
-        assert_eq!(
-            fs::read(paths.codex_home.join("auth.json")).unwrap(),
-            original
-        );
-        assert_eq!(
-            fs::read(service.global_codex_home.join("auth.json")).unwrap(),
-            b"untouched-global-sentinel"
-        );
-        println!("Verified safe refusal of official standalone {installed_version}; supported-build launch/restart requires the pinned older package.");
-        return;
-    }
     assert_eq!(
         crate::launch_targets::resolve_standalone().unwrap(),
         fs::canonicalize(&binary).unwrap(),

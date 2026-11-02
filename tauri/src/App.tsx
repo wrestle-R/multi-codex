@@ -79,7 +79,7 @@ function enabledLaunchTargets(apps: LaunchTargets | null, mode: LaunchMode): Lau
   const targets: LaunchTarget[] = []
   if (mode !== 'cli') {
     if (apps.vscodeInstalled && (mode !== 'standalone' || !apps.standaloneInstalled)) targets.push('vscode')
-    if (apps.standaloneVerified && (mode !== 'vscode' || !apps.vscodeInstalled)) targets.push('standalone')
+    if (apps.standaloneInstalled && (mode !== 'vscode' || !apps.vscodeInstalled)) targets.push('standalone')
   }
   if (apps.codexCliAvailable) targets.push('cli')
   return targets
@@ -236,7 +236,7 @@ export default function App() {
     setWelcomeError(null)
     try {
       const [settings, detectedApps] = await Promise.all([getExecutableSettings(), getLaunchTargets()])
-      const mode = detectedApps.vscodeInstalled && detectedApps.standaloneVerified ? 'both' : settings.launchMode ?? 'vscode'
+      const mode = detectedApps.vscodeInstalled && detectedApps.standaloneInstalled ? 'both' : settings.launchMode ?? 'vscode'
       await saveExecutableSettings({ ...settings, onboardingCompleted: true, detectedApps, launchMode: mode })
       setLaunchTargets(detectedApps)
       setLaunchMode(mode)
@@ -418,7 +418,7 @@ export default function App() {
       const targets = await getLaunchTargets()
       setLaunchTargets(targets)
       if (target === 'vscode' && !targets.vscodeInstalled) throw new Error("VS Code was not found. Install it or set its executable path in Settings.")
-      if (target === 'standalone' && (!targets.standaloneInstalled || !targets.standaloneVerified)) throw new Error("The verified Codex desktop app is unavailable. Reopen Settings to check the installed apps.")
+      if (target === 'standalone' && !targets.standaloneInstalled) throw new Error("The Codex desktop app is unavailable. Reopen Settings to check the installed apps.")
       if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')

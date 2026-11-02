@@ -10,6 +10,7 @@ pub struct LaunchTargets {
     pub vscode_installed: bool,
     pub codex_cli_available: bool,
     pub standalone_installed: bool,
+    // Legacy API field: mirrors availability now that desktop versions are unrestricted.
     pub standalone_verified: bool,
     #[serde(default)]
     pub standalone_version: Option<String>,
@@ -25,21 +26,9 @@ pub fn detect() -> LaunchTargets {
         vscode_installed: crate::profiles::resolve_command("code").is_ok(),
         codex_cli_available: crate::profiles::resolve_interactive_codex_command().is_ok(),
         standalone_installed: desktop.is_some(),
-        standalone_verified: verified_version(platform, std::env::consts::ARCH, version.as_deref()),
+        standalone_verified: desktop.is_some(),
         standalone_version: version,
     }
-}
-
-fn verified_version(platform: &str, architecture: &str, version: Option<&str>) -> bool {
-    // Linux and Mac have authenticated isolation evidence. Windows additionally
-    // has native signed-MSIX, two-home and cold-restart runner coverage with
-    // inert credentials. Only these exact platform builds are enabled.
-    matches!(
-        (platform, architecture, version),
-        ("linux", "x86_64", Some("26.930.51102"))
-            | ("macos", "aarch64", Some("26.930.51102"))
-            | ("windows", "x86_64", Some("26.930.61225"))
-    )
 }
 
 fn find_standalone(
@@ -60,13 +49,6 @@ pub fn resolve_standalone() -> crate::profiles::Result<PathBuf> {
         std::env::var_os("PATH"),
     )
     .ok_or("Codex desktop app was not found. Install it and reopen Launch settings.")?;
-    if !verified_version(
-        std::env::consts::OS,
-        std::env::consts::ARCH,
-        desktop_version(&binary).as_deref(),
-    ) {
-        return Err("This Codex desktop version has not passed account-isolation verification. Use VS Code until it is verified.".into());
-    }
     Ok(binary)
 }
 
@@ -190,19 +172,18 @@ mod tests {
         )));
     }
 
+    #[cfg(unix)]
     #[test]
-    fn unknown_versions_and_unverified_architectures_cannot_launch() {
-        assert!(verified_version("linux", "x86_64", Some("26.930.51102")));
-        assert!(verified_version("macos", "aarch64", Some("26.930.51102")));
-        assert!(verified_version("windows", "x86_64", Some("26.930.61225")));
-        assert!(!verified_version(
-            "windows",
-            "aarch64",
-            Some("26.930.61225")
-        ));
-        assert!(!verified_version("windows", "x86_64", Some("26.930.51102")));
-        assert!(!verified_version("linux", "x86_64", Some("26.931.1")));
-        assert!(!verified_version("macos", "x86_64", Some("26.930.51102")));
-        assert!(!verified_version("linux", "x86_64", None));
+    fn standalone_discovery_accepts_executables_without_version_metadata() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = tempfile::tempdir().unwrap();
+        let binary = root.path().join("chatgpt");
+        std::fs::write(&binary, b"#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert_eq!(desktop_version(&binary), None);
+        assert_eq!(
+            find_standalone("linux", root.path(), Some(root.path().into())),
+            Some(std::fs::canonicalize(binary).unwrap())
+        );
     }
 }
