@@ -208,5 +208,10 @@
     "esbuild": "^0.25.0",
     "playwright-core": "^1.56.1",
     "typescript": "~5.9.3"
+  },
+  "overrides": {
+    "@vscode/vsce": {
+      "minimatch": "11.0.1"
+    }
   }
 }
