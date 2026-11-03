@@ -2,6 +2,10 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.7.5", stability: "stable" as const, publishedAt: "2026-11-03T04:52:31Z", title: "Keep Codex available after updates", highlights: [
+    "Open any installed Codex desktop version without waiting for a version-specific approval.",
+    "Existing accounts, credentials and chats stay in their current folders.",
+  ] },
   { tag: "v1.7.4", stability: "stable" as const, publishedAt: "2026-10-23T10:31:48Z", title: "Refresh settings, account alerts and automatic festival outfits", highlights: [
     "Choose how often usage and updates refresh in Settings, with a 10-minute default.",
     "Account alerts cover weekly resets, new banked resets, low usage and expired sign-ins, with optional desktop notifications.",
