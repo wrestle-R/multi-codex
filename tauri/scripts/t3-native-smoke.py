@@ -1,11 +1,24 @@
 """Download and verify official T3, then boot two credential-free desktop fixtures."""
-import hashlib, json, os, pathlib, platform, signal, subprocess, tempfile, urllib.request
+import errno, hashlib, json, os, pathlib, platform, signal, subprocess, tempfile, time, urllib.request
 root = pathlib.Path(__file__).resolve().parents[2]
 version = '0.1.7'
 windows = platform.system() == 'Windows'
 asset = f'T3-Code-{version}-x64.exe' if windows else f'T3-Code-{version}-amd64.deb'
 base = f'https://github.com/pingdotgg/t3code/releases/download/v{version}/'
-with tempfile.TemporaryDirectory(prefix='multi-codex-t3-') as directory:
+class DesktopFixture(tempfile.TemporaryDirectory):
+    def cleanup(self):
+        # Chromium can finish an asynchronous write just after its process exits.
+        deadline = time.monotonic() + 15
+        while True:
+            try:
+                super().cleanup()
+                return
+            except OSError as error:
+                if error.errno not in (errno.ENOTEMPTY, errno.EBUSY, errno.EACCES) or time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.25)
+
+with DesktopFixture(prefix='multi-codex-t3-') as directory:
     work = pathlib.Path(directory)
     archive = work / asset
     urllib.request.urlretrieve(base + asset, archive)
@@ -34,8 +47,12 @@ with tempfile.TemporaryDirectory(prefix='multi-codex-t3-') as directory:
         assert probe.wait(timeout=240) == 0, 'T3 native account-isolation smoke failed'
     finally:
         if not windows:
-            try: os.killpg(probe.pid, signal.SIGTERM)
-            except ProcessLookupError: pass
+            try:
+                os.killpg(probe.pid, signal.SIGTERM)
+                time.sleep(0.25)
+                os.killpg(probe.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
         elif probe.poll() is None:
             subprocess.run(['taskkill', '/F', '/T', '/PID', str(probe.pid)], capture_output=True)
     print(json.dumps({'upstreamVersion':version, 'asset':asset, 'sha256':digest, 'accounts':2, 'status':'passed', 'scope':'Disposable desktop startup and singleton isolation, no authenticated agent turn'}))
