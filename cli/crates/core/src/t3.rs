@@ -14,6 +14,7 @@ pub fn candidates(platform: &str, home: &Path, path: Option<std::ffi::OsString>)
         "linux" => &["t3code", "t3-code", "t3code-desktop"],
         "windows" => &[
             "T3 Code.exe",
+            "T3 Code (Beta).exe",
             "T3 Code (Alpha).exe",
             "T3 Code (Nightly).exe",
             "t3code.exe",
@@ -43,6 +44,7 @@ pub fn candidates(platform: &str, home: &Path, path: Option<std::ffi::OsString>)
             for app in [
                 "t3code",
                 "T3 Code",
+                "T3 Code (Beta)",
                 "T3 Code (Alpha)",
                 "T3 Code (Nightly)",
                 "t3code-desktop",

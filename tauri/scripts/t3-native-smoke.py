@@ -1,9 +1,9 @@
 """Download and verify official T3, then boot two credential-free desktop fixtures."""
-import hashlib, json, os, pathlib, platform, signal, subprocess, tempfile, urllib.request, zipfile
+import hashlib, json, os, pathlib, platform, signal, subprocess, tempfile, urllib.request
 root = pathlib.Path(__file__).resolve().parents[2]
 version = '0.1.7'
 windows = platform.system() == 'Windows'
-asset = f'T3-Code-{version}-x64.zip' if windows else f'T3-Code-{version}-amd64.deb'
+asset = f'T3-Code-{version}-x64.exe' if windows else f'T3-Code-{version}-amd64.deb'
 base = f'https://github.com/pingdotgg/t3code/releases/download/v{version}/'
 with tempfile.TemporaryDirectory(prefix='multi-codex-t3-') as directory:
     work = pathlib.Path(directory)
@@ -17,8 +17,12 @@ with tempfile.TemporaryDirectory(prefix='multi-codex-t3-') as directory:
     assert digest == expected, 'Upstream T3 checksum mismatch'
     extracted = work / 'app'
     if windows:
-        with zipfile.ZipFile(archive) as source: source.extractall(extracted)
-        binary = next(p for p in extracted.rglob('*.exe') if 't3' in p.name.lower() and p.stat().st_size > 50000000)
+        # The unsuffixed x64 ZIP is a macOS bundle. Extract the Windows NSIS payload.
+        installer = work / 'installer'
+        subprocess.run(['7z', 'x', str(archive), f'-o{installer}', '-y'], check=True, stdout=subprocess.DEVNULL)
+        payload = next(installer.rglob('app-64.7z'))
+        subprocess.run(['7z', 'x', str(payload), f'-o{extracted}', '-y'], check=True, stdout=subprocess.DEVNULL)
+        binary = next(p for p in extracted.rglob('*.exe') if 't3' in p.name.lower() and (p.parent/'resources/app.asar').is_file())
     else:
         subprocess.run(['dpkg-deb', '-x', str(archive), str(extracted)], check=True)
         binary = next(p for p in extracted.rglob('t3code') if p.is_file() and os.access(p, os.X_OK) and p.stat().st_size > 1000000)
