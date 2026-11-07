@@ -71,7 +71,7 @@ else:
                if not key.startswith(("CODEX_", "VSCODE_", "OPENAI_"))
                and key not in ("ELECTRON_RUN_AS_NODE", "NODE_OPTIONS", "MULTI_CODEX_ALLOW_UNSIGNED_MAC")}
         env.update(HOME=str(fixture), PATH=str(bin_dir) + ":/usr/bin:/bin:/usr/sbin:/sbin",
-                   MULTI_CODEX_NO_LAUNCH="1", INSTALLER_TEST_ASSETS=str(assets), INSTALLER_TEST_TAG=tag)
+                   MULTI_CODEX_NO_LAUNCH="1", MULTI_CODEX_TAG=tag, INSTALLER_TEST_ASSETS=str(assets), INSTALLER_TEST_TAG=tag)
         strict = subprocess.run(["/bin/bash", str(fixture_script)], env=env,
                                 capture_output=True, text=True, timeout=180)
         assert strict.returncode != 0, "Unsigned install must require explicit opt-in"

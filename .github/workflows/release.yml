@@ -27,6 +27,16 @@ env:
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
 jobs:
+  release-policy:
+    runs-on: ubuntu-22.04
+    outputs:
+      macos: ${{ steps.policy.outputs.macos }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: policy
+        run: |
+          node -e 'const fs = require("fs"); const policy = JSON.parse(fs.readFileSync("release/platforms.json")); const version = JSON.parse(fs.readFileSync("tauri/package.json")).version; const macos = policy.version !== version || policy.platforms.includes("macos"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `macos=${macos}\n`);'
+
   linux:
     if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'linux') }}
     runs-on: ubuntu-22.04
@@ -131,7 +141,8 @@ jobs:
           if-no-files-found: error
 
   macos:
-    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'macos') }}
+    needs: release-policy
+    if: ${{ !inputs.sdk_package_run && (needs.release-policy.outputs.macos == 'true' || inputs.platform == 'macos') && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'macos') }}
     runs-on: macos-26
     env:
       MACOSX_DEPLOYMENT_TARGET: "26.0"
@@ -324,8 +335,8 @@ jobs:
     uses: ./.github/workflows/extension.yml
 
   prepare-draft:
-    if: github.event_name != 'workflow_dispatch'
-    needs: [linux, macos, windows, extensions]
+    if: ${{ always() && github.event_name != 'workflow_dispatch' && needs.linux.result == 'success' && needs.windows.result == 'success' && needs.extensions.result == 'success' && (needs.macos.result == 'success' || needs.release-policy.outputs.macos == 'false') }}
+    needs: [release-policy, linux, macos, windows, extensions]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
