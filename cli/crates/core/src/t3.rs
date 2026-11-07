@@ -169,6 +169,13 @@ pub fn command(binary: &Path, home: &Path, codex_home: &Path, workspace: &Path) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_keeps_t3_disabled_while_the_launcher_remains_available() {
+        assert!(resolve().unwrap_err().contains("Linux and Windows"));
+        assert!(!crate::launch_targets::detect().t3_installed);
+    }
+
     #[test]
     fn t3_desktop_candidates_never_choose_the_t3_server_cli() {
         for platform in ["linux", "windows"] {

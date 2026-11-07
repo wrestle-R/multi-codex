@@ -3,7 +3,7 @@ import { stabilityOf } from "./update-channels"
 export const repository = "https://github.com/wrestle-R/multi-codex"
 export const vscodeMarketplace = "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex"
 export const version = releaseHistory.find(release => stabilityOf(release) === "stable")!.tag.slice(1)
-export const macVersion = "1.7.5"
+export const macVersion = releaseHistory.find(release => stabilityOf(release) === "stable" && release.tag !== "v1.8.0")!.tag.slice(1)
 export const macInstallerDownload = `${repository}/releases/download/v${macVersion}/Multi.Codex_${macVersion}_aarch64.dmg`
 export const latestRelease = `${repository}/releases/tag/v${version}`
 const installerSource = "https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts"

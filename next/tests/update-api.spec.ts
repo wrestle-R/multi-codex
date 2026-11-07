@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test'
 import { createUpdateHandler } from '../lib/update-handler'
-const release = (tag: string, prerelease = false) => ({ tag_name: tag, draft: false, prerelease, published_at: '2026-10-15T00:00:00Z', assets: [{ name: 'latest.json', browser_download_url: `https://github.com/wrestle-R/multi-codex/releases/download/${tag}/latest.json` }] })
+const release = (tag: string, prerelease = false) => ({ tag_name: tag, draft: false, prerelease, published_at: '2026-10-15T00:00:00Z', assets: [{ name: 'latest.json', browser_download_url: `https://github.com/wrestle-R/multi-codex/releases/download/${tag}/latest.json` }, ...['_amd64.AppImage', '_aarch64.app.tar.gz', '_x64-setup.exe'].filter(suffix => tag !== 'v1.8.0' || !suffix.includes('aarch64')).map(suffix => ({name: `Multi.Codex_${tag.slice(1)}${suffix}`,browser_download_url:'https://example.invalid/package'}))] })
 
 test('channel endpoint serves the matching manifest, not the unstable latest release', async () => {
-  for (const [channel, version] of [['stable', '1.6.1'], ['all', '1.7.0']]) {
+  for (const [channel, version] of [['stable', '1.6.1'], ['all', '1.8.0-preview.1']]) {
     const calls: string[] = []
     const handler = createUpdateHandler(async input => {
       const url = String(input); calls.push(url)
@@ -43,4 +43,23 @@ test('legacy feeds hold at 1.7.5 while platform feeds select their newest packag
   expect((await (await handler('stable')).json()).version).toBe('1.7.5')
   expect((await (await handler('stable', 'linux-x86_64')).json()).version).toBe('1.8.0')
   expect((await (await handler('stable', 'darwin-aarch64')).json()).version).toBe('1.7.5')
+})
+
+
+test('a complete 1.8.1 release restores legacy updates and updates Mac without enabling T3', async () => {
+  const inventory = [release('v1.8.1'), release('v1.8.0'), release('v1.7.5')]
+  const handler = createUpdateHandler(async input => {
+    const url = String(input)
+    const version = /download\/v([^/]+)\//.exec(url)?.[1]
+    return Response.json(url.includes('api.github.com') ? inventory : { version, platforms: {
+      'linux-x86_64': {signature:'signed',url:'https://example.invalid/linux'},
+      'windows-x86_64': {signature:'signed',url:'https://example.invalid/windows'},
+      'darwin-aarch64': {signature:'signed',url:'https://example.invalid/mac'},
+    } })
+  })
+  for (const channel of ['stable','all']) {
+    for (const platform of [undefined,'linux-x86_64','windows-x86_64','darwin-aarch64']) {
+      expect((await (await handler(channel,platform)).json()).version).toBe('1.8.1')
+    }
+  }
 })

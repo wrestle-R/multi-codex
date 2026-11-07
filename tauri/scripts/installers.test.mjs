@@ -116,18 +116,18 @@ for (const script of ['install-app.sh', 'update-app.sh']) {
 }
 
 for (const script of ['install-app.sh', 'update-app.sh']) {
-  test(`${script} keeps default macOS downloads on the held stable release`, unixInstallerOnly, () => {
+  test(`${script} selects the newest macOS release when no explicit tag is given`, unixInstallerOnly, () => {
     const task = mkdtempSync(join(tmpdir(), 'multi-codex-held-mac-'))
     try {
       const bin = join(task, 'bin'); mkdirSync(bin)
       writeFileSync(join(bin, 'uname'), '#!/bin/sh\nif [ "$1" = "-s" ]; then echo Darwin; else echo arm64; fi\n', { mode: 0o755 })
       writeFileSync(join(bin, 'sw_vers'), '#!/bin/sh\necho 26.0\n', { mode: 0o755 })
-      writeFileSync(join(bin, 'curl'), '#!/bin/sh\nprintf "%s\\n" "$*" > "$MOCK_REQUEST"; exit 56\n', { mode: 0o755 })
+      writeFileSync(join(bin, 'curl'), '#!/bin/sh\ncase "$*" in *url_effective*) echo "https://github.com/wrestle-R/multi-codex/releases/tag/v1.8.1";; *) printf "%s\\n" "$*" > "$MOCK_REQUEST"; exit 56;; esac\n', { mode: 0o755 })
       const environment = { ...process.env, PATH: `${bin}:${process.env.PATH}`, MOCK_REQUEST: join(task, 'request') }
       delete environment.MULTI_CODEX_TAG
       const result = spawnSync('/bin/bash', [join(root, 'scripts', script)], { env: environment, encoding: 'utf8' })
       assert.equal(result.status, 56)
-      assert.ok(readFileSync(environment.MOCK_REQUEST, 'utf8').includes('/v1.7.5/Multi.Codex_1.7.5_aarch64.dmg'))
+      assert.ok(readFileSync(environment.MOCK_REQUEST, 'utf8').includes('/v1.8.1/Multi.Codex_1.8.1_aarch64.dmg'))
     } finally { rmSync(task, { recursive: true, force: true }) }
   })
 }

@@ -27,7 +27,7 @@ export function InstallBox({ update = false }: { update?: boolean }) {
       <p className="install-caption">{platform === "linux" ? "Linux x86_64 · AppImage" : "Apple Silicon · macOS 26+ · Unsigned build, explicit opt-in"}</p>
     </>}
     {platform === "mac" ? <a className="button primary" href={macInstallerDownload}>Download macOS v{macVersion} <span aria-hidden="true">↓</span></a> : null}
-    {platform === "mac" ? <p className="mac-note">macOS stays on v{macVersion}; T3 launching is available on Linux and Windows. If macOS blocks the first open, use System Settings → Privacy & Security → Open Anyway. The installer preserves Gatekeeper protections.</p> : null}
+    {platform === "mac" ? <p className="mac-note">macOS v{macVersion} includes the standard launcher. T3 launching is available on Linux and Windows. If macOS blocks the first open, use System Settings → Privacy & Security → Open Anyway. The installer preserves Gatekeeper protections.</p> : null}
     <span className="sr-only" role="status">{copied ? "Command copied to clipboard." : ""}</span>
     {error ? <p role="alert">Clipboard access is unavailable. Select and copy the command above.</p> : null}
   </div>

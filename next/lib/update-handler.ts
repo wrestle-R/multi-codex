@@ -1,5 +1,5 @@
 import { releaseHistory } from "./releases"
-import { compareVersions, manifestURL, selectUpdate, stabilityOf, type PublishedRelease } from "./update-channels"
+import { manifestURL, selectUpdate, stabilityOf, type PublishedRelease } from "./update-channels"
 
 export function createUpdateHandler(fetchRelease: typeof fetch = fetch) {
   return async (channel: string, platform?: string) => {
@@ -12,7 +12,8 @@ export function createUpdateHandler(fetchRelease: typeof fetch = fetch) {
       const previewTags = new Set(releaseHistory.filter(release => stabilityOf(release) === "preview").map(release => release.tag))
       const candidates = releases.filter(release => {
         if (!platform) {
-          try { return compareVersions(release.tag_name, "v1.7.5") <= 0 } catch { return false }
+          // Old clients cannot identify their platform. Only offer complete releases.
+          return ['_amd64.AppImage', '_aarch64.app.tar.gz', '_x64-setup.exe'].every(suffix => release.assets.some(asset => asset.name.endsWith(suffix)))
         }
         const suffix = platform === 'linux-x86_64' ? '_amd64.AppImage' : platform === 'windows-x86_64' ? '_x64-setup.exe' : platform === 'darwin-aarch64' ? '_aarch64.app.tar.gz' : null
         return suffix !== null && release.assets.some(asset => asset.name.endsWith(suffix))

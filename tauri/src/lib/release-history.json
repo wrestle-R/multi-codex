@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.1",
+    "title": "Normal updates on every platform",
+    "highlights": [
+      "Older installations can find the latest complete release through the Update button again.",
+      "Mac receives v1.8.1 with the existing launcher features. T3 Code remains available on Linux and Windows."
+    ]
+  },
+  {
     "version": "1.8.0",
     "title": "T3 Code on Linux and Windows",
     "highlights": [

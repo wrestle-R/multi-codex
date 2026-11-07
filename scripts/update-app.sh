@@ -47,11 +47,11 @@ trap cleanup EXIT
 
 if [[ -n "${MULTI_CODEX_TAG:-}" ]]; then
   tag="$MULTI_CODEX_TAG"
-elif [[ "$suffix" == ".dmg" ]]; then
-  tag="v1.7.5"
 else
   resolved_url=$(curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 --output /dev/null --write-out '%{url_effective}' "$latest_url")
   tag=${resolved_url##*/}
+  # The historical v1.8.0 release has no Mac desktop package.
+  if [[ "$suffix" == ".dmg" && "$tag" == "v1.8.0" ]]; then tag="v1.7.5"; fi
 fi
 if [[ ! "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]]; then
   printf 'The Multi Codex release tag is invalid.\n' >&2

@@ -10,7 +10,7 @@ export function createUpdaterManifest(directory, version) {
     'windows-x86_64': `Multi.Codex_${version}_x64-setup.exe`,
   }
   const policy = JSON.parse(readFileSync(new URL('../../release/platforms.json', import.meta.url), 'utf8'))
-  const selected = policy.version === version ? Object.entries(names).filter(([platform]) => !platform.startsWith('darwin') || policy.platforms.includes('macos')) : Object.entries(names)
+  const selected = version === '1.8.0' ? Object.entries(names).filter(([platform]) => !platform.startsWith('darwin')) : policy.version === version ? Object.entries(names).filter(([platform]) => !platform.startsWith('darwin') || policy.platforms.includes('macos')) : Object.entries(names)
   const platforms = Object.fromEntries(selected.map(([platform, name]) => {
     if (!existsSync(join(directory, name))) throw new Error(`Missing updater artifact: ${name}`)
     const signature = readFileSync(join(directory, `${name}.sig`), 'utf8').trim()
