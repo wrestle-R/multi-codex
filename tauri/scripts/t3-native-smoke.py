@@ -9,8 +9,10 @@ with tempfile.TemporaryDirectory(prefix='multi-codex-t3-') as directory:
     work = pathlib.Path(directory)
     archive = work / asset
     urllib.request.urlretrieve(base + asset, archive)
-    checksums = urllib.request.urlopen(base + 'SHA256SUMS', timeout=60).read().decode()
-    expected = next(line.split()[0] for line in checksums.splitlines() if line.split()[-1].lstrip('*./') == asset)
+    request = urllib.request.Request(f'https://api.github.com/repos/pingdotgg/t3code/releases/tags/v{version}', headers={'Accept':'application/vnd.github+json','User-Agent':'multi-codex-native-validation'})
+    release = json.load(urllib.request.urlopen(request, timeout=60))
+    expected = next(item['digest'].removeprefix('sha256:') for item in release['assets'] if item['name'] == asset)
+    assert len(expected) == 64, 'Official desktop asset digest is required'
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     assert digest == expected, 'Upstream T3 checksum mismatch'
     extracted = work / 'app'

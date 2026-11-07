@@ -3020,7 +3020,16 @@ fn is_profile_app_process(process: &Path) -> bool {
         .is_some_and(|name| {
             matches!(
                 name.as_str(),
-                "code" | "code-insiders" | "code-oss" | "codium" | "vscodium" | "chatgpt" | "codex"
+                "code"
+                    | "code-insiders"
+                    | "code-oss"
+                    | "codium"
+                    | "vscodium"
+                    | "chatgpt"
+                    | "codex"
+                    | "t3code"
+                    | "t3-code"
+                    | "t3code-desktop"
             )
         })
 }

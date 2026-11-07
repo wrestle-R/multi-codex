@@ -22,7 +22,13 @@ fn main() {
             let home = root.join(account);
             let codex_home = root.join(format!("codex-{account}"));
             std::fs::create_dir_all(&codex_home).unwrap();
-            multi_codex_core::t3::prepare(&root, &home, &codex_home, &binary).unwrap();
+            multi_codex_core::t3::prepare(
+                &root,
+                &home,
+                &codex_home,
+                &std::env::current_exe().unwrap(),
+            )
+            .unwrap();
             // The fixture never starts an agent or provides a real credential.
             let child = multi_codex_core::t3::command(&binary, &home, &codex_home, &root)
                 .spawn()
