@@ -77,6 +77,8 @@ jobs:
       - run: npm run build:desktop
         working-directory: tauri
       - run: cargo fmt --manifest-path tauri/src-tauri/Cargo.toml -- --check
+      - name: Verify two isolated T3 desktop instances
+        run: python tauri/scripts/t3-native-smoke.py
       - run: cargo test --locked --manifest-path tauri/src-tauri/Cargo.toml
       - run: npm test
         working-directory: tauri

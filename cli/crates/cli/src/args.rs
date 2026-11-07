@@ -153,6 +153,7 @@ pub struct Usage {
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum Target {
+    T3,
     Cli,
     Vscode,
     Codex,

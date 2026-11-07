@@ -26,7 +26,10 @@ export function evaluate(report, version, artifactDirectory, { fullValidation = 
   if (report.version !== version || report.schemaVersion !== 1) failures.push('Validation report version/schema does not match the candidate')
   const [major, minor] = version.split('.').map(Number)
   const crossPlatform = major > 1 || (major === 1 && minor >= 4)
-  const checks = [...requiredChecks, ...(crossPlatform ? crossPlatformChecks : [])].map(id => [id, report.releaseChecks?.[id]])
+  const heldMac = version === '1.8.0' && report.heldPlatforms?.macos === '1.7.5'
+  const activeChecks = [...requiredChecks, ...(crossPlatform ? crossPlatformChecks : [])].filter(id => !heldMac || !id.startsWith('macos-'))
+  if (heldMac && artifactDirectory && existsSync(resolve(artifactDirectory, `Multi.Codex_${version}_aarch64.dmg`))) failures.push('Held macOS must not ship a new desktop package')
+  const checks = activeChecks.map(id => [id, report.releaseChecks?.[id]])
   if (fullValidation) checks.push(...fullValidationChecks.map(id => [id, report.checks?.[id]]))
   for (const [id, check] of checks) {
     if (check?.status !== 'passed') failures.push(`${id}: ${check?.reason || 'functional validation is pending'}`)
@@ -36,7 +39,7 @@ export function evaluate(report, version, artifactDirectory, { fullValidation = 
     `Multi.Codex_${version}_amd64.AppImage`,
     `Multi.Codex_${version}_amd64.deb`,
     `Multi.Codex-${version}-1.x86_64.rpm`,
-    `Multi.Codex_${version}_aarch64.dmg`,
+    ...(!heldMac ? [`Multi.Codex_${version}_aarch64.dmg`] : []),
     'install-app.sh',
     'update-app.sh',
   ]

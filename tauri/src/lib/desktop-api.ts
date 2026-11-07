@@ -160,6 +160,11 @@ export async function launchProfile(id: string, workspace: string, desktop: stri
   return { completed: true, error: null, retryToken: null }
 }
 
+export async function launchT3Profile(id: string, workspace: string): Promise<LaunchResult> {
+  if (isTauri) return invoke("launch_t3_profile", { id, workspace })
+  return { completed: true, error: null, retryToken: null }
+}
+
 export async function launchStandaloneProfile(id: string, workspace: string, desktop: string | null, retryToken: string | null = null): Promise<LaunchResult> {
   if (isTauri) return invoke("launch_standalone_profile", { id, workspace, desktop, retryToken })
   return { completed: true, error: null, retryToken: null }

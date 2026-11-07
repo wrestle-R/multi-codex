@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 #[serde(rename_all = "camelCase")]
 pub struct LaunchTargets {
     pub platform: String,
+    #[serde(default)]
+    pub t3_installed: bool,
     pub vscode_installed: bool,
     pub codex_cli_available: bool,
     pub standalone_installed: bool,
@@ -23,6 +25,7 @@ pub fn detect() -> LaunchTargets {
     let version = desktop.as_deref().and_then(desktop_version);
     LaunchTargets {
         platform: platform.into(),
+        t3_installed: crate::t3::resolve().is_ok(),
         vscode_installed: crate::profiles::resolve_command("code").is_ok(),
         codex_cli_available: crate::profiles::resolve_interactive_codex_command().is_ok(),
         standalone_installed: desktop.is_some(),

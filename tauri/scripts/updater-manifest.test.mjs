@@ -24,3 +24,15 @@ test('only manifests the matching signed artifacts for all three desktop platfor
     assert.throws(() => createUpdaterManifest(directory, '../../other'), /stable package version/)
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })
+
+test('the Linux and Windows release does not offer a new macOS updater', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'multi-codex-held-mac-'))
+  try {
+    for (const name of ['Multi.Codex_1.8.0_amd64.AppImage', 'Multi.Codex_1.8.0_x64-setup.exe']) {
+      writeFileSync(join(directory, name), 'fixture')
+      writeFileSync(join(directory, `${name}.sig`), Buffer.from('untrusted comment: fixture').toString('base64'))
+    }
+    const manifest = createUpdaterManifest(directory, '1.8.0')
+    assert.deepEqual(Object.keys(manifest.platforms), ['linux-x86_64', 'windows-x86_64'])
+  } finally { rmSync(directory, { recursive: true, force: true }) }
+})

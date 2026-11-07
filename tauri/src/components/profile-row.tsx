@@ -138,8 +138,8 @@ export function ProfileRow({ profile, limits, onCheckLimits, onLaunch, launchTar
             onClick={() => onLaunch(profile, target)}
             disabled={disabled}
           >
-            {target === 'cli' ? <span className="terminal-glyph" aria-hidden="true">›_</span> : target === 'vscode' ? <img className="launch-logo" src="/logos/vscode.svg" alt="" aria-hidden="true" /> : <span className="launch-logo codex-logo" aria-hidden="true" />}
-            {target === 'cli' ? 'CLI' : target === 'vscode' ? 'VS Code' : 'Codex'}
+            {target === 't3' ? <span className="terminal-glyph" aria-hidden="true">T3</span> : target === 'cli' ? <span className="terminal-glyph" aria-hidden="true">›_</span> : target === 'vscode' ? <img className="launch-logo" src="/logos/vscode.svg" alt="" aria-hidden="true" /> : <span className="launch-logo codex-logo" aria-hidden="true" />}
+            {target === 't3' ? 'T3 Code' : target === 'cli' ? 'CLI' : target === 'vscode' ? 'VS Code' : 'Codex'}
           </button>)}
         </div>
       </div>

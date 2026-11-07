@@ -3,7 +3,7 @@ import { createUpdateHandler } from '../lib/update-handler'
 const release = (tag: string, prerelease = false) => ({ tag_name: tag, draft: false, prerelease, published_at: '2026-10-15T00:00:00Z', assets: [{ name: 'latest.json', browser_download_url: `https://github.com/wrestle-R/multi-codex/releases/download/${tag}/latest.json` }] })
 
 test('channel endpoint serves the matching manifest, not the unstable latest release', async () => {
-  for (const [channel, version] of [['stable', '1.6.1'], ['all', '1.8.0-preview.1']]) {
+  for (const [channel, version] of [['stable', '1.6.1'], ['all', '1.7.0']]) {
     const calls: string[] = []
     const handler = createUpdateHandler(async input => {
       const url = String(input); calls.push(url)
@@ -30,4 +30,17 @@ test('missing, unavailable and mismatched release feeds fail without an unsigned
   }
   const failed = await createUpdateHandler(async () => { throw Error('private-upstream-canary') })('stable')
   expect(failed.status).toBe(503); expect(await failed.text()).not.toContain('private-upstream-canary')
+})
+
+
+test('legacy feeds hold at 1.7.5 while platform feeds select their newest package', async () => {
+  const inventory = [release('v1.8.0'), release('v1.7.5')].map(item => ({ ...item, assets: [...item.assets, {name: `Multi.Codex_${item.tag_name.slice(1)}_amd64.AppImage`, browser_download_url: 'https://example.invalid/linux'}, ...(item.tag_name === 'v1.7.5' ? [{name:'Multi.Codex_1.7.5_aarch64.app.tar.gz',browser_download_url:'https://example.invalid/mac'}] : [])] }))
+  const fetcher: typeof fetch = async input => {
+    const url = String(input)
+    return Response.json(url.includes('api.github.com') ? inventory : { version: url.includes('v1.8.0') ? '1.8.0' : '1.7.5', platforms: { 'linux-x86_64': { signature:'signed',url:'https://example.invalid/package' } } })
+  }
+  const handler = createUpdateHandler(fetcher)
+  expect((await (await handler('stable')).json()).version).toBe('1.7.5')
+  expect((await (await handler('stable', 'linux-x86_64')).json()).version).toBe('1.8.0')
+  expect((await (await handler('stable', 'darwin-aarch64')).json()).version).toBe('1.7.5')
 })

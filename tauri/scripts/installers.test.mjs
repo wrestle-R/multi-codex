@@ -30,7 +30,7 @@ for (const script of ['install-app.sh', 'update-app.sh']) {
       ]) {
         const request = join(task, 'request')
         rmSync(request, { force: true })
-        const result = spawnSync('/bin/bash', [join(root, 'scripts', script)], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: task, MOCK_SYSTEM: system, MOCK_ARCH: arch, MOCK_MACOS: osVersion, MOCK_TAG: tag, MOCK_REQUEST: request }, encoding: 'utf8' })
+        const result = spawnSync('/bin/bash', [join(root, 'scripts', script)], { env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, HOME: task, MOCK_SYSTEM: system, MOCK_ARCH: arch, MOCK_MACOS: osVersion, MULTI_CODEX_TAG: tag, MOCK_TAG: tag, MOCK_REQUEST: request }, encoding: 'utf8' })
         assert.equal(result.status, expectedCode, `${system}/${arch}/${tag}: ${result.stderr}`)
         if (expectedAsset) assert.ok(readFileSync(request, 'utf8').includes(expectedAsset))
         else assert.equal(existsSync(request), false, 'must reject before any asset download')

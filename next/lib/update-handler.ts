@@ -1,8 +1,8 @@
 import { releaseHistory } from "./releases"
-import { manifestURL, selectUpdate, stabilityOf, type PublishedRelease } from "./update-channels"
+import { compareVersions, manifestURL, selectUpdate, stabilityOf, type PublishedRelease } from "./update-channels"
 
 export function createUpdateHandler(fetchRelease: typeof fetch = fetch) {
-  return async (channel: string) => {
+  return async (channel: string, platform?: string) => {
     if (channel !== "all" && channel !== "stable") return Response.json({ error: "Unknown update channel" }, { status: 404 })
     try {
       const response = await fetchRelease("https://api.github.com/repos/wrestle-R/multi-codex/releases?per_page=100", { headers: { Accept: "application/vnd.github+json" }, next: { revalidate: 120 }, signal: AbortSignal.timeout(15000) })
@@ -10,7 +10,12 @@ export function createUpdateHandler(fetchRelease: typeof fetch = fetch) {
       const releases = await response.json() as PublishedRelease[]
       if (!Array.isArray(releases)) throw new Error("Invalid release inventory")
       const previewTags = new Set(releaseHistory.filter(release => stabilityOf(release) === "preview").map(release => release.tag))
-      const release = selectUpdate(releases, channel, previewTags)
+      const candidates = releases.filter(release => {
+        if (!platform) return /^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(release.tag_name) && compareVersions(release.tag_name, "v1.7.5") <= 0
+        const suffix = platform === 'linux-x86_64' ? '_amd64.AppImage' : platform === 'windows-x86_64' ? '_x64-setup.exe' : platform === 'darwin-aarch64' ? '_aarch64.app.tar.gz' : null
+        return suffix !== null && release.assets.some(asset => asset.name.endsWith(suffix))
+      })
+      const release = selectUpdate(candidates, channel, previewTags)
       if (!release) return new Response(null, { status: 204 })
       const payload = await fetchRelease(manifestURL(release), { next: { revalidate: 120 }, signal: AbortSignal.timeout(15000) })
       if (!payload.ok) throw new Error("Manifest unavailable")

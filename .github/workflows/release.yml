@@ -68,7 +68,7 @@ jobs:
           sudo apt-get update
           # Recommended desktop portals wait for a graphical login on headless
           # runners, blocking GTK startup. Required libraries remain installed.
-          sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf rpm x11-utils xdotool xvfb
+          sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf rpm x11-utils xdotool xvfb libnss3 libasound2 libgbm1 libxss1
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -77,6 +77,8 @@ jobs:
       - run: npm run check:secrets
       - run: npm run test:release
       - run: cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core
+      - name: Verify two isolated T3 desktop instances
+        run: xvfb-run -a python3 scripts/t3-native-smoke.py
       - run: npm run test:release-gates
       - name: Require signed updater packages
         run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
@@ -339,10 +341,17 @@ jobs:
           find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' -o -name '*_x64-setup.exe' -o -name '*.vsix' \) -exec cp {} release-assets/ \;
           cd release-assets
           mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
-          ((${#ASSETS[@]} == 9))
+          if [[ "$GITHUB_REF_NAME" == "v1.8.0" ]]; then
+            rm -f Multi.Codex_1.8.0_aarch64.dmg
+            mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
+            ((${#ASSETS[@]} == 8))
+          else
+            ((${#ASSETS[@]} == 9))
+          fi
           cp ../scripts/install-app.sh ../scripts/update-app.sh ../scripts/install-app.ps1 ../scripts/update-app.ps1 .
           ASSETS+=(./install-app.sh ./update-app.sh ./install-app.ps1 ./update-app.ps1)
           find ../downloaded-assets -type f \( -name "*.AppImage.sig" -o -name "*.exe.sig" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \) -exec cp {} . \;
+          if [[ "$GITHUB_REF_NAME" == "v1.8.0" ]]; then rm -f *.app.tar.gz *.app.tar.gz.sig; fi
           node ../tauri/scripts/updater-manifest.mjs . "${GITHUB_REF_NAME#v}"
           mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS

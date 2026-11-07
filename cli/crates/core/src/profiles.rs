@@ -930,6 +930,38 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(())
     }
 
+    pub fn launch_t3_profile(&self, id: &str, workspace: &Path) -> Result<()> {
+        let binary = crate::t3::resolve()?;
+        let codex = resolve_interactive_codex_command()?;
+        let _write_lock = self.metadata_write_lock()?;
+        validate_id(id)?;
+        if !self.load_metadata()?.iter().any(|profile| profile.id == id) {
+            return Err("Profile not found".into());
+        }
+        let workspace = canonical_workspace(workspace)?;
+        crate::profile_restore::ensure_ready(&self.data_root, id)?;
+        let paths = self.profile_paths(id)?;
+        self.current_profile_credential(id)?;
+        let home = paths.desktop_home.join("t3");
+        // Do not rewrite a running backend's provider configuration.
+        if !profile_process_running(&home) {
+            crate::t3::prepare(&self.data_root, &home, &paths.codex_home, &codex)?;
+        }
+        let mut child = crate::t3::command(&binary, &home, &paths.codex_home, &workspace)
+            .spawn()
+            .map_err(|error| format!("Could not launch T3 Code: {error}"))?;
+        std::thread::spawn(move || {
+            let _ = child.wait();
+        });
+        self.start_profile_monitor(
+            id,
+            paths.vscode_home,
+            paths.desktop_home,
+            paths.codex_home.join("auth.json"),
+        )?;
+        Ok(())
+    }
+
     pub fn launch_standalone_profile(&self, id: &str, workspace: &Path) -> Result<()> {
         let binary = crate::launch_targets::resolve_standalone()?;
         self.launch_standalone_with_command(id, workspace, &binary)
@@ -3106,8 +3138,28 @@ fn parse_macos_arguments(bytes: &[u8]) -> Option<Vec<Vec<u8>>> {
     Some(arguments)
 }
 
+fn profile_process_running(home: &Path) -> bool {
+    if profile_process_running_exact(home) {
+        return true;
+    }
+    if home
+        .file_name()
+        .is_some_and(|name| name == "desktop-data" || name == "t3")
+    {
+        let t3_home = if home.file_name().is_some_and(|name| name == "t3") {
+            home.to_path_buf()
+        } else {
+            home.join("t3")
+        };
+        return ["t3code-v2", "t3code", "T3 Code (Alpha)"]
+            .iter()
+            .any(|name| profile_process_running_exact(&t3_home.join("config").join(name)));
+    }
+    false
+}
+
 #[cfg(target_os = "linux")]
-fn profile_process_running(vscode_home: &Path) -> bool {
+fn profile_process_running_exact(vscode_home: &Path) -> bool {
     let Ok(entries) = fs::read_dir("/proc") else {
         return false;
     };
@@ -3164,7 +3216,7 @@ fn macos_desktop_pid(binary: &Path, home: &Path) -> Option<u32> {
 }
 
 #[cfg(target_os = "macos")]
-fn profile_process_running(vscode_home: &Path) -> bool {
+fn profile_process_running_exact(vscode_home: &Path) -> bool {
     let Ok(output) = crate::process::output(
         Command::new("/bin/ps").args(["-axo", "pid="]),
         Duration::from_secs(3),
@@ -5144,7 +5196,7 @@ fn process_arguments(pid: u32) -> Option<Vec<Vec<u8>>> {
     crate::windows_platform::process_arguments(pid)
 }
 #[cfg(windows)]
-fn profile_process_running(home: &Path) -> bool {
+fn profile_process_running_exact(home: &Path) -> bool {
     crate::windows_platform::profile_running(home)
 }
 

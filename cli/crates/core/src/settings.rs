@@ -170,6 +170,7 @@ mod tests {
             onboarding_completed: true,
             detected_apps: Some(crate::launch_targets::LaunchTargets {
                 platform: "macos".into(),
+                t3_installed: false,
                 vscode_installed: true,
                 codex_cli_available: false,
                 standalone_installed: true,

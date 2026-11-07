@@ -15,6 +15,9 @@ pub fn launch_actions(targets: &LaunchTargets) -> Vec<(&'static str, &'static st
     if targets.standalone_installed {
         actions.push(("standalone", "Open Codex"));
     }
+    if targets.t3_installed {
+        actions.push(("t3", "Open T3 Code"));
+    }
     if targets.codex_cli_available {
         actions.push(("cli", "Open CLI"));
     }
@@ -180,6 +183,7 @@ mod tests {
     fn account_actions_only_include_installed_targets() {
         let mut targets = LaunchTargets {
             platform: "macos".into(),
+            t3_installed: false,
             vscode_installed: false,
             codex_cli_available: false,
             standalone_installed: false,

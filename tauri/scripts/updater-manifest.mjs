@@ -9,7 +9,9 @@ export function createUpdaterManifest(directory, version) {
     'darwin-aarch64': `Multi.Codex_${version}_aarch64.app.tar.gz`,
     'windows-x86_64': `Multi.Codex_${version}_x64-setup.exe`,
   }
-  const platforms = Object.fromEntries(Object.entries(names).map(([platform, name]) => {
+  const policy = JSON.parse(readFileSync(new URL('../../release/platforms.json', import.meta.url), 'utf8'))
+  const selected = policy.version === version ? Object.entries(names).filter(([platform]) => !platform.startsWith('darwin') || policy.platforms.includes('macos')) : Object.entries(names)
+  const platforms = Object.fromEntries(selected.map(([platform, name]) => {
     if (!existsSync(join(directory, name))) throw new Error(`Missing updater artifact: ${name}`)
     const signature = readFileSync(join(directory, `${name}.sig`), 'utf8').trim()
     if (!signature || !Buffer.from(signature, 'base64').toString('utf8').startsWith('untrusted comment:')) throw new Error(`Missing or invalid updater signature: ${name}`)

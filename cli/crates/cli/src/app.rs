@@ -585,6 +585,7 @@ fn launch_account(service: &Service, launch: Launch) -> Result<Value> {
                 )?;
             }
             Target::Vscode => service.launch_profile(&account.metadata.id, &workspace)?,
+            Target::T3 => service.launch_t3_profile(&account.metadata.id, &workspace)?,
             Target::Codex => service.launch_standalone_profile(&account.metadata.id, &workspace)?,
         }
     }

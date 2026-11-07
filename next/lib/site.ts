@@ -3,11 +3,13 @@ import { stabilityOf } from "./update-channels"
 export const repository = "https://github.com/wrestle-R/multi-codex"
 export const vscodeMarketplace = "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex"
 export const version = releaseHistory.find(release => stabilityOf(release) === "stable")!.tag.slice(1)
+export const macVersion = "1.7.5"
 export const latestRelease = `${repository}/releases/tag/v${version}`
 const installerSource = "https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts"
 export const windowsInstallerDownload = `${repository}/releases/download/v${version}/Multi.Codex_${version}_x64-setup.exe`
 export const installCommand = (platform: "linux" | "mac" | "windows", update = false) => {
+  const selectedVersion = platform === "mac" ? macVersion : version
   const action = update ? "update" : "install"
   if (platform === "windows") return `Invoke-WebRequest ${installerSource}/${action}-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/${action}-multi-codex.ps1"\npowershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/${action}-multi-codex.ps1" -Version ${version}`
-  return `curl -fsSL ${installerSource}/${action}-app.sh -o /tmp/${action}-multi-codex.sh\nMULTI_CODEX_TAG=v${version} ${platform === "mac" ? "MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 " : ""}bash /tmp/${action}-multi-codex.sh`
+  return `curl -fsSL ${installerSource}/${action}-app.sh -o /tmp/${action}-multi-codex.sh\nMULTI_CODEX_TAG=v${selectedVersion} ${platform === "mac" ? "MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 " : ""}bash /tmp/${action}-multi-codex.sh`
 }

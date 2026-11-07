@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.0",
+    "title": "T3 Code on Linux and Windows",
+    "highlights": [
+      "Launch T3 Code desktop with a separate T3 profile for each saved account.",
+      "macOS downloads remain on v1.7.5. Existing Linux and Windows installations use the installer once to move to v1.8.0."
+    ]
+  },
+  {
     "version": "1.7.5",
     "title": "Keep Codex available after updates",
     "highlights": [

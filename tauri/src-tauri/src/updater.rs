@@ -72,7 +72,7 @@ fn updater_builder(app: &AppHandle) -> Result<tauri_plugin_updater::UpdaterBuild
         UpdateChannel::All => "all",
     };
     let endpoint = url::Url::parse(&format!(
-        "https://multi-codex.vercel.app/api/updates/{channel}"
+        "https://multi-codex.vercel.app/api/updates/{channel}/{{{{target}}}}/{{{{arch}}}}"
     ))
     .map_err(|_| "Invalid update channel")?;
     app.updater_builder()

@@ -73,6 +73,7 @@ export function LaunchSettingsDialog({ onClose }: { onClose: () => void }) {
             </div>
             <p className="settings-help">Each app opens with your isolated account.</p>
           </fieldset> : null}
+          {targets?.platform !== "macos" ? <p className="settings-help">T3 Code: {targets?.t3Installed ? "available beside your account buttons" : "install the desktop app to enable account launching"}.</p> : null}
           <TerminalPicker value={settings.cliTerminal ?? "automatic"} options={terminals} disabled={loading || busy || !targets} onChange={cliTerminal => setSettings(value => ({ ...value, cliTerminal }))} />
           {targets?.platform === "linux" ? <label className="desktop-picker-setting"><input type="checkbox" checked={!(settings.hideDesktopPicker ?? false)} disabled={loading || busy} onChange={event => setSettings(value => ({ ...value, hideDesktopPicker: !event.target.checked }))} aria-label="Show desktop picker before launching" /><span className="desktop-setting-copy">Show desktop picker<small>Choose a desktop before launching.</small></span><span className="desktop-switch-track" aria-hidden="true" /></label> : null}
           </section>

@@ -56,6 +56,7 @@ import {
   getLaunchEnvironment,
   getExecutableSettings,
   getLaunchTargets,
+  launchT3Profile,
   saveExecutableSettings,
   getStorageUsage,
   importCurrentProfile,
@@ -81,6 +82,7 @@ function enabledLaunchTargets(apps: LaunchTargets | null, mode: LaunchMode): Lau
     if (apps.vscodeInstalled && (mode !== 'standalone' || !apps.standaloneInstalled)) targets.push('vscode')
     if (apps.standaloneInstalled && (mode !== 'vscode' || !apps.vscodeInstalled)) targets.push('standalone')
   }
+  if (mode !== 'cli' && apps.t3Installed) targets.push('t3')
   if (apps.codexCliAvailable) targets.push('cli')
   return targets
 }
@@ -419,12 +421,13 @@ export default function App() {
       setLaunchTargets(targets)
       if (target === 'vscode' && !targets.vscodeInstalled) throw new Error("VS Code was not found. Install it or set its executable path in Settings.")
       if (target === 'standalone' && !targets.standaloneInstalled) throw new Error("The Codex desktop app is unavailable. Reopen Settings to check the installed apps.")
+      if (target === 't3' && !targets.t3Installed) throw new Error("T3 Code desktop was not found. Install it and reopen Multi Codex.")
       if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
-      const skipDesktopPicker = environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker)
+      const skipDesktopPicker = environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker) || target === "t3"
       setHideDesktopPicker(skipDesktopPicker)
-      if (target === "standalone") {
+      if (target === "standalone" || target === "t3") {
         const request = { profile, target, workspace: environment.defaultWorkspace }
         setFolderRequest(null); setLaunchError(null); setPlacementToken(null); setLaunchRequest(request)
         if (skipDesktopPicker) await completeLaunch(null, request)
@@ -448,7 +451,7 @@ export default function App() {
     const subscribe = async () => {
       const bindings = await Promise.all([
         listen<{ id: string; target: LaunchTarget }>("account-menu-launch", async ({ payload }) => {
-          if (!["vscode", "standalone", "cli"].includes(payload.target)) return
+          if (!["vscode", "standalone", "cli", "t3"].includes(payload.target)) return
           const saved = await listProfiles()
           const account = saved.find(profile => profile.id === payload.id)
           if (account) await menuActions.current.launch(account, payload.target)
@@ -487,7 +490,7 @@ export default function App() {
     setLaunchBusy(true)
     setLaunchError(null)
     try {
-      const result = request.target === 'cli' ? await launchCliProfile(request.profile.id, request.workspace) : await (request.target === 'standalone' ? launchStandaloneProfile : launchProfile)(request.profile.id, request.workspace, desktop, placementToken)
+      const result = request.target === 't3' ? await launchT3Profile(request.profile.id, request.workspace) : request.target === 'cli' ? await launchCliProfile(request.profile.id, request.workspace) : await (request.target === 'standalone' ? launchStandaloneProfile : launchProfile)(request.profile.id, request.workspace, desktop, placementToken)
       if (result.completed) {
         setLaunchRequest(null)
         setPlacementToken(null)
@@ -713,7 +716,7 @@ export default function App() {
       {launchRequest ? (
         <WorkspaceDialog
           showDesktopPicker={!hideDesktopPicker && launchRequest.target !== "cli"}
-          appName={launchRequest.target === 'cli' ? 'CLI' : launchRequest.target === 'standalone' ? 'Codex' : 'VS Code'}
+          appName={launchRequest.target === 't3' ? 'T3 Code' : launchRequest.target === 'cli' ? 'CLI' : launchRequest.target === 'standalone' ? 'Codex' : 'VS Code'}
           profile={launchRequest.profile}
           workspace={launchRequest.workspace}
           busy={launchBusy}

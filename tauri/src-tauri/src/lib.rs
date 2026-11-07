@@ -5,6 +5,11 @@ mod macos_navigation;
 #[path = "../../../cli/crates/core/src/storage_inventory.rs"]
 mod storage_inventory;
 #[cfg(not(test))]
+use multi_codex_core::t3;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/t3.rs"]
+mod t3;
+#[cfg(not(test))]
 use multi_codex_core::settings;
 #[cfg(test)]
 #[path = "../../../cli/crates/core/src/settings.rs"]
@@ -719,6 +724,25 @@ async fn launch_cli_profile(
 }
 
 #[tauri::command]
+async fn launch_t3_profile(
+    id: String,
+    workspace: String,
+    state: State<'_, AppState>,
+) -> Result<launch::LaunchResult, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || {
+        service.launch_t3_profile(&id, Path::new(&workspace))?;
+        Ok(launch::LaunchResult {
+            completed: true,
+            error: None,
+            retry_token: None,
+        })
+    })
+    .await
+    .map_err(|_| "Could not launch T3 Code".to_string())?
+}
+
+#[tauri::command]
 async fn launch_standalone_profile(
     id: String,
     workspace: String,
@@ -998,6 +1022,7 @@ pub fn run() {
             cancel_device_login,
             launch_profile,
             launch_cli_profile,
+            launch_t3_profile,
             launch_standalone_profile,
             delete_profile,
             get_runtime_status,

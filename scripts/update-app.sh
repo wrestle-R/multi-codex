@@ -47,6 +47,8 @@ trap cleanup EXIT
 
 if [[ -n "${MULTI_CODEX_TAG:-}" ]]; then
   tag="$MULTI_CODEX_TAG"
+elif [[ "$suffix" == ".dmg" ]]; then
+  tag="v1.7.5"
 else
   resolved_url=$(curl --fail --silent --show-error --location --retry 4 --retry-all-errors --retry-delay 2 --output /dev/null --write-out '%{url_effective}' "$latest_url")
   tag=${resolved_url##*/}

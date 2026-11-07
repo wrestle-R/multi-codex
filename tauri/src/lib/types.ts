@@ -205,11 +205,12 @@ export interface TerminalOption {
   available: boolean
 }
 
-export type LaunchTarget = "vscode" | "standalone" | "cli"
-export type LaunchMode = LaunchTarget | "both"
+export type LaunchTarget = "vscode" | "standalone" | "cli" | "t3"
+export type LaunchMode = Exclude<LaunchTarget, "t3"> | "both"
 
 export interface LaunchTargets {
   platform: string
+  t3Installed?: boolean
   vscodeInstalled: boolean
   codexCliAvailable: boolean
   standaloneInstalled: boolean

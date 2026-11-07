@@ -36,6 +36,7 @@ const api = vi.hoisted(() => ({
   launchProfile: vi.fn(),
   launchStandaloneProfile: vi.fn(),
   launchCliProfile: vi.fn(),
+  launchT3Profile: vi.fn(),
   deleteProfile: vi.fn(),
   getDesktopIntegrationStatus: vi.fn(),
   getLaunchEnvironment: vi.fn(),
@@ -1359,4 +1360,16 @@ it("Desktop skips project selection while preserving the enabled Linux desktop c
   expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
   await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
   await waitFor(() => expect(api.launchStandaloneProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", null, null))
+})
+
+
+it('shows T3 desktop for detected installations and routes through its own launch command', async () => {
+  api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: false, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false, t3Installed: true })
+  render(<App />)
+  const buttons = await screen.findAllByRole('button', { name: 'T3 Code' })
+  expect(buttons.length).toBeGreaterThan(0)
+  api.launchT3Profile.mockResolvedValue({ completed: true, error: null, retryToken: null })
+  fireEvent.click(buttons[0])
+  await waitFor(() => expect(api.launchT3Profile).toHaveBeenCalledWith(profile.id, expect.any(String)))
+  expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
 })
