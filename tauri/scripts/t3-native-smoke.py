@@ -23,7 +23,9 @@ with tempfile.TemporaryDirectory(prefix='multi-codex-t3-') as directory:
         subprocess.run(['dpkg-deb', '-x', str(archive), str(extracted)], check=True)
         binary = next(p for p in extracted.rglob('t3code') if p.is_file() and os.access(p, os.X_OK) and p.stat().st_size > 1000000)
     command = ['cargo', 'run', '--locked', '--manifest-path', str(root/'cli/Cargo.toml'), '-p', 'multi-codex-core', '--example', 't3-launch-probe', '--', str(binary), str(work/'profiles')]
-    probe = subprocess.Popen(command, cwd=root, start_new_session=not windows)
+    # The third-party desktop fixture must never inherit CI signing or access tokens.
+    fixture_env = {key:value for key,value in os.environ.items() if key not in {'TAURI_SIGNING_PRIVATE_KEY','TAURI_SIGNING_PRIVATE_KEY_PASSWORD','GH_TOKEN','GITHUB_TOKEN','ACTIONS_RUNTIME_TOKEN','ACTIONS_ID_TOKEN_REQUEST_TOKEN'}}
+    probe = subprocess.Popen(command, cwd=root, env=fixture_env, start_new_session=not windows)
     try:
         assert probe.wait(timeout=240) == 0, 'T3 native account-isolation smoke failed'
     finally:
