@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.1", stability: "stable" as const, publishedAt: "2026-11-07T17:34:03Z", title: "Normal updates on every platform", highlights: [
+    "Older installations can find the latest complete release through the Update button again.",
+    "Mac receives v1.8.1 with existing launcher features. T3 stays available on Linux and Windows.",
+  ] },
+
   { tag: "v1.8.0", stability: "stable" as const, publishedAt: "2026-11-07T12:15:36Z", title: "T3 Code on Linux and Windows", highlights: [
     "Open T3 Code desktop with a separate T3 profile and Codex home for each saved account.",
     "macOS stays on v1.7.5. Existing Linux and Windows users use the installer once to reach v1.8.0.",
@@ -131,7 +136,7 @@ export const releaseHistory = [
 // Group summaries describe the series as a whole; individual entries retain
 // their published versions, dates, anchors and website detail pages.
 const releaseSeries = [
-  { series: "1.8", title: "T3 Code desktop", description: "Launch separate T3 Code account instances on Linux and Windows. macOS downloads remain on v1.7.5." },
+  { series: "1.8", title: "T3 Code desktop", description: "Launch separate T3 Code account instances on Linux and Windows, with normal updates and standard launcher features on Mac." },
   { series: "1.7", title: "Orbit and reliable shared chats", description: "Desktop Orbiters, account alerts, configurable refresh, automatic festival outfits and complete native conversation handoff." },
   { series: "1.6", title: "Shared storage and accurate disk usage", description: "Share Codex packages and conversations across saved accounts, measure disk space accurately and keep storage controls compact." },
   { series: "1.5", title: "Storage cleanup and signed updates", description: "Understand account storage, clear selected local conversations with a preview, and update the launcher through signed packages." },

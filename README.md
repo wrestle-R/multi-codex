@@ -14,24 +14,24 @@ Enable or disable Orbit in **Settings**, and adjust size, display, animation and
 
 ## Install
 
-Linux and Windows use stable v1.8.0. macOS remains on v1.7.5. Existing Linux/Windows apps need the installer once to reach v1.8.0; later updates use platform-specific feeds. The earlier v1.7.0 release remains a preview. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
+All supported platforms use stable v1.8.1. T3 Code launching is enabled on Linux and Windows; Mac gets the standard launcher without T3. Older versions can use the normal Update button again. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
 
 ### Windows x64
 
-[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.0/Multi.Codex_1.8.0_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
+[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/Multi.Codex_1.8.1_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
 
 Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/install-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.8.0
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.8.1
 ```
 
 ### Linux x64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.8.0 bash /tmp/install-multi-codex.sh
+MULTI_CODEX_TAG=v1.8.1 bash /tmp/install-multi-codex.sh
 ```
 
 ### macOS (Apple Silicon, macOS 26+)
@@ -40,38 +40,38 @@ The scripts install and update `/Applications/Multi Codex.app`. The current macO
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.7.5 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
+MULTI_CODEX_TAG=v1.8.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
 ```
 
 Codex Desktop opens directly without a project-folder picker. VS Code and CLI still let you choose their project folder.
 
 ## Update
 
-Use the installer below once to move an existing Linux/Windows app to v1.8.0. macOS stays on v1.7.5. After that, use the launcher’s **Update** button for an in-app update. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. Version numbers do not imply stability. The manual commands below install the selected stable version; close Multi Codex before using them. Saved accounts and profile data are preserved.
+Use the launcher’s **Update** button for an in-app update on any supported platform. v1.8.1 restores update discovery for older versions, including v1.7.5. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. Version numbers do not imply stability. The manual commands below install the selected stable version; close Multi Codex before using them. Saved accounts and profile data are preserved.
 
 ### Windows x64
 
-Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.0/Multi.Codex_1.8.0_x64-setup.exe) again to update.
+Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/Multi.Codex_1.8.1_x64-setup.exe) again to update.
 
 Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/update-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.8.0
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.8.1
 ```
 
 ### Linux x64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.8.0 bash /tmp/update-multi-codex.sh
+MULTI_CODEX_TAG=v1.8.1 bash /tmp/update-multi-codex.sh
 ```
 
 ### macOS (Apple Silicon, macOS 26+)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.7.5 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
+MULTI_CODEX_TAG=v1.8.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
 ```
 
 <img src="tauri/public/accounts_screenshot.png" alt="Multi Codex accounts" width="100%" />
