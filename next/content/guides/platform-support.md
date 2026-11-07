@@ -94,3 +94,9 @@ Publication requires those passed checks and exact asset bytes. Broader installe
 Developer ID signing and notarization are optional, including in the broader functional check. The build workflow keeps the `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD` and `APPLE_SIGNING_IDENTITY` secrets available for signing, and `APPLE_ID`, `APPLE_PASSWORD` and `APPLE_TEAM_ID` for notarization. Without them it builds an unsigned release. When configured, signature/notarization verification runs; errors in that configured path are not silently treated as success. [Tauri signing documentation](https://v2.tauri.app/distribute/sign/macos/)
 
 For the unsigned release, use the website installation guide’s explicit Mac installer opt-in. After trying to open the installed app, approve it through **System Settings → Privacy & Security → Open Anyway**, then confirm **Open** if macOS requests approval. The installer never disables Gatekeeper or automatically removes quarantine. [Apple's first-open instructions](https://support.apple.com/en-us/102445)
+
+## T3 Code desktop
+
+From v1.8.0, Linux and Windows can open T3 Code from each saved account. Install T3 desktop separately and keep a Codex CLI available. Each account uses its own T3 backend and Electron profile with an explicit Codex home. T3 handles its own projects and onboarding; choose a project inside T3. Its sessions do not get native Orbit navigation shortcuts. Custom installations can set `MULTI_CODEX_T3_PATH` to the desktop executable. macOS T3 launching is not shipped; Mac downloads remain on v1.7.5.
+
+Existing Linux/Windows installations must use the installer once to reach v1.8.0. Older platform-blind update feeds stay on v1.7.5 to protect Mac installations. New versions use platform-specific feeds.

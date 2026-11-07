@@ -19,12 +19,12 @@ test("extension installation links use the public Marketplace and explain shared
 })
 
 test("changelog groups selected updates by series and preserves version links and permalinks", async ({ page }) => {
-  const tags = ["v1.7.5", "v1.7.4", "v1.7.3", "v1.7.2", "v1.7.1", "v1.7.0", "v1.6.1", "v1.5.3", "v1.5.2", "v1.5.1", "v1.5.0", "v1.4.1", "v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
+  const tags = ["v1.8.0", "v1.7.5", "v1.7.4", "v1.7.3", "v1.7.2", "v1.7.1", "v1.7.0", "v1.6.1", "v1.5.3", "v1.5.2", "v1.5.1", "v1.5.0", "v1.4.1", "v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
   await page.goto("/releases?channel=all")
   const groups = page.locator(".release-group")
-  await expect(groups).toHaveCount(10)
-  expect(await groups.locator(".release-group-heading .eyebrow").allTextContents()).toEqual(["1.7.x", "1.6.x", "1.5.x", "1.4.x", "1.3.x", "1.2.x", "1.1.x", "1.0.x", "0.2.x", "0.1.x"])
-  await expect(page.locator(".release-history-summary")).toContainText("Latest stable: v1.7.5")
+  await expect(groups).toHaveCount(11)
+  expect(await groups.locator(".release-group-heading .eyebrow").allTextContents()).toEqual(["1.8.x", "1.7.x", "1.6.x", "1.5.x", "1.4.x", "1.3.x", "1.2.x", "1.1.x", "1.0.x", "0.2.x", "0.1.x"])
+  await expect(page.locator(".release-history-summary")).toContainText("Latest stable: v1.8.0")
   await expect(page.locator(".release-history-summary")).toContainText("Selected updates")
   const timeline = page.locator(".release-timeline")
   const entries = timeline.locator(":scope > li")
@@ -40,7 +40,7 @@ test("changelog groups selected updates by series and preserves version links an
     expect(await entry.locator("article li").count()).toBeGreaterThanOrEqual(1)
     await expect(entry.getByRole("link", { name: `Full release details for ${tag} →` })).toHaveAttribute("href", `/releases/${tag}`)
   }
-  await expect(page.locator("#v1\\.7\\.5")).toContainText("Latest stable")
+  await expect(page.locator("#v1\\.8\\.0")).toContainText("Latest stable")
   await expect(page.getByText("Latest stable", { exact: true })).toHaveCount(1)
   await timeline.getByRole("link", { name: "v0.1.0 permalink", exact: true }).click()
   await expect(page).toHaveURL(/#v0\.1\.0$/)
@@ -74,7 +74,7 @@ test("showcase, docs and changelog navigate with working release links and no ho
     await page.goto(url)
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
-    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Download" })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/tag/v1.7.5")
+    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Download" })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/tag/v1.8.0")
   }
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Docs", exact: true }).click()
   await expect(page).toHaveURL(/\/docs$/)
@@ -91,6 +91,7 @@ test("platform controls copy the exact install and update commands, including th
   const update = page.locator("#updates .install-box")
   await install.getByRole("button", { name: "macOS", exact: true }).click()
   await expect(install.getByRole("button", { name: "macOS", exact: true })).toHaveAttribute("aria-pressed", "true")
+  await expect(install.getByRole("link", { name: /Download macOS v1\.7\.5/ })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/download/v1.7.5/Multi.Codex_1.7.5_aarch64.dmg")
   await expect(install.locator("code")).toContainText("MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh")
   await install.getByRole("button", { name: "Copy command" }).click()
   await expect(install.getByRole("button", { name: "Copied ✓" })).toBeVisible()
@@ -122,7 +123,7 @@ test("Windows commands, menu-bar behavior and migrated detailed guides are acces
   await page.goto("/docs")
   const install = page.locator("#installation .install-box")
   await install.getByRole("button", { name: "Windows", exact: true }).click()
-  const installerUrl = "https://github.com/wrestle-R/multi-codex/releases/download/v1.7.5/Multi.Codex_1.7.5_x64-setup.exe"
+  const installerUrl = "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.0/Multi.Codex_1.8.0_x64-setup.exe"
   await expect(install.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
   await expect(install).toContainText("double-click")
   await expect(install.getByRole("button", { name: "Copy command" })).not.toBeVisible()
@@ -197,4 +198,12 @@ test("stable release view excludes owner-classified previews and All includes th
   await expect(page.getByRole("link", { name: "Full release details for v1.7.0 →" })).toBeVisible()
   await page.getByRole("link", { name: "Full release details for v1.7.0 →" }).click()
   await expect(page.getByText("Preview release", { exact: true })).toBeVisible()
+})
+
+test("T3 release details keep macOS on its earlier package", async ({ page }) => {
+  await page.goto("/releases/v1.8.0")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Multi Codex v1.8.0")
+  await expect(page.getByRole("heading", { name: "Upgrade", exact: true })).toBeVisible()
+  await expect(page.locator('.markdown-guide a[href="https://github.com/wrestle-R/multi-codex/releases/tag/v1.7.5"]')).toBeVisible()
+  await expect(page.getByRole("link", { name: "Download v1.8.0 ↓" })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/tag/v1.8.0")
 })

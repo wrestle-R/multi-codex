@@ -4,6 +4,7 @@ export const repository = "https://github.com/wrestle-R/multi-codex"
 export const vscodeMarketplace = "https://marketplace.visualstudio.com/items?itemName=russeldanielpaul.multi-codex"
 export const version = releaseHistory.find(release => stabilityOf(release) === "stable")!.tag.slice(1)
 export const macVersion = "1.7.5"
+export const macInstallerDownload = `${repository}/releases/download/v${macVersion}/Multi.Codex_${macVersion}_aarch64.dmg`
 export const latestRelease = `${repository}/releases/tag/v${version}`
 const installerSource = "https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts"
 export const windowsInstallerDownload = `${repository}/releases/download/v${version}/Multi.Codex_${version}_x64-setup.exe`

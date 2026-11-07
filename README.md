@@ -1,6 +1,6 @@
 # Multi Codex
 
-Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your default login untouched.
+Manage Codex accounts across VS Code, the Codex app, and CLI while keeping your default login untouched. T3 Code desktop is also available on Linux and Windows.
 
 [Read the full changelog and release details on the website](https://multi-codex.vercel.app/releases). GitHub hosts the downloadable packages.
 
@@ -14,24 +14,24 @@ Enable or disable Orbit in **Settings**, and adjust size, display, animation and
 
 ## Install
 
-These instructions select stable v1.7.5. The earlier v1.7.0 release remains a preview. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
+Linux and Windows use stable v1.8.0. macOS remains on v1.7.5. Existing Linux/Windows apps need the installer once to reach v1.8.0; later updates use platform-specific feeds. The earlier v1.7.0 release remains a preview. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
 
 ### Windows x64
 
-[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.7.5/Multi.Codex_1.7.5_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
+[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.0/Multi.Codex_1.8.0_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
 
 Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/install-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.7.5
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.8.0
 ```
 
 ### Linux x64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.7.5 bash /tmp/install-multi-codex.sh
+MULTI_CODEX_TAG=v1.8.0 bash /tmp/install-multi-codex.sh
 ```
 
 ### macOS (Apple Silicon, macOS 26+)
@@ -47,24 +47,24 @@ Codex Desktop opens directly without a project-folder picker. VS Code and CLI st
 
 ## Update
 
-Use the launcher’s **Update** button for an in-app update. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. Version numbers do not imply stability. The manual commands below install the selected stable version; close Multi Codex before using them. Saved accounts and profile data are preserved.
+Use the installer below once to move an existing Linux/Windows app to v1.8.0. macOS stays on v1.7.5. After that, use the launcher’s **Update** button for an in-app update. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. Version numbers do not imply stability. The manual commands below install the selected stable version; close Multi Codex before using them. Saved accounts and profile data are preserved.
 
 ### Windows x64
 
-Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.7.5/Multi.Codex_1.7.5_x64-setup.exe) again to update.
+Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.0/Multi.Codex_1.8.0_x64-setup.exe) again to update.
 
 Or run in PowerShell:
 
 ```powershell
 Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/update-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.7.5
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.8.0
 ```
 
 ### Linux x64
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.7.5 bash /tmp/update-multi-codex.sh
+MULTI_CODEX_TAG=v1.8.0 bash /tmp/update-multi-codex.sh
 ```
 
 ### macOS (Apple Silicon, macOS 26+)
