@@ -3,7 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
-if git ls-files | grep -E '(^|/)(auth[^/]*\.json|credentials[^/]*\.json|profiles\.json|[^/]*\.(token|secret|keyring))$'; then
+if git ls-files | grep -E '^local-docs/|(^|/)(auth[^/]*\.json|credentials[^/]*\.json|profiles\.json|[^/]*\.(token|secret|keyring))$'; then
   echo "Tracked credential or app-data filename detected" >&2
   exit 1
 fi

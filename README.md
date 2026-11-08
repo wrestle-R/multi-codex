@@ -32,4 +32,4 @@ Multi Codex is independent and is not affiliated with or endorsed by OpenAI.
 
 ## Command-line interface
 
-Install the tested Linux x64 CLI with `npm install --global @russeldp/multi-codex` (Node.js 22.22.2+ and glibc 2.39+). The command is `multi-codex`. macOS ARM64 and Linux ARM64 definitions remain unpublished pending native verification. Source, command reference, packaging and the implementation plan live in [cli/](cli/README.md); the CLI reuses the desktop launcher’s Rust account services.
+Install the tested Linux x64 CLI with `npm install --global @russeldp/multi-codex` (Node.js 22.22.2+ and glibc 2.39+). The command is `multi-codex`. macOS ARM64 and Linux ARM64 definitions remain unpublished pending native verification. Source, command reference and packaging live in [cli/](cli/README.md); the CLI reuses the desktop launcher’s Rust account services.

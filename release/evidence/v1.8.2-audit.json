@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "version": "1.8.2",
+  "reviewedAt": "2026-11-08T06:26:13.619786+00:00",
+  "scope": [
+    "Tracked repository layout and planning documents",
+    "Desktop, website and extension npm lockfiles",
+    "Both Rust lockfiles queried against OSV/RustSec",
+    "Installer asset selection and platform refusal",
+    "Signed updater dependency features and Windows ZIP extraction",
+    "Account-file permission helpers, T3 profile guards, Tauri capability boundary and website issue-handler controls"
+  ],
+  "changes": [
+    "Upgraded Next.js16.3.8 to16.4.5; npm audit now reports zero findings in next,tauri,extension.",
+    "Compatible desktop build/test lockfile refresh, including Vite,Vitest and transitive audit fixes.",
+    "Patched Rustls0.23.46, rustls-webpki0.103.16, webpki-root-certs1.0.10, ctutils0.4.4 and Tokio1.53.3 across applicable locks.",
+    "Disabled the legacy ZIP updater feature on Windows/Linux; Mac alone enables archive support. Windows continues receiving signed raw EXE.",
+    "Moved three working plans out of tracked source; retained public historical release evidence and Git history. Added repository ownership guidance and a guard against tracking private notes.",
+    "Preserved canonical /install; repaired shell-installer errors that referred to removed README commands."
+  ],
+  "npmAudit": {
+    "tauri": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "next": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "extension": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    }
+  },
+  "rustAudit": {
+    "packagesChecked": 603,
+    "remainingLockfileFindings": [
+      {
+        "package": "glib",
+        "version": "0.18.5",
+        "advisories": [
+          {
+            "id": "GHSA-wrw7-89jp-8q8g",
+            "modified": "2025-10-28T06:29:26.473225Z"
+          },
+          {
+            "id": "RUSTSEC-2024-0429",
+            "modified": "2025-10-28T06:29:26.473225Z"
+          }
+        ]
+      },
+      {
+        "package": "proc-macro-error",
+        "version": "1.0.4",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2024-0370",
+            "modified": "2026-06-07T20:00:03.923932Z"
+          }
+        ]
+      },
+      {
+        "package": "unic-char-property",
+        "version": "0.9.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2025-0081",
+            "modified": "2025-10-21T11:12:59Z"
+          }
+        ]
+      },
+      {
+        "package": "unic-char-range",
+        "version": "0.9.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2025-0075",
+            "modified": "2025-10-22T14:41:04Z"
+          }
+        ]
+      },
+      {
+        "package": "unic-common",
+        "version": "0.9.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2025-0080",
+            "modified": "2025-10-21T11:12:59Z"
+          }
+        ]
+      },
+      {
+        "package": "unic-ucd-ident",
+        "version": "0.9.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2025-0100",
+            "modified": "2025-10-21T11:12:59Z"
+          }
+        ]
+      },
+      {
+        "package": "unic-ucd-version",
+        "version": "0.9.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2025-0098",
+            "modified": "2025-10-21T11:12:59Z"
+          }
+        ]
+      },
+      {
+        "package": "zbus_names",
+        "version": "4.3.4",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2026-0371",
+            "modified": "2026-10-17T15:30:02.407875Z"
+          }
+        ]
+      },
+      {
+        "package": "zip",
+        "version": "4.6.1",
+        "advisories": [
+          {
+            "id": "GHSA-8hxf-qr8p-62x4",
+            "modified": "2026-10-29T17:00:04.188177Z"
+          },
+          {
+            "id": "GHSA-m665-v7pm-7grj",
+            "modified": "2026-10-28T21:30:05.902127Z"
+          },
+          {
+            "id": "GHSA-q7v9-x93c-xqv3",
+            "modified": "2026-11-02T10:10:53.649189Z"
+          },
+          {
+            "id": "RUSTSEC-2026-0367",
+            "modified": "2026-10-16T23:30:02.392172Z"
+          },
+          {
+            "id": "RUSTSEC-2026-0368",
+            "modified": "2026-10-16T23:30:02.383750Z"
+          },
+          {
+            "id": "RUSTSEC-2026-0369",
+            "modified": "2026-10-16T23:30:02.387698Z"
+          },
+          {
+            "id": "RUSTSEC-2026-0429",
+            "modified": "2026-11-02T10:00:02.471399Z"
+          }
+        ]
+      },
+      {
+        "package": "zvariant",
+        "version": "5.15.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2026-0370",
+            "modified": "2026-10-17T15:30:02.390032Z"
+          }
+        ]
+      },
+      {
+        "package": "zvariant_derive",
+        "version": "5.15.0",
+        "advisories": [
+          {
+            "id": "RUSTSEC-2026-0372",
+            "modified": "2026-10-17T15:30:02.394812Z"
+          }
+        ]
+      }
+    ],
+    "disposition": {
+      "glib": "RUSTSEC-2024-0429 concerns VariantStrIter. Existing GTK0.18/Tauri stack requires glib0.18; no direct use of the affected iterator was found in this project. A platform-stack migration is not included, and this remains an upstream advisory rather than a clean Rust audit.",
+      "zip": "The lockfile still resolves cross-target optional ZIP dependencies. Windows dependency-tree inspection finds no zip package after disabling that target feature. Raw EXE updater acceptance/refusal must pass on the native runner. Mac uses tar archive support, not the Windows ZIP extraction path.",
+      "maintenance": "proc-macro-error, UNIC and zbus/zvariant ecosystem maintenance warnings remain. Unmaintained packages are recorded, not treated as proof of an exploitable attack."
+    }
+  },
+  "verification": {
+    "frontendTestsPassed": 140,
+    "releaseInstallerRegressionsPassed": 14,
+    "websiteChromiumTestsPassed": 46,
+    "websiteProductionBuild": "passed",
+    "desktopFrontendBuild": "passed",
+    "rustFormat": "passed",
+    "windowsZipDependencyTree": "no zip package in selected Windows target",
+    "nativeRelease": "required before publication"
+  },
+  "limitations": [
+    "This is a focused code/dependency review, not a penetration test or a guarantee that no unknown vulnerabilities exist.",
+    "No evidence of exploitation established. Advisory impact depends on deployed features and inputs.",
+    "The npm CLI wrapper has no lockfile and only optional native platform packages; no npm audit result is claimed for that wrapper.",
+    "No real account credentials/chats/environment files were used as test fixtures."
+  ],
+  "references": [
+    "https://github.com/advisories/GHSA-2464-fhr4-w9xw",
+    "https://github.com/advisories/GHSA-673q-mjm6-r5xr",
+    "https://osv.dev/list?ecosystem=crates.io",
+    "https://rustsec.org/advisories/RUSTSEC-2024-0429.html"
+  ]
+}

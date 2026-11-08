@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.2",
+    "title": "Security updates and a tidier codebase",
+    "highlights": [
+      "Updated website and desktop dependencies with security fixes.",
+      "Kept one cross-platform install page and moved old working plans out of the source tree."
+    ]
+  },
+  {
     "version": "1.8.1",
     "title": "Normal updates on every platform",
     "highlights": [
@@ -36,7 +44,7 @@
     "version": "1.7.3",
     "title": "One launcher, a calmer header and better window manners",
     "highlights": [
-      "Opening Multi Codex again returns to the existing launcher, so it doesn’t create another tray icon.",
+      "Opening Multi Codex again returns to the existing launcher, so it doesn\u2019t create another tray icon.",
       "Orbit settings open in a centered dialog with clearer toggles. Themes, Orbit, launch preferences and storage now live in a roomy Settings panel.",
       "The app opens maximized, then leaves resizing and focus alone. Launching another app does not minimize the launcher.",
       "Theme changes are immediate, with three more app palettes and accessories for your existing Orbiters."
@@ -46,7 +54,7 @@
     "version": "1.7.2",
     "title": "Persistent recent chats and a quieter Orbit",
     "highlights": [
-      "Orbit keeps your two most recent non-archived chats per account available while idle. Clicking opens the exact chat in that account’s Desktop app.",
+      "Orbit keeps your two most recent non-archived chats per account available while idle. Clicking opens the exact chat in that account\u2019s Desktop app.",
       "Desktop launches directly without a project-folder picker or opening a project. VS Code keeps its open-window shortcuts.",
       "Idle avatars are still. A small status dot replaces continuous plush animation, and attention reminders use a simple static badge."
     ]
@@ -58,7 +66,7 @@
       "The desktop launcher owns Orbit for Desktop, CLI and VS Code. Open editor windows stay visible on New Chat and navigate to their owning window.",
       "Hyprland gets a fixed layer overlay; native GNOME, Plasma and Mac checks cover visibility, fullscreen and close-to-tray behavior.",
       "Mini avatars show multiple chats, inactive accounts stay dim, and Stable or All updates follow the same website classification.",
-      "Wider Settings use two columns on larger windows. What’s New includes every release since your previous version, grouped by version."
+      "Wider Settings use two columns on larger windows. What\u2019s New includes every release since your previous version, grouped by version."
     ]
   },
   {
@@ -140,7 +148,7 @@
     "version": "1.3.7",
     "title": "Terminal preferences and usage reset reminders",
     "highlights": [
-      "Choose your preferred CLI terminal in Launch settings, including Kitty, Ghostty and the platform’s native terminals.",
+      "Choose your preferred CLI terminal in Launch settings, including Kitty, Ghostty and the platform\u2019s native terminals.",
       "Grouped reminders show available resets expiring within 48 hours, at most twice a day and at least four hours apart.",
       "The Orange theme preview now matches dark mode."
     ]
@@ -149,7 +157,7 @@
     "version": "1.3.6",
     "title": "CLI launches for saved accounts",
     "highlights": [
-      "Launch the Codex CLI from an account row, using that account’s isolated home and your chosen project folder.",
+      "Launch the Codex CLI from an account row, using that account\u2019s isolated home and your chosen project folder.",
       "Usage refreshes at startup, accounts follow plan order, and six color palettes work in light and dark mode."
     ]
   },
@@ -179,7 +187,7 @@
     "version": "1.2.0",
     "title": "Hyprland desktop selection and storage controls",
     "highlights": [
-      "On Hyprland, choose the current desktop or desktops 1–10 for a newly launched VS Code window.",
+      "On Hyprland, choose the current desktop or desktops 1\u201310 for a newly launched VS Code window.",
       "Inspect storage by account and safely clear reclaimable caches while keeping credentials, conversations and settings."
     ]
   },
@@ -194,7 +202,7 @@
     "version": "1.1.6",
     "title": "Repeated launch reliability",
     "highlights": [
-      "Repeated launches preserve the account’s existing profile while opening another VS Code window."
+      "Repeated launches preserve the account\u2019s existing profile while opening another VS Code window."
     ]
   },
   {
@@ -208,7 +216,7 @@
     "version": "1.1.2",
     "title": "Account session isolation fixes",
     "highlights": [
-      "Credentials, extensions, browser sign-in, workspaces and local history stay isolated so accounts cannot replace one another’s active login."
+      "Credentials, extensions, browser sign-in, workspaces and local history stay isolated so accounts cannot replace one another\u2019s active login."
     ]
   },
   {
@@ -243,7 +251,7 @@
     "version": "0.1.1",
     "title": "Linux package checksum correction",
     "highlights": [
-      "Corrected the published Linux artifact checksums so downloads can be checked against the release’s actual packages."
+      "Corrected the published Linux artifact checksums so downloads can be checked against the release\u2019s actual packages."
     ]
   },
   {

@@ -137,14 +137,14 @@ else
     allow_unsigned_mac=0
     if [[ "$signature_details" != *"Authority="* ]]; then
       if [[ "${MULTI_CODEX_ALLOW_UNSIGNED_MAC:-0}" != "1" ]]; then
-        printf 'This Mac build has no Apple Developer ID signature. Your existing installation has not been changed. Use the unsigned-release Mac command in the README.\n' >&2
+        printf 'This Mac build has no Apple Developer ID signature. Your existing installation has not been changed. Visit https://multi-codex.vercel.app/install for Mac setup, or explicitly set MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 for this verified unsigned build.\n' >&2
         exit 1
       fi
       allow_unsigned_mac=1
     fi
     if ! codesign --verify --deep --strict "$staged"; then
       if (( ! allow_unsigned_mac )); then
-        printf 'Mac signature verification failed. Your existing installation has not been changed. For this unsigned release, use the Mac command in the README.\n' >&2
+        printf 'Mac signature verification failed. Your existing installation has not been changed. For this verified unsigned build, explicitly set MULTI_CODEX_ALLOW_UNSIGNED_MAC=1; Mac setup is at https://multi-codex.vercel.app/install.\n' >&2
         exit 1
       fi
       # Apple Silicon requires a code signature. Sign only the verified staged

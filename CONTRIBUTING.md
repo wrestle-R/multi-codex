@@ -27,17 +27,25 @@ The website at `/releases` presents selected user-facing updates grouped by majo
 - Keep package assets on GitHub. Release descriptions contain only a short link to the website page. Do not use the README as a changelog or duplicate full notes into GitHub descriptions.
 - Store full public notes under `next/content/releases/v<VERSION>.md`, rendered by the website. Include platform requirements, exact changes, upgrade instructions, known limitations and validation evidence. Keep unpublished work and draft validation clearly separate from published releases.
 
+## Repository layout
+
+- `cli/crates/core/`: shared account, isolation, launch and conversation services. Keep platform-specific code in its named modules.
+- `cli/crates/cli/` and `cli/npm/`: terminal interface and npm distribution wrappers.
+- `tauri/src-tauri/`: desktop commands, Orbit and native lifecycle integration. Reuse core services rather than duplicating account logic.
+- `tauri/src/`: desktop React UI; `tauri/scripts/`: fixture tests and packaging checks.
+- `extension/`: VS Code bridge and packaged native helpers.
+- `next/`: website, `/install`, detailed guides and public release notes.
+- `scripts/`: standalone installer/update entry points, shipped as self-contained release assets.
+- `release/evidence/`: public, source-specific validation reports. Preserve published evidence and asset hashes.
+- `.github/workflows/`: native CI, packaging and draft release creation.
+
+Keep working plans, scratch reports and private project memory under ignored `local-docs/`. Never commit account data, credentials or private backups. Historical files already committed remain in Git history when moved out of the current tree. Do not rewrite published history as cleanup.
+
+Keep the README and website desktop install buttons on the single `/install` page. That page selects the supported package and provides a manual computer override; do not add competing per-platform installation blocks to the README.
+
 ## Commit titles
 
-Use `type(scope): description` when a scope helps, or `type: description` otherwise. Write a short imperative description of the actual change, without a trailing period.
-
-- `feat(launch): add preferred CLI terminal selection`
-- `fix(auth): preserve account isolation on repeated launches`
-- `docs(releases): clarify changelog grouping and versioning`
-- `test(installers): cover missing release assets`
-- `chore(release): prepare version 1.3.9`
-
-Use `feat` for capabilities, `fix` for defects, `docs` for documentation, `test` for test coverage and `chore` for maintenance. Mark incompatible changes with `!` and explain them in the commit body and release notes. Describe validation in the commit body or pull request instead of crowding the title.
+Use short, plain descriptions of the actual change. Follow the owner's requested commit style. Put validation details in the body when useful.
 
 ## Release checklist
 
