@@ -1366,7 +1366,7 @@ it("Desktop skips project selection while preserving the enabled Linux desktop c
 it('shows T3 desktop for detected installations and routes through its own launch command', async () => {
   api.getLaunchTargets.mockResolvedValue({ platform: 'linux', vscodeInstalled: false, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false, t3Installed: true })
   render(<App />)
-  const buttons = await screen.findAllByRole('button', { name: 'T3 Code' })
+  const buttons = await screen.findAllByRole('button', { name: 'T3' })
   expect(buttons.length).toBeGreaterThan(0)
   api.launchT3Profile.mockResolvedValue({ completed: true, error: null, retryToken: null })
   fireEvent.click(buttons[0])
