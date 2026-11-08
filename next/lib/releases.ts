@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.3", stability: "stable" as const, publishedAt: "2026-11-08T08:20:59Z", title: "Safer release signing", highlights: [
+    "Restricted signing-key access and pinned release actions to immutable commits.",
+    "The account launch button shows only T3; existing install links and account storage stay the same.",
+  ] },
+
   { tag: "v1.8.2", stability: "stable" as const, publishedAt: "2026-11-08T06:56:47Z", title: "Security updates and repository cleanup", highlights: [
     "Patched website and native dependencies, with signed EXE updates on Windows and archive updates on Mac.",
     "One install link across supported computers, with working plans kept out of the source tree.",
