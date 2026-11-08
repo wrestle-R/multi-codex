@@ -200,7 +200,13 @@
     "desktopFrontendBuild": "passed",
     "rustFormat": "passed",
     "windowsZipDependencyTree": "no zip package in selected Windows target",
-    "nativeRelease": "required before publication"
+    "nativeRelease": {
+      "status": "passed",
+      "source": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "workflow": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003",
+      "attempt": 1,
+      "scope": "All requested native package, installer, T3, signed updater and four VSIX targets passed on first attempt."
+    }
   },
   "limitations": [
     "This is a focused code/dependency review, not a penetration test or a guarantee that no unknown vulnerabilities exist.",
@@ -213,5 +219,6 @@
     "https://github.com/advisories/GHSA-673q-mjm6-r5xr",
     "https://osv.dev/list?ecosystem=crates.io",
     "https://rustsec.org/advisories/RUSTSEC-2024-0429.html"
-  ]
+  ],
+  "distributionScope": "Desktop packages and release VSIX artifacts rebuilt. Standalone npm CLI and Marketplace package versions are unchanged."
 }

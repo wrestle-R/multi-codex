@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.2", stability: "stable" as const, publishedAt: "2026-11-08T06:56:47Z", title: "Security updates and repository cleanup", highlights: [
+    "Patched website and native dependencies, with signed EXE updates on Windows and archive updates on Mac.",
+    "One install link across supported computers, with working plans kept out of the source tree.",
+  ] },
+
   { tag: "v1.8.1", stability: "stable" as const, publishedAt: "2026-11-07T17:34:03Z", title: "Normal updates on every platform", highlights: [
     "Older installations can find the latest complete release through the Update button again.",
     "Mac receives v1.8.1 with existing launcher features. T3 stays available on Linux and Windows.",

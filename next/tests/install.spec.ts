@@ -1,10 +1,10 @@
 import { test, expect } from "@playwright/test"
 
-const release = "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/"
+const release = "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/"
 for (const device of [
-  { name: "Windows", ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", hint: '"Windows"', file: "Multi.Codex_1.8.1_x64-setup.exe", label: "Windows x64", step: "Start menu" },
-  { name: "Mac", ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", hint: '"macOS"', file: "Multi.Codex_1.8.1_aarch64.dmg", label: "Apple Silicon Mac", step: "About This Mac" },
-  { name: "Linux", ua: "Mozilla/5.0 (X11; Linux x86_64)", hint: '"Linux"', file: "Multi.Codex_1.8.1_amd64.AppImage", label: "Linux x64", step: "Permissions" },
+  { name: "Windows", ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", hint: '"Windows"', file: "Multi.Codex_1.8.2_x64-setup.exe", label: "Windows x64", step: "Start menu" },
+  { name: "Mac", ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", hint: '"macOS"', file: "Multi.Codex_1.8.2_aarch64.dmg", label: "Apple Silicon Mac", step: "About This Mac" },
+  { name: "Linux", ua: "Mozilla/5.0 (X11; Linux x86_64)", hint: '"Linux"', file: "Multi.Codex_1.8.2_amd64.AppImage", label: "Linux x64", step: "Permissions" },
 ]) {
   test(`one install link suggests ${device.name} with its setup steps`, async ({ browser }) => {
     const context = await browser.newContext({ userAgent: device.ua, extraHTTPHeaders: { "sec-ch-ua-platform": device.hint } })
@@ -51,9 +51,9 @@ test("computer selection works without JavaScript and overrides phone detection"
   await page.getByLabel("Install on", { exact: true }).selectOption("windows")
   await page.getByRole("button", { name: "Use this device" }).click()
   await expect(page).toHaveURL(/\/install\?platform=windows$/)
-  await expect(page.getByRole("link", { name: "Download for Windows x64" })).toHaveAttribute("href", release + "Multi.Codex_1.8.1_x64-setup.exe")
+  await expect(page.getByRole("link", { name: "Download for Windows x64" })).toHaveAttribute("href", release + "Multi.Codex_1.8.2_x64-setup.exe")
   await page.getByLabel("Install on", { exact: true }).selectOption("mac")
   await page.getByRole("button", { name: "Use this device" }).click()
-  await expect(page.getByRole("link", { name: "Download for Apple Silicon Mac" })).toHaveAttribute("href", release + "Multi.Codex_1.8.1_aarch64.dmg")
+  await expect(page.getByRole("link", { name: "Download for Apple Silicon Mac" })).toHaveAttribute("href", release + "Multi.Codex_1.8.2_aarch64.dmg")
   await context.close()
 })

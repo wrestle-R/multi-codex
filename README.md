@@ -18,7 +18,7 @@ Enable or disable Orbit in **Settings**, and adjust size, display, animation and
 
 One link for Linux x64, Windows x64 and Apple Silicon Macs on macOS 26+. It suggests the right download and shows the setup steps. You can choose another computer on the same page, including when opening the link on your phone.
 
-All supported platforms use stable v1.8.1. T3 Code launching is available on Linux and Windows; Mac gets the standard launcher without T3.
+All supported platforms use stable v1.8.2. T3 Code launching is available on Linux and Windows; Mac gets the standard launcher without T3.
 
 Codex Desktop opens directly without a project-folder picker. VS Code and CLI still let you choose their project folder.
 

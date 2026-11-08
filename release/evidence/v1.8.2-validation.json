@@ -1,0 +1,912 @@
+{
+  "schemaVersion": 1,
+  "version": "1.8.2",
+  "extensionVersion": "0.3.1",
+  "stability": "stable",
+  "candidateSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+  "classification": "Security dependency updates, Windows updater ZIP reduction and repository cleanup",
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310580",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:40:05Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native package, disposable account/T3 two-instance fixtures, offline AppImage window/singleton, installers and signed SDK acceptance/refusal."
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310580",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:40:05Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native package, disposable account/T3 two-instance fixtures, offline AppImage window/singleton, installers and signed SDK acceptance/refusal."
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310580",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:40:05Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native package, disposable account/T3 two-instance fixtures, offline AppImage window/singleton, installers and signed SDK acceptance/refusal."
+    },
+    "launcher-window": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310580",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:40:05Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native package, disposable account/T3 two-instance fixtures, offline AppImage window/singleton, installers and signed SDK acceptance/refusal."
+    },
+    "t3-linux": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310580",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:40:05Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native package, disposable account/T3 two-instance fixtures, offline AppImage window/singleton, installers and signed SDK acceptance/refusal."
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651333808",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:45:09Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native Keychain, Code/CLI/Codex isolation fixtures, explicit T3-disabled guard, app/DMG, Orbit/tray lifecycle, installer and signed SDK acceptance/refusal."
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651333808",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:45:09Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native Keychain, Code/CLI/Codex isolation fixtures, explicit T3-disabled guard, app/DMG, Orbit/tray lifecycle, installer and signed SDK acceptance/refusal."
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651333808",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:45:09Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native Keychain, Code/CLI/Codex isolation fixtures, explicit T3-disabled guard, app/DMG, Orbit/tray lifecycle, installer and signed SDK acceptance/refusal."
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651333808",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:45:09Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native Keychain, Code/CLI/Codex isolation fixtures, explicit T3-disabled guard, app/DMG, Orbit/tray lifecycle, installer and signed SDK acceptance/refusal."
+    },
+    "macos-without-t3": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651333808",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:45:09Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native Keychain, Code/CLI/Codex isolation fixtures, explicit T3-disabled guard, app/DMG, Orbit/tray lifecycle, installer and signed SDK acceptance/refusal."
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311262",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:48:56Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native account/editor/CLI/T3 fixtures, VSIX, NSIS install/update/restart, checksums and signed SDK acceptance/refusal."
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311262",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:48:56Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native account/editor/CLI/T3 fixtures, VSIX, NSIS install/update/restart, checksums and signed SDK acceptance/refusal."
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311262",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:48:56Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native account/editor/CLI/T3 fixtures, VSIX, NSIS install/update/restart, checksums and signed SDK acceptance/refusal."
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311262",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:48:56Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native account/editor/CLI/T3 fixtures, VSIX, NSIS install/update/restart, checksums and signed SDK acceptance/refusal."
+    },
+    "t3-windows": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311262",
+      "environment": "Windows Server 2025 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:48:56Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Native account/editor/CLI/T3 fixtures, VSIX, NSIS install/update/restart, checksums and signed SDK acceptance/refusal."
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310977",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:34:20Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Packaged VSIX native helper/live attachment/account restoration."
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311010",
+      "environment": "macOS 26 Apple Silicon",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:38:04Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Packaged VSIX native Keychain/helper/live attachment/account restoration."
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310869",
+      "environment": "macOS 26 Intel",
+      "testedBy": "Native GitHub Actions disposable fixtures, reviewed by Codex",
+      "testedAt": "2026-11-08T06:53:54Z",
+      "testedSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "scope": "Packaged VSIX native Keychain/helper/live attachment/account restoration; this is an extension target, not an Intel desktop package."
+    }
+  },
+  "artifacts": {
+    "install-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "install-app.sh": "cbe3d9fca478f1add0d169576386b9a43730aed42cdba45488df993f991e90e6",
+    "latest.json": "2522fa5a4311ff10ac92ea40b0a2b213f838b05204d8943e61f690f1c7ef926b",
+    "multi-codex-darwin-arm64-0.3.1.vsix": "bd5aea182e267461fd04fad7114a2b4185c53cede346930170422ad74eb2274d",
+    "multi-codex-darwin-x64-0.3.1.vsix": "5fe7971cc6adbb607d0a17ece1c4b8845939722af5904d486fdca6b1aa0b2b54",
+    "multi-codex-linux-x64-0.3.1.vsix": "958b48882b30fa3fa527eef5e4da33a78b8a091073e6d162091cb5f51d1c02d3",
+    "multi-codex-win32-x64-0.3.1.vsix": "8f45299c3acdd18559baffc76c5c174e6dfe1c8496a8bdd97fdcc14790978b4a",
+    "Multi.Codex-1.8.2-1.x86_64.rpm": "36e46bc5608a6864d6940e48d7e3823faaae7d4c0ebcaf7c6c8ddf45564f6d06",
+    "Multi.Codex_1.8.2_aarch64.app.tar.gz": "868660d8017f0df73dde4ada6b708c530ad0885ffba27c25cf6c1cc3d2464ebd",
+    "Multi.Codex_1.8.2_aarch64.app.tar.gz.sig": "14c7804fcd40a8ee3020c55727ab4ffd4cc6203aa18d51a32f05f44d053a75bc",
+    "Multi.Codex_1.8.2_aarch64.dmg": "35b5f6ba680f1fa1860d2e26d4cc3795c4bc1016fdcc8b2f64c71dc38782b5d3",
+    "Multi.Codex_1.8.2_amd64.AppImage": "d4a417c904bf8de3fbc24177dad806e1d2c58b64f30ae4556db2c25c1490f81e",
+    "Multi.Codex_1.8.2_amd64.AppImage.sig": "673e65ddeaaf9abd0394826ce1461f6de6c64dbcf4f1b7e37943f12283887121",
+    "Multi.Codex_1.8.2_amd64.deb": "b7641f4e0a5fc35829e163abfd83fb5fc63ea14f37aff34538822d9f255dd4ea",
+    "Multi.Codex_1.8.2_x64-setup.exe": "9ab73f0e12f083faa7f1ca95cce047e140afd4ba947da8f4b5c7548da5fbbe16",
+    "Multi.Codex_1.8.2_x64-setup.exe.sig": "2005dffbe9e6cdf57e92971a32f52325e494a8d883b60b78a69c2d940f7993bd",
+    "SHA256SUMS": "6634eb9477ed7a41afa996757a1823b206447e84d21ea75f64d51f81ca4a72a0",
+    "update-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "update-app.sh": "cbe3d9fca478f1add0d169576386b9a43730aed42cdba45488df993f991e90e6"
+  },
+  "workflow": {
+    "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003",
+    "headSha": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+    "conclusion": "success",
+    "attempt": 1,
+    "jobs": [
+      {
+        "name": "linux",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310580"
+      },
+      {
+        "name": "windows / installer-scripts (pwsh)",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310793"
+      },
+      {
+        "name": "release-policy",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310807"
+      },
+      {
+        "name": "extensions / darwin-x64",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310869"
+      },
+      {
+        "name": "windows / installer-scripts (powershell)",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310876"
+      },
+      {
+        "name": "extensions / linux-x64",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651310977"
+      },
+      {
+        "name": "extensions / darwin-arm64",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311010"
+      },
+      {
+        "name": "windows / windows",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311262"
+      },
+      {
+        "name": "mac-sdk-probe",
+        "conclusion": "skipped",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311496"
+      },
+      {
+        "name": "windows / gui",
+        "conclusion": "skipped",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651311635"
+      },
+      {
+        "name": "macos",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128651333808"
+      },
+      {
+        "name": "prepare-draft",
+        "conclusion": "success",
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454763003/job/128656801817"
+      }
+    ]
+  },
+  "nativeSdkReports": [
+    {
+      "candidateSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "candidateVersion": "1.8.2",
+      "platform": "Linux",
+      "architecture": "x86_64",
+      "payloadSha256": "d4a417c904bf8de3fbc24177dad806e1d2c58b64f30ae4556db2c25c1490f81e",
+      "passed": true,
+      "checks": {
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    },
+    {
+      "candidateSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "candidateVersion": "1.8.2",
+      "platform": "Darwin",
+      "architecture": "arm64",
+      "payloadSha256": "868660d8017f0df73dde4ada6b708c530ad0885ffba27c25cf6c1cc3d2464ebd",
+      "passed": true,
+      "checks": {
+        "initialBundleSignatureIntegrity": true,
+        "sealedBundleHelperFingerprint": true,
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "updatedBundleSignatureIntegrity": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    },
+    {
+      "candidateSource": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+      "candidateVersion": "1.8.2",
+      "platform": "Windows",
+      "architecture": "AMD64",
+      "payloadSha256": "9ab73f0e12f083faa7f1ca95cce047e140afd4ba947da8f4b5c7548da5fbbe16",
+      "passed": true,
+      "checks": {
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    }
+  ],
+  "installerReports": {
+    "Linux": {
+      "tag": "v1.8.2",
+      "appImageSha256": "d4a417c904bf8de3fbc24177dad806e1d2c58b64f30ae4556db2c25c1490f81e",
+      "checks": [
+        {
+          "script": "install-app.sh",
+          "exactReleasedAppImageInstalled": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "defaultLoginUnchanged": true
+        },
+        {
+          "script": "update-app.sh",
+          "exactReleasedAppImageInstalled": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "defaultLoginUnchanged": true
+        }
+      ],
+      "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
+    },
+    "Darwin": {
+      "tag": "v1.8.2",
+      "dmgSha256": "35b5f6ba680f1fa1860d2e26d4cc3795c4bc1016fdcc8b2f64c71dc38782b5d3",
+      "checks": [
+        {
+          "script": "install-app.sh",
+          "strictUnsignedRejection": true,
+          "explicitUnsignedInstall": true,
+          "installedVersion": "1.8.2",
+          "signatureIntegrity": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "installedNativeStartupAndRestart": true,
+          "stagingCleaned": true
+        },
+        {
+          "script": "update-app.sh",
+          "strictUnsignedRejection": true,
+          "explicitUnsignedInstall": true,
+          "installedVersion": "1.8.2",
+          "signatureIntegrity": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "installedNativeStartupAndRestart": true,
+          "stagingCleaned": true
+        }
+      ],
+      "notarization": "not available; first-open approval remains controlled by macOS"
+    },
+    "Windows": {
+      "installerSHA256": "9ab73f0e12f083faa7f1ca95cce047e140afd4ba947da8f4b5c7548da5fbbe16",
+      "unicodeAndSpacedPaths": true,
+      "update": true,
+      "checksumMismatchRejected": true,
+      "nativeVisibleWindow": true,
+      "startMenuShortcut": true,
+      "closeExits": true,
+      "disposableFixtureCleanup": true,
+      "profileAndConversationFixturesPreserved": true,
+      "restart": true,
+      "passed": true,
+      "authenticatedAccounts": "synthetic fixtures; no real credentials",
+      "maximized": true,
+      "environment": "Microsoft Windows NT 10.0.26100.0",
+      "testedAt": "2026-11-08T06:45:34.3210789Z",
+      "install": true
+    }
+  },
+  "macosLifecycle": {
+    "passed": true,
+    "variant": "candidate",
+    "appPath": "/Applications/Multi Codex.app",
+    "version": "1.8.2",
+    "build": "1.8.2",
+    "source": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332\n",
+    "binarySha256": "bbf79acca67b6b810e686d228ef41981c444ef06f8d81ab4beee75d2c72e5be8",
+    "checks": [
+      {
+        "upgradeNotesAcknowledged": true,
+        "dismissal": "native Escape key"
+      },
+      {
+        "nativeHudDimensions": [
+          340,
+          88
+        ],
+        "shortcutHideRestore": true,
+        "fullscreenHideRestore": true
+      },
+      {
+        "cycle": 1,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 1,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 2,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 2,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 3,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 3,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "accountLaunchAfterCloseCycles": true
+      },
+      {
+        "quit": "menu-bar",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      },
+      {
+        "quit": "command-q",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      },
+      {
+        "quit": "dock-quit",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      }
+    ],
+    "disposableNativeKeychain": true,
+    "fixtureBytesUnchanged": true,
+    "disposableKeychainRemoved": true,
+    "crashReports": []
+  },
+  "t3DesktopStartup": {
+    "linux": {
+      "upstreamVersion": "0.1.7",
+      "asset": "T3-Code-0.1.7-amd64.deb",
+      "sha256": "e1373f8047ba582f2e40aff4b34b57d9a355513d4fb47c34d49d11b5c870f9fe",
+      "accounts": 2,
+      "status": "passed",
+      "scope": "Disposable desktop startup and singleton isolation, no authenticated agent turn"
+    },
+    "windows": {
+      "upstreamVersion": "0.1.7",
+      "asset": "T3-Code-0.1.7-x64.exe",
+      "sha256": "035785bc80feb0207cdec6205ce0ff2d5ca413ddfcc48085be6dd7cf02cff3cc",
+      "accounts": 2,
+      "status": "passed",
+      "scope": "Disposable desktop startup and singleton isolation, no authenticated agent turn"
+    }
+  },
+  "previousReleaseAssetsUnchanged": [
+    "v1.7.5",
+    "v1.8.0",
+    "v1.8.1"
+  ],
+  "featureValidation": {
+    "frontendTestsPassed": 140,
+    "installerUpdaterTestsPassed": 14,
+    "updateRoutingTestsPassed": 8,
+    "websiteBuildAndTypecheck": "passed",
+    "rustFormat": "passed",
+    "behavior": "Single install page retained; Windows uses signed raw EXE updates without legacy ZIP support. Mac remains Apple Silicon/macOS26+ without T3.",
+    "websiteChromiumTestsPassed": 46,
+    "websitePreviewBrowserTestsPassed": 47
+  },
+  "limitations": [
+    "No authenticated T3 agent turn or exhaustive upstream-version verification; startup fixtures use official T3 v0.1.7 and credential-free profiles.",
+    "Mac T3 account isolation is not shipped. Intel/older macOS desktop packages are not added. Mac desktop is ad-hoc signed, not Apple Developer ID signed/notarized.",
+    "Native update probes use the real pinned SDK with synthetic baseline/transport and disposable installation roots; no claim of upgrading the user\u2019s installed app.",
+    "No real user credentials, conversations or environment files were used as fixtures."
+  ],
+  "siteCI": {
+    "conclusion": "success",
+    "headSha": "407acfe5ac8fd5fe2cec5ba036bd9ef8a176130f",
+    "jobs": [
+      {
+        "completedAt": "2026-11-08T06:29:04Z",
+        "conclusion": "success",
+        "databaseId": 128651326616,
+        "name": "docs-site (ubuntu-22.04)",
+        "startedAt": "2026-11-08T06:26:44Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-08T06:26:45Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-08T06:26:44Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:26:46Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-11-08T06:26:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:26:49Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-11-08T06:26:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:26:54Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 4,
+            "startedAt": "2026-11-08T06:26:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:27:00Z",
+            "conclusion": "success",
+            "name": "Run npm run build",
+            "number": 5,
+            "startedAt": "2026-11-08T06:26:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:27:36Z",
+            "conclusion": "success",
+            "name": "Run npx playwright install --with-deps chromium webkit",
+            "number": 6,
+            "startedAt": "2026-11-08T06:27:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:28:24Z",
+            "conclusion": "success",
+            "name": "Run npm test",
+            "number": 7,
+            "startedAt": "2026-11-08T06:27:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:28:54Z",
+            "conclusion": "success",
+            "name": "Check settings menu and layout in Chromium and WebKit",
+            "number": 8,
+            "startedAt": "2026-11-08T06:28:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:28:55Z",
+            "conclusion": "success",
+            "name": "Upload settings browser evidence",
+            "number": 9,
+            "startedAt": "2026-11-08T06:28:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:28:55Z",
+            "conclusion": "skipped",
+            "name": "Upload browser failure evidence",
+            "number": 10,
+            "startedAt": "2026-11-08T06:28:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:02Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 19,
+            "startedAt": "2026-11-08T06:28:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:02Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 20,
+            "startedAt": "2026-11-08T06:29:02Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:02Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 21,
+            "startedAt": "2026-11-08T06:29:02Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454767412/job/128651326616"
+      },
+      {
+        "completedAt": "2026-11-08T06:29:35Z",
+        "conclusion": "success",
+        "databaseId": 128651326811,
+        "name": "docs-site (macos-26)",
+        "startedAt": "2026-11-08T06:26:44Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-08T06:26:46Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-08T06:26:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:26:48Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@v4",
+            "number": 2,
+            "startedAt": "2026-11-08T06:26:46Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:26:49Z",
+            "conclusion": "success",
+            "name": "Run actions/setup-node@v4",
+            "number": 3,
+            "startedAt": "2026-11-08T06:26:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:26:56Z",
+            "conclusion": "success",
+            "name": "Run npm ci",
+            "number": 4,
+            "startedAt": "2026-11-08T06:26:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:27:04Z",
+            "conclusion": "success",
+            "name": "Run npm run build",
+            "number": 5,
+            "startedAt": "2026-11-08T06:26:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:27:16Z",
+            "conclusion": "success",
+            "name": "Run npx playwright install --with-deps chromium webkit",
+            "number": 6,
+            "startedAt": "2026-11-08T06:27:04Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:28:40Z",
+            "conclusion": "success",
+            "name": "Run npm test",
+            "number": 7,
+            "startedAt": "2026-11-08T06:27:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:26Z",
+            "conclusion": "success",
+            "name": "Check settings menu and layout in Chromium and WebKit",
+            "number": 8,
+            "startedAt": "2026-11-08T06:28:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:28Z",
+            "conclusion": "success",
+            "name": "Upload settings browser evidence",
+            "number": 9,
+            "startedAt": "2026-11-08T06:29:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:28Z",
+            "conclusion": "skipped",
+            "name": "Upload browser failure evidence",
+            "number": 10,
+            "startedAt": "2026-11-08T06:29:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:31Z",
+            "conclusion": "success",
+            "name": "Post Run actions/setup-node@v4",
+            "number": 19,
+            "startedAt": "2026-11-08T06:29:28Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:32Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@v4",
+            "number": 20,
+            "startedAt": "2026-11-08T06:29:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-08T06:29:33Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 21,
+            "startedAt": "2026-11-08T06:29:32Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454767412/job/128651326811"
+      },
+      {
+        "completedAt": "2026-11-08T06:26:42Z",
+        "conclusion": "skipped",
+        "databaseId": 128651327310,
+        "name": "linux",
+        "startedAt": "2026-11-08T06:26:42Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454767412/job/128651327310"
+      },
+      {
+        "completedAt": "2026-11-08T06:26:42Z",
+        "conclusion": "skipped",
+        "databaseId": 128651327626,
+        "name": "macos",
+        "startedAt": "2026-11-08T06:26:42Z",
+        "status": "completed",
+        "steps": [],
+        "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454767412/job/128651327626"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/wrestle-R/multi-codex/actions/runs/42454767412"
+  },
+  "audit": "release/evidence/v1.8.2-audit.json",
+  "distributionScope": "Desktop packages and release VSIX artifacts rebuilt; npm CLI and Marketplace publication not performed.",
+  "publication": {
+    "publishedAt": "2026-11-08T06:56:47Z",
+    "url": "https://github.com/wrestle-R/multi-codex/releases/tag/v1.8.2",
+    "assetCount": 19,
+    "publicDownloads": {
+      "checkedAt": "2026-11-08T06:57:01.558191+00:00",
+      "publishedAt": "2026-11-08T06:56:47Z",
+      "downloads": [
+        {
+          "name": "install-app.ps1",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/install-app.ps1",
+          "status": 200
+        },
+        {
+          "name": "install-app.sh",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/install-app.sh",
+          "status": 200
+        },
+        {
+          "name": "latest.json",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/latest.json",
+          "status": 200
+        },
+        {
+          "name": "multi-codex-darwin-arm64-0.3.1.vsix",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/multi-codex-darwin-arm64-0.3.1.vsix",
+          "status": 200
+        },
+        {
+          "name": "multi-codex-darwin-x64-0.3.1.vsix",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/multi-codex-darwin-x64-0.3.1.vsix",
+          "status": 200
+        },
+        {
+          "name": "multi-codex-linux-x64-0.3.1.vsix",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/multi-codex-linux-x64-0.3.1.vsix",
+          "status": 200
+        },
+        {
+          "name": "multi-codex-win32-x64-0.3.1.vsix",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/multi-codex-win32-x64-0.3.1.vsix",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex-1.8.2-1.x86_64.rpm",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex-1.8.2-1.x86_64.rpm",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_aarch64.app.tar.gz",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_aarch64.app.tar.gz",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_aarch64.app.tar.gz.sig",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_aarch64.app.tar.gz.sig",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_aarch64.dmg",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_aarch64.dmg",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_amd64.AppImage",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_amd64.AppImage",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_amd64.AppImage.sig",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_amd64.AppImage.sig",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_amd64.deb",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_amd64.deb",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_x64-setup.exe",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_x64-setup.exe",
+          "status": 200
+        },
+        {
+          "name": "Multi.Codex_1.8.2_x64-setup.exe.sig",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/Multi.Codex_1.8.2_x64-setup.exe.sig",
+          "status": 200
+        },
+        {
+          "name": "SHA256SUMS",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/SHA256SUMS",
+          "status": 200
+        },
+        {
+          "name": "update-app.ps1",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/update-app.ps1",
+          "status": 200
+        },
+        {
+          "name": "update-app.sh",
+          "url": "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.2/update-app.sh",
+          "status": 200
+        }
+      ]
+    },
+    "releaseGates": "passed",
+    "sha256sums": "all18 listed entries passed; SHA256SUMS itself matched GitHub digest",
+    "updaterManifest": "three signed platform references verified"
+  }
+}
