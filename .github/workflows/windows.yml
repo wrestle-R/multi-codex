@@ -168,9 +168,9 @@ jobs:
         run: |
           if ($env:SIGNED_UPDATES -eq 'true') {
             if (!$env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Updater signing key is required for release packages' }
-            npm run tauri -- build --bundles nsis --config src-tauri/tauri.windows.conf.json --config src-tauri/tauri.updater.conf.json
+            python scripts/github-asset-build.py -- npm run tauri -- build --bundles nsis --config src-tauri/tauri.windows.conf.json --config src-tauri/tauri.updater.conf.json
           } else {
-            npm run tauri -- build --bundles nsis --config src-tauri/tauri.windows.conf.json
+            python scripts/github-asset-build.py -- npm run tauri -- build --bundles nsis --config src-tauri/tauri.windows.conf.json
           }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Normalize the manifest-derived Windows installer filename
