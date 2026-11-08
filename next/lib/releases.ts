@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.4", stability: "stable" as const, publishedAt: "2026-11-08T11:43:10Z", title: "Linux launch destinations", highlights: [
+    "Choose a desktop for T3 and CLI, with placement retries that reuse the opened window.",
+    "Launch buttons fit their labels and wrap when space is limited.",
+  ] },
+
   { tag: "v1.8.3", stability: "stable" as const, publishedAt: "2026-11-08T08:20:59Z", title: "Safer release signing", highlights: [
     "Restricted signing-key access and pinned release actions to immutable commits.",
     "The account launch button shows only T3; existing install links and account storage stay the same.",

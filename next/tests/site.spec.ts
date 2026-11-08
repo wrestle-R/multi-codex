@@ -19,12 +19,12 @@ test("extension installation links use the public Marketplace and explain shared
 })
 
 test("changelog groups selected updates by series and preserves version links and permalinks", async ({ page }) => {
-  const tags = ["v1.8.3", "v1.8.2", "v1.8.1", "v1.8.0", "v1.7.5", "v1.7.4", "v1.7.3", "v1.7.2", "v1.7.1", "v1.7.0", "v1.6.1", "v1.5.3", "v1.5.2", "v1.5.1", "v1.5.0", "v1.4.1", "v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
+  const tags = ["v1.8.4", "v1.8.3", "v1.8.2", "v1.8.1", "v1.8.0", "v1.7.5", "v1.7.4", "v1.7.3", "v1.7.2", "v1.7.1", "v1.7.0", "v1.6.1", "v1.5.3", "v1.5.2", "v1.5.1", "v1.5.0", "v1.4.1", "v1.4.0", "v1.3.8", "v1.3.7", "v1.3.6", "v1.3.5", "v1.2.3", "v1.2.1", "v1.2.0", "v1.1.7", "v1.1.6", "v1.1.3", "v1.1.2", "v1.1.1", "v1.0.2", "v1.0.0", "v0.2.0", "v0.1.1", "v0.1.0"]
   await page.goto("/releases?channel=all")
   const groups = page.locator(".release-group")
   await expect(groups).toHaveCount(11)
   expect(await groups.locator(".release-group-heading .eyebrow").allTextContents()).toEqual(["1.8.x", "1.7.x", "1.6.x", "1.5.x", "1.4.x", "1.3.x", "1.2.x", "1.1.x", "1.0.x", "0.2.x", "0.1.x"])
-  await expect(page.locator(".release-history-summary")).toContainText("Latest stable: v1.8.3")
+  await expect(page.locator(".release-history-summary")).toContainText("Latest stable: v1.8.4")
   await expect(page.locator(".release-history-summary")).toContainText("Selected updates")
   const timeline = page.locator(".release-timeline")
   const entries = timeline.locator(":scope > li")
@@ -40,7 +40,7 @@ test("changelog groups selected updates by series and preserves version links an
     expect(await entry.locator("article li").count()).toBeGreaterThanOrEqual(1)
     await expect(entry.getByRole("link", { name: `Full release details for ${tag} →` })).toHaveAttribute("href", `/releases/${tag}`)
   }
-  await expect(page.locator("#v1\\.8\\.3")).toContainText("Latest stable")
+  await expect(page.locator("#v1\\.8\\.4")).toContainText("Latest stable")
   await expect(page.getByText("Latest stable", { exact: true })).toHaveCount(1)
   await timeline.getByRole("link", { name: "v0.1.0 permalink", exact: true }).click()
   await expect(page).toHaveURL(/#v0\.1\.0$/)
@@ -199,4 +199,12 @@ test("1.8.3 explains release signing and keeps the shared install link", async (
   await expect(page.getByRole("heading", { level:1 })).toHaveText("Multi Codex v1.8.3")
   await expect(page.getByRole("heading", { name:"Release signing", exact:true })).toBeVisible()
   await expect(page.getByRole("link", { name:"install link", exact:true })).toHaveAttribute("href", "/install")
+})
+
+test("1.8.4 explains Linux desktop destinations and content-sized buttons", async ({ page }) => {
+  await page.goto("/releases/v1.8.4")
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Multi Codex v1.8.4")
+  await expect(page.getByRole("heading", { name: "Linux launch destinations", exact: true })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Buttons that fit", exact: true })).toBeVisible()
+  await expect(page.getByRole("link", { name: "install link", exact: true })).toHaveAttribute("href", "/install")
 })
