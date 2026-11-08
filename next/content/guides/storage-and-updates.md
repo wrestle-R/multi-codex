@@ -1,6 +1,6 @@
 # Storage cleanup and in-app updates
 
-These controls are available in **v1.5.0 and later**. If you use v1.4.1 or an older package, use the [website update command](/docs#updates) or the new installer once. Later signed updates can be installed from the Update button. The [changelog](/releases) identifies each published version and its exact capabilities.
+These controls are available in **v1.5.0 and later**. If you use v1.4.1 or an older package, use the [install page](/install) or the new installer once. Later signed updates can be installed from the Update button. The [changelog](/releases) identifies each published version and its exact capabilities.
 
 ## Understand profile storage
 

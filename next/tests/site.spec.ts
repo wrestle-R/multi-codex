@@ -74,7 +74,7 @@ test("showcase, docs and changelog navigate with working release links and no ho
     await page.goto(url)
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
-    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Download" })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/tag/v1.8.1")
+    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Download" })).toHaveAttribute("href", "/install")
   }
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Docs", exact: true }).click()
   await expect(page).toHaveURL(/\/docs$/)
@@ -84,23 +84,17 @@ test("showcase, docs and changelog navigate with working release links and no ho
   expect(errors).toEqual([])
 })
 
-test("platform controls copy the exact install and update commands, including the Mac unsigned opt-in", async ({ page }) => {
-  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (text: string) => { document.documentElement.dataset.copied = text } } }))
+test("homepage and docs share one install destination", async ({ page }) => {
+  await page.goto("/")
+  await expect(page.getByRole("link", { name: "Get desktop app" })).toHaveAttribute("href", "/install")
+  await expect(page.getByRole("link", { name: "Install Multi Codex" })).toHaveAttribute("href", "/install")
   await page.goto("/docs")
-  const install = page.locator("#installation .install-box")
-  const update = page.locator("#updates .install-box")
-  await install.getByRole("button", { name: "macOS", exact: true }).click()
-  await expect(install.getByRole("button", { name: "macOS", exact: true })).toHaveAttribute("aria-pressed", "true")
-  await expect(install.getByRole("link", { name: /Download macOS v1\.8\.1/ })).toHaveAttribute("href", "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/Multi.Codex_1.8.1_aarch64.dmg")
-  await expect(install.locator("code")).toContainText("MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh")
-  await install.getByRole("button", { name: "Copy command" }).click()
-  await expect(install.getByRole("button", { name: "Copied ✓" })).toBeVisible()
-  expect(await page.locator("html").getAttribute("data-copied")).toBe(await install.locator("code").textContent())
-  await update.getByRole("button", { name: "Copy command" }).click()
-  expect(await page.locator("html").getAttribute("data-copied")).toBe(await update.locator("code").textContent())
-  await expect(update.locator("code")).toContainText("update-app.sh")
-  await install.getByRole("button", { name: "Linux", exact: true }).click()
-  await expect(install.locator("code")).not.toContainText("MULTI_CODEX_ALLOW_UNSIGNED_MAC")
+  await expect(page.locator("#installation .install-box").getByRole("link")).toHaveAttribute("href", "/install")
+  await expect(page.locator("#updates .install-box").getByRole("link")).toHaveAttribute("href", "/install")
+  await expect(page.getByRole("group", { name: "Installation platform" })).toHaveCount(0)
+  await page.locator("#installation").getByRole("link", { name: "Install Multi Codex" }).click()
+  await expect(page).toHaveURL(/\/install$/)
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("One link.Your computer.")
 })
 
 test("screenshots load and troubleshooting answers and missing pages are usable", async ({ page }) => {
@@ -119,32 +113,10 @@ test("screenshots load and troubleshooting answers and missing pages are usable"
 })
 
 
-test("Windows commands, menu-bar behavior and migrated detailed guides are accessible", async ({ page }) => {
+test("menu-bar behavior and detailed guides remain accessible", async ({ page }) => {
   await page.goto("/docs")
-  const install = page.locator("#installation .install-box")
-  await install.getByRole("button", { name: "Windows", exact: true }).click()
-  const installerUrl = "https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/Multi.Codex_1.8.1_x64-setup.exe"
-  await expect(install.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
-  await expect(install).toContainText("double-click")
-  await expect(install.getByRole("button", { name: "Copy command" })).not.toBeVisible()
-  await install.locator("summary").click()
-  await expect(install.getByRole("button", { name: "Copy command" })).toBeVisible()
-  await expect(install.locator("code")).toContainText("install-app.ps1")
-  await expect(install.locator("code")).toContainText("$env:TEMP")
-  await expect(install.locator("code")).toContainText("-UseBasicParsing")
-  const update = page.locator("#updates .install-box")
-  await update.getByRole("button", { name: "Windows", exact: true }).click()
-  await expect(update.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
-  await expect(update).toContainText("saved accounts and conversations stay in place")
-  for (const width of [320, 768, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-  }
   await expect(page.locator("#menu-bar")).toContainText("Quit Multi Codex")
   await expect(page.locator("#vscode")).toContainText("every saved account")
-  await page.goto("/")
-  await page.getByRole("button", { name: "Windows", exact: true }).click()
-  await expect(page.getByRole("link", { name: "Download Windows .exe" })).toHaveAttribute("href", installerUrl)
   for (const guide of ["platform-support", "extension", "extension-publishing", "release-guidelines", "storage-and-updates"]) {
     await page.goto(`/docs/${guide}`)
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible()
@@ -155,7 +127,6 @@ test("Windows commands, menu-bar behavior and migrated detailed guides are acces
     }
   }
 })
-
 
 test("CLI guide explains package limits, shared deletion and recovery without release claims", async ({ page }) => {
   await page.goto("/")

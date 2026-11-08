@@ -320,3 +320,20 @@ code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 
 .palette-picker { max-width: 110px; min-height: 40px; padding: 0 8px; border: 1px solid var(--control-border); border-radius: 6px; color: var(--ink); background: var(--paper); font: inherit; font-size: 13px; cursor: pointer; }
 @media (max-width: 600px) { .palette-picker { min-height: 36px; max-width: 91px; } .nav-shell { flex-wrap: wrap; } }
+
+/* One install destination, with only the selected computer's download. */
+.install-page { max-width: 920px; padding-top: 66px; padding-bottom: 80px; }
+.install-page h1 { margin-bottom: 24px; font-size: clamp(42px, 7vw, 72px); line-height: 1.06; letter-spacing: -2px; }
+.install-intro { max-width: 520px; font-size: 20px; color: var(--muted); }
+.install-detection { margin-top: 36px; color: var(--muted); }
+.install-device-form { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding-bottom: 30px; border-bottom: 1px solid var(--line); }
+.install-device-form label { font-weight: 500; }
+.install-device-form select { max-width: 100%; min-width: 0; padding: 13px 12px; border: 1px solid var(--control-border); border-radius: 6px; background: var(--paper); color: var(--ink); font: inherit; }
+.install-download { padding-top: 36px; }
+.install-download h2 { font-size: clamp(26px, 4vw, 38px); letter-spacing: -1px; }
+.install-download > p { max-width: 630px; }
+.install-steps { max-width: 680px; padding-left: 24px; margin: 30px 0; }
+.install-steps li { line-height: 1.7; padding-left: 6px; margin-bottom: 12px; }
+.install-download .install-caption { margin-top: 28px; }
+.install-help { margin-top: 32px; }
+@media (max-width: 600px) { .install-page { padding-top: 36px; } .install-device-form select { width: 100%; } }

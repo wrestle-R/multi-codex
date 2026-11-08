@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { releaseGroups } from "../../lib/releases"
-import { latestRelease, repository, version } from "../../lib/site"
+import { installPage, repository, version } from "../../lib/site"
 import { stabilityOf } from "../../lib/update-channels"
 
 export const metadata: Metadata = {
@@ -42,7 +42,7 @@ export default async function Releases({ searchParams }: { searchParams: Promise
           <h3 id={`${release.tag}-title`}>{release.title}</h3>
           <ul>{release.highlights.map(highlight => <li key={highlight}>{highlight}</li>)}</ul>
           <div className="release-actions">
-            {release.tag === `v${version}` && <a className="button primary" href={latestRelease}>Download latest ↓</a>}
+            {release.tag === `v${version}` && <a className="button primary" href={installPage}>Download latest ↓</a>}
             <Link className="text-link" href={`/releases/${release.tag}`}>Full release details<span className="sr-only"> for {release.tag}</span> →</Link>
           </div>
         </article>

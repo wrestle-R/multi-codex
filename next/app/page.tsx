@@ -3,7 +3,7 @@ import orbitScreenshot from "../public/orbit.png"
 import { ThemedScreenshot } from "@/components/themed-screenshot"
 import Link from "next/link"
 import { InstallBox } from "@/components/install-box"
-import { latestRelease, repository, version, vscodeMarketplace } from "@/lib/site"
+import { installPage, repository, version, vscodeMarketplace } from "@/lib/site"
 import accountsLight from "@/public/images/accounts-light.png"
 import accountsDark from "@/public/images/accounts-dark.png"
 
@@ -12,7 +12,7 @@ export default function Home() {
     <section className="hero page-width"><div className="hero-copy"><Link href={`/releases#v${version}`} className="release-pill"><span className="status-dot" />Latest stable: v{version}<span aria-hidden="true">↗</span></Link>
       <p className="eyebrow">YOUR ACCOUNTS. YOUR WORKSPACES.</p><h1>A little order<br />for all your<br /><span>Codex accounts.</span></h1>
       <p className="hero-description">Keep your logins together. Launch separate workspaces with the desktop app, or switch accounts in your current VS Code window.</p>
-      <div className="hero-actions"><a className="button primary" href={latestRelease}>Get desktop app <span aria-hidden="true">↓</span></a><a className="text-link" href={vscodeMarketplace}>Get VS Code extension <span aria-hidden="true">↗</span></a></div>
+      <div className="hero-actions"><a className="button primary" href={installPage}>Get desktop app <span aria-hidden="true">↓</span></a><a className="text-link" href={vscodeMarketplace}>Get VS Code extension <span aria-hidden="true">↗</span></a></div>
       <Link className="text-link" href="/docs/cli">Use Multi Codex from a terminal <span aria-hidden="true">→</span></Link><p className="platform-line"><span>Linux</span><span>Apple Silicon Mac</span><span>Windows x64</span><span>Open source</span></p>
     </div><div className="hero-visual"><div className="visual-label"><span>ONE LAUNCHER, YOUR WHOLE LINEUP</span><span aria-hidden="true">ACCOUNT DASHBOARD</span></div><div className="screenshot-frame"><ThemedScreenshot light={accountsLight} dark={accountsDark} alt="Multi Codex account dashboard showing separate accounts, usage limits and launch buttons for VS Code, Codex and CLI" priority sizes="(max-width: 900px) 100vw, 60vw" /></div><div className="visual-footnote"><span className="small-mark" aria-hidden="true">↳</span>Everything in its own space.<span className="caption-end">Your default login stays yours.</span></div></div></section>
     <section className="feature-strip page-width" aria-label="Features"><div><span className="feature-number">01</span><h2>Accounts stay separate.</h2><p>Each account has its own saved sign-in, app data and memory. Shared chats keep their full history.</p></div><div><span className="feature-number">02</span><h2>Launch your way.</h2><p>VS Code, Codex desktop, or CLI in your favorite installed terminal.</p></div><div><span className="feature-number">03</span><h2>Keep an eye on usage.</h2><p>Limits at a glance, with quiet reminders before your usage resets expire.</p></div></section>

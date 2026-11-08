@@ -14,65 +14,17 @@ Enable or disable Orbit in **Settings**, and adjust size, display, animation and
 
 ## Install
 
-All supported platforms use stable v1.8.1. T3 Code launching is enabled on Linux and Windows; Mac gets the standard launcher without T3. Older versions can use the normal Update button again. See the [release channels](https://multi-codex.vercel.app/releases?channel=all) for previews.
+[Install Multi Codex](https://multi-codex.vercel.app/install)
 
-### Windows x64
+One link for Linux x64, Windows x64 and Apple Silicon Macs on macOS 26+. It suggests the right download and shows the setup steps. You can choose another computer on the same page, including when opening the link on your phone.
 
-[Download the Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/Multi.Codex_1.8.1_x64-setup.exe), double-click it, and follow setup. Then open Multi Codex from the Start menu.
-
-Or run in PowerShell:
-
-```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/install-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/install-multi-codex.ps1" -Version 1.8.1
-```
-
-### Linux x64
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.8.1 bash /tmp/install-multi-codex.sh
-```
-
-### macOS (Apple Silicon, macOS 26+)
-
-The scripts install and update `/Applications/Multi Codex.app`. The current macOS release is unsigned; this command explicitly allows its installation.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/install-app.sh -o /tmp/install-multi-codex.sh
-MULTI_CODEX_TAG=v1.8.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/install-multi-codex.sh
-```
+All supported platforms use stable v1.8.1. T3 Code launching is available on Linux and Windows; Mac gets the standard launcher without T3.
 
 Codex Desktop opens directly without a project-folder picker. VS Code and CLI still let you choose their project folder.
 
 ## Update
 
-Use the launcher’s **Update** button for an in-app update on any supported platform. v1.8.1 restores update discovery for older versions, including v1.7.5. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. Version numbers do not imply stability. The manual commands below install the selected stable version; close Multi Codex before using them. Saved accounts and profile data are preserved.
-
-### Windows x64
-
-Download and run the [Windows installer (.exe)](https://github.com/wrestle-R/multi-codex/releases/download/v1.8.1/Multi.Codex_1.8.1_x64-setup.exe) again to update.
-
-Or run in PowerShell:
-
-```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/update-multi-codex.ps1"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/update-multi-codex.ps1" -Version 1.8.1
-```
-
-### Linux x64
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.8.1 bash /tmp/update-multi-codex.sh
-```
-
-### macOS (Apple Silicon, macOS 26+)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts/update-app.sh -o /tmp/update-multi-codex.sh
-MULTI_CODEX_TAG=v1.8.1 MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 bash /tmp/update-multi-codex.sh
-```
+Use the launcher’s **Update** button. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. For a manual update, use the same install link above and close Multi Codex before running the installer or replacing the AppImage. Saved accounts and profile data are preserved.
 
 <img src="tauri/public/accounts_screenshot.png" alt="Multi Codex accounts" width="100%" />
 

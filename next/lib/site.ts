@@ -6,11 +6,6 @@ export const version = releaseHistory.find(release => stabilityOf(release) === "
 export const macVersion = releaseHistory.find(release => stabilityOf(release) === "stable" && release.tag !== "v1.8.0")!.tag.slice(1)
 export const macInstallerDownload = `${repository}/releases/download/v${macVersion}/Multi.Codex_${macVersion}_aarch64.dmg`
 export const latestRelease = `${repository}/releases/tag/v${version}`
-const installerSource = "https://raw.githubusercontent.com/wrestle-R/multi-codex/main/scripts"
+export const installPage = "/install"
+export const linuxInstallerDownload = `${repository}/releases/download/v${version}/Multi.Codex_${version}_amd64.AppImage`
 export const windowsInstallerDownload = `${repository}/releases/download/v${version}/Multi.Codex_${version}_x64-setup.exe`
-export const installCommand = (platform: "linux" | "mac" | "windows", update = false) => {
-  const selectedVersion = platform === "mac" ? macVersion : version
-  const action = update ? "update" : "install"
-  if (platform === "windows") return `Invoke-WebRequest ${installerSource}/${action}-app.ps1 -UseBasicParsing -OutFile "$env:TEMP/${action}-multi-codex.ps1"\npowershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP/${action}-multi-codex.ps1" -Version ${version}`
-  return `curl -fsSL ${installerSource}/${action}-app.sh -o /tmp/${action}-multi-codex.sh\nMULTI_CODEX_TAG=v${selectedVersion} ${platform === "mac" ? "MULTI_CODEX_ALLOW_UNSIGNED_MAC=1 " : ""}bash /tmp/${action}-multi-codex.sh`
-}

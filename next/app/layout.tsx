@@ -4,7 +4,7 @@ import Link from "next/link"
 import { BrandMark } from "@/components/brand-mark"
 import { PalettePicker } from "@/components/palette-picker"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { latestRelease, repository, vscodeMarketplace } from "@/lib/site"
+import { installPage, repository, vscodeMarketplace } from "@/lib/site"
 import "./globals.css"
 
 const body = localFont({ src: [{ path: "../public/fonts/outfit-regular.woff2", weight: "400" }, { path: "../public/fonts/outfit-medium.woff2", weight: "500" }], variable: "--font-body", display: "swap" })
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <header className="site-header"><nav className="nav-shell" aria-label="Main navigation">
       <Link className="brand" href="/" aria-label="Multi Codex home"><BrandMark /><span>Multi Codex</span></Link>
       <div className="nav-links"><Link href="/docs">Docs</Link><Link href="/releases">Changelog</Link><Link href="/issues">Report an issue</Link><a href={repository}>GitHub <span aria-hidden="true">↗</span></a></div>
-      <div className="nav-actions"><PalettePicker /><ThemeToggle /><a className="nav-download" href={latestRelease}>Download <span aria-hidden="true">↓</span></a></div>
+      <div className="nav-actions"><PalettePicker /><ThemeToggle /><a className="nav-download" href={installPage}>Download <span aria-hidden="true">↓</span></a></div>
     </nav></header>
     {children}
     <footer className="site-footer"><Link className="brand" href="/"><BrandMark small />Multi Codex</Link><span>Built for the way you work.</span><div><a href={vscodeMarketplace}>VS Code extension ↗</a><a href={`${repository}/blob/main/LICENSE`}>MIT license</a><a href={repository}>Source ↗</a></div><p>An independent open-source project. Not affiliated with OpenAI.</p></footer>

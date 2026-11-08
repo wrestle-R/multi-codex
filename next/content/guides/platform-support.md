@@ -33,9 +33,7 @@ On Hyprland, the launcher monitors its own mapped window and restores maximizati
 
 [Native Windows validation](https://github.com/wrestle-R/multi-codex/actions/runs/37938157031) passed for the exact v1.4.1 installer and v0.2.1 Windows VSIX. [Linux and Mac packaged extension targets](https://github.com/wrestle-R/multi-codex/actions/runs/37934715671) and [native Mac account menus](https://github.com/wrestle-R/multi-codex/actions/runs/37935313656) have runner evidence. The [release manifest](https://github.com/wrestle-R/multi-codex/blob/main/release/evidence/v1.4.1-validation.json) records package hashes and the remaining validation limits.
 
-Choose Windows on the website and click **Download Windows .exe**, or [download the v1.4.1 installer directly](https://github.com/wrestle-R/multi-codex/releases/download/v1.4.1/Multi.Codex_1.4.1_x64-setup.exe). Double-click the downloaded installer, follow setup, then open Multi Codex from the Start menu. Installation is per-user. To update, close Multi Codex and run the new installer again. Updates preserve account and conversation data, which remain outside the application directory.
-
-PowerShell install/update commands remain available as an alternative. The scripts select the current release's Windows asset dynamically and verify its SHA-256 before running NSIS.
+Use the [install page](/install) on Windows. It suggests the Windows x64 installer. Double-click the downloaded .exe, follow setup, then open Multi Codex from the Start menu. Installation is per-user. For a manual update, close Multi Codex and run the new installer again. Accounts and conversations remain outside the application directory.
 
 Windows accounts use Credential Manager and protected directories granting access to the current user and SYSTEM. The launcher and extension share `%APPDATA%\multi-codex`. The extension contains a native account helper, an executable startup wrapper and authenticated named pipes. It supports live account switching in local native VS Code without changing PowerShell's persistent execution policy.
 
