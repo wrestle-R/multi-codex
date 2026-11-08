@@ -1,5 +1,5 @@
 """Download and verify official T3, then boot two credential-free desktop fixtures."""
-import errno, hashlib, json, os, pathlib, platform, signal, subprocess, tempfile, time, urllib.request
+import errno, hashlib, json, os, pathlib, platform, signal, subprocess, tempfile, time, urllib.request, urllib.error, shutil
 root = pathlib.Path(__file__).resolve().parents[2]
 version = '0.1.7'
 windows = platform.system() == 'Windows'
@@ -21,10 +21,24 @@ class DesktopFixture(tempfile.TemporaryDirectory):
 with DesktopFixture(prefix='multi-codex-t3-') as directory:
     work = pathlib.Path(directory)
     archive = work / asset
-    urllib.request.urlretrieve(base + asset, archive)
     request = urllib.request.Request(f'https://api.github.com/repos/pingdotgg/t3code/releases/tags/v{version}', headers={'Accept':'application/vnd.github+json','User-Agent':'multi-codex-native-validation'})
     release = json.load(urllib.request.urlopen(request, timeout=60))
-    expected = next(item['digest'].removeprefix('sha256:') for item in release['assets'] if item['name'] == asset)
+    upstream = next(item for item in release['assets'] if item['name'] == asset)
+    expected = upstream['digest'].removeprefix('sha256:')
+    # The normal release URL can time out while GitHub's public asset API works.
+    # Both routes fetch the same pinned asset; digest verification remains mandatory.
+    for attempt in range(4):
+        url = base + asset if attempt == 0 else upstream['url']
+        download = urllib.request.Request(url, headers={'Accept':'application/octet-stream','User-Agent':'multi-codex-native-validation'})
+        try:
+            with urllib.request.urlopen(download, timeout=120) as response, archive.open('wb') as output:
+                shutil.copyfileobj(response, output)
+            break
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            archive.unlink(missing_ok=True)
+            if attempt == 3:
+                raise
+            time.sleep(attempt + 1)
     assert len(expected) == 64, 'Official desktop asset digest is required'
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     assert digest == expected, 'Upstream T3 checksum mismatch'
