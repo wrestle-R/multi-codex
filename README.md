@@ -14,17 +14,15 @@ Enable or disable Orbit in **Settings**, and adjust size, display, animation and
 
 ## Install
 
-[Install Multi Codex](https://multi-codex.vercel.app/install)
+```bash
+curl -fsSL https://github.com/wrestle-R/multi-codex/releases/latest/download/install-app.sh | bash
+```
 
-One link for Linux x64, Windows x64 and Apple Silicon Macs on macOS 26+. It suggests the right download and shows the setup steps. You can choose another computer on the same page, including when opening the link on your phone.
-
-All supported platforms use stable v1.8.4. T3 Code launching is available on Linux and Windows; Mac gets the standard launcher without T3.
-
-Codex Desktop opens directly without a project-folder picker. VS Code and CLI still let you choose their project folder.
+Linux and Apple Silicon Mac. On Windows, [download the installer](https://multi-codex.vercel.app/install?platform=windows).
 
 ## Update
 
-Use the launcher’s **Update** button. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. For a manual update, use the same install link above and close Multi Codex before running the installer or replacing the AppImage. Saved accounts and profile data are preserved.
+Use the launcher’s **Update** button. **Settings → Launch settings → Release channel** chooses Stable updates or All updates, including previews. For a manual update, close Multi Codex and rerun the install command above, or use the Windows installer. Saved accounts and profile data are preserved.
 
 <img src="tauri/public/accounts_screenshot.png" alt="Multi Codex accounts" width="100%" />
 
