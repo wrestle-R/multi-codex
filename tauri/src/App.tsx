@@ -425,7 +425,7 @@ export default function App() {
       if (target === 'cli' && !targets.codexCliAvailable) throw new Error("Codex CLI was not found. Set its executable path in Settings.")
       const settings = await getExecutableSettings()
       setLaunchMode(settings.launchMode ?? 'vscode')
-      const skipDesktopPicker = environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker) || target === "t3"
+      const skipDesktopPicker = environment.capabilities.backend === "macos" || environment.capabilities.backend === "windows" || Boolean(settings.hideDesktopPicker)
       setHideDesktopPicker(skipDesktopPicker)
       if (target === "standalone" || target === "t3") {
         const request = { profile, target, workspace: environment.defaultWorkspace }
@@ -473,7 +473,7 @@ export default function App() {
     setPlacementToken(null)
     const launch = { profile: request.profile, target: request.target, workspace }
     setLaunchRequest(launch)
-    if (hideDesktopPicker || request.target === "cli") await completeLaunch(null, launch)
+    if (hideDesktopPicker) await completeLaunch(null, launch)
   }
 
   function cancelLaunch() {
@@ -490,7 +490,8 @@ export default function App() {
     setLaunchBusy(true)
     setLaunchError(null)
     try {
-      const result = request.target === 't3' ? await launchT3Profile(request.profile.id, request.workspace) : request.target === 'cli' ? await launchCliProfile(request.profile.id, request.workspace) : await (request.target === 'standalone' ? launchStandaloneProfile : launchProfile)(request.profile.id, request.workspace, desktop, placementToken)
+      const launcher = request.target === 't3' ? launchT3Profile : request.target === 'cli' ? launchCliProfile : request.target === 'standalone' ? launchStandaloneProfile : launchProfile
+      const result = await launcher(request.profile.id, request.workspace, desktop, placementToken)
       if (result.completed) {
         setLaunchRequest(null)
         setPlacementToken(null)
@@ -715,7 +716,7 @@ export default function App() {
       }} /> : null}
       {launchRequest ? (
         <WorkspaceDialog
-          showDesktopPicker={!hideDesktopPicker && launchRequest.target !== "cli"}
+          showDesktopPicker={!hideDesktopPicker}
           appName={launchRequest.target === 't3' ? 'T3 Code' : launchRequest.target === 'cli' ? 'CLI' : launchRequest.target === 'standalone' ? 'Codex' : 'VS Code'}
           profile={launchRequest.profile}
           workspace={launchRequest.workspace}

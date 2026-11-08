@@ -168,6 +168,23 @@ pub fn choose(preference: Terminal) -> Result<(Terminal, PathBuf)> {
 
 pub fn launch(terminal: Terminal, binary: &Path, args: &[String], workspace: &Path) -> Result<()> {
     let mut command = Command::new(binary);
+    #[cfg(target_os = "linux")]
+    {
+        // Keep the terminal window attributable to this account, rather than
+        // handing it to a shared process belonging to a different launch.
+        match terminal {
+            Terminal::Konsole => {
+                command.arg("--separate");
+            }
+            Terminal::XfceTerminal => {
+                command.arg("--disable-server");
+            }
+            _ => {}
+        }
+        if let Some(home) = args.iter().find_map(|arg| arg.strip_prefix("CODEX_HOME=")) {
+            command.env("CODEX_HOME", home);
+        }
+    }
     #[cfg(target_os = "macos")]
     if terminal == Terminal::Ghostty {
         // Ghostty's macOS executable exposes helper actions; launch a new GUI
@@ -227,11 +244,13 @@ mod tests {
     fn native_terminal_arguments_keep_isolated_command_as_separate_arguments() {
         let root = tempfile::tempdir().unwrap();
         let capture = root.path().join("capture");
+        let captured_home = root.path().join("captured-home");
         let fake = root.path().join("fake terminal");
         std::fs::write(
             &fake,
             format!(
-                "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\n",
+                "#!/bin/sh\nprintf '%s' \"$CODEX_HOME\" > '{}'\nprintf '%s\\n' \"$@\" > '{}'\n",
+                captured_home.display(),
                 capture.display()
             ),
         )
@@ -266,6 +285,15 @@ mod tests {
                 assert!(std::time::Instant::now() < deadline);
                 std::thread::sleep(std::time::Duration::from_millis(10));
             };
+            #[cfg(target_os = "linux")]
+            let actual = match terminal {
+                Terminal::Konsole => actual.strip_prefix("--separate\n").unwrap().to_string(),
+                Terminal::XfceTerminal => actual
+                    .strip_prefix("--disable-server\n")
+                    .unwrap()
+                    .to_string(),
+                _ => actual,
+            };
             let expected = terminal
                 .prefix()
                 .iter()
@@ -275,6 +303,11 @@ mod tests {
                 .join("\n")
                 + "\n";
             assert_eq!(actual, expected);
+            #[cfg(target_os = "linux")]
+            assert_eq!(
+                std::fs::read_to_string(&captured_home).unwrap(),
+                "/private/home with 'quotes'"
+            );
         }
     }
 }

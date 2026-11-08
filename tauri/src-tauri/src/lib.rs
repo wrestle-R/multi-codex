@@ -708,16 +708,26 @@ async fn launch_profile(
 async fn launch_cli_profile(
     id: String,
     workspace: String,
+    desktop: Option<String>,
+    retry_token: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<launch::LaunchResult, String> {
     let service = Arc::clone(&state.service);
+    let launches = Arc::clone(&state.launches);
     tauri::async_runtime::spawn_blocking(move || {
-        service.launch_cli_profile(&id, Path::new(&workspace))?;
-        Ok(launch::LaunchResult {
-            completed: true,
-            error: None,
-            retry_token: None,
-        })
+        let home = service.codex_home(&id)?;
+        launch::LaunchCoordinator::execute_serialized(
+            &launches,
+            launch::LaunchRequest {
+                profile: &id,
+                workspace: &workspace,
+                home: &home,
+                desktop: desktop.as_deref(),
+                retry: retry_token.as_deref(),
+            },
+            || service.launch_cli_profile(&id, Path::new(&workspace)),
+            &launch::NativeDesktopControl,
+        )
     })
     .await
     .map_err(|_| "Could not launch the CLI".to_string())?
@@ -727,16 +737,26 @@ async fn launch_cli_profile(
 async fn launch_t3_profile(
     id: String,
     workspace: String,
+    desktop: Option<String>,
+    retry_token: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<launch::LaunchResult, String> {
     let service = Arc::clone(&state.service);
+    let launches = Arc::clone(&state.launches);
     tauri::async_runtime::spawn_blocking(move || {
-        service.launch_t3_profile(&id, Path::new(&workspace))?;
-        Ok(launch::LaunchResult {
-            completed: true,
-            error: None,
-            retry_token: None,
-        })
+        let home = service.desktop_home(&id)?.join("t3/config/t3code-v2");
+        launch::LaunchCoordinator::execute_serialized(
+            &launches,
+            launch::LaunchRequest {
+                profile: &id,
+                workspace: &workspace,
+                home: &home,
+                desktop: desktop.as_deref(),
+                retry: retry_token.as_deref(),
+            },
+            || service.launch_t3_profile(&id, Path::new(&workspace)),
+            &launch::StandaloneDesktopControl,
+        )
     })
     .await
     .map_err(|_| "Could not launch T3 Code".to_string())?

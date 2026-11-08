@@ -1883,6 +1883,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(self.profile_paths(id)?.vscode_home)
     }
 
+    pub fn codex_home(&self, id: &str) -> Result<PathBuf> {
+        Ok(self.profile_paths(id)?.codex_home)
+    }
+
     pub fn desktop_home(&self, id: &str) -> Result<PathBuf> {
         Ok(self.profile_paths(id)?.desktop_home)
     }

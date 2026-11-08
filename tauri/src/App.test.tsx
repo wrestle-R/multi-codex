@@ -1022,15 +1022,16 @@ it('does not switch apps when the clicked standalone installation disappears', a
   expect(api.launchProfile).not.toHaveBeenCalled()
 })
 
- it("launches the CLI in the chosen folder without desktop placement", async () => {
+ it("launches the CLI in the chosen folder on the selected desktop", async () => {
   const user = userEvent.setup()
   render(<App />)
   await user.click(await screen.findByRole("button", { name: "CLI" }))
   await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
-  await waitFor(() => expect(api.launchCliProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code"))
+  await user.click(await screen.findByRole("button", { name: "Open on Desktop 7" }))
+  await waitFor(() => expect(api.launchCliProfile).toHaveBeenCalledWith(profile.id, "/home/rdp/Desktop/code", "hyprland:7", null))
   expect(api.launchProfile).not.toHaveBeenCalled()
   expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
-  expect(api.getDesktopInventory).not.toHaveBeenCalled()
+  expect(api.getDesktopInventory).toHaveBeenCalled()
  })
  it("shows CLI launch errors and allows another attempt", async () => {
   const user = userEvent.setup()
@@ -1038,6 +1039,7 @@ it('does not switch apps when the clicked standalone installation disappears', a
   render(<App />)
   await user.click(await screen.findByRole("button", { name: "CLI" }))
   await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+  await user.click(await screen.findByRole("button", { name: /Current desktop/ }))
   expect(await screen.findByText("No terminal installed")).toBeInTheDocument()
  })
 
@@ -1256,7 +1258,7 @@ it.each(["vscode", "standalone", "cli"] as const)("Mac account menu reuses folde
     await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
   }
   const launcher = target === "vscode" ? api.launchProfile : target === "standalone" ? api.launchStandaloneProfile : api.launchCliProfile
-  await waitFor(() => expect(launcher).toHaveBeenCalledWith(...(target === "cli" ? [profile.id, "/Users/test/Client project"] : [profile.id, target === "standalone" ? "/Users/test/Projects" : "/Users/test/Client project", null, null])))
+  await waitFor(() => expect(launcher).toHaveBeenCalledWith(profile.id, target === "standalone" ? "/Users/test/Projects" : "/Users/test/Client project", null, null))
   expect(api.getDesktopInventory).not.toHaveBeenCalled()
   view.unmount()
   expect(menuEvents.size).toBe(0)
@@ -1370,6 +1372,22 @@ it('shows T3 desktop for detected installations and routes through its own launc
   expect(buttons.length).toBeGreaterThan(0)
   api.launchT3Profile.mockResolvedValue({ completed: true, error: null, retryToken: null })
   fireEvent.click(buttons[0])
-  await waitFor(() => expect(api.launchT3Profile).toHaveBeenCalledWith(profile.id, expect.any(String)))
+  fireEvent.click(await screen.findByRole('button', { name: 'Open on Desktop 7' }))
+  await waitFor(() => expect(api.launchT3Profile).toHaveBeenCalledWith(profile.id, expect.any(String), 'hyprland:7', null))
   expect(api.launchStandaloneProfile).not.toHaveBeenCalled()
 })
+
+ it.each(["t3", "cli"] as const)("retries %s desktop placement without losing the launch token", async target => {
+  const user = userEvent.setup()
+  api.getLaunchTargets.mockResolvedValue({ platform: "linux", vscodeInstalled: false, codexCliAvailable: true, standaloneInstalled: false, standaloneVerified: false, t3Installed: true })
+  const launch = target === "t3" ? api.launchT3Profile : api.launchCliProfile
+  launch.mockReset().mockResolvedValueOnce({ completed: false, error: "Move failed", retryToken: "placed-app" }).mockResolvedValue({ completed: true, error: null, retryToken: null })
+  render(<App />)
+  await user.click((await screen.findAllByRole("button", { name: target === "t3" ? "T3" : "CLI" }))[0])
+  if (target === "cli") await user.click(await screen.findByRole("button", { name: "Choose this folder" }))
+  await user.click(await screen.findByRole("button", { name: "Open on Desktop 7" }))
+  await waitFor(() => expect(launch).toHaveBeenCalledTimes(1))
+  expect(await screen.findByRole("alert")).toHaveTextContent("Move failed")
+  await user.click(screen.getByRole("button", { name: "Open on Desktop 12" }))
+  await waitFor(() => expect(launch).toHaveBeenLastCalledWith(profile.id, expect.any(String), "hyprland:12", "placed-app"))
+ })
