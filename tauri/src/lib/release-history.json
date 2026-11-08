@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.3",
+    "title": "Safer release signing",
+    "highlights": [
+      "Narrowed signing-key access and pinned release actions to immutable commits.",
+      "Native packages are rebuilt and checked before publication; the same install link and account storage stay in place."
+    ]
+  },
+  {
     "version": "1.8.2",
     "title": "Security updates and a tidier codebase",
     "highlights": [

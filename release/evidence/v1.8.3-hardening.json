@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "version": "1.8.3",
+  "scope": "Approved release-workflow signing and action-pin hardening",
+  "changes": [
+    "Linux builds without injected updater signing keys and signs only the final repacked AppImage in a separate step.",
+    "Mac credentials scoped to its existing build/sign step; Windows retains its scoped build/sign step.",
+    "Default release token is read-only, draft job alone gets write, and Windows receives explicit signing secrets only.",
+    "Four release-chain workflows pin third-party actions to full commit IDs."
+  ],
+  "actionPins": {
+    "Swatinem/rust-cache@v2": "d1527c8f67ef9af357290475d4af4b0fab8f12e0",
+    "actions/checkout@v4": "11d5960a326750d5838078e36cf38b85af677262",
+    "actions/download-artifact@v4": "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    "actions/setup-node@v4": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    "actions/upload-artifact@v4": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    "dtolnay/rust-toolchain@stable": "b725eda525362e7cf34af9a7243cac1e3f01a7ec"
+  },
+  "policyChecks": [
+    {
+      "workflow": ".github/workflows/release.yml",
+      "yaml": "passed",
+      "secretScope": "passed",
+      "actionPins": "passed"
+    },
+    {
+      "workflow": ".github/workflows/ui-package-release.yml",
+      "yaml": "passed",
+      "secretScope": "passed",
+      "actionPins": "passed"
+    },
+    {
+      "workflow": ".github/workflows/windows.yml",
+      "yaml": "passed",
+      "secretScope": "passed",
+      "actionPins": "passed"
+    },
+    {
+      "workflow": ".github/workflows/extension.yml",
+      "yaml": "passed",
+      "secretScope": "passed",
+      "actionPins": "passed"
+    }
+  ],
+  "actionlint": "passed using digest-verified1.7.12; external ShellCheck/Pyflakes disabled",
+  "limitations": [
+    "Build-and-sign steps on Mac/Windows still trust build code; this is not an isolated signing service.",
+    "Pinned action code does not pin compiler channels or every downloaded tool.",
+    "Other findings from the broader audit are outside this release; no claim that all security issues are fixed.",
+    "Fresh native package/SDK validation required before publication."
+  ]
+}

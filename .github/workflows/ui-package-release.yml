@@ -6,9 +6,6 @@ name: UI release package refresh
 permissions:
   contents: read
   actions: read
-env:
-  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 jobs:
   linux:
     runs-on: ubuntu-22.04
@@ -16,10 +13,10 @@ jobs:
       run:
         working-directory: tauri
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         fetch-depth: 0
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version: 22
         cache: npm
@@ -77,8 +74,8 @@ jobs:
         # Recommended desktop portals wait for a graphical login on headless
         # runners, blocking GTK startup. Required libraries remain installed.
         sudo apt-get install --no-install-recommends -y firejail imagemagick libwebkit2gtk-4.1-dev libgtk-layer-shell-dev libappindicator3-dev librsvg2-dev patchelf rpm x11-utils xdotool xvfb
-    - uses: dtolnay/rust-toolchain@stable
-    - uses: Swatinem/rust-cache@v2
+    - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       with:
         workspaces: tauri/src-tauri
     - run: npm ci
@@ -86,14 +83,22 @@ jobs:
     - run: npm run test:release
     - run: cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core
     - run: npm run test:release-gates
-    - name: Require signed updater packages
-      run: test -n "$TAURI_SIGNING_PRIVATE_KEY"
-    - run: npm run release:linux
+    - name: Build Linux packages without signing secrets
+      run: npm run release:linux
+    - name: Sign final Linux updater payload
+      env:
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+      run: |
+        test -n "$TAURI_SIGNING_PRIVATE_KEY"
+        artifacts=(src-tauri/target/release/bundle/appimage/*.AppImage)
+        [[ ${#artifacts[@]} -eq 1 && -f "${artifacts[0]}" ]]
+        ./node_modules/.bin/tauri signer sign "${artifacts[0]}"
     - name: Exercise native SDK update and signed-payload refusal on Linux
       run: |
         cargo build --locked --manifest-path src-tauri/Cargo.toml --example native-updater
         xvfb-run -a python3 scripts/native-updater-smoke.py --harness src-tauri/target/debug/examples/native-updater --payload src-tauri/target/release/bundle/appimage/*.AppImage --output "$RUNNER_TEMP/native-updater-linux/result.json"
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: native-updater-linux-evidence
@@ -109,7 +114,7 @@ jobs:
       env:
         APPIMAGE_SMOKE_EVIDENCE_DIR: ${{ runner.temp }}/appimage-catalog-evidence
       run: bash scripts/appimage-catalog-display-smoke.sh src-tauri/target/release/bundle/appimage/*.AppImage
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: appimage-catalog-evidence
@@ -121,11 +126,11 @@ jobs:
         cp src-tauri/target/release/bundle/appimage/*.AppImage SHA256SUMS "$RUNNER_TEMP/linux-installer-assets/"
         VERSION=$(node -p 'require("./package.json").version')
         python3 scripts/linux-installer-smoke.py "$RUNNER_TEMP/linux-installer-assets" "v$VERSION" "$RUNNER_TEMP/linux-installer-result.json"
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: linux-installer-evidence
         path: ${{ runner.temp }}/linux-installer-result.json
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: linux-packages
@@ -143,10 +148,10 @@ jobs:
       run:
         working-directory: tauri
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         fetch-depth: 0
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version: 22
         cache: npm
@@ -198,10 +203,10 @@ jobs:
             throw new Error(`Tag ${expected} does not match committed versions: ${actual.join(", ")}`);
           }
         '
-    - uses: dtolnay/rust-toolchain@stable
+    - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       with:
         targets: aarch64-apple-darwin
-    - uses: Swatinem/rust-cache@v2
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       with:
         workspaces: tauri/src-tauri
     - run: npm ci
@@ -234,6 +239,8 @@ jobs:
         --test-threads=1
     - name: Build Apple Silicon candidate
       env:
+        TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
         APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -265,7 +272,7 @@ jobs:
         APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
         ditto "$APP" '/Applications/Multi Codex.app'
         python3 ../release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: orbit-macos-lifecycle-evidence
@@ -316,17 +323,17 @@ jobs:
         cargo build --locked --manifest-path src-tauri/Cargo.toml --example native-updater
         APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
         python3 scripts/native-updater-smoke.py --harness src-tauri/target/debug/examples/native-updater --payload Multi.Codex_*_aarch64.app.tar.gz --app "$APP" --output "$RUNNER_TEMP/native-updater-macos/result.json"
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: native-updater-macos-evidence
         path: ${{ runner.temp }}/native-updater-macos/
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: macos-installer-evidence
         path: ${{ runner.temp }}/multi-codex-macos-installer-evidence/
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: macos-package
         path: |
@@ -336,7 +343,7 @@ jobs:
         if-no-files-found: error
     - name: Upload macOS startup evidence
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: macos-startup-evidence-${{ github.workflow }}
         path: ${{ runner.temp }}/multi-codex-macos-evidence/
@@ -345,10 +352,10 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 50
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       with:
         fetch-depth: 0
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
       with:
         node-version: 24
     - name: Verify completed native baseline and UI-only source changes
@@ -375,8 +382,8 @@ jobs:
         assert(changed.every(path => allowed.has(path)), 'Native/editor changes require the complete Release workflow');
         console.log('Only passed baseline native/editor checks are reused. The isolated Linux bus is corrected; all final package, visible-window, singleton, installer and signed SDK gates must pass.');
         NODE
-    - uses: dtolnay/rust-toolchain@stable
-    - uses: Swatinem/rust-cache@v2
+    - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       with:
         workspaces: tauri/src-tauri
         cache-on-failure: true
@@ -432,17 +439,17 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         python tauri/scripts/native-updater-smoke.py --harness tauri/src-tauri/target/debug/examples/native-updater.exe --payload $env:MULTI_CODEX_TEST_INSTALLER --output "$env:RUNNER_TEMP/native-updater-windows/result.json"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: native-updater-windows-evidence
         path: ${{ runner.temp }}/native-updater-windows/
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: windows-installer-evidence
         path: ${{ runner.temp }}/multi-codex-windows-evidence/
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       if: always()
       with:
         name: windows-installer
