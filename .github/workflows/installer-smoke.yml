@@ -15,8 +15,8 @@ jobs:
   linux:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - run: node --test tauri/scripts/installers.test.mjs
@@ -54,15 +54,15 @@ jobs:
         env:
           CANDIDATE_TAG: ${{ inputs.tag }}
         run: python3 tauri/scripts/linux-installer-smoke.py "$RUNNER_TEMP/installer-assets" "$CANDIDATE_TAG" "$RUNNER_TEMP/linux-installer-result.json"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: linux-installer-evidence
           path: ${{ runner.temp }}/linux-installer-result.json
   macos:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Check installer regressions
@@ -106,7 +106,7 @@ jobs:
         run: python3 tauri/scripts/macos-installer-smoke.py "$RUNNER_TEMP/installer-assets" "$CANDIDATE_TAG"
       - name: Upload native installer evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: macos-installer-evidence
           path: |

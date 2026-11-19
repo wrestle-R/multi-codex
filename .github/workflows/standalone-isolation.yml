@@ -29,7 +29,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install official desktop into disposable Applications directory
         run: |
           curl --fail --location --retry 3 https://persistent.oaistatic.com/codex-app-prod/Codex.dmg -o "$RUNNER_TEMP/desktop.dmg"
@@ -50,7 +50,7 @@ jobs:
           python3 tauri/scripts/standalone-isolation.py smoke "$BINARY" --output "$RUNNER_TEMP/standalone-isolation-evidence"
       - name: Upload sanitized signed-out probe result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: standalone-isolation-macos-signed-out
           path: ${{ runner.temp }}/standalone-isolation-evidence/result.json
@@ -66,8 +66,8 @@ jobs:
       EXPECTED_B: ${{ inputs.expected_b }}
       AUTH_PUBLIC_KEY: ${{ inputs.device_public_key }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: Install official CLI for fresh disposable device-code sign-ins
@@ -117,7 +117,7 @@ jobs:
             sleep 2
           done
           exit 1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mac-device-signin-a-encrypted
           path: ${{ runner.temp }}/standalone-auth-evidence/signin-a.encrypted
@@ -130,7 +130,7 @@ jobs:
             sleep 2
           done
           exit 1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: mac-device-signin-b-encrypted
           path: ${{ runner.temp }}/standalone-auth-evidence/signin-b.encrypted
@@ -148,7 +148,7 @@ jobs:
           exit 1
       - name: Upload sanitized authenticated result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: standalone-auth-macos-result
           path: ${{ runner.temp }}/standalone-auth-evidence/result.json

@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Download exact candidate and install native launch targets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -37,7 +37,7 @@ jobs:
           hdiutil detach "$RUNNER_TEMP/candidate-volume"
       - name: Verify menu actions, close, tray Open, Dock reopen and Quit
         run: python3 release/scripts/macos-menu-smoke.py "$RUNNER_TEMP/Multi Codex.app"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: macos-menu-evidence
