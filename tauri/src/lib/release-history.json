@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.5",
+    "title": "Keep the Mac menu bar running",
+    "highlights": [
+      "Closing the launcher keeps Multi Codex running in the menu bar.",
+      "Reopen the launcher from the menu bar; Quit still exits the app."
+    ]
+  },
+  {
     "version": "1.8.4",
     "title": "Linux launch destinations",
     "highlights": [
