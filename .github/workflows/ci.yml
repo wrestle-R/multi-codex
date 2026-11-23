@@ -90,6 +90,10 @@ jobs:
       - run: npm run build:desktop
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
       - run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Verify native close-to-tray and explicit Quit
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --example close-to-tray
+          python3 scripts/test-close-to-tray.py src-tauri/target/debug/examples/close-to-tray
       - name: Install disposable native VS Code test dependency
         run: |
           curl --fail --location --retry 3 https://update.code.visualstudio.com/latest/darwin-arm64/stable -o "$RUNNER_TEMP/vscode.zip"

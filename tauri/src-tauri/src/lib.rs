@@ -1,3 +1,5 @@
+mod lifecycle;
+
 #[cfg(all(test, target_os = "macos"))]
 #[path = "../../../cli/crates/core/src/macos_navigation.rs"]
 mod macos_navigation;
@@ -1005,15 +1007,7 @@ pub fn run() {
             });
             Ok(())
         })
-        .on_window_event(|window, event| {
-            #[cfg(any(target_os = "macos", target_os = "linux"))]
-            if window.label() == "main" {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
-            }
-        })
+        .on_window_event(lifecycle::on_window_event)
         .invoke_handler(tauri::generate_handler![
             hud::hud_snapshot,
             hud::hud_save_settings,
@@ -1079,6 +1073,7 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building Multi Codex");
     app.run(|_app, _event| {
+        lifecycle::on_run_event(&_event);
         if matches!(_event, tauri::RunEvent::Exit) {
             hud_platform::cleanup();
         }
