@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.5", stability: "stable" as const, publishedAt: "2026-11-23T20:25:46Z", title: "Keep the Mac menu bar running", highlights: [
+    "Closing the launcher keeps Multi Codex running in the menu bar. Open the launcher again from the menu bar or Dock.",
+    "Choose Quit to exit Multi Codex.",
+  ] },
+
   { tag: "v1.8.4", stability: "stable" as const, publishedAt: "2026-11-08T11:43:10Z", title: "Linux launch destinations", highlights: [
     "Choose a desktop for T3 and CLI, with placement retries that reuse the opened window.",
     "Launch buttons fit their labels and wrap when space is limited.",
