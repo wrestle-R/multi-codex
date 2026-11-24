@@ -1,6 +1,6 @@
 [
   {
-    "version": "1.8.8",
+    "version": "1.8.9",
     "title": "Import Codex Desktop history and restore Dock Quit",
     "highlights": [
       "Copy local chats and projects from regular Codex Desktop into a managed profile from Profile storage.",
