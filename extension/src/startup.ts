@@ -1,10 +1,10 @@
 import { chmod, copyFile, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
-export function privateBackendEnvironment(home: string, inherited = process.env): NodeJS.ProcessEnv {
-  const env = Object.fromEntries(Object.entries(inherited).filter(([key]) => !/^(?:OPENAI_|CODEX_)/i.test(key)));
-  delete env.ELECTRON_RUN_AS_NODE; delete env.NODE_OPTIONS;
-  return { ...env, CODEX_HOME: home, CODEX_SQLITE_HOME: home };
+export function privateBackendEnvironment(home: string, inherited = process.env, historyHome = home): NodeJS.ProcessEnv {
+  const env = Object.fromEntries(Object.entries(inherited).filter(([key]) =>
+    !/^(?:OPENAI_|CODEX_)|^(?:ELECTRON_RUN_AS_NODE|NODE_OPTIONS)$/i.test(key)));
+  return { ...env, CODEX_HOME: home, CODEX_SQLITE_HOME: historyHome };
 }
 
 /** The launch home can be a desktop account; it is separate from shared account storage. */

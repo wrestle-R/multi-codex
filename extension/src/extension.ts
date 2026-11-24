@@ -12,6 +12,7 @@ import { AccountClient, type Account } from './accounts';
 import { BridgeClient } from './client';
 import { JsonLines, RpcPeer } from './protocol';
 import { withAccountBackend } from './worker';
+import { privateBackendEnvironment } from './startup';
 import { CodexBridge } from './bridge';
 import { findCodexBackend, tapBackend } from './stdio-tap';
 import { bundledEnginePath } from './platform';
@@ -292,9 +293,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
     const directory = join(runtimeRoot, 'logins', randomUUID()); await mkdir(directory, { recursive: true, mode: 0o700 });
     await writeFile(join(directory, 'config.toml'), 'cli_auth_credentials_store = "file"\n[analytics]\nenabled = false\n', { mode: 0o600 });
-    const loginEnvironment: NodeJS.ProcessEnv = { ...process.env, CODEX_HOME: directory, CODEX_SQLITE_HOME: directory };
-    delete loginEnvironment.OPENAI_API_KEY; delete loginEnvironment.CODEX_API_KEY; delete loginEnvironment.ELECTRON_RUN_AS_NODE;
-    const child = spawnExecutable(engine, ['app-server'], { env: loginEnvironment });
+    const child = spawnExecutable(engine, ['app-server'], { env: privateBackendEnvironment(directory) });
     child.stderr.resume(); const lines = new JsonLines(child.stdout, child.stdin); const rpc = new RpcPeer(lines, 'login:');
     try {
       await rpc.request('initialize', { clientInfo: { name: 'multi_codex_login', version: extensionVersion } }); lines.send({ method: 'initialized' });

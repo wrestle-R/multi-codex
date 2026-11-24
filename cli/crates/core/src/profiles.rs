@@ -216,9 +216,8 @@ impl AuthRecognizer for CodexCliRecognizer {
 
         let codex = resolve_codex_command()?;
         let output = crate::process::output(
-            Command::new(codex)
-                .args(["login", "status"])
-                .env("CODEX_HOME", temp.path()),
+            crate::process::isolated_codex_home(&mut Command::new(codex), temp.path())
+                .args(["login", "status"]),
             Duration::from_secs(20),
         )
         .map_err(|_| "Codex CLI could not validate the account within 20 seconds".to_string())?;
@@ -2181,7 +2180,7 @@ fn cli_arguments(codex: &Path, home: &Path, workspace: &Path) -> Vec<String> {
     ]);
     removed.extend(env::vars_os().filter_map(|(key, _)| {
         let name = key.to_string_lossy();
-        (name.starts_with("CODEX_") || name.starts_with("OPENAI_") || name.starts_with("VSCODE_"))
+        (crate::process::is_codex_override(&key) || name.starts_with("VSCODE_"))
             .then(|| name.into_owned())
     }));
     let mut args = vec!["/usr/bin/env".into()];
@@ -2563,19 +2562,16 @@ fn build_vscode_command_with(
     #[cfg(target_os = "macos")]
     let code = native_code.as_deref().unwrap_or(code);
     let mut command = Command::new(code);
-    command
+    crate::process::isolated_codex_home(&mut command, codex_home)
         .arg("--new-window")
         .arg("--user-data-dir")
         .arg(vscode_home)
         .arg("--extensions-dir")
         .arg(extensions_dir)
         .arg(workspace)
-        .env("CODEX_HOME", codex_home)
-        .env("CODEX_SQLITE_HOME", codex_home)
         .env_remove("VSCODE_IPC_HOOK_CLI")
         .env_remove("VSCODE_PID")
-        .env_remove("VSCODE_CWD")
-        .env_remove("ELECTRON_RUN_AS_NODE");
+        .env_remove("VSCODE_CWD");
     #[cfg(target_os = "macos")]
     command
         .env_remove("VSCODE_ESM_ENTRYPOINT")
@@ -2594,16 +2590,11 @@ fn build_standalone_command(
     // data explicitly. Never forward this request to an unscoped global app.
     for (key, _) in env::vars_os() {
         let name = key.to_string_lossy();
-        if name.starts_with("CODEX_") || name.starts_with("OPENAI_") || name.starts_with("VSCODE_")
-        {
+        if name.starts_with("VSCODE_") {
             command.env_remove(key);
         }
     }
-    command
-        .env_remove("NODE_OPTIONS")
-        .env_remove("ELECTRON_RUN_AS_NODE")
-        .env("CODEX_HOME", codex_home)
-        .env("CODEX_SQLITE_HOME", codex_home)
+    crate::process::isolated_codex_home(&mut command, codex_home)
         .env("CODEX_ELECTRON_USER_DATA_PATH", desktop_home)
         .arg(format!("--user-data-dir={}", desktop_home.display()))
         .current_dir(workspace)

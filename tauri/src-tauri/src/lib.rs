@@ -166,6 +166,7 @@ use multi_codex_core::linux_desktops;
 mod desktop_integration;
 mod release_notes;
 mod updater;
+mod updater_policy;
 
 pub use extension_accounts::{run_account_helper, run_bridge_launcher};
 
@@ -534,10 +535,8 @@ fn begin_device_login(
         }
     };
     let mut child = process::spawn(
-        Command::new(codex)
+        process::isolated_codex_home(&mut Command::new(codex), &pending.codex_home)
             .args(["login", "--device-auth"])
-            .env("CODEX_HOME", &pending.codex_home)
-            .env("CODEX_SQLITE_HOME", &pending.codex_home)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped()),

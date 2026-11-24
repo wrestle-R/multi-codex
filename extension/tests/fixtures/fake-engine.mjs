@@ -26,6 +26,9 @@ for await (const line of createInterface({ input: process.stdin })) {
     result = { held: !!held };
   } else if (message.method === 'fixture/homes') {
     result = { home: process.env.CODEX_HOME, history: process.env.CODEX_SQLITE_HOME };
+  } else if (message.method === 'fixture/environment') {
+    result = { inheritedOverride: ['OPENAI_BASE_URL', 'CODEX_PROVIDER_FIXTURE', 'NODE_OPTIONS']
+      .some(key => process.env[key] === message.params?.marker) };
   } else if (message.method === 'account/login/start') {
     if (p.type === 'apiKey' && authMethod === 'chatgpt') { send({ id: message.id, error: { code: -1, message: 'External auth is active' } }); continue; }
     if (mode === 'reject-all' || (mode === 'reject' && p.chatgptAccountId === 'synthetic-account-b')) { send({ id: message.id, error: { code: -1, message: 'Synthetic authentication failure' } }); continue; }
