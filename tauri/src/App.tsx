@@ -60,6 +60,7 @@ import {
   saveExecutableSettings,
   getStorageUsage,
   importCurrentProfile,
+  importDesktopHistory,
   installDesktopIntegration,
   launchProfile,
   launchCliProfile,
@@ -115,6 +116,7 @@ export default function App() {
   const [integrationError, setIntegrationError] = useState<string | null>(null)
   const [storageUsage, setStorageUsage] = useState<StorageUsage | null>(null)
   const [storageLoading, setStorageLoading] = useState(false)
+  const [importingDesktopHistory, setImportingDesktopHistory] = useState<string | null>(null)
   const [storageError, setStorageError] = useState<string | null>(null)
   const [showStorage, setShowStorage] = useState(false)
   const [chatTarget, setChatTarget] = useState<{ profile: ProfileStorageUsage; scope: ChatScope } | null>(null)
@@ -525,6 +527,24 @@ export default function App() {
     }
   }
 
+  async function handleImportDesktopHistory(profile: ProfileStorageUsage) {
+    if (importingDesktopHistory) return
+    setImportingDesktopHistory(profile.id)
+    setStorageError(null)
+    setStorageNotice(null)
+    try {
+      const { chats, projects } = await importDesktopHistory(profile.id)
+      await refreshStorage()
+      setStorageNotice(chats || projects
+        ? `Copied ${chats} local chats and ${projects} projects into ${profile.name}.`
+        : `There are no new regular Codex chats or projects to copy into ${profile.name}.`)
+    } catch (error) {
+      setStorageError(error instanceof Error ? error.message : String(error))
+    } finally {
+      setImportingDesktopHistory(null)
+    }
+  }
+
   async function handleClearCache() {
     if (!cacheTarget || cacheBusy) return
     setCacheBusy(true)
@@ -738,7 +758,9 @@ export default function App() {
       {showStorage && !chatTarget && !backupTarget && !sharedStorageTarget ? (
         <StorageDialog
           usage={storageUsage}
-          loading={storageLoading}
+          loading={storageLoading || importingDesktopHistory !== null}
+          importingDesktopHistory={importingDesktopHistory}
+          onImportDesktopHistory={launchTargets?.standaloneInstalled ? handleImportDesktopHistory : undefined}
           error={storageError}
           notice={storageNotice}
           profiles={profiles}

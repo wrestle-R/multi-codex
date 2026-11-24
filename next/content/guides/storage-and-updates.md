@@ -27,6 +27,8 @@ Open the storage total in the app's header. A profile's cache button removes its
 
 Credentials, conversations, settings, skills, plugins and installed extensions are preserved. Desktop caches are not currently included in this allowlist. “Clean” means no recognised removable cache; it does not mean the profile uses no space.
 
+To bring regular Codex Desktop history into a managed account, close that profile’s sessions. Open **Profile storage**, expand the account’s **Details**, and select **Copy regular Codex history**. This adds local chats and projects to the selected profile. Regular Codex keeps its own copy, and each profile keeps its own login. Import again to copy new chats. Changes made to an existing chat stay in the copy where you made them.
+
 “In use” means its sessions must be closed before cleanup. Close that account's VS Code windows, Codex Desktop windows and Codex CLI sessions first.
 
 ## Clear saved local chats

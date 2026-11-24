@@ -3,6 +3,7 @@
 pub mod application_icons;
 pub mod chat_cleanup;
 pub mod desktop_environment;
+mod desktop_history;
 #[cfg(unix)]
 pub mod desktop_integration;
 #[cfg(windows)]

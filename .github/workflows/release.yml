@@ -217,6 +217,11 @@ jobs:
           ditto "$DESKTOP_APP" "/Applications/$(basename "$DESKTOP_APP")"
       - name: Verify production standalone launch and restart with long private paths
         run: cargo test --manifest-path src-tauri/Cargo.toml macos_live_standalone_launch_is_detected -- --ignored --test-threads=1
+      - name: Restore regular Codex history using the bundled native index
+        run: |
+          CODEX_BACKEND=$(find "$RUNNER_TEMP/standalone-volume" -path '*/CodexCLI.app/Contents/MacOS/codex' -type f -print -quit)
+          test -x "$CODEX_BACKEND"
+          MULTI_CODEX_TEST_DESKTOP_HISTORY_BACKEND="$CODEX_BACKEND" cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core desktop_history_import_copies_active_and_archived_chats_without_overwriting
       - name: Reproduce Dock Quit leaving the app running in published v1.8.6
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

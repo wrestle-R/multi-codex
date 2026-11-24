@@ -15,6 +15,8 @@ interface StorageDialogProps {
   onDelete: (profile: Profile) => void
   onBackup: (profile: ProfileStorageUsage) => void
   onMigrate: (profile: ProfileStorageUsage) => void
+  onImportDesktopHistory?: (profile: ProfileStorageUsage) => void
+  importingDesktopHistory: string | null
   onManageSharing: () => void
   onClearSharedChats: (scope: ChatScope) => void
   onClearChats: (profile: ProfileStorageUsage, scope: ChatScope) => void
@@ -22,7 +24,7 @@ interface StorageDialogProps {
   profiles: Profile[]
 }
 
-export function StorageDialog({ usage, loading, error, onClose, onRefresh, onClear, onDelete, onClearChats, onBackup, onMigrate, onClearSharedChats, onManageSharing, notice, profiles }: StorageDialogProps) {
+export function StorageDialog({ usage, loading, error, onClose, onRefresh, onClear, onDelete, onClearChats, onBackup, onMigrate, onClearSharedChats, onManageSharing, onImportDesktopHistory, importingDesktopHistory, notice, profiles }: StorageDialogProps) {
   const titleId = useId()
   const dialogRef = useDialogFocus(onClose, false)
 
@@ -78,6 +80,19 @@ export function StorageDialog({ usage, loading, error, onClose, onRefresh, onCle
                       {item.privateCatalogBytes ? <div><dt>Private tools and registry</dt><dd>{formatStorage(item.privateCatalogBytes)}</dd></div> : null}
                       {item.privateRuntimeBytes ? <div><dt>Working copies</dt><dd>{formatStorage(item.privateRuntimeBytes)}</dd></div> : null}
                     </dl> : null}
+                    {onImportDesktopHistory ? (
+                      <>
+                        <p className="storage-chat-help">Copy local chats and projects from regular Codex into this profile. Close its sessions first.</p>
+                        <button
+                          className="button secondary"
+                          type="button"
+                          disabled={loading || item.running || item.layout === "needsRecovery" || item.layout === "needsRestore"}
+                          onClick={() => onImportDesktopHistory(item)}
+                        >
+                          {importingDesktopHistory === item.id ? "Copying Codex history…" : "Copy regular Codex history"}
+                        </button>
+                      </>
+                    ) : null}
                     <p className="storage-chat-help">{item.layout === "shared" ? "Profile cleanup affects its retained private histories. Shared conversations remain in the shared library." : "Chat cleanup removes local conversations and their history records. Your account and installed tools are kept."}</p>
                     <div className="storage-chat-actions">
                       <button className="button secondary" type="button" disabled={loading} aria-label={`Back up ${item.name}`} onClick={() => onBackup(item)}>Back up profile</button>

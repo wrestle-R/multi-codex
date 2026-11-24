@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.7",
+    "title": "Import Codex Desktop history and restore Dock Quit",
+    "highlights": [
+      "Copy local chats and projects from regular Codex Desktop into a managed profile from Profile storage.",
+      "Dock Quit and Command-Q exit Multi Codex on Mac. Closing the launcher window keeps the menu bar running."
+    ]
+  },
+  {
     "version": "1.8.6",
     "title": "Keep the menu bar after Dock Quit",
     "highlights": [

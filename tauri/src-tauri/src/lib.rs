@@ -843,6 +843,17 @@ async fn clear_profile_cache(id: String, state: State<'_, AppState>) -> Result<u
 }
 
 #[tauri::command]
+async fn import_desktop_history(
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<profiles::DesktopHistoryImport, String> {
+    let service = Arc::clone(&state.service);
+    tauri::async_runtime::spawn_blocking(move || service.import_desktop_history(&id))
+        .await
+        .map_err(|_| "Could not import Desktop history".to_string())?
+}
+
+#[tauri::command]
 async fn preview_profile_chats(
     id: String,
     scope: chat_cleanup::ChatScope,
@@ -1055,6 +1066,7 @@ pub fn run() {
             clear_legacy_extensions,
             prepare_profile_migration,
             clear_profile_cache,
+            import_desktop_history,
             preview_profile_chats,
             clear_profile_chats,
             preview_shared_chats,

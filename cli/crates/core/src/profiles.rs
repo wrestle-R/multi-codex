@@ -1,3 +1,4 @@
+pub use crate::desktop_history::ImportReport as DesktopHistoryImport;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -1718,6 +1719,22 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
     ) -> Result<crate::shared_chat_cleanup::CleanupResult> {
         let _guard = self.metadata_write_lock()?;
         crate::shared_chat_cleanup::clear(&self.data_root, token)
+    }
+
+    pub fn import_desktop_history(&self, id: &str) -> Result<DesktopHistoryImport> {
+        let backend = crate::launch_targets::bundled_standalone_cli()
+            .ok_or("Install a supported Codex Desktop before importing its history")?;
+        self.import_desktop_history_with_backend(id, Some(&backend))
+    }
+
+    fn import_desktop_history_with_backend(
+        &self,
+        id: &str,
+        backend: Option<&Path>,
+    ) -> Result<DesktopHistoryImport> {
+        let _guards = self.closed_profile_guard(id, "importing Desktop history")?;
+        let home = self.profile_paths(id)?.codex_home;
+        crate::desktop_history::import(&self.global_codex_home, &home, backend)
     }
 
     pub fn preview_profile_chats(
@@ -4062,6 +4079,204 @@ mod tests {
                 .current_profile_credential(&profile.metadata.id)
                 .unwrap(),
             sample_auth()
+        );
+    }
+
+    #[test]
+    fn desktop_history_import_copies_active_and_archived_chats_without_overwriting() {
+        let (temp, service) = fixture();
+        let profile = service
+            .add_profile(sample_input("Desktop history"))
+            .unwrap();
+        let home = service
+            .profile_paths(&profile.metadata.id)
+            .unwrap()
+            .codex_home;
+        let source = &service.global_codex_home;
+        fs::create_dir_all(source).unwrap();
+        fs::write(source.join("auth.json"), b"unmanaged authentication").unwrap();
+        let project = temp.path().join("Imported project");
+        fs::create_dir(&project).unwrap();
+        let transcript = |id: &str, message: &str| {
+            format!(
+                "{}\n{}\n",
+                serde_json::json!({"timestamp":"2026-11-24T01:02:03Z","type":"session_meta","payload":{"id":id,"timestamp":"2026-11-24T01:02:03Z","cwd":project,"originator":"Codex Desktop","cli_version":"0.172.0","source":"vscode","model_provider":"openai"}}),
+                serde_json::json!({"timestamp":"2026-11-24T01:02:04Z","type":"event_msg","payload":{"type":"user_message","message":message}})
+            )
+        };
+        let managed_project = "019abb40-5d00-7000-8000-000000000004";
+        let regular_project = "019abb40-5d00-7000-8000-000000000005";
+        let regular_native_project = "019abb40-5d00-7000-8000-000000000006";
+        let source_state = serde_json::json!({
+            "local-projects": {
+                regular_project: {
+                    "id":regular_project,"name":"Imported project","rootPaths":[project],"createdAt":1,"updatedAt":1,
+                    "chatGptBacking":{"accountId":"regular-account"}
+                }
+            },
+            "project-order":[regular_project],
+            "electron-account-renderer-state-v1":{"accountId":"regular-account"}
+        });
+        let state_path = ".codex-global-state.json";
+        let target_state = serde_json::json!({
+            "local-projects": {
+                managed_project: {"id":managed_project,"name":"Managed project","rootPaths":[],"createdAt":1,"updatedAt":1}
+            },
+            "project-order":[managed_project],
+            "electron-account-renderer-state-v1":{"accountId":"managed-account"}
+        });
+        fs::write(
+            source.join(state_path),
+            serde_json::to_vec(&source_state).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            home.join(state_path),
+            serde_json::to_vec(&target_state).unwrap(),
+        )
+        .unwrap();
+
+        let active = "019abb40-5d00-7000-8000-000000000001";
+        let archived = "019abb40-5d00-7000-8000-000000000002";
+        let conflict = "019abb40-5d00-7000-8000-000000000003";
+        {
+            let database = rusqlite::Connection::open(source.join("state_5.sqlite")).unwrap();
+            database.execute_batch(
+                "CREATE TABLE projects (id TEXT, name TEXT, position INTEGER, created_at_ms INTEGER, updated_at_ms INTEGER);
+                 CREATE TABLE project_roots (project_id TEXT, position INTEGER, path TEXT);
+                 CREATE TABLE threads (id TEXT, project_id TEXT);"
+            ).unwrap();
+            database
+                .execute(
+                    "INSERT INTO projects VALUES (?1, 'Native source project', 0, 1, 1)",
+                    [regular_native_project],
+                )
+                .unwrap();
+            database
+                .execute(
+                    "INSERT INTO project_roots VALUES (?1, 0, ?2)",
+                    [regular_native_project, project.to_str().unwrap()],
+                )
+                .unwrap();
+            database
+                .execute(
+                    "INSERT INTO threads VALUES (?1, ?2)",
+                    [active, regular_native_project],
+                )
+                .unwrap();
+        }
+        let filename = |id| format!("rollout-2026-11-24T01-02-03-{id}.jsonl");
+        let active_path = Path::new("sessions/2026/11/24").join(filename(active));
+        let archived_path = Path::new("archived_sessions").join(filename(archived));
+        let conflict_path = Path::new("sessions/2026/11/24").join(filename(conflict));
+        for (relative, id) in [
+            (&active_path, active),
+            (&archived_path, archived),
+            (&conflict_path, conflict),
+        ] {
+            fs::create_dir_all(source.join(relative).parent().unwrap()).unwrap();
+            fs::write(
+                source.join(relative),
+                transcript(id, "unmanaged conversation"),
+            )
+            .unwrap();
+        }
+        let saved_conflict = home.join("archived_sessions").join(filename(conflict));
+        fs::create_dir_all(saved_conflict.parent().unwrap()).unwrap();
+        fs::write(
+            &saved_conflict,
+            transcript(conflict, "managed conversation"),
+        )
+        .unwrap();
+        let backend =
+            std::env::var_os("MULTI_CODEX_TEST_DESKTOP_HISTORY_BACKEND").map(PathBuf::from);
+        if let Some(backend) = &backend {
+            // Start once before the import to finalize SQLite's initial scan.
+            let mut server = crate::chat_cleanup::LocalServer::start(backend, &home).unwrap();
+            let listed = server
+                .request("thread/list", serde_json::json!({"useStateDbOnly":true}))
+                .unwrap();
+            assert!(listed["data"].as_array().unwrap().is_empty());
+        }
+        let imported = service
+            .import_desktop_history_with_backend(&profile.metadata.id, backend.as_deref())
+            .unwrap();
+        assert_eq!((imported.chats, imported.projects), (2, 2));
+        let state: serde_json::Value =
+            serde_json::from_slice(&fs::read(home.join(state_path)).unwrap()).unwrap();
+        assert_eq!(
+            state["project-order"],
+            serde_json::json!([managed_project, regular_project, regular_native_project])
+        );
+        assert_eq!(
+            state["thread-project-assignments"][active]["projectId"],
+            regular_native_project
+        );
+        assert!(state["local-projects"][regular_project]["chatGptBacking"].is_null());
+        assert_eq!(
+            state["electron-account-renderer-state-v1"],
+            target_state["electron-account-renderer-state-v1"]
+        );
+        assert_eq!(
+            fs::read(source.join(state_path)).unwrap(),
+            serde_json::to_vec(&source_state).unwrap()
+        );
+        if let Some(backend) = &backend {
+            let mut server = crate::chat_cleanup::LocalServer::start(backend, &home).unwrap();
+            let listed = server
+                .request("thread/list", serde_json::json!({"useStateDbOnly":true}))
+                .unwrap();
+            let imported = listed["data"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["id"] == active)
+                .expect("native desktop index contains the copied chat");
+            assert_eq!(imported["preview"], "unmanaged conversation");
+            let project_id = imported["projectId"]
+                .as_str()
+                .expect("native chat has its project");
+            let project = server
+                .request("project/read", serde_json::json!({"projectId":project_id}))
+                .unwrap();
+            assert_eq!(project["project"]["name"], "Native source project");
+            let listed = server
+                .request(
+                    "thread/list",
+                    serde_json::json!({"archived":true,"useStateDbOnly":true}),
+                )
+                .unwrap();
+            assert!(listed["data"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|item| item["id"] == archived));
+        }
+        for path in [&active_path, &archived_path] {
+            assert_eq!(
+                fs::read(home.join(path)).unwrap(),
+                fs::read(source.join(path)).unwrap()
+            );
+        }
+        assert_eq!(
+            service
+                .import_desktop_history_with_backend(&profile.metadata.id, backend.as_deref())
+                .unwrap()
+                .chats,
+            0
+        );
+        assert!(!home.join(conflict_path).exists());
+        assert_eq!(
+            fs::read_to_string(saved_conflict).unwrap(),
+            transcript(conflict, "managed conversation")
+        );
+        assert_eq!(
+            fs::read_to_string(home.join("auth.json")).unwrap(),
+            sample_auth()
+        );
+        assert_eq!(
+            fs::read(source.join("auth.json")).unwrap(),
+            b"unmanaged authentication"
         );
     }
 

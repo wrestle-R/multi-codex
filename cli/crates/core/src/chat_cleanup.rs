@@ -369,6 +369,16 @@ pub struct LocalServer {
 
 impl Drop for LocalServer {
     fn drop(&mut self) {
+        // EOF lets a launcher-backed app-server stop its child and flush SQLite.
+        drop(self.child.stdin.take());
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while Instant::now() < deadline {
+            match self.child.try_wait() {
+                Ok(Some(_)) => return,
+                Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+                Err(_) => break,
+            }
+        }
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
@@ -388,7 +398,15 @@ impl LocalServer {
         }
         let mut child = crate::process::spawn(
             command
-                .args(["app-server", "--stdio", "-c", "analytics.enabled=false"])
+                // Local history operations do not need marketplace discovery.
+                .args([
+                    "app-server",
+                    "--stdio",
+                    "-c",
+                    "analytics.enabled=false",
+                    "--disable",
+                    "plugins",
+                ])
                 .env_remove("NODE_OPTIONS")
                 .env_remove("ELECTRON_RUN_AS_NODE")
                 .env("CODEX_HOME", home)

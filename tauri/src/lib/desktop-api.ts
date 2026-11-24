@@ -226,6 +226,12 @@ export async function clearProfileCache(id: string): Promise<number> {
   return usage.profiles.find((profile) => profile.id === id)?.reclaimableBytes ?? 0
 }
 
+export async function importDesktopHistory(id: string): Promise<{ chats: number; projects: number }> {
+  if (isTauri) return invoke("import_desktop_history", { id })
+  await wait()
+  return { chats: 0, projects: 0 }
+}
+
 const demoChatPlans = new Map<string, { id: string; count: number; transcriptBytes: number }>()
 const demoClearedChats = new Set<string>()
 
