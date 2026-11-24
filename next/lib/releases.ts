@@ -2,6 +2,11 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.9", stability: "stable" as const, publishedAt: "2026-11-24T17:02:58Z", title: "Mac Quit and Codex history import", highlights: [
+    "Dock Quit and Command-Q exit on Mac. Closing the launcher keeps the menu bar running.",
+    "Copy local chats and projects from regular Codex into a managed profile while keeping its sign-in and existing chats.",
+  ] },
+
   { tag: "v1.8.6", stability: "stable" as const, publishedAt: "2026-11-24T07:54:21Z", title: "Keep the menu bar after Dock Quit", highlights: [
     "Dock Quit and Command-Q hide the Mac launcher and keep the menu bar running.",
     "Reopen from the Dock or menu bar. Choose Quit Multi Codex in the menu bar to exit fully.",

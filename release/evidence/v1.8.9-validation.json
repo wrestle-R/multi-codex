@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "version": "1.8.9",
+  "extensionVersion": "0.3.1",
+  "stability": "stable",
+  "candidateSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+  "classification": "Restore native Mac Quit and copy regular Codex Desktop history",
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174371",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:44:06Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Native packages and visible AppImage startup"
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174371",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:44:06Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Exact candidate installer and update"
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174371",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:44:06Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Disposable account and T3 isolation"
+    },
+    "launcher-window": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174371",
+      "environment": "Ubuntu 22.04 x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:44:06Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Visible packaged launcher"
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597247915",
+      "environment": "macOS 26.7.2 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:54:43Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Packaged app startup and code seal"
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597247915",
+      "environment": "macOS 26.7.2 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:54:43Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Exact candidate install and update"
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597247915",
+      "environment": "macOS 26.7.2 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:54:43Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Native Keychain, editor, Terminal and standalone isolation"
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597247915",
+      "environment": "macOS 26.7.2 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:54:43Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Packaged Dock Quit, Command-Q, close/reopen, account menu and explicit menu-bar Quit"
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174519",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:59:45Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Native signed updater package"
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174519",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:59:45Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Exact candidate install and update"
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174519",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:59:45Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Native account, T3 and editor isolation"
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174285",
+      "environment": "Linux x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:33:22Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Packaged extension startup and account restoration"
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174424",
+      "environment": "macOS arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:40:05Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Packaged extension startup and account restoration"
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174442",
+      "environment": "macOS x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:41:36Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Packaged extension startup and account restoration"
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597174519",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:59:45Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Packaged extension startup and account restoration"
+    },
+    "macos-history-import": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45436936207/job/138597247915",
+      "environment": "macOS 26.7.2 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-24T16:54:43Z",
+      "testedSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "scope": "Active and archived chats, project assignments, credential isolation and repeat import with the bundled Codex app-server"
+    }
+  },
+  "artifacts": {
+    "update-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "update-app.sh": "cbe3d9fca478f1add0d169576386b9a43730aed42cdba45488df993f991e90e6",
+    "SHA256SUMS": "c24b80fe5319eb3c56a50a6a92afa670b54f0d1940e20fa1521ff29d48018cf1",
+    "Multi.Codex_1.8.9_x64-setup.exe.sig": "41b97136367b8d2156340206143d62b7f6bec3621527c90df817e365cabb72fa",
+    "Multi.Codex_1.8.9_x64-setup.exe": "6ebfce20a2e7a07b0b148337b0fdf46730d86f822aa00a96def376381fc730ea",
+    "Multi.Codex_1.8.9_amd64.deb": "27b064727e40e47124ea0ad06656e84f75377b87e3ca8592815b4394c3566727",
+    "Multi.Codex_1.8.9_amd64.AppImage.sig": "1bd0b42e401f88402b5f6ecfc6cf935b13465d4900332b68dcd10c43c064d705",
+    "Multi.Codex_1.8.9_amd64.AppImage": "802a5a086c2f565414d5d052afdfaaa59d1c2ad4512b4f55527b87095b040f20",
+    "Multi.Codex_1.8.9_aarch64.dmg": "958d2392a6b5808a63343f407ee17cd12ffb7e4d66a67bec11518bb452f38d13",
+    "Multi.Codex_1.8.9_aarch64.app.tar.gz.sig": "85b532a501ec5043695a2ad3de56377c76d13f2b2a2c86270f778d54faa3bc7f",
+    "Multi.Codex_1.8.9_aarch64.app.tar.gz": "5abdcaf4b0a564e2adabba8444308cce12ec92a9399d070b766db42db0d67862",
+    "multi-codex-linux-x64-0.3.1.vsix": "89bca3bed6dab61a7a8305a0ed05690dc2551195f93451cef51fa2f384f00a07",
+    "Multi.Codex-1.8.9-1.x86_64.rpm": "a9e42279ad33523a80fb7ed0ea1f23dc2cf36816c2744fc581ccfbe8cf232c88",
+    "multi-codex-win32-x64-0.3.1.vsix": "75ab121ec25320c7d4f5e7a0492fdde4c5b4a9927eb59482410729a710afb5da",
+    "multi-codex-darwin-arm64-0.3.1.vsix": "b9e8469ad21c0d4ec348ae8cfdf5d09f1c7dfad5ac05968228dba0bae080d376",
+    "multi-codex-darwin-x64-0.3.1.vsix": "f2b143dc6737071d60e16c2e8a5488e4d789f542367507d04e3a7d294e091478",
+    "install-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "latest.json": "f1279c73446b823a889a87f31e0380a5fb222a896c66bcecf9e3ef705daa3b0c",
+    "install-app.sh": "cbe3d9fca478f1add0d169576386b9a43730aed42cdba45488df993f991e90e6"
+  },
+  "nativeUpdaterEvidence": {
+    "linux": {
+      "source": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "platform": "Linux",
+      "candidateSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "architecture": "x86_64",
+      "candidateVersion": "1.8.9",
+      "payloadSha256": "802a5a086c2f565414d5d052afdfaaa59d1c2ad4512b4f55527b87095b040f20",
+      "passed": true,
+      "checks": {
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    },
+    "macos": {
+      "source": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "platform": "Darwin",
+      "candidateSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "architecture": "arm64",
+      "candidateVersion": "1.8.9",
+      "payloadSha256": "5abdcaf4b0a564e2adabba8444308cce12ec92a9399d070b766db42db0d67862",
+      "passed": true,
+      "checks": {
+        "initialBundleSignatureIntegrity": true,
+        "sealedBundleHelperFingerprint": true,
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "updatedBundleSignatureIntegrity": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "productionUpdateButton": "not exercised by this SDK harness",
+      "bundleInventory": {
+        "missingFiles": 0,
+        "addedFiles": 0,
+        "changedFiles": 0,
+        "codeResourcesPresent": true
+      }
+    },
+    "windows": {
+      "source": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "platform": "Windows",
+      "candidateSource": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+      "architecture": "AMD64",
+      "candidateVersion": "1.8.9",
+      "payloadSha256": "6ebfce20a2e7a07b0b148337b0fdf46730d86f822aa00a96def376381fc730ea",
+      "passed": true,
+      "checks": {
+        "current": true,
+        "older": true,
+        "malformed": true,
+        "wrong-target": true,
+        "corrupt": true,
+        "truncated": true,
+        "valid": true,
+        "exactSignedCandidateInstalled": true,
+        "nativePackagedRestartAlive": true,
+        "privateDataAndRetainedBackupPreserved": true,
+        "disposableFixtureRemoved": true
+      },
+      "baseline": "synthetic 1.0.0 runtime; exact candidate binary with an inert old-install marker",
+      "runtime": "mock GUI only; real tauri-plugin-updater 2.12.0",
+      "productionUpdateButton": "not exercised by this SDK harness"
+    }
+  },
+  "macosPackagedLifecycle": {
+    "passed": true,
+    "variant": "candidate",
+    "appPath": "/Applications/Multi Codex.app",
+    "version": "1.8.9",
+    "build": "1.8.9",
+    "source": "9a08cde98563c5e997476f746c2d0b8b1d49c123",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t26.7.2\nBuildVersion:\t\t25G332\n",
+    "binarySha256": "88ebc3787b8c7a93e53dd68c3d1d274abcc0a53c986773c843c5c927fd63fa0b",
+    "checks": [
+      {
+        "upgradeNotesAcknowledged": true,
+        "dismissal": "native Escape key"
+      },
+      {
+        "nativeHudDimensions": [
+          340,
+          88
+        ],
+        "shortcutHideRestore": true,
+        "fullscreenHideRestore": true
+      },
+      {
+        "cycle": 1,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 1,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 2,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 2,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 3,
+        "close": "red-button",
+        "reopen": "menu-bar",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "cycle": 3,
+        "close": "command-w",
+        "reopen": "dock",
+        "samePid": true,
+        "oneLauncher": true,
+        "menuVisible": true,
+        "accountSubmenuUsable": true
+      },
+      {
+        "accountLaunchAfterCloseCycles": true
+      },
+      {
+        "quit": "dock-quit",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      },
+      {
+        "quit": "command-q",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      },
+      {
+        "quit": "menu-bar",
+        "cleanExit": true,
+        "noDuplicateProcess": true
+      }
+    ],
+    "disposableNativeKeychain": true,
+    "fixtureBytesUnchanged": true,
+    "disposableKeychainRemoved": true,
+    "crashReports": []
+  },
+  "installerEvidence": {
+    "linux": {
+      "tag": "v1.8.9",
+      "appImageSha256": "802a5a086c2f565414d5d052afdfaaa59d1c2ad4512b4f55527b87095b040f20",
+      "checks": [
+        {
+          "script": "install-app.sh",
+          "exactReleasedAppImageInstalled": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "defaultLoginUnchanged": true
+        },
+        {
+          "script": "update-app.sh",
+          "exactReleasedAppImageInstalled": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "defaultLoginUnchanged": true
+        }
+      ],
+      "scope": "Actual AppImage replacement without launch; native startup and authenticated isolation require separate checks"
+    },
+    "macos": {
+      "tag": "v1.8.9",
+      "dmgSha256": "958d2392a6b5808a63343f407ee17cd12ffb7e4d66a67bec11518bb452f38d13",
+      "checks": [
+        {
+          "script": "install-app.sh",
+          "strictUnsignedRejection": true,
+          "explicitUnsignedInstall": true,
+          "installedVersion": "1.8.9",
+          "signatureIntegrity": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "installedNativeStartupAndRestart": true,
+          "stagingCleaned": true
+        },
+        {
+          "script": "update-app.sh",
+          "strictUnsignedRejection": true,
+          "explicitUnsignedInstall": true,
+          "installedVersion": "1.8.9",
+          "signatureIntegrity": true,
+          "accountAndChatSentinelsUnchanged": true,
+          "installedNativeStartupAndRestart": true,
+          "stagingCleaned": true
+        }
+      ],
+      "notarization": "not available; first-open approval remains controlled by macOS"
+    },
+    "windows": {
+      "profileAndConversationFixturesPreserved": true,
+      "startMenuShortcut": true,
+      "testedAt": "2026-11-24T16:56:54.1377722Z",
+      "install": true,
+      "passed": true,
+      "authenticatedAccounts": "synthetic fixtures; no real credentials",
+      "nativeVisibleWindow": true,
+      "unicodeAndSpacedPaths": true,
+      "disposableFixtureCleanup": true,
+      "installerSHA256": "6ebfce20a2e7a07b0b148337b0fdf46730d86f822aa00a96def376381fc730ea",
+      "checksumMismatchRejected": true,
+      "environment": "Microsoft Windows NT 10.0.26100.0",
+      "restart": true,
+      "closeExits": true,
+      "update": true,
+      "maximized": true
+    }
+  },
+  "supersedesFailedCandidates": [
+    {
+      "tag": "v1.8.7",
+      "source": "8bed44db542e1e3eb3e58897ce254d4a43cb3ec3",
+      "run": 45424956039,
+      "failure": "Tauri test crate omitted desktop_history"
+    },
+    {
+      "tag": "v1.8.8",
+      "source": "2af95ac846e58d576525d9030e29b96277326caf",
+      "run": 45431167193,
+      "failure": "Linux and Windows cargo fmt --check rejected test module placement"
+    }
+  ],
+  "artifactVerification": {
+    "checksums": "Verified all 18 manifest entries",
+    "updaterManifest": "Verified exact version and signature references",
+    "updaterSignatures": "Verified three payload and trusted-comment signatures with configured public key",
+    "macosBinary": "Lifecycle-tested executable matches exact updater archive",
+    "nativeArtifacts": "Draft installation packages, updater payloads and signatures match the native run",
+    "githubDraftDigests": "All 19 published asset digests match the verified draft, native runner packages and committed installer sources."
+  },
+  "limitations": [
+    "macOS 27 reporter environment awaits confirmation",
+    "Apple Silicon app is ad-hoc signed without Apple notarization",
+    "SDK updater tests use disposable fixtures and synthetic baseline; production Update button not exercised by SDK harness"
+  ],
+  "publishedAt": "2026-11-24T17:02:58Z"
+}
