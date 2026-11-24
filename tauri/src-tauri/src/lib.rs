@@ -55,6 +55,9 @@ mod managed_files;
 #[cfg(test)]
 #[path = "../../../cli/crates/core/src/shared_chat_leases.rs"]
 mod shared_chat_leases;
+#[cfg(test)]
+#[path = "../../../cli/crates/core/src/desktop_history.rs"]
+mod desktop_history;
 #[cfg(not(test))]
 use multi_codex_core::profiles;
 #[cfg(test)]
