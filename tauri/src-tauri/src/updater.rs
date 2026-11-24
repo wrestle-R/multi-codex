@@ -97,7 +97,9 @@ async fn check(
             &candidate.version,
             candidate.download_url.as_str(),
         ) {
-            return Err("The update service returned a package outside the expected release.".into());
+            return Err(
+                "The update service returned a package outside the expected release.".into(),
+            );
         }
     }
     Ok(update)

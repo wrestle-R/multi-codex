@@ -17,9 +17,9 @@ impl AuthRecognizer for BundledRecognizer {
             &mut command,
             directory.path(),
         ))
-            .args(["login", "status"])
-            .output()
-            .map_err(|_| "The Codex extension's bundled engine could not validate the account")?;
+        .args(["login", "status"])
+        .output()
+        .map_err(|_| "The Codex extension's bundled engine could not validate the account")?;
         if output.status.success() {
             Ok(())
         } else {
