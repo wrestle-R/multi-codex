@@ -76,13 +76,15 @@ test("full release details stay on the website and preserve package downloads", 
 test("showcase, docs and changelog navigate with working release links and no horizontal overflow", async ({ page }) => {
   const errors: string[] = []
   page.on("pageerror", error => errors.push(error.message))
-  for (const [url, heading] of [["/", /A little order/], ["/docs", /A workspace/], ["/releases", "What’s new."]] as const) {
-    await page.goto(url)
+  const navigation = page.getByRole("navigation", { name: "Main navigation" })
+  await page.goto("/")
+  for (const [link, heading] of [[null, /A little order/], ["Docs", /A workspace/], ["Changelog", "What’s new."]] as const) {
+    if (link) await navigation.getByRole("link", { name: link, exact: true }).click()
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
-    await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Download" })).toHaveAttribute("href", "/install")
+    await expect(navigation.getByRole("link", { name: "Download" })).toHaveAttribute("href", "/install")
   }
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Docs", exact: true }).click()
+  await navigation.getByRole("link", { name: "Docs", exact: true }).click()
   await expect(page).toHaveURL(/\/docs$/)
   await page.getByRole("navigation", { name: "Documentation sections" }).getByRole("link", { name: "Choose a terminal" }).click()
   await expect(page).toHaveURL(/#terminals$/)
