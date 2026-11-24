@@ -20,48 +20,9 @@ permissions:
 jobs:
   linux:
     if: inputs.scope != 'site'
-    runs-on: ubuntu-22.04
-    defaults:
-      run:
-        working-directory: tauri
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev libgtk-layer-shell-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: tauri/package-lock.json
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: tauri/src-tauri
-
-      - run: npm ci
-      - run: npm test
-      - run: npm run test:release-gates
-      - run: npm run build:desktop
-      - run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-      - run: cargo test --manifest-path src-tauri/Cargo.toml
-      - name: Build and test the local VS Code extension
-        run: |
-          npm ci --prefix ../extension
-          npm --prefix ../extension run build:helper
-          npm --prefix ../extension test
-          npm --prefix ../extension run package -- --target linux-x64
-      - run: npm run check:secrets
+    uses: ./.github/workflows/release-preflight.yml
+    with:
+      check_local_extension: true
 
   macos:
     if: inputs.scope != 'site'

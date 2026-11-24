@@ -50,15 +50,15 @@ Use short, plain descriptions of the actual change. Follow the owner's requested
 ## Release checklist
 
 1. Choose the next version based on the changes since the last stable release.
-2. Synchronize the app package and lockfile, Tauri configuration, Rust package and lockfile, website package and lockfile, and `next/lib/site.ts`. The release workflow checks the app version against its tag.
+2. Synchronize the app package and lockfile, Tauri configuration, Rust package and lockfile, website package and lockfile, and `next/lib/site.ts`. The release preflight checks the app and website package versions and lockfiles against the tag.
 3. Write full release details in `next/content/releases/v<VERSION>.md`. Preview the website page and check its changes, installation/update instructions, compatibility requirements, limitations and evidence. Do not claim checks that have not passed.
-4. Complete build, installer, signed-updater and functional release gates before publishing. Configure the GitHub Actions `TAURI_SIGNING_PRIVATE_KEY` secret and optional password. The matching public key is in the Tauri config; private signing material never belongs in Git or website content. Signing the update payload is separate from Apple Developer ID signing/notarization.
+4. Run `gh workflow run release.yml --ref <candidate-branch> -f platform=preflight` before tagging. Check that the run passed on the exact commit you plan to tag. Complete build, installer, signed-updater and functional release gates before publishing. Configure the GitHub Actions `TAURI_SIGNING_PRIVATE_KEY` secret and optional password. The matching public key is in the Tauri config; private signing material never belongs in Git or website content. Signing the update payload is separate from Apple Developer ID signing/notarization.
 5. After publication, update `next/lib/releases.ts` with the actual publication timestamp and concise highlights. Add a series summary when a new major/minor series appears.
 6. Publish the validated draft manually with the short website link using the commands below. Verify the deployed website release page, badge, version anchors and installation commands. Keep the README focused on project setup and installation, linking to the website changelog.
 
 ## Automation and manual publication
 
-Ordinary branch pushes do not run desktop CI, Windows packaging or extension packaging. Version-tag pushes matching `v*.*.*` start the Release workflow, which builds and tests native packages and creates a **draft** after its checks pass. A tag must match the committed stable app version. The draft is not automatically published. CI remains available for pull requests and explicit manual runs; individual platform workflows can also be called by Release or started manually for investigation.
+Ordinary branch pushes do not run desktop CI, Windows packaging or extension packaging. Version-tag pushes matching `v*.*.*` start the Release workflow, which runs the shared CI preflight before building and testing native packages. It creates a **draft** after the native checks and asset validation pass. A tag must match the committed stable app version. The draft is not automatically published. CI remains available for pull requests and explicit manual runs; individual platform workflows can also be called by Release or started manually for investigation.
 
 Website deployments are separate: keep Vercel Git deployments enabled for ordinary pushes. A branch push can update the website without building or publishing a desktop release. Production follows `main`; other branches can create previews.
 

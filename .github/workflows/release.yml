@@ -9,11 +9,11 @@ on:
         default: ''
         type: string
       platform:
-        description: Native package target for manual acceptance
+        description: Native packages or preflight only
         required: false
         default: all
         type: choice
-        options: [all, linux, macos, windows]
+        options: [all, linux, macos, windows, preflight]
   push:
     tags:
       - "v*.*.*"
@@ -24,6 +24,10 @@ permissions:
 
 
 jobs:
+  preflight:
+    if: ${{ !inputs.sdk_package_run }}
+    uses: ./.github/workflows/release-preflight.yml
+
   release-policy:
     runs-on: ubuntu-22.04
     outputs:
@@ -35,6 +39,7 @@ jobs:
           node -e 'const fs = require("fs"); const policy = JSON.parse(fs.readFileSync("release/platforms.json")); const version = JSON.parse(fs.readFileSync("tauri/package.json")).version; const macos = policy.version !== version || policy.platforms.includes("macos"); fs.appendFileSync(process.env.GITHUB_OUTPUT, `macos=${macos}\n`);'
 
   linux:
+    needs: preflight
     if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'linux') }}
     runs-on: ubuntu-22.04
     defaults:
@@ -47,29 +52,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tauri/package-lock.json
-      - name: Validate tag version
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            RELEASE_TAG="v$(node -p 'require("./package.json").version')"
-          fi
-          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
-          VERSION="${RELEASE_TAG#v}"
-          VERSION="$VERSION" node -e '
-            const fs = require("fs");
-            const expected = process.env.VERSION;
-            const actual = [
-              JSON.parse(fs.readFileSync("package.json", "utf8")).version,
-              JSON.parse(fs.readFileSync("package-lock.json", "utf8")).version,
-              JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version,
-              fs.readFileSync("src-tauri/Cargo.toml", "utf8").match(/^version = "([^"]+)"/m)?.[1],
-              fs.readFileSync("src-tauri/Cargo.lock", "utf8").match(/name = "multi-codex-desktop"\nversion = "([^"]+)"/)?.[1],
-            ];
-            if (actual.some(version => version !== expected)) {
-              throw new Error(`Tag ${expected} does not match committed versions: ${actual.join(", ")}`);
-            }
-          '
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
@@ -81,12 +63,9 @@ jobs:
         with:
           workspaces: tauri/src-tauri
       - run: npm ci
-      - run: npm run check:secrets
-      - run: npm run test:release
       - run: cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core
       - name: Verify two isolated T3 desktop instances
         run: xvfb-run -a python3 scripts/t3-native-smoke.py
-      - run: npm run test:release-gates
       - name: Build Linux packages without signing secrets
         run: python3 scripts/github-asset-build.py -- npm run release:linux
       - name: Sign final Linux updater payload
@@ -146,7 +125,7 @@ jobs:
           if-no-files-found: error
 
   macos:
-    needs: release-policy
+    needs: [preflight, release-policy]
     if: ${{ !inputs.sdk_package_run && (needs.release-policy.outputs.macos == 'true' || inputs.platform == 'macos') && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'macos') }}
     runs-on: macos-26
     env:
@@ -161,29 +140,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: tauri/package-lock.json
-      - name: Validate tag version
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            RELEASE_TAG="v$(node -p 'require("./package.json").version')"
-          fi
-          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
-          VERSION="${RELEASE_TAG#v}"
-          VERSION="$VERSION" node -e '
-            const fs = require("fs");
-            const expected = process.env.VERSION;
-            const actual = [
-              JSON.parse(fs.readFileSync("package.json", "utf8")).version,
-              JSON.parse(fs.readFileSync("package-lock.json", "utf8")).version,
-              JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8")).version,
-              fs.readFileSync("src-tauri/Cargo.toml", "utf8").match(/^version = "([^"]+)"/m)?.[1],
-              fs.readFileSync("src-tauri/Cargo.lock", "utf8").match(/name = "multi-codex-desktop"\nversion = "([^"]+)"/)?.[1],
-            ];
-            if (actual.some(version => version !== expected)) {
-              throw new Error(`Tag ${expected} does not match committed versions: ${actual.join(", ")}`);
-            }
-          '
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           targets: aarch64-apple-darwin
@@ -222,26 +178,6 @@ jobs:
           CODEX_BACKEND=$(find "$RUNNER_TEMP/standalone-volume" -path '*/CodexCLI.app/Contents/MacOS/codex' -type f -print -quit)
           test -x "$CODEX_BACKEND"
           MULTI_CODEX_TEST_DESKTOP_HISTORY_BACKEND="$CODEX_BACKEND" cargo test --locked --manifest-path ../cli/Cargo.toml -p multi-codex-core desktop_history_import_copies_active_and_archived_chats_without_overwriting
-      - name: Reproduce Dock Quit leaving the app running in published v1.8.6
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAC_LIFECYCLE_VARIANT: baseline-v1.8.6
-        run: |
-          mkdir "$RUNNER_TEMP/baseline-assets"
-          gh release download v1.8.6 --pattern '*.app.tar.gz' --dir "$RUNNER_TEMP/baseline-assets"
-          tar -xzf "$RUNNER_TEMP/baseline-assets/"*.app.tar.gz -C /Applications
-          if python3 ../release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'; then
-            echo 'Baseline did not reproduce Dock Quit failure' >&2
-            exit 1
-          fi
-          python3 - <<'CHECK'
-          import json, os
-          from pathlib import Path
-          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'hud-backend-evidence/baseline-v1.8.6/result.json').read_text())
-          assert report['version'] == '1.8.6', report
-          assert report.get('failure') == 'dock-quit left the application running', report
-          print('Confirmed v1.8.6 stays running after Dock Quit')
-          CHECK
       - name: Build Apple Silicon candidate
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -356,6 +292,7 @@ jobs:
           if-no-files-found: warn
 
   windows:
+    needs: preflight
     if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'windows') }}
     uses: ./.github/workflows/windows.yml
     with:
@@ -365,14 +302,15 @@ jobs:
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
   extensions:
-    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all' || inputs.platform == 'all') }}
+    needs: preflight
+    if: ${{ !inputs.sdk_package_run && (!inputs.platform || inputs.platform == 'all') }}
     uses: ./.github/workflows/extension.yml
 
   prepare-draft:
     permissions:
       contents: write
       actions: read
-    if: ${{ always() && github.event_name != 'workflow_dispatch' && needs.linux.result == 'success' && needs.windows.result == 'success' && needs.extensions.result == 'success' && (needs.macos.result == 'success' || needs.release-policy.outputs.macos == 'false') }}
+    if: ${{ always() && github.ref_type == 'tag' && github.event_name == 'push' && needs.release-policy.result == 'success' && needs.linux.result == 'success' && needs.windows.result == 'success' && needs.extensions.result == 'success' && (needs.macos.result == 'success' || needs.release-policy.outputs.macos == 'false') }}
     needs: [release-policy, linux, macos, windows, extensions]
     runs-on: ubuntu-22.04
     steps:
@@ -384,32 +322,32 @@ jobs:
       - name: Prepare release draft
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INCLUDE_MACOS: ${{ needs.release-policy.outputs.macos }}
         run: |
           mkdir release-assets
           find downloaded-assets -type f \( -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' -o -name '*.dmg' -o -name '*_x64-setup.exe' -o -name '*.vsix' \) -exec cp {} release-assets/ \;
           cd release-assets
-          mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
-          if [[ "$GITHUB_REF_NAME" == "v1.8.0" ]]; then
-            rm -f Multi.Codex_1.8.0_aarch64.dmg
-            mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
-            ((${#ASSETS[@]} == 8))
-          else
-            ((${#ASSETS[@]} == 9))
+          EXPECTED_INSTALLERS=9
+          if [[ "$GITHUB_REF_NAME" == "v1.8.0" || "$INCLUDE_MACOS" == "false" ]]; then
+            rm -f "Multi.Codex_${GITHUB_REF_NAME#v}_aarch64.dmg"
+            EXPECTED_INSTALLERS=8
           fi
+          mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
+          ((${#ASSETS[@]} == EXPECTED_INSTALLERS))
           cp ../scripts/install-app.sh ../scripts/update-app.sh ../scripts/install-app.ps1 ../scripts/update-app.ps1 .
-          ASSETS+=(./install-app.sh ./update-app.sh ./install-app.ps1 ./update-app.ps1)
           find ../downloaded-assets -type f \( -name "*.AppImage.sig" -o -name "*.exe.sig" -o -name "*.app.tar.gz" -o -name "*.app.tar.gz.sig" \) -exec cp {} . \;
           if [[ "$GITHUB_REF_NAME" == "v1.8.0" ]]; then rm -f *.app.tar.gz *.app.tar.gz.sig; fi
           node ../tauri/scripts/updater-manifest.mjs . "${GITHUB_REF_NAME#v}"
           mapfile -d '' ASSETS < <(find . -maxdepth 1 -type f -print0 | sort -z)
           sha256sum "${ASSETS[@]}" | sed 's#  \./#  #' > SHA256SUMS
-          ASSETS+=(SHA256SUMS)
+          sha256sum --strict -c SHA256SUMS
+          node ../tauri/scripts/updater-manifest.mjs . "${GITHUB_REF_NAME#v}" --check
           cd ..
           if gh release view "$GITHUB_REF_NAME" --json isDraft >/dev/null 2>&1; then
             [[ "$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq '.isDraft')" == "true" ]]
             gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" release-assets/* --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes ''
+            gh release create "$GITHUB_REF_NAME" release-assets/* --verify-tag --draft --title "Multi Codex $GITHUB_REF_NAME — validation pending" --notes ''
           fi
           echo "Draft created. Validate exact assets, then publish manually with a short website link."
 
