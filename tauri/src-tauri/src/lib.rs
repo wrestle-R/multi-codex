@@ -1074,6 +1074,10 @@ pub fn run() {
         .expect("error while building Multi Codex");
     app.run(|_app, _event| {
         lifecycle::on_run_event(&_event);
+        #[cfg(target_os = "macos")]
+        if matches!(_event, tauri::RunEvent::Ready) {
+            lifecycle::install_native_quit_handler(_app);
+        }
         if matches!(_event, tauri::RunEvent::Exit) {
             hud_platform::cleanup();
         }

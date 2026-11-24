@@ -337,7 +337,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             timeout=60,
         )
         report["checks"].append({"accountLaunchAfterCloseCycles": True})
-        for quit_kind in ("menu-bar", "command-q", "dock-quit"):
+        for quit_kind in ("dock-quit", "command-q", "menu-bar"):
             if process.poll() is not None:
                 start()
             if quit_kind == "menu-bar":
@@ -358,6 +358,19 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
                         'end if\nreturn "waiting"\nend tell'
                     ) == "clicked"
                 wait_for("Dock Quit menu available", quit_from_dock)
+            if quit_kind != "menu-bar":
+                wait_for(f"{quit_kind} hides launcher", lambda: launcher_count() == 0)
+                time.sleep(1)
+                if process.poll() is not None or process_ids() != [process.pid]:
+                    raise RuntimeError(f"{quit_kind} stopped or duplicated the tray process")
+                if menu_icon_count() != 1:
+                    raise RuntimeError(f"{quit_kind} removed the menu-bar icon")
+                account_menu()
+                reopen("menu-bar")
+                close("red-button")
+                reopen("dock")
+                report["checks"].append({"quit": quit_kind, "trayAlive": True, "reopened": True})
+                continue
             if process.wait(timeout=15) != 0 or process_ids():
                 raise RuntimeError(f"{quit_kind} did not exit cleanly")
             report["checks"].append(

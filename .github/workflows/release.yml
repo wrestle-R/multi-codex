@@ -217,6 +217,26 @@ jobs:
           ditto "$DESKTOP_APP" "/Applications/$(basename "$DESKTOP_APP")"
       - name: Verify production standalone launch and restart with long private paths
         run: cargo test --manifest-path src-tauri/Cargo.toml macos_live_standalone_launch_is_detected -- --ignored --test-threads=1
+      - name: Reproduce Dock Quit exit in published v1.8.5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAC_LIFECYCLE_VARIANT: baseline-v1.8.5
+        run: |
+          mkdir "$RUNNER_TEMP/baseline-assets"
+          gh release download v1.8.5 --pattern '*.app.tar.gz' --dir "$RUNNER_TEMP/baseline-assets"
+          tar -xzf "$RUNNER_TEMP/baseline-assets/"*.app.tar.gz -C /Applications
+          if python3 ../release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'; then
+            echo 'Baseline did not reproduce Dock Quit failure' >&2
+            exit 1
+          fi
+          python3 - <<'CHECK'
+          import json, os
+          from pathlib import Path
+          report = json.loads((Path(os.environ['RUNNER_TEMP']) / 'hud-backend-evidence/baseline-v1.8.5/result.json').read_text())
+          assert report['version'] == '1.8.5', report
+          assert 'dock-quit' in report.get('failure', ''), report
+          print('Confirmed v1.8.5 fails Dock Quit persistence')
+          CHECK
       - name: Build Apple Silicon candidate
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

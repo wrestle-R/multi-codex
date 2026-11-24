@@ -1,5 +1,13 @@
 [
   {
+    "version": "1.8.6",
+    "title": "Keep the menu bar after Dock Quit",
+    "highlights": [
+      "Dock Quit and Command-Q hide the Mac launcher and keep the menu bar running.",
+      "Reopen from the Dock or menu bar. Choose Quit Multi Codex in the menu bar to exit fully."
+    ]
+  },
+  {
     "version": "1.8.5",
     "title": "Keep the Mac menu bar running",
     "highlights": [
