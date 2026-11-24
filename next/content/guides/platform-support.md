@@ -25,7 +25,7 @@ Managed data stays in the existing platform data directory plus `multi-codex`: n
 
 ## Mac menu bar and launcher window
 
-The menu-bar icon lists saved accounts. Each account submenu offers only installed supported targets: **Open VS Code**, **Open Codex**, and **Open CLI**. Launches reuse folder preferences and account safety guards. **Open Multi Codex** restores the maximized main window; **Refresh All Usage** checks all accounts. Closing the window leaves the menu-bar process running. **Quit Multi Codex** exits the launcher and leaves separately launched tools open.
+The menu-bar icon lists saved accounts. Each account submenu offers only installed supported targets: **Open VS Code**, **Open Codex**, and **Open CLI**. Launches reuse folder preferences and account safety guards. **Open Multi Codex** restores the maximized main window; **Refresh All Usage** checks all accounts. Closing the window leaves the menu-bar process running. On Mac from v1.8.6, Dock Quit and Command-Q hide the launcher while the menu-bar icon keeps running. **Quit Multi Codex** in the menu bar exits the launcher and leaves separately launched tools open.
 
 On Hyprland, the launcher monitors its own mapped window and restores maximization after desktop changes or accidental floating restores, without moving it or stealing focus. Other platforms restore maximization when the main window regains focus. The live Linux test covers three desktop switches and repair of the floating screenshot state.
 
