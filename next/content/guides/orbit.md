@@ -26,6 +26,6 @@ Questions, approvals and possible requests for help receive a badge and a simple
 
 ## Desktop behavior
 
-Orbit stays above ordinary windows and hides during fullscreen. Drag it to reposition it, select a display, or reset its position in Orbit preferences. Use **⌘ / Super + Shift + H** or the tray to hide or show it temporarily. Closing the launcher keeps Orbit and the tray alive. On Mac from v1.8.6, Dock Quit and Command-Q hide the launcher and keep its companions running. **Quit Multi Codex** in the menu bar exits the launcher and its companions.
+Orbit stays above ordinary windows and hides during fullscreen. Drag it to reposition it, select a display, or reset its position in Orbit preferences. Use **⌘ / Super + Shift + H** or the tray to hide or show it temporarily. Closing the launcher keeps Orbit and the tray alive. On Mac, Dock Quit and Command-Q exit Multi Codex. **Quit Multi Codex** in the menu bar exits the launcher and its companions.
 
 Orbit supports Apple Silicon macOS 26+ and Linux Hyprland, GNOME and KDE. GNOME and KDE use the launcher's desktop integration. Unsupported desktops do not show a substitute strip. Windows account launching and shared chats remain supported; Orbit is not available on Windows.
