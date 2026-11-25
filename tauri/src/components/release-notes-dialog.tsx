@@ -21,6 +21,7 @@ export function ReleaseNotesDialog({ version, previousVersion, platform, onClose
       <p>{previousVersion ? `Updates since v${previousVersion}.` : "Release history included in this version."}</p>
       {releaseNotesSince(version, previousVersion).map(release => <section className="release-notes-entry" key={release.version} aria-label={`Release ${release.version}`}>
         <h3><span>v{release.version}</span>{release.title}</h3>
+        {release.date && <time dateTime={release.date}>{new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeZone: "UTC" }).format(new Date(release.date))}</time>}
         <ul>{release.highlights.map(note => <li key={note}>{note}</li>)}</ul>
       </section>)}
       {platform === "windows" ? <p>Orbit is available on macOS and Linux.</p> : null}
