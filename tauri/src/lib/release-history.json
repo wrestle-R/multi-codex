@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.8.10",
+    "date": "2026-11-25",
+    "title": "Quieter Orbit and safer account launches",
+    "highlights": [
+      "Orbit skips redraws when its account and chat state stays the same.",
+      "Private launches clear inherited Codex provider overrides.",
+      "The native updater checks the exact release package and verifies its signature before installing."
+    ]
+  },
+  {
     "version": "1.8.9",
     "title": "Import Codex Desktop history and restore Dock Quit",
     "highlights": [
