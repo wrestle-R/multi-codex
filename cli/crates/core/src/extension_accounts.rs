@@ -12,13 +12,14 @@ impl AuthRecognizer for BundledRecognizer {
             tempfile::tempdir().map_err(|_| "Could not prepare credential validation")?;
         profiles::write_private_file(&directory.path().join("auth.json"), auth.as_bytes())?;
         profiles::write_codex_config(directory.path())?;
-        let output = crate::process::background(&mut std::process::Command::new(&self.0))
-            .args(["login", "status"])
-            .env("CODEX_HOME", directory.path())
-            .env_remove("OPENAI_API_KEY")
-            .env_remove("CODEX_API_KEY")
-            .output()
-            .map_err(|_| "The Codex extension's bundled engine could not validate the account")?;
+        let mut command = std::process::Command::new(&self.0);
+        let output = crate::process::background(crate::process::isolated_codex_home(
+            &mut command,
+            directory.path(),
+        ))
+        .args(["login", "status"])
+        .output()
+        .map_err(|_| "The Codex extension's bundled engine could not validate the account")?;
         if output.status.success() {
             Ok(())
         } else {

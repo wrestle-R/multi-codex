@@ -1,8 +1,34 @@
 //! Bound external desktop helpers so a disconnected compositor cannot hang a launch.
+use std::ffi::OsStr;
 use std::io::Read;
+use std::path::Path;
 use std::process::{Command, Output, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
+
+pub(crate) fn is_codex_override(key: &OsStr) -> bool {
+    let name = key.to_string_lossy().to_ascii_uppercase();
+    name.starts_with("CODEX_")
+        || name.starts_with("OPENAI_")
+        || matches!(name.as_str(), "NODE_OPTIONS" | "ELECTRON_RUN_AS_NODE")
+}
+
+/// Run Codex with the account's own credentials, provider and storage paths.
+pub fn isolated_codex_home<'a>(command: &'a mut Command, home: &Path) -> &'a mut Command {
+    let overrides: Vec<_> = std::env::vars_os()
+        .map(|(key, _)| key)
+        .chain(command.get_envs().map(|(key, _)| key.to_owned()))
+        .filter(|key| is_codex_override(key))
+        .collect();
+    for key in overrides {
+        command.env_remove(key);
+    }
+    command
+        .env_remove("NODE_OPTIONS")
+        .env_remove("ELECTRON_RUN_AS_NODE")
+        .env("CODEX_HOME", home)
+        .env("CODEX_SQLITE_HOME", home)
+}
 
 pub fn background(command: &mut Command) -> &mut Command {
     #[cfg(windows)]
@@ -11,6 +37,42 @@ pub fn background(command: &mut Command) -> &mut Command {
         command.creation_flags(0x08000000);
     }
     command
+}
+
+#[cfg(test)]
+mod isolation_tests {
+    use super::*;
+
+    #[test]
+    fn private_codex_command_uses_only_its_account_environment() {
+        let home = Path::new("synthetic-account");
+        let mut command = Command::new("codex-fixture");
+        for key in [
+            "OPENAI_API_KEY",
+            "OPENAI_BASE_URL",
+            "CODEX_API_KEY",
+            "codex_provider_fixture",
+            "NODE_OPTIONS",
+            "ELECTRON_RUN_AS_NODE",
+        ] {
+            command.env(key, "inert-fixture");
+        }
+        command.env("CODEX_HOME", "other-account");
+        command.env("CODEX_SQLITE_HOME", "other-database");
+        command.env("LANG", "C");
+        let configured: std::collections::BTreeMap<_, _> = isolated_codex_home(&mut command, home)
+            .get_envs()
+            .filter_map(|(key, value)| value.map(|value| (key, value)))
+            .collect();
+        assert_eq!(
+            configured,
+            std::collections::BTreeMap::from([
+                (OsStr::new("CODEX_HOME"), home.as_os_str()),
+                (OsStr::new("CODEX_SQLITE_HOME"), home.as_os_str()),
+                (OsStr::new("LANG"), OsStr::new("C")),
+            ])
+        );
+    }
 }
 
 #[cfg(all(test, windows))]

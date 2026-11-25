@@ -31,16 +31,8 @@ pub fn sign_in(
 fn run(pending: &PendingDeviceLogin, no_browser: bool, stop: &Arc<AtomicBool>) -> Result<()> {
     let engine = resolve_codex_command()?;
     let mut command = Command::new(engine);
-    for (key, _) in std::env::vars_os() {
-        let name = key.to_string_lossy();
-        if name.starts_with("CODEX_") || name.starts_with("OPENAI_") || name == "NODE_OPTIONS" {
-            command.env_remove(key);
-        }
-    }
-    let mut child = command
+    let mut child = multi_codex_core::process::isolated_codex_home(&mut command, &pending.codex_home)
         .args(["login", "--device-auth"])
-        .env("CODEX_HOME", &pending.codex_home)
-        .env("CODEX_SQLITE_HOME", &pending.codex_home)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

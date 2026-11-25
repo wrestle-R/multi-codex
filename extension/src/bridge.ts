@@ -49,9 +49,8 @@ export class CodexBridge {
   constructor(readonly config: BridgeConfig, readonly frontend: JsonLines, args: string[], private existing?: ExistingBackend) {
     if (config.sharedChats && existing) throw new Error('Shared chats require a managed private backend; live attachment cannot enforce writer handoff.');
     this.engineArgs = args;
-    const env: NodeJS.ProcessEnv = config.sharedChats ? privateBackendEnvironment(config.sessionHome) : { ...process.env, CODEX_HOME: config.sessionHome,
-      CODEX_SQLITE_HOME: config.sharedChats ? config.sessionHome : config.historyHome ?? config.sessionHome };
-    delete env.OPENAI_API_KEY; delete env.CODEX_API_KEY; delete env.ELECTRON_RUN_AS_NODE;
+    const historyHome = config.sharedChats ? config.sessionHome : config.historyHome;
+    const env = privateBackendEnvironment(config.sessionHome, process.env, historyHome);
     this.backend = existing?.child ?? spawnExecutable(config.engine, args, { env, cwd: config.workspace, stdio: ['pipe', 'pipe', 'pipe'] });
     // Codex diagnostics can contain workspace and account data. Never mirror them into VS Code logs.
     if (!existing) this.backend.stderr.resume();
@@ -350,9 +349,9 @@ export class CodexBridge {
       const nextHome = join(this.config.sessionHome, '..', randomUUID());
       await prepareSessionHome(join(this.config.dataRoot, 'profiles', profileId, 'codex-home'), nextHome, { sharedChats: true });
       this.config.sessionHome = nextHome;
-      const env = privateBackendEnvironment(nextHome);
-      delete env.OPENAI_API_KEY; delete env.CODEX_API_KEY; delete env.ELECTRON_RUN_AS_NODE;
-      this.backend = spawnExecutable(this.config.engine, this.engineArgs, { env, cwd: this.config.workspace });
+      this.backend = spawnExecutable(this.config.engine, this.engineArgs, {
+        env: privateBackendEnvironment(nextHome), cwd: this.config.workspace,
+      });
       this.backend.stderr.resume();
       this.backendLines = new JsonLines(this.backend.stdout, this.backend.stdin);
       this.backendRpc = new RpcPeer(this.backendLines);

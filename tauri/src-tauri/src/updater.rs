@@ -86,10 +86,23 @@ fn updater_builder(app: &AppHandle) -> Result<tauri_plugin_updater::UpdaterBuild
 async fn check(
     updater: &tauri_plugin_updater::Updater,
 ) -> Result<Option<tauri_plugin_updater::Update>, String> {
-    updater.check().await.map_err(|error| {
+    let update = updater.check().await.map_err(|error| {
         eprintln!("Update availability check failed: {error}");
         "Cannot reach the update service right now. Reconnect and try again.".to_string()
-    })
+    })?;
+    if let Some(candidate) = &update {
+        if !crate::updater_policy::matches_release_asset(
+            std::env::consts::OS,
+            std::env::consts::ARCH,
+            &candidate.version,
+            candidate.download_url.as_str(),
+        ) {
+            return Err(
+                "The update service returned a package outside the expected release.".into(),
+            );
+        }
+    }
+    Ok(update)
 }
 
 #[tauri::command]
@@ -110,6 +123,14 @@ pub async fn check_app_update(app: AppHandle) -> Result<Option<String>, String> 
 static UPDATING: AtomicBool = AtomicBool::new(false);
 
 struct UpdateGuard;
+impl UpdateGuard {
+    fn acquire() -> Result<Self, String> {
+        UPDATING
+            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+            .map_err(|_| "An update is already in progress.")?;
+        Ok(Self)
+    }
+}
 impl Drop for UpdateGuard {
     fn drop(&mut self) {
         UPDATING.store(false, Ordering::Release);
@@ -145,10 +166,7 @@ fn emit(
 
 #[tauri::command]
 pub async fn update_app(app: AppHandle) -> Result<String, String> {
-    UPDATING
-        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-        .map_err(|_| "An update is already in progress.")?;
-    let _guard = UpdateGuard;
+    let guard = UpdateGuard::acquire()?;
     #[cfg(target_os = "linux")]
     if std::env::var_os("APPIMAGE").is_none() {
         return Err("In-app updates require the AppImage on Linux. Update .deb and .rpm installations through their package manager.".into());
@@ -193,6 +211,8 @@ pub async fn update_app(app: AppHandle) -> Result<String, String> {
     emit(&app, "restarting", 0, None, Some(version));
     // Allow the webview to paint the restart state. Profile apps remain running.
     tauri::async_runtime::spawn(async move {
+        // Keep the install reserved until the process restarts.
+        let _guard = guard;
         // A blocking timer here runs off the async executor's worker threads.
         let _ =
             tauri::async_runtime::spawn_blocking(|| std::thread::sleep(Duration::from_millis(700)))
@@ -210,11 +230,13 @@ mod channel_tests {
     fn channel_cannot_change_during_installation_and_recovers_afterwards() {
         let root = tempfile::tempdir().unwrap();
         write_channel(root.path(), UpdateChannel::Stable).unwrap();
-        assert!(!UPDATING.swap(true, Ordering::AcqRel));
-        let guard = UpdateGuard;
+        let guard = UpdateGuard::acquire().unwrap();
+        // The restart task owns the reservation after installation succeeds.
+        let restart_task = move || drop(guard);
+        assert!(UpdateGuard::acquire().is_err());
         assert!(save_channel_preference(root.path(), UpdateChannel::All).is_err());
         assert_eq!(read_channel(root.path()).unwrap(), UpdateChannel::Stable);
-        drop(guard);
+        restart_task();
         save_channel_preference(root.path(), UpdateChannel::All).unwrap();
         assert_eq!(read_channel(root.path()).unwrap(), UpdateChannel::All);
     }

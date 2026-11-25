@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 const { controlEndpoint, spawnExecutable, CodexBridge, JsonLines, RpcPeer, BridgeClient } = createRequire(import.meta.url)('../dist/core.cjs');
-async function setup(t) {
+async function setup(t, historyHome) {
   const root = await mkdtemp(join(tmpdir(), 'mc-bridge-test-'));
   const engine = resolve('tests/fixtures/fake-engine.mjs'); const helper = resolve('tests/fixtures/fake-accounts.mjs');
   await chmod(engine, 0o755); await chmod(helper, 0o755); await mkdir(join(root, 'home'));
   const input = new PassThrough(); const output = new PassThrough();
-  const bridge = new CodexBridge({ engine, helper, dataRoot: root, globalHome: root, sessionHome: join(root, 'home'), socket: controlEndpoint(root.replace(/[^a-zA-Z0-9]/g, '')), token: 'private-test-token', workspace: root }, new JsonLines(input, output), ['app-server']);
+  const bridge = new CodexBridge({ engine, helper, dataRoot: root, globalHome: root, sessionHome: join(root, 'home'), historyHome, socket: controlEndpoint(root.replace(/[^a-zA-Z0-9]/g, '')), token: 'private-test-token', workspace: root }, new JsonLines(input, output), ['app-server']);
   const peer = new RpcPeer(new JsonLines(output, input), 'frontend:');
   await bridge.listen(); await peer.request('initialize'); input.write(JSON.stringify({ method: 'initialized' }) + '\n');
   const client = await BridgeClient.connect(bridge.config.socket, bridge.config.token);
@@ -19,6 +19,24 @@ async function setup(t) {
   return { bridge, client, peer };
 }
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+test('isolated backend removes inherited provider overrides and keeps its configured history', async t => {
+  const keys = ['OPENAI_BASE_URL', 'CODEX_PROVIDER_FIXTURE', 'NODE_OPTIONS'];
+  const previous = keys.map(key => process.env[key]);
+  const marker = '--no-warnings';
+  for (const key of keys) process.env[key] = marker;
+  const historyHome = resolve('tests/fixtures');
+  const { bridge, peer } = await (async () => {
+    try { return await setup(t, historyHome); }
+    finally {
+      for (const [index, key] of keys.entries()) {
+        if (previous[index] === undefined) delete process.env[key];
+        else process.env[key] = previous[index];
+      }
+    }
+  })();
+  assert.deepEqual(await peer.request('fixture/environment', { marker }), { inheritedOverride: false });
+  assert.deepEqual(await peer.request('fixture/homes'), { home: bridge.config.sessionHome, history: historyHome });
+});
 test('shared account handoff stops the old backend and keeps account files and histories private', async t => {
   const root = await mkdtemp(join(tmpdir(), 'mc-shared-handoff-'));
   const { syntheticAuth } = await import('./fixtures/local-service.mjs');
