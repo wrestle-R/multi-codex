@@ -32,20 +32,25 @@ export default function Hud() {
   const popupTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const shell = useRef<HTMLElement>(null)
+  const snapshot = useRef("")
+  const inputRegions = useRef("")
   const dragging = useRef(false)
   const pointerDown = useRef(false)
   const moving = useRef(false)
   const endDrag = () => { pointerDown.current = false; if (dragging.current) { dragging.current = false; void hudCall("hud_drag", { phase: "end" }).catch(error => setError(String(error))) } }
   useLayoutEffect(() => {
     if (!nativeHud || !shell.current) return
-    let previous = ""
     const update = () => {
       const rectangles = [...(shell.current?.querySelectorAll(".hud-strip,.hud-panel,.hud-popup,.hud-error") ?? [])].map(element => {
         const { x, y, width, height } = element.getBoundingClientRect()
         return { x, y, width, height }
       })
       const encoded = JSON.stringify(rectangles)
-      if (previous !== encoded) { previous = encoded; void hudCall("hud_set_input_regions", { rectangles }) }
+      if (inputRegions.current === encoded) return
+      inputRegions.current = encoded
+      void hudCall("hud_set_input_regions", { rectangles }).catch(() => {
+        if (inputRegions.current === encoded) inputRegions.current = ""
+      })
     }
     const observer = new ResizeObserver(update)
     observer.observe(shell.current)
@@ -66,6 +71,9 @@ export default function Hud() {
       try {
         const next = await hudCall<HudView>("hud_snapshot")
         if (!active) return
+        const encoded = JSON.stringify(next)
+        if (snapshot.current === encoded) return
+        snapshot.current = encoded
         setView(next)
         const attention = next.accounts.flatMap(account => orderedSessions(account.sessions).filter(s => s.needsAttention && !seen.current.has(s.eventKey)).map(session => ({ account, session })))
         for (const event of attention) seen.current.add(event.session.eventKey)

@@ -1,11 +1,16 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import Hud from "./Hud"
 import { defaultHudSettings, sessionSlots, type HudSession, type HudView } from "./lib/hud"
 
-const api = vi.hoisted(() => ({ call: vi.fn() }))
+const api = vi.hoisted(() => ({ call: vi.fn(), avatarRendered: vi.fn() }))
 vi.mock("./lib/hud", async importOriginal => ({ ...await importOriginal<typeof import("./lib/hud")>(), nativeHud: false, hudCall: api.call }))
-vi.mock("./components/account-avatar", () => ({ AccountAvatar: () => <span data-testid="plush-avatar" /> }))
+vi.mock("./components/account-avatar", () => ({
+  AccountAvatar: () => {
+    api.avatarRendered()
+    return <span data-testid="plush-avatar" />
+  },
+}))
 const session = (id: string, needsAttention = false): HudSession => ({ id, title: `Session ${id}`, cwd: "/tmp", status: "idle", attention: needsAttention ? "mayNeedYou" : null, needsAttention, eventKey: `account/${id}/1`, epoch: 1, tokens: null })
 let view: HudView
 beforeEach(() => {
@@ -14,6 +19,26 @@ beforeEach(() => {
   api.call.mockReset().mockImplementation((method: string) => Promise.resolve(method === "hud_snapshot" ? view : undefined))
 })
 afterEach(cleanup)
+it("keeps unchanged refreshes idle and still displays new attention", async () => {
+  vi.useFakeTimers()
+  try {
+    render(<Hud />)
+    await act(async () => {})
+    expect(screen.getByRole("button", { name: "Fixture: Open" })).toBeVisible()
+    api.avatarRendered.mockClear()
+
+    view = structuredClone(view)
+    await act(() => vi.advanceTimersByTimeAsync(1500))
+    expect(api.call).toHaveBeenCalledTimes(3)
+    expect(api.avatarRendered).not.toHaveBeenCalled()
+
+    view.accounts[0].sessions = [session("one", true)]
+    await act(() => vi.advanceTimersByTimeAsync(1500))
+    expect(screen.getByRole("button", { name: "Open chat needing attention" })).toBeVisible()
+  } finally {
+    vi.useRealTimers()
+  }
+})
 it("hovers for quota and clicks to open the exact saved account/chat", async () => {
   render(<Hud />)
   const avatar = await screen.findByRole("button", { name: "Fixture: Open" })

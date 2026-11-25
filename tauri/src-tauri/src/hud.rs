@@ -61,6 +61,13 @@ pub fn hud_snapshot(app: tauri::AppHandle, state: State<'_, HudState>) -> Result
             .filter(|snapshot| snapshot.client == "desktop"),
     );
     snapshots.sort_by_key(|snapshot| (snapshot.start_time, snapshot.pid));
+    let mut snapshots_by_profile = BTreeMap::<_, Vec<_>>::new();
+    for snapshot in &snapshots {
+        snapshots_by_profile
+            .entry(snapshot.profile_id.as_str())
+            .or_default()
+            .push(snapshot);
+    }
     let acknowledgments = state
         .acknowledgments
         .lock()
@@ -94,10 +101,7 @@ pub fn hud_snapshot(app: tauri::AppHandle, state: State<'_, HudState>) -> Result
                     },
                 );
             }
-            for snapshot in snapshots
-                .iter()
-                .filter(|snapshot| snapshot.profile_id == id)
-            {
+            for snapshot in snapshots_by_profile.get(id.as_str()).into_iter().flatten() {
                 if snapshot.limits.is_some() {
                     limits = snapshot.limits.clone();
                 }
