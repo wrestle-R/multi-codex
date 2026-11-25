@@ -2,6 +2,12 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.8.10", stability: "stable" as const, publishedAt: "2026-11-25T06:27:41Z", title: "Quieter Orbit and safer updates", highlights: [
+    "Orbit skips redraws when accounts and sessions stay the same.",
+    "Private launches clear inherited provider overrides, and the updater checks the exact signed release package for this platform.",
+    "Download the installers, signatures and checksums together in the release ZIP.",
+  ] },
+
   { tag: "v1.8.9", stability: "stable" as const, publishedAt: "2026-11-24T17:02:58Z", title: "Mac Quit and Codex history import", highlights: [
     "Dock Quit and Command-Q exit on Mac. Closing the launcher keeps the menu bar running.",
     "Copy local chats and projects from regular Codex into a managed profile while keeping its sign-in and existing chats.",
