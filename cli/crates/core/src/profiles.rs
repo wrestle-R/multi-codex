@@ -271,6 +271,10 @@ impl<S: SecretStore, R: AuthRecognizer> ProfileService<S, R> {
         Ok(service)
     }
 
+    pub fn list_profile_metadata(&self) -> Result<Vec<ProfileMetadata>> {
+        self.load_metadata()
+    }
+
     pub fn list_profiles(&self) -> Result<Vec<ProfileView>> {
         let mut profiles = self.load_metadata()?;
         profiles.sort_by_key(|profile| std::cmp::Reverse(profile.updated_at));

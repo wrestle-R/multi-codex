@@ -83,6 +83,13 @@ print("Visible native window confirmed")
                     except subprocess.TimeoutExpired:
                         process.kill()
                         process.wait(timeout=5)
+                for row in subprocess.check_output(["/bin/ps", "-axo", "pid=,command="], text=True).splitlines():
+                    fields = row.split(maxsplit=1)
+                    if len(fields) == 2 and fields[1] == f"{binary} --menu-bar-avatars":
+                        try:
+                            os.kill(int(fields[0]), 15)
+                        except ProcessLookupError:
+                            pass
         for path, expected in fixtures.items():
             assert path.read_bytes() == expected, f"Startup changed fixture: {path.name}"
     (report_dir / "result.json").write_text(json.dumps({

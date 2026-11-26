@@ -1,0 +1,7 @@
+{
+  "identifier": "menu-bar",
+  "description": "Event subscription for the macOS menu bar popover",
+  "platforms": ["macOS"],
+  "windows": ["menu-bar"],
+  "permissions": ["core:event:allow-listen", "core:event:allow-unlisten"]
+}

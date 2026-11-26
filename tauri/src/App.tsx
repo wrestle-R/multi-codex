@@ -1,4 +1,6 @@
+import { MenuBarAvatars } from "./components/menu-bar-avatars"
 import { useBalancedAvatars } from "./lib/avatar-templates"
+import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { orderProfilesByPlan } from "./lib/profile-order"
 import { useProfileLimits } from "./components/use-profile-limits"
@@ -467,6 +469,45 @@ export default function App() {
     return () => { disposed = true; stops.forEach(stop => stop()) }
   }, [])
 
+  useEffect(() => {
+    const native = window.__TAURI_INTERNALS__ as { invoke?: unknown } | undefined
+    if (loading || launchTargets?.platform !== "macos" || typeof native?.invoke !== "function") return
+    let active = true
+    const drain = async () => {
+      if (!active) return
+      try {
+        const actions = await invoke<string[]>("take_menu_bar_actions")
+        for (const action of actions) {
+          if (action === "add") menuActions.current.add()
+          if (action === "refresh") void menuActions.current.refresh()
+          if (action === "hud-settings") setShowHudSettings(true)
+          if (action === "hud-toggle") void invoke("hud_toggle")
+          if (action.startsWith("launch:")) {
+            const [, target, id] = action.split(":")
+            if (target !== "vscode" && target !== "t3" && target !== "cli") continue
+            const account = (await listProfiles()).find(profile => profile.id === id)
+            if (account) await menuActions.current.launch(account, target)
+          }
+        }
+      } catch (error) {
+        console.error("Could not handle menu bar action", error)
+      }
+    }
+    let unsubscribe: (() => void) | undefined
+    void listen("menu-bar-action", () => void drain()).then(unlisten => {
+      if (!active) {
+        unlisten()
+        return
+      }
+      unsubscribe = unlisten
+      void drain()
+    }).catch(error => console.error("Could not listen for menu bar actions", error))
+    return () => {
+      active = false
+      unsubscribe?.()
+    }
+  }, [loading, launchTargets?.platform])
+
   async function completeFolderSelection(workspace: string) {
     if (!folderRequest) return
     const request = folderRequest
@@ -592,6 +633,9 @@ export default function App() {
 
   return (
     <main className="app-shell" aria-busy={updating}>
+      {launchTargets?.platform === "macos" && Boolean(window.__TAURI_INTERNALS__) && !loading && !pageError
+        && !(import.meta.env.DEV && new URLSearchParams(location.search).get("demo") === "1")
+        && <MenuBarAvatars ids={profiles.map(profile => profile.id)} />}
       {preferences.notifications && preferences.expiringResets && <ResetExpiryReminder profiles={profiles.filter(profile => !preferences.mutedAccounts.includes(profile.id))} checks={limitChecks} ready={!loading && !pageError && !refreshingAllLimits && !showReleaseNotes} onView={group => setCreditsTarget({ profile: group.profile, limits: group.limits })} />}
       <header className="topbar">
         <div className="topbar-inner">

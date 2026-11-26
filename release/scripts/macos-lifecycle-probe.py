@@ -13,6 +13,8 @@ import tempfile
 import time
 import uuid
 
+from macos_menu_ui import MascotMenu, mascot_pid, stop_mascot
+
 application = Path(sys.argv[1]).resolve(strict=True)
 variant = os.environ.get("MAC_LIFECYCLE_VARIANT", "candidate")
 evidence = Path(os.environ["RUNNER_TEMP"]) / "hud-backend-evidence" / variant
@@ -187,7 +189,15 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
     def hud_count():
         return int(ui('return count of (windows whose name is "Multi Codex Orbit")'))
 
+    has_mascot_menu = tuple(map(int, report["version"].split("."))) >= (1, 9, 0)
+    mascot = MascotMenu(binary, applescript)
+
+    def press_mascot(label):
+        wait_for(f"menu action {label}", lambda: mascot.button(label, press=True))
+
     def menu_icon_count():
+        if has_mascot_menu:
+            return mascot.icon_count()
         return int(ui("return count of menu bar items of menu bar 2"))
 
     def process_ids():
@@ -202,10 +212,20 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         ]
 
     def open_menu():
+        if has_mascot_menu:
+            mascot.open()
+            return
         ui("click menu bar item 1 of menu bar 2")
 
     def account_menu_once():
         open_menu()
+        if has_mascot_menu:
+            wait_for("Codex account action", lambda: mascot.button("Open Codex as Disposable lifecycle account"))
+            press_mascot("More ways to open Disposable lifecycle account")
+            for label in ("Open VS Code", "Open CLI"):
+                wait_for(f"installed action {label}", lambda: mascot.button(label))
+            mascot.dismiss()
+            return
         ui(
             'click menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2'
         )
@@ -251,9 +271,10 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
     def reopen(kind):
         if kind == "menu-bar":
             open_menu()
-            ui(
-                'click menu item "Open Multi Codex" of menu 1 of menu bar item 1 of menu bar 2'
-            )
+            if has_mascot_menu:
+                press_mascot("Open Multi Codex")
+            else:
+                ui('click menu item "Open Multi Codex" of menu 1 of menu bar item 1 of menu bar 2')
         else:
             # LaunchServices is the native Dock reopen route for the registered
             # packaged bundle; also assert no second process/window is created.
@@ -313,12 +334,12 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         # Exercise a real account menu callback. It must still create the
         # isolated editor instance after repeated close/reopen cycles.
         open_menu()
-        ui(
-            'click menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2'
-        )
-        ui(
-            'click menu item "Open VS Code" of menu 1 of menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2'
-        )
+        if has_mascot_menu:
+            press_mascot("More ways to open Disposable lifecycle account")
+            press_mascot("Open VS Code")
+        else:
+            ui('click menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2')
+            ui('click menu item "Open VS Code" of menu 1 of menu item "Disposable lifecycle account" of menu 1 of menu bar item 1 of menu bar 2')
 
         foreground()
         # Wait for the actual enabled folder action. A fixed sleep followed by
@@ -342,9 +363,10 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
                 start()
             if quit_kind == "menu-bar":
                 open_menu()
-                ui(
-                    'click menu item "Quit Multi Codex" of menu 1 of menu bar item 1 of menu bar 2'
-                )
+                if has_mascot_menu:
+                    press_mascot("Quit Multi Codex")
+                else:
+                    ui('click menu item "Quit Multi Codex" of menu 1 of menu bar item 1 of menu bar 2')
             elif quit_kind == "command-q":
                 foreground()
                 ui('keystroke "q" using command down')
@@ -364,6 +386,11 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
                 raise RuntimeError(f"{quit_kind} left the application running") from error
             if status != 0 or process_ids():
                 raise RuntimeError(f"{quit_kind} did not exit cleanly")
+            if has_mascot_menu:
+                if quit_kind == "menu-bar":
+                    wait_for("explicit Quit stops the mascot", lambda: mascot_pid(binary) is None)
+                elif mascot_pid(binary) is None:
+                    raise RuntimeError(f"{quit_kind} stopped the menu bar mascot")
             report["checks"].append(
                 {"quit": quit_kind, "cleanExit": True, "noDuplicateProcess": True}
             )
@@ -394,6 +421,8 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+        if has_mascot_menu:
+            stop_mascot(binary)
         # Stop only editor/engine processes whose command names this private
         # fixture. No global application Quit or account sign-out is used.
         listing = subprocess.check_output(

@@ -1,0 +1,72 @@
+html:has(.menu-bar-panel), body:has(.menu-bar-panel), body:has(.menu-bar-panel) #root {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.menu-bar-panel {
+  color-scheme: dark;
+  --grid-ink: oklch(0.8109 0 0);
+  --menu-ink: #f2f1f4;
+  --menu-muted: #b8b5bf;
+  --menu-surface: oklch(0.1797 0.0043 308.1928);
+  --menu-hover: #2c2a30;
+  --menu-focus: #d4baff;
+  --menu-divider: #37343c;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background-color: var(--menu-surface);
+  color: var(--menu-ink);
+  font: 400 13px/1.25 "Outfit", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.menu-bar-panel:focus { outline: none; }
+.menu-bar-heading { padding: 3px 9px 5px; }
+.menu-bar-heading h1 {
+  margin: 0;
+  font: 600 16px/1.25 "Bricolage Grotesque", system-ui, sans-serif;
+}
+
+.menu-bar-accounts { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.menu-bar-accounts p { margin: 9px; color: var(--menu-muted); }
+.menu-bar-controls { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--menu-divider); }
+.menu-bar-panel button {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  cursor: pointer;
+}
+.menu-bar-panel button:not(:disabled):hover, .menu-bar-panel button:focus-visible { background: var(--menu-hover); }
+.menu-bar-panel button:focus-visible { outline: 2px solid var(--menu-focus); outline-offset: -2px; }
+.menu-bar-account { min-height: 46px; }
+.menu-bar-panel button:disabled { cursor: default; color: var(--menu-muted); }
+.menu-bar-controls button { min-height: 29px; }
+.menu-bar-controls svg, .menu-bar-more { flex: none; color: var(--menu-muted); }
+.menu-bar-avatar { display: grid; place-items: center; width: 40px; height: 38px; flex: none; }
+.menu-bar-avatar img { display: block; max-width: 40px; max-height: 36px; }
+.menu-bar-avatar span { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--menu-hover); }
+.menu-bar-account-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+
+.menu-bar-account-row { display: flex; align-items: center; gap: 2px; }
+.menu-bar-account-row .menu-bar-account { flex: 1; min-width: 0; }
+.menu-bar-account-row .menu-bar-more { width: 30px; height: 32px; justify-content: center; padding: 0; }
+.menu-bar-targets { padding: 0 0 5px 40px; }
+.menu-bar-targets button { min-height: 30px; }
