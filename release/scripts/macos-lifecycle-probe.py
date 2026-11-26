@@ -407,9 +407,9 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         if report["processAlive"]:
             if has_mascot_menu:
                 try:
-                    report["accessibleMascotButtons"] = mascot.button_labels()
-                except (RuntimeError, subprocess.TimeoutExpired) as diagnostic_error:
-                    report["mascotAccessibilityError"] = str(diagnostic_error)
+                    report["renderedMascotButtons"] = mascot.buttons()
+                except (OSError, ValueError) as diagnostic_error:
+                    report["mascotButtonDiagnosticError"] = str(diagnostic_error)
             try:
                 report["accessibleWindowNames"] = ui("return name of every window")
                 subprocess.run(

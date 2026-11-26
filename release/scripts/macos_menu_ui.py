@@ -1,4 +1,4 @@
-"""Shared AppleScript helpers for the packaged mascot and its dropdown."""
+"""Native click helpers for the packaged mascot and its dropdown."""
 
 import json
 import os
@@ -28,6 +28,7 @@ class MascotMenu:
         self.binary = binary
         self.applescript = applescript
         self.log = log
+        self.button_log_offset = 0
 
     def ui(self, command):
         if (pid := mascot_pid(self.binary)) is None:
@@ -55,56 +56,43 @@ class MascotMenu:
         point = self.location()
         if point is None:
             raise RuntimeError("The helper did not report a visible mascot")
-        # Post both mouse events. Tauri opens the popover on mouse-up; the
-        # accessibility action on a status item does not guarantee that event.
+        self.button_log_offset = self.log.stat().st_size
+        self._click(point)
+
+    @staticmethod
+    def _click(point):
         code = """
             import CoreGraphics
             let args = CommandLine.arguments
             let point = CGPoint(x: Double(args[1])!, y: Double(args[2])!)
             for type in [CGEventType.leftMouseDown, .leftMouseUp] {
-                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point,
-                        mouseButton: .left)?.post(tap: .cghidEventTap)
+                let event = CGEvent(mouseEventSource: nil, mouseType: type,
+                                    mouseCursorPosition: point, mouseButton: .left)!
+                event.setIntegerValueField(.mouseEventClickState, value: 1)
+                event.post(tap: .cghidEventTap)
             }
         """
         subprocess.run(["/usr/bin/swift", "-e", code, *map(str, point)], check=True, timeout=20)
 
-    def _query_buttons(self, label, press=False):
-        command = 'perform action "AXPress" of itemRef' if press else ''
-        quoted = json.dumps(label or "", ensure_ascii=False)
-        return self.ui(f"""
-            set matches to {{}}
-            set elements to entire contents of window "Multi Codex Menu"
-            repeat with itemRef in elements
-                set itemRole to missing value
-                try
-                    set itemRole to role of itemRef
-                end try
-                if itemRole is "AXButton" then
-                    -- WebKit may expose an aria-label only as AXDescription.
-                    -- Read each attribute independently so a missing title is harmless.
-                    repeat with attributeName in {{"AXTitle", "AXDescription"}}
-                        set itemLabel to missing value
-                        try
-                            set itemLabel to value of attribute (contents of attributeName) of itemRef
-                        end try
-                        if itemLabel is not missing value and itemLabel is not "" then
-                            if itemLabel is {quoted} then
-                                {command}
-                                return "found"
-                            end if
-                            set end of matches to itemLabel
-                        end if
-                    end repeat
-                end if
-            end repeat
-            return matches
-        """)
+    def buttons(self):
+        pid = mascot_pid(self.binary)
+        prefix = f"Multi Codex mascot buttons: {pid} "
+        with self.log.open("rb") as log:
+            log.seek(self.button_log_offset)
+            lines = log.read().decode(errors="replace").splitlines(keepends=True)
+        for line in reversed(lines):
+            if line.startswith(prefix) and line.endswith("\n"):
+                return json.loads(line.removeprefix(prefix))
+        return {}
 
     def button(self, label, press=False):
-        return self._query_buttons(label, press) == "found"
-
-    def button_labels(self):
-        return self._query_buttons(None)
+        point = self.buttons().get(label)
+        if point is None:
+            return False
+        if press:
+            self.button_log_offset = self.log.stat().st_size
+            self._click(point)
+        return True
 
     def dismiss(self):
         self.ui("key code 53")

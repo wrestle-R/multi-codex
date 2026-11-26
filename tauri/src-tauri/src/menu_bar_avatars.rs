@@ -22,6 +22,7 @@ const TRAY: &str = "menu-bar-mascot";
 const POPOVER: &str = "menu-bar";
 const ACTION: &str = "--menu-bar-action";
 const CACHE: &str = "avatars.json";
+const PROBE: &str = "MULTI_CODEX_MENU_PROBE";
 type Icons = BTreeMap<String, String>;
 
 #[derive(Default)]
@@ -108,6 +109,7 @@ struct MenuContents {
     accounts: Vec<Account>,
     codex_available: bool,
     targets: Vec<(&'static str, &'static str)>,
+    probe: bool,
 }
 
 #[tauri::command]
@@ -139,7 +141,35 @@ fn menu_bar_accounts(app: AppHandle, window: tauri::WebviewWindow) -> Result<Men
         accounts,
         codex_available: installed.standalone_installed,
         targets,
+        probe: std::env::var_os(PROBE).is_some(),
     })
+}
+
+#[tauri::command]
+fn menu_bar_probe_buttons(
+    window: tauri::WebviewWindow,
+    mut buttons: BTreeMap<String, (f64, f64)>,
+) -> Result<(), String> {
+    if window.label() != POPOVER || std::env::var_os(PROBE).is_none() {
+        return Err("Menu bar probe is disabled".into());
+    }
+    if window.is_visible().map_err(|error| error.to_string())? {
+        let scale = window.scale_factor().map_err(|error| error.to_string())?;
+        let origin = window
+            .inner_position()
+            .map_err(|error| error.to_string())?
+            .to_logical::<f64>(scale);
+        for (x, y) in buttons.values_mut() {
+            *x += origin.x;
+            *y += origin.y;
+        }
+        let buttons = serde_json::to_string(&buttons).map_err(|error| error.to_string())?;
+        println!(
+            "Multi Codex mascot buttons: {} {buttons}",
+            std::process::id()
+        );
+    }
+    Ok(())
 }
 
 pub fn launcher_action(mut args: impl Iterator<Item = String>) -> Option<String> {
@@ -336,7 +366,7 @@ fn probe_mascot_location(app: &AppHandle) -> Option<(f64, f64)> {
 fn watch(app: AppHandle, service: Arc<AppService>) {
     let mut previous = None;
     let mut previous_location = None;
-    let report_geometry = std::env::var_os("MULTI_CODEX_MENU_PROBE").is_some();
+    let report_geometry = std::env::var_os(PROBE).is_some();
     loop {
         if report_geometry {
             let location = probe_mascot_location(&app);
@@ -384,7 +414,8 @@ pub fn run(mut context: tauri::Context<tauri::Wry>) -> tauri::Result<()> {
         .invoke_handler(tauri::generate_handler![
             menu_bar_accounts,
             menu_bar_action,
-            menu_bar_expand
+            menu_bar_expand,
+            menu_bar_probe_buttons
         ])
         .on_window_event(|window, event| {
             if window.label() == POPOVER && matches!(event, tauri::WindowEvent::Focused(false)) {
