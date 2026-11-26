@@ -1,4 +1,4 @@
-"""Shared AppleScript helpers for the packaged mascot and its dropdown."""
+"""Native click helpers for the packaged mascot and its dropdown."""
 
 import json
 import os
@@ -24,9 +24,11 @@ def stop_mascot(binary):
 
 
 class MascotMenu:
-    def __init__(self, binary, applescript):
+    def __init__(self, binary, applescript, log):
         self.binary = binary
         self.applescript = applescript
+        self.log = log
+        self.button_log_offset = 0
 
     def ui(self, command):
         if (pid := mascot_pid(self.binary)) is None:
@@ -36,47 +38,61 @@ class MascotMenu:
             + command + '\nend tell'
         )
 
+    def location(self):
+        pid = mascot_pid(self.binary)
+        prefix = f"Multi Codex mascot location: {pid} "
+        for line in reversed(self.log.read_text(errors="replace").splitlines()):
+            if line.startswith(prefix):
+                point = line.removeprefix(prefix)
+                if point == "unavailable":
+                    return None
+                return tuple(map(float, point.split()))
+        return None
+
     def icon_count(self):
-        return int(self.ui("""
-            set iconCount to 0
-            repeat with barRef in menu bars
-                set iconCount to iconCount + (count of menu bar items of barRef)
-            end repeat
-            return iconCount
-        """))
+        return int(self.location() is not None)
 
     def open(self):
-        self.ui("""
-            if exists window "Multi Codex Menu" then
-                try
-                    if visible of window "Multi Codex Menu" then return
-                end try
-            end if
-            repeat with barRef in menu bars
-                if (count of menu bar items of barRef) is 1 then
-                    click menu bar item 1 of barRef
-                    return
-                end if
-            end repeat
-            error "Could not find the mascot"
-        """)
+        point = self.location()
+        if point is None:
+            raise RuntimeError("The helper did not report a visible mascot")
+        self.button_log_offset = self.log.stat().st_size
+        self._click(point)
+
+    @staticmethod
+    def _click(point):
+        code = """
+            import CoreGraphics
+            let args = CommandLine.arguments
+            let point = CGPoint(x: Double(args[1])!, y: Double(args[2])!)
+            for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+                let event = CGEvent(mouseEventSource: nil, mouseType: type,
+                                    mouseCursorPosition: point, mouseButton: .left)!
+                event.setIntegerValueField(.mouseEventClickState, value: 1)
+                event.post(tap: .cghidEventTap)
+            }
+        """
+        subprocess.run(["/usr/bin/swift", "-e", code, *map(str, point)], check=True, timeout=20)
+
+    def buttons(self):
+        pid = mascot_pid(self.binary)
+        prefix = f"Multi Codex mascot buttons: {pid} "
+        with self.log.open("rb") as log:
+            log.seek(self.button_log_offset)
+            lines = log.read().decode(errors="replace").splitlines(keepends=True)
+        for line in reversed(lines):
+            if line.startswith(prefix) and line.endswith("\n"):
+                return json.loads(line.removeprefix(prefix))
+        return {}
 
     def button(self, label, press=False):
-        command = 'perform action "AXPress" of itemRef' if press else 'return true'
-        quoted = json.dumps(label, ensure_ascii=False)
-        return self.ui(f"""
-            repeat with itemRef in (entire contents of window "Multi Codex Menu")
-                try
-                    if role of itemRef is "AXButton" then
-                        if name of itemRef is {quoted} or description of itemRef is {quoted} then
-                            {command}
-                            return true
-                        end if
-                    end if
-                end try
-            end repeat
-            return false
-        """) == "true"
+        point = self.buttons().get(label)
+        if point is None:
+            return False
+        if press:
+            self.button_log_offset = self.log.stat().st_size
+            self._click(point)
+        return True
 
     def dismiss(self):
         self.ui("key code 53")

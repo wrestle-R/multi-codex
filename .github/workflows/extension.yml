@@ -77,6 +77,8 @@ jobs:
       - name: Install pinned official VS Code and Codex into disposable directories
         env:
           VSCODE_PLATFORM: ${{ matrix.vscode }}
+          CODEX_PLATFORM: ${{ matrix.target }}
+          CODEX_VERSION: '26.1002.51308'
         run: |
           curl --fail --location --retry 3 --max-time 300 "https://update.code.visualstudio.com/1.140.0/$VSCODE_PLATFORM/stable" -o "$RUNNER_TEMP/vscode.archive"
           mkdir "$RUNNER_TEMP/vscode" "$RUNNER_TEMP/codex-extensions"
@@ -91,11 +93,13 @@ jobs:
             code_cli="$RUNNER_TEMP/vscode/bin/code"
           fi
           test -x "$code_binary"
-          for attempt in 1 2 3; do
-            if "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --install-extension openai.chatgpt@26.1002.51308 --force; then break; fi
-            if [[ "$attempt" == 3 ]]; then exit 1; fi
-            sleep 5
-          done
+          # Install the official platform VSIX without VS Code's marketplace discovery request.
+          codex_package="$RUNNER_TEMP/codex.vsix"
+          curl --fail --location --retry 3 --retry-all-errors --max-time 300 \
+            "https://openai.gallery.vsassets.io/_apis/public/gallery/publisher/openai/extension/chatgpt/$CODEX_VERSION/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage?targetPlatform=$CODEX_PLATFORM" \
+            -o "$codex_package"
+          "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --install-extension "$codex_package" --force
+          "$code_cli" --user-data-dir "$RUNNER_TEMP/install-profile" --extensions-dir "$RUNNER_TEMP/codex-extensions" --list-extensions --show-versions | grep -Fx "openai.chatgpt@$CODEX_VERSION"
           codex_extension=$(find "$RUNNER_TEMP/codex-extensions" -maxdepth 1 -type d -name 'openai.chatgpt-*' -print -quit)
           test -n "$codex_extension"
           export codex_extension

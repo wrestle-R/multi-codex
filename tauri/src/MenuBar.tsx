@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import "./MenuBar.css"
 
 type Account = { id: string; name: string; icon: string | null }
-type MenuContents = { accounts: Account[]; codex_available: boolean; targets: [string, string][] }
+type MenuContents = { accounts: Account[]; codex_available: boolean; targets: [string, string][]; probe: boolean }
 const controls = [
   { action: "open", label: "Open Multi Codex", icon: DashboardSquare01Icon },
   { action: "add", label: "Add account", icon: PlusSignIcon },
@@ -48,6 +48,35 @@ export default function MenuBar() {
       window.removeEventListener("keydown", dismiss)
     }
   }, [])
+
+  useEffect(() => {
+    if (!contents?.probe) return
+    let frame = 0
+    function reportButtons() {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const buttons: Record<string, [number, number]> = {}
+        panel.current?.querySelectorAll("button:not(:disabled)").forEach(button => {
+          const rect = button.getBoundingClientRect()
+          const x = rect.left + rect.width / 2
+          const y = rect.top + rect.height / 2
+          const label = button.getAttribute("aria-label") ?? button.textContent?.trim()
+          if (label && button.contains(document.elementFromPoint(x, y))) {
+            buttons[label] = [x, y]
+          }
+        })
+        void invoke("menu_bar_probe_buttons", { buttons }).catch(console.error)
+      })
+    }
+    reportButtons()
+    window.addEventListener("resize", reportButtons)
+    window.addEventListener("focus", reportButtons)
+    return () => {
+      window.removeEventListener("resize", reportButtons)
+      window.removeEventListener("focus", reportButtons)
+      cancelAnimationFrame(frame)
+    }
+  }, [contents, expanded])
 
   function toggleTargets(id: string) {
     const next = expanded === id ? null : id
