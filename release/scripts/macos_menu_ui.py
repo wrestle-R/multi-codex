@@ -68,22 +68,43 @@ class MascotMenu:
         """
         subprocess.run(["/usr/bin/swift", "-e", code, *map(str, point)], check=True, timeout=20)
 
-    def button(self, label, press=False):
-        command = 'perform action "AXPress" of itemRef' if press else 'return true'
-        quoted = json.dumps(label, ensure_ascii=False)
+    def _query_buttons(self, label, press=False):
+        command = 'perform action "AXPress" of itemRef' if press else ''
+        quoted = json.dumps(label or "", ensure_ascii=False)
         return self.ui(f"""
-            repeat with itemRef in (entire contents of window "Multi Codex Menu")
+            set matches to {{}}
+            set elements to entire contents of window "Multi Codex Menu"
+            repeat with itemRef in elements
+                set itemRole to missing value
                 try
-                    if role of itemRef is "AXButton" then
-                        if name of itemRef is {quoted} or description of itemRef is {quoted} then
-                            {command}
-                            return true
-                        end if
-                    end if
+                    set itemRole to role of itemRef
                 end try
+                if itemRole is "AXButton" then
+                    -- WebKit may expose an aria-label only as AXDescription.
+                    -- Read each attribute independently so a missing title is harmless.
+                    repeat with attributeName in {{"AXTitle", "AXDescription"}}
+                        set itemLabel to missing value
+                        try
+                            set itemLabel to value of attribute (contents of attributeName) of itemRef
+                        end try
+                        if itemLabel is not missing value and itemLabel is not "" then
+                            if itemLabel is {quoted} then
+                                {command}
+                                return "found"
+                            end if
+                            set end of matches to itemLabel
+                        end if
+                    end repeat
+                end if
             end repeat
-            return false
-        """) == "true"
+            return matches
+        """)
+
+    def button(self, label, press=False):
+        return self._query_buttons(label, press) == "found"
+
+    def button_labels(self):
+        return self._query_buttons(None)
 
     def dismiss(self):
         self.ui("key code 53")
