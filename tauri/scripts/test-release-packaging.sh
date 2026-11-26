@@ -70,6 +70,12 @@ fi
 WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 "$APPDIR/AppRun" --version >/dev/null
 test -f "$APPDIR/multi-codex-desktop.png"
 
+# linuxdeploy can already link the root icon to the packaged icon.
+ln -sf "usr/share/icons/hicolor/128x128/apps/multi-codex-desktop.png" "$APPDIR/multi-codex-desktop.png"
+"$ROOT_DIR/scripts/build-linux-release.sh" --patch-appdir "$APPDIR"
+test -L "$APPDIR/multi-codex-desktop.png"
+test "$APPDIR/multi-codex-desktop.png" -ef "$APPDIR/usr/share/icons/hicolor/128x128/apps/multi-codex-desktop.png"
+
 ARTIFACT_DIR="$TMP_DIR/artifacts"
 mkdir -p "$ARTIFACT_DIR/deb" "$ARTIFACT_DIR/rpm"
 touch "$ARTIFACT_DIR/deb/Multi Codex_${VERSION}_amd64.deb"

@@ -14,7 +14,7 @@ patch_appdir() {
     if [[ -d "$candidate" ]]; then webkit_dir="$candidate"; break; fi
   done
   [[ -n "$webkit_dir" ]] || { echo "Bundled WebKit helper directory not found" >&2; exit 1; }
-  local desktop_file root_desktop icon_name icon_path
+  local desktop_file root_desktop icon_name icon_path root_icon
   [[ -d "$appdir" ]] || { echo "AppDir not found: $appdir" >&2; exit 1; }
   [[ -x "$app_bin" ]] || { echo "Multi Codex binary not found: $app_bin" >&2; exit 1; }
   [[ -x "$webkit_dir/WebKitNetworkProcess" ]] || { echo "Bundled WebKit network helper not found: $webkit_dir/WebKitNetworkProcess" >&2; exit 1; }
@@ -46,7 +46,10 @@ APP_RUN
     icon_name="$(awk -F= '$1 == "Icon" { print $2; exit }' "$desktop_file")"
     if [[ -n "$icon_name" && "$icon_name" != /* ]]; then
       icon_path="$(find "$appdir/usr/share/icons" -type f \( -name "$icon_name.png" -o -name "$icon_name.svg" -o -name "$icon_name.xpm" \) | sort | head -n 1)"
-      [[ -z "$icon_path" ]] || cp -f "$icon_path" "$appdir/$(basename "$icon_path")"
+      if [[ -n "$icon_path" ]]; then
+        root_icon="$appdir/$(basename "$icon_path")"
+        [[ "$icon_path" -ef "$root_icon" ]] || cp -f "$icon_path" "$root_icon"
+      fi
     fi
   fi
 }
