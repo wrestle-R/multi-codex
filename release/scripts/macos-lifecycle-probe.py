@@ -120,6 +120,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         and key not in ("ELECTRON_RUN_AS_NODE", "NODE_OPTIONS")
     }
     env.update(
+        MULTI_CODEX_MENU_PROBE="1",
         CODEX_HOME=str(global_home),
         MULTI_CODEX_DATA_DIR=str(data),
         XDG_DATA_HOME=str(root / "xdg-data"),
@@ -190,7 +191,7 @@ with tempfile.TemporaryDirectory(prefix="Multi Codex lifecycle 測試 ") as temp
         return int(ui('return count of (windows whose name is "Multi Codex Orbit")'))
 
     has_mascot_menu = tuple(map(int, report["version"].split("."))) >= (1, 9, 0)
-    mascot = MascotMenu(binary, applescript)
+    mascot = MascotMenu(binary, applescript, evidence / "application.log")
 
     def press_mascot(label):
         wait_for(f"menu action {label}", lambda: mascot.button(label, press=True))

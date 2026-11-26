@@ -57,6 +57,7 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
            if not key.startswith(('CODEX_', 'VSCODE_', 'OPENAI_'))
            and key not in ('ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS')}
     env.update(HOME=str(home), XDG_DATA_HOME=str(home / 'data'), PATH='/usr/bin:/bin:/usr/sbin:/sbin')
+    env["MULTI_CODEX_MENU_PROBE"] = "1"
     with (report_dir / 'application.log').open('wb') as log:
         process = subprocess.Popen([str(app / 'Contents/MacOS' / binary_name)],
                                    env=env, stdout=log, stderr=subprocess.STDOUT)
@@ -68,7 +69,7 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
             return int(ui(process.pid, 'return count of windows'))
 
         binary = app / 'Contents/MacOS' / binary_name
-        menu = MascotMenu(binary, script)
+        menu = MascotMenu(binary, script, report_dir / "application.log")
 
         def menu_helper():
             return mascot_pid(binary)
@@ -86,7 +87,7 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
         helper = None
         try:
             wait_for('native main window', lambda: window_count() > 0)
-            wait_for('menu bar helper', menu_helper)
+            wait_for('visible menu bar mascot', menu.icon_count)
             helper = menu_helper()
             menu.open()
             expect_buttons(('Open Multi Codex', 'Open Codex as Menu test account',

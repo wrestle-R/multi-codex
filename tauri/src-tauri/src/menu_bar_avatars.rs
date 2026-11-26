@@ -315,7 +315,30 @@ fn toggle_popover(app: &AppHandle, anchor: tauri::Rect) -> tauri::Result<()> {
 
 fn watch(app: AppHandle, service: Arc<AppService>) {
     let mut previous = None;
+    let mut report_geometry = std::env::var_os("MULTI_CODEX_MENU_PROBE").is_some();
     loop {
+        if report_geometry {
+            if let Some(tray) = app.tray_by_id(TRAY) {
+                if let Ok(Some(rect)) = tray.rect() {
+                    let scale = app
+                        .primary_monitor()
+                        .ok()
+                        .flatten()
+                        .map_or(1.0, |monitor| monitor.scale_factor());
+                    let point = rect.position.to_logical::<f64>(scale);
+                    let size = rect.size.to_logical::<f64>(scale);
+                    if size.width > 0.0 && size.height > 0.0 {
+                        println!(
+                            "Multi Codex mascot location: {} {} {}",
+                            std::process::id(),
+                            point.x + size.width / 2.0,
+                            point.y + size.height / 2.0
+                        );
+                        report_geometry = false;
+                    }
+                }
+            }
+        }
         let icons = read_icons(&app);
         let mascot = service.list_profile_metadata().ok().and_then(|profiles| {
             profiles

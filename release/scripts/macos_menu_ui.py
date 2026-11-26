@@ -24,9 +24,10 @@ def stop_mascot(binary):
 
 
 class MascotMenu:
-    def __init__(self, binary, applescript):
+    def __init__(self, binary, applescript, log):
         self.binary = binary
         self.applescript = applescript
+        self.log = log
 
     def ui(self, command):
         if (pid := mascot_pid(self.binary)) is None:
@@ -36,30 +37,33 @@ class MascotMenu:
             + command + '\nend tell'
         )
 
+    def location(self):
+        pid = mascot_pid(self.binary)
+        prefix = f"Multi Codex mascot location: {pid} "
+        for line in reversed(self.log.read_text(errors="replace").splitlines()):
+            if line.startswith(prefix):
+                return tuple(map(float, line.removeprefix(prefix).split()))
+        return None
+
     def icon_count(self):
-        return int(self.ui("""
-            set iconCount to 0
-            repeat with barRef in menu bars
-                set iconCount to iconCount + (count of menu bar items of barRef)
-            end repeat
-            return iconCount
-        """))
+        return int(self.location() is not None)
 
     def open(self):
-        self.ui("""
-            if exists window "Multi Codex Menu" then
-                try
-                    if visible of window "Multi Codex Menu" then return
-                end try
-            end if
-            repeat with barRef in menu bars
-                if (count of menu bar items of barRef) is 1 then
-                    click menu bar item 1 of barRef
-                    return
-                end if
-            end repeat
-            error "Could not find the mascot"
-        """)
+        point = self.location()
+        if point is None:
+            raise RuntimeError("The helper did not report a visible mascot")
+        # Post both mouse events. Tauri opens the popover on mouse-up; the
+        # accessibility action on a status item does not guarantee that event.
+        code = """
+            import CoreGraphics
+            let args = CommandLine.arguments
+            let point = CGPoint(x: Double(args[1])!, y: Double(args[2])!)
+            for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+                CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point,
+                        mouseButton: .left)?.post(tap: .cghidEventTap)
+            }
+        """
+        subprocess.run(["/usr/bin/swift", "-e", code, *map(str, point)], check=True, timeout=20)
 
     def button(self, label, press=False):
         command = 'perform action "AXPress" of itemRef' if press else 'return true'
