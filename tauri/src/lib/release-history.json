@@ -1,5 +1,14 @@
 [
   {
+    "version": "1.9.0",
+    "title": "Orbit accounts in the Mac menu bar",
+    "highlights": [
+      "Open saved accounts from one Orbit mascot in the macOS menu bar.",
+      "Find account launch options, Orbit settings and usage refresh in the same dropdown.",
+      "Command-Q closes the launcher. Choose Quit Multi Codex in the dropdown to close both."
+    ]
+  },
+  {
     "version": "1.8.10",
     "date": "2026-11-25",
     "title": "Quieter Orbit and safer account launches",
