@@ -92,6 +92,20 @@ jobs:
           [[ " $ARCHS " == *" arm64 "* ]]
           [[ " $ARCHS " != *" x86_64 "* ]]
           python3 scripts/macos-smoke.py "$BINARY"
+      - name: Verify the packaged macOS launcher lifecycle
+        env:
+          MAC_LIFECYCLE_VARIANT: candidate
+        run: |
+          APP=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -maxdepth 1 -type d -name '*.app' -print -quit)
+          test -n "$APP"
+          ditto "$APP" '/Applications/Multi Codex.app'
+          python3 ../release/scripts/macos-lifecycle-probe.py '/Applications/Multi Codex.app'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-lifecycle-evidence
+          path: ${{ runner.temp }}/hud-backend-evidence/candidate/
+          if-no-files-found: ignore
       - name: Upload macOS startup evidence
         if: always()
         uses: actions/upload-artifact@v4

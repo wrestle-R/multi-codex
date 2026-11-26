@@ -42,7 +42,10 @@ class MascotMenu:
         prefix = f"Multi Codex mascot location: {pid} "
         for line in reversed(self.log.read_text(errors="replace").splitlines()):
             if line.startswith(prefix):
-                return tuple(map(float, line.removeprefix(prefix).split()))
+                point = line.removeprefix(prefix)
+                if point == "unavailable":
+                    return None
+                return tuple(map(float, point.split()))
         return None
 
     def icon_count(self):
