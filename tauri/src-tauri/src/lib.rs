@@ -153,6 +153,8 @@ mod account_menu;
 mod hud;
 mod hud_layer;
 mod hud_platform;
+#[cfg(target_os = "macos")]
+mod menu_bar_avatars;
 #[cfg(test)]
 use multi_codex_core::hud as hud_model;
 #[cfg(test)]
@@ -965,6 +967,21 @@ async fn install_desktop_integration(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[allow(unused_mut)]
+    let mut context = tauri::generate_context!();
+    #[cfg(target_os = "macos")]
+    if std::env::args_os().nth(1).as_deref()
+        == Some(std::ffi::OsStr::new(menu_bar_avatars::ARGUMENT))
+    {
+        if let Err(error) = menu_bar_avatars::run(context) {
+            eprintln!("Could not start menu bar avatars: {error}");
+        }
+        return;
+    }
+    #[cfg(target_os = "macos")]
+    if menu_bar_avatars::launcher_action(std::env::args().skip(1)).as_deref() == Some("quit") {
+        context.config_mut().app.windows.clear();
+    }
     // linuxdeploy's GTK hook can force XWayland. Hyprland's actual overlay
     // protocol requires the native Wayland backend, before GTK initializes.
     #[cfg(target_os = "linux")]
@@ -976,6 +993,14 @@ pub fn run() {
         // Claim the process slot before profile services, tray or Orbit are started.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             use tauri::Manager;
+            #[cfg(target_os = "macos")]
+            if let Some(action) = menu_bar_avatars::launcher_action(_args.into_iter().skip(1)) {
+                if matches!(action.as_str(), "quit" | "hud-toggle" | "refresh") {
+                    menu_bar_avatars::dispatch(app, action);
+                    return;
+                }
+                menu_bar_avatars::dispatch(app, action);
+            }
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
                 let _ = window.unminimize();
@@ -986,6 +1011,18 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             use tauri::Manager;
+            #[cfg(target_os = "macos")]
+            {
+                let action = menu_bar_avatars::launcher_action(std::env::args().skip(1));
+                if action.as_deref() == Some("quit") {
+                    app.handle().exit(0);
+                    return Ok(());
+                }
+                app.manage(menu_bar_avatars::PendingActions::default());
+                if let Some(action) = action {
+                    menu_bar_avatars::dispatch(app.handle(), action);
+                }
+            }
             let service = default_service().unwrap_or_else(|error| {
                 eprintln!("Multi Codex could not initialize: {error}");
                 std::process::exit(1);
@@ -1008,8 +1045,12 @@ pub fn run() {
                 let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/icon.png"))?;
                 window.set_icon(icon)?;
             }
-            #[cfg(any(target_os = "macos", target_os = "linux"))]
+            #[cfg(target_os = "linux")]
             account_menu::setup(app.handle())?;
+            #[cfg(target_os = "macos")]
+            if let Err(error) = menu_bar_avatars::start() {
+                eprintln!("Could not start the menu bar mascot: {error}");
+            }
             hud::setup(app.handle())?;
             let resource = app.path().resource_dir()?.join("managed-vscode/bridge");
             let service = Arc::clone(&app.state::<AppState>().service);
@@ -1022,6 +1063,10 @@ pub fn run() {
         })
         .on_window_event(lifecycle::on_window_event)
         .invoke_handler(tauri::generate_handler![
+            #[cfg(target_os = "macos")]
+            menu_bar_avatars::save_menu_bar_avatars,
+            #[cfg(target_os = "macos")]
+            menu_bar_avatars::take_menu_bar_actions,
             hud::hud_snapshot,
             hud::hud_save_settings,
             hud::hud_set_enabled,
@@ -1084,7 +1129,7 @@ pub fn run() {
             get_desktop_integration_status,
             install_desktop_integration,
         ])
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building Multi Codex");
     app.run(|_app, _event| {
         lifecycle::on_run_event(&_event);

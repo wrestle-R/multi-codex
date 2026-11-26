@@ -43,10 +43,13 @@
 html, body, #root { width: 100%; min-width: 320px; height: 100%; margin: 0; overflow: hidden; }
 body {
   color: var(--foreground);
-  background:
-    linear-gradient(color-mix(in oklab, var(--foreground) 3.5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in oklab, var(--foreground) 3.5%, transparent) 1px, transparent 1px),
-    var(--background);
+  background-color: var(--background);
+}
+body, .menu-bar-panel {
+  --grid-line: color-mix(in oklab, var(--grid-ink, var(--foreground)) 3.5%, transparent);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 button, input, textarea { font: inherit; }

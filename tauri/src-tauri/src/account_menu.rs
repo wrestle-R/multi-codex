@@ -1,11 +1,13 @@
 //! Native menu bar uses the same account and launch flow as the main window.
 use crate::launch_targets::LaunchTargets;
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 use crate::AppState;
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
+#[cfg(target_os = "linux")]
+use tauri::Emitter;
 #[cfg(any(target_os = "macos", target_os = "linux"))]
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 pub fn launch_actions(targets: &LaunchTargets) -> Vec<(&'static str, &'static str)> {
     let mut actions = Vec::new();
@@ -24,7 +26,7 @@ pub fn launch_actions(targets: &LaunchTargets) -> Vec<(&'static str, &'static st
     actions
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 pub fn menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let menu = Menu::new(app)?;
     menu.append(&MenuItem::with_id(
@@ -100,18 +102,12 @@ pub fn show(app: &tauri::AppHandle) {
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "linux")]
 pub fn setup(app: &tauri::AppHandle) -> tauri::Result<()> {
     let initial_menu = menu(app)?;
-    // macOS recolors template images. Linux tray hosts display the pixels as
-    // supplied, so a black template disappears against a dark panel.
-    #[cfg(target_os = "macos")]
-    let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/menu-bar.png"))?;
-    #[cfg(target_os = "linux")]
     let icon = tauri::image::Image::from_bytes(include_bytes!("../icons/32x32.png"))?;
     tauri::tray::TrayIconBuilder::with_id("accounts")
         .icon(icon)
-        .icon_as_template(cfg!(target_os = "macos"))
         .tooltip("Multi Codex")
         .menu(&initial_menu)
         .on_menu_event(|app, event| {

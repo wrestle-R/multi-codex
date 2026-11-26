@@ -8,10 +8,13 @@ import "@fontsource/outfit/latin-500.css"
 import "@fontsource/outfit/latin-600.css"
 import App from "./App"
 import Hud from "./Hud"
+import MenuBar from "./MenuBar"
+
+const view = new URLSearchParams(window.location.search).get("view")
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {new URLSearchParams(window.location.search).get("view") === "hud" ? <Hud /> : <App />}
+    {view === "hud" ? <Hud /> : view === "menu-bar" ? <MenuBar /> : <App />}
   </React.StrictMode>,
 )
 
