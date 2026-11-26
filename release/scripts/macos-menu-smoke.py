@@ -9,6 +9,8 @@ import sys
 import tempfile
 import time
 
+from macos_menu_ui import MascotMenu, mascot_pid, stop_mascot
+
 app = Path(sys.argv[1]).resolve()
 binary_name = subprocess.check_output([
     '/usr/libexec/PlistBuddy', '-c', 'Print :CFBundleExecutable',
@@ -65,46 +67,15 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
         def window_count():
             return int(ui(process.pid, 'return count of windows'))
 
+        binary = app / 'Contents/MacOS' / binary_name
+        menu = MascotMenu(binary, script)
+
         def menu_helper():
-            rows = subprocess.check_output(['ps', '-axo', 'pid=,command='], text=True).splitlines()
-            suffix = f'{app / "Contents/MacOS" / binary_name} --menu-bar-avatars'
-            return next((int(line.split(maxsplit=1)[0]) for line in rows
-                         if line.strip().split(maxsplit=1)[-1] == suffix), None)
-
-        def open_menu():
-            ui(helper, """
-                repeat with bar in menu bars
-                    if (count of menu bar items of bar) is 1 then
-                        click menu bar item 1 of bar
-                        return
-                    end if
-                end repeat
-                error "Could not find the mascot"
-            """)
-
-        def menu_button(label, press=False):
-            verb = 'click itemRef' if press else 'return true'
-            quoted = json.dumps(label)
-            return ui(helper, f"""
-                repeat with itemRef in (entire contents of window "Multi Codex Menu")
-                    try
-                        if role of itemRef is "AXButton" then
-                            if name of itemRef is {quoted} or description of itemRef is {quoted} then
-                                {verb}
-                                return true
-                            end if
-                        end if
-                    end try
-                end repeat
-                return false
-            """) == 'true'
+            return mascot_pid(binary)
 
         def expect_buttons(labels):
             for label in labels:
-                wait_for(f'menu button {label}', lambda: menu_button(label))
-
-        def dismiss_menu():
-            ui(helper, 'key code 53')
+                wait_for(f'menu button {label}', lambda: menu.button(label))
 
         def replace_metadata(contents):
             temporary_metadata = data / 'profiles.menu-test.tmp'
@@ -117,28 +88,28 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
             wait_for('native main window', lambda: window_count() > 0)
             wait_for('menu bar helper', menu_helper)
             helper = menu_helper()
-            open_menu()
+            menu.open()
             expect_buttons(('Open Multi Codex', 'Open Codex as Menu test account',
                             'Refresh all usage', 'Quit Multi Codex'))
-            assert menu_button('More ways to open Menu test account', press=True)
+            assert menu.button('More ways to open Menu test account', press=True)
             expect_buttons(('Open VS Code', 'Open CLI'))
-            dismiss_menu()
+            menu.dismiss()
             checks.append('Mascot opens the account switcher and installed launch targets')
 
             profiles[0]['name'] = 'Renamed menu account'
             replace_metadata(json.dumps(profiles).encode())
-            open_menu()
+            menu.open()
             expect_buttons(('Open Codex as Renamed menu account',))
-            dismiss_menu()
+            menu.dismiss()
             replace_metadata(metadata)
             checks.append('The dropdown reads saved account names when it opens')
 
             ui(process.pid, 'click first button of window 1 whose subrole is "AXCloseButton"')
             wait_for('close hiding the main window', lambda: window_count() == 0)
             assert process.poll() is None, 'Close exited the app'
-            open_menu()
+            menu.open()
             expect_buttons(('Open Multi Codex',))
-            assert menu_button('Open Multi Codex', press=True)
+            assert menu.button('Open Multi Codex', press=True)
             wait_for('menu reopening the same main window', lambda: window_count() > 0)
             checks.append('Close hides the window and the mascot reopens it in the same process')
 
@@ -152,9 +123,9 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
             ui(process.pid, 'keystroke "q" using command down')
             assert process.wait(timeout=15) == 0, 'Command-Q did not quit the launcher'
             assert menu_helper() == helper, 'Command-Q stopped the mascot'
-            open_menu()
+            menu.open()
             expect_buttons(('Open Codex as Menu test account', 'Quit Multi Codex'))
-            assert menu_button('Quit Multi Codex', press=True)
+            assert menu.button('Quit Multi Codex', press=True)
             wait_for('explicit quit stopping the menu bar helper', lambda: menu_helper() is None)
             checks.append('Command-Q leaves the mascot available and explicit Quit stops it')
             assert (data / 'profiles.json').read_bytes() == metadata
@@ -169,9 +140,8 @@ with tempfile.TemporaryDirectory(prefix='Multi Codex menu 測試 ') as temporary
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait(timeout=5)
-            if (leftover := menu_helper()) is not None:
-                os.kill(leftover, 15)
-                wait_for('disposable menu helper cleanup', lambda: menu_helper() is None)
+            stop_mascot(binary)
+            wait_for('disposable menu helper cleanup', lambda: menu_helper() is None)
 
 # Emit success only after the disposable home has been completely removed.
 result['disposableFixtureCleanup'] = True
