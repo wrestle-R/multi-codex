@@ -2,6 +2,12 @@
 // Full published notes are stored in content/releases and rendered on this website.
 // Draft validation candidates are excluded from this public history.
 export const releaseHistory = [
+  { tag: "v1.9.2", stability: "stable" as const, publishedAt: "2026-11-27T06:42:57Z", title: "Orbit in the Mac menu bar", highlights: [
+    "Open your saved accounts from one Orbit mascot in the macOS menu bar.",
+    "Find account launch options, Orbit settings and usage refresh in the same dropdown.",
+    "The mascot stays available after Command-Q. Choose Quit Multi Codex from the dropdown to close both.",
+  ] },
+
   { tag: "v1.8.10", stability: "stable" as const, publishedAt: "2026-11-25T06:27:41Z", title: "Quieter Orbit and safer updates", highlights: [
     "Orbit skips redraws when accounts and sessions stay the same.",
     "Private launches clear inherited provider overrides, and the updater checks the exact signed release package for this platform.",
@@ -172,6 +178,7 @@ export const releaseHistory = [
 // Group summaries describe the series as a whole; individual entries retain
 // their published versions, dates, anchors and website detail pages.
 const releaseSeries = [
+  { series: "1.9", title: "Orbit in the Mac menu bar", description: "Switch accounts and access Orbit controls from one mascot, even after quitting the launcher." },
   { series: "1.8", title: "T3 Code desktop", description: "Launch separate T3 Code account instances on Linux and Windows, with normal updates and standard launcher features on Mac." },
   { series: "1.7", title: "Orbit and reliable shared chats", description: "Desktop Orbiters, account alerts, configurable refresh, automatic festival outfits and complete native conversation handoff." },
   { series: "1.6", title: "Shared storage and accurate disk usage", description: "Share Codex packages and conversations across saved accounts, measure disk space accurately and keep storage controls compact." },

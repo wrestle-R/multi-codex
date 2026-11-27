@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "version": "1.9.2",
+  "extensionVersion": "0.3.1",
+  "stability": "stable",
+  "candidateSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+  "classification": "Persistent macOS Orbit account menu",
+  "releaseChecks": {
+    "linux-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936186",
+      "environment": "Ubuntu x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:20:52Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Build Linux packages"
+    },
+    "linux-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936186",
+      "environment": "Ubuntu x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:20:52Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify install and update of the exact Linux candidate"
+    },
+    "linux-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936186",
+      "environment": "Ubuntu x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:20:52Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify two isolated T3 desktop instances"
+    },
+    "macos-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936245",
+      "environment": "macOS 26 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:23:34Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Inspect and smoke-test Apple Silicon app bundle"
+    },
+    "macos-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936245",
+      "environment": "macOS 26 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:23:34Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify install and update of the exact Mac candidate"
+    },
+    "macos-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936245",
+      "environment": "macOS 26 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:23:34Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify production standalone launch and restart with long private paths"
+    },
+    "windows-build": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937077",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:37:39Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Build Windows package and optional signed updater"
+    },
+    "windows-installer": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937077",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:37:39Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Install, update and restart the exact packaged Windows app"
+    },
+    "windows-isolation": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937077",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:37:39Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify installed standalone isolation with disposable accounts"
+    },
+    "launcher-window": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936186",
+      "environment": "Ubuntu x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:20:52Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify AppImageHub-compatible launch and visible window"
+    },
+    "macos-menu-bar": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094936245",
+      "environment": "macOS 26 arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:23:34Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify Orbit, minimal upgrade notes and packaged close/reopen lifecycle"
+    },
+    "extension-linux-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937228",
+      "environment": "Linux x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:17:27Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Test packaged isolated startup and project account restoration"
+    },
+    "extension-darwin-arm64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937200",
+      "environment": "macOS arm64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:25:07Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Test packaged isolated startup and project account restoration"
+    },
+    "extension-darwin-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937214",
+      "environment": "macOS x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:40:32Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Test packaged isolated startup and project account restoration"
+    },
+    "extension-win32-x64": {
+      "status": "passed",
+      "evidence": "https://github.com/wrestle-R/multi-codex/actions/runs/45873163722/job/140094937077",
+      "environment": "Windows x64",
+      "testedBy": "GitHub Actions native runners",
+      "testedAt": "2026-11-26T18:37:39Z",
+      "testedSource": "3d09556e135abd9bd1c148b0e56b4528cc7bad4f",
+      "scope": "Verify packaged native wrapper startup and account restoration"
+    }
+  },
+  "artifacts": {
+    "Multi.Codex-1.9.2-1.x86_64.rpm": "8053c864286224883ae376c3dd8f0b71d75625dea1183fa7749729d775e9db7f",
+    "Multi.Codex_1.9.2_aarch64.app.tar.gz": "0c281a038fae29e8f27ae33dc238f8fbcf9e69c940a042cfcf477c698e0b81d6",
+    "Multi.Codex_1.9.2_aarch64.app.tar.gz.sig": "b81dc1a61b251e741ea683136fcad5f1eb186a997580afad2fb6d7950e3b180d",
+    "Multi.Codex_1.9.2_aarch64.dmg": "fda1135c592b9722565bd32ceba3ff0a47ef9fc1de26a260d5fafb4d2e94720a",
+    "Multi.Codex_1.9.2_amd64.AppImage": "d46f8b533b64f98c8d8cc2a9ab6ef01281c64333da6901c90518cf5a759e0c2f",
+    "Multi.Codex_1.9.2_amd64.AppImage.sig": "8d8384c1313ab87084b46f3e6fcaa017d18e14f206d9b0bed0d9a570711c2303",
+    "Multi.Codex_1.9.2_amd64.deb": "eec41074f9e9a24432ae3287863c42a11c76366afbd1740aa9c4b76f3dd6335c",
+    "Multi.Codex_1.9.2_x64-setup.exe": "a0b1c063a130261b8e77dfaddb9eb6f3690fdf484a666c9fa13e011549b01a32",
+    "Multi.Codex_1.9.2_x64-setup.exe.sig": "cf48f7d0f1accc6556537d137e30d86b413bf54f6379b8fcab45a7eb900f5e16",
+    "install-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "install-app.sh": "cbe3d9fca478f1add0d169576386b9a43730aed42cdba45488df993f991e90e6",
+    "latest.json": "0f6c1ab991b9fa9ae0142f6dc6371f7760b6246d9dfd1d7b9d7c98be6e9a8079",
+    "multi-codex-darwin-arm64-0.3.1.vsix": "48f5fdd11c6211db093cf92044a812b5fbd00317a102775fd1bc65f33851af06",
+    "multi-codex-darwin-x64-0.3.1.vsix": "dfa39232b34a2dbe815dfee0cc539f2735e3e80881288cfe646dedb4a25d17a0",
+    "multi-codex-linux-x64-0.3.1.vsix": "73ef900926c63f542da371b7c47a57ea5559e4149722e859812632d1c30db48c",
+    "multi-codex-win32-x64-0.3.1.vsix": "a438d2a64b95039d9902f9baf275752b07d2885630f92a462df05d673f0187cd",
+    "update-app.ps1": "f373bafff765e82feda43830ef4d2988ef79e48e2d59f72b06527243ab5b87a2",
+    "update-app.sh": "cbe3d9fca478f1add0d169576386b9a43730aed42cdba45488df993f991e90e6",
+    "Multi.Codex_1.9.2_packages.zip": "7ada3e07efe27169f2cf7f195d46146293136251a477b4053f9c792194a71e82"
+  }
+}
